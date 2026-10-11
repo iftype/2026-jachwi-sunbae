@@ -73,7 +73,7 @@ curl 'http://localhost:8080/api/rental-transactions?legalDongCode=1162010200&pag
   -H "Authorization: Bearer ${ACCESS_TOKEN}"
 ```
 
-자세한 요청·응답 명세와 오류 코드는 서버의 `/swagger-ui/index.html`에서 확인한다. 주택 유형·면적·보증금 조건은 받지 않는다. 이미 적재 단계에서 5~10평의 월세 거래를 선별한다.
+요청·응답 구조는 서버의 `/swagger-ui/index.html`에서 확인한다. 인증에는 접근 토큰이 필요하다. 주택 유형·면적·보증금 조건은 받지 않는다. 이미 적재 단계에서 5~10평의 월세 거래를 선별한다.
 
 - 조회 기간은 요청 시점의 한국 날짜부터 6개월 전까지 양 끝을 포함한다. 계약일이 최근인 순서이며 같은 날짜는 거래 ID 내림차순이다. `hasNext`가 참이면 다음 페이지를 요청한다.
 - `queryStartDate`·`queryEndDate`는 조회 기간, `datasetPeriodStart`·`datasetPeriodEnd`는 수집본에 포함하도록 지정한 계약일 범위다. 수집본의 기간은 실제 거래의 최소·최대 계약일이나 파일 다운로드 기간을 뜻하지 않는다. 정기 갱신 전에는 최신 날짜의 거래가 없을 수 있으므로 수집 시점도 함께 표시한다. 수집 시점은 UTC의 ISO 8601 문자열이다.

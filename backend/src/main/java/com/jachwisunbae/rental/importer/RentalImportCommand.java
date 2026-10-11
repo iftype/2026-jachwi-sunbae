@@ -26,7 +26,7 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.springframework.transaction.support.TransactionTemplate;
 
-// CSV 검증과 보고서 생성을 실행하고 --apply 옵션으로 DB에 적재한다.
+// CSV 검증·선택적 적재를 실행하고 보고서를 저장하는 일회성 도구다.
 public class RentalImportCommand {
     private static final String DATASET_KEY = RentalSnapshot.DATASET_KEY;
     private static final Set<String> OPTIONS = Set.of(
