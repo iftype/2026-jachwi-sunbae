@@ -5,6 +5,7 @@
 | 디렉터리                                                | 책임                                                    |
 | ------------------------------------------------------- | ------------------------------------------------------- |
 | [`guides`](guides/local-development.md)                 | 개발자가 그대로 따라 할 수 있는 실행 절차               |
+| [`design`](design/rental-transactions.md)               | 기능의 데이터 흐름, 호출 관계와 기술적 선택 이유        |
 | [`conventions`](conventions/backend-code-convention.md) | 팀이 반복해서 적용하는 코드·API·예외 규칙과 패키지 구조 |
 | [`operations`](operations/deployment.md)                | 배포, 롤백, 모니터링과 장애 대응 절차                   |
 
@@ -12,6 +13,8 @@
 
 - [로컬 개발](guides/local-development.md)
 - [환경변수](guides/environment-variables.md)
+- [소형 주택 월세 실거래 CSV 적재 및 조회](guides/rental-data-import.md)
+- [소형 주택 월세 거래 설계와 리뷰 안내](design/rental-transactions.md)
 - [백엔드 코드 컨벤션](conventions/backend-code-convention.md)
 - [백엔드 패키지 구조](conventions/backend-package-structure.md)
 - [API 컨벤션](conventions/api-convention.md)
