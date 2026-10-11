@@ -26,6 +26,9 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.springframework.transaction.support.TransactionTemplate;
 
+/**
+ * 명령행에서 CSV 검증과 보고서 생성을 실행하고 --apply 옵션이 있으면 DB에 적재한다.
+ */
 public class RentalImportCommand {
     private static final String DATASET_KEY = RentalSnapshot.DATASET_KEY;
     private static final Set<String> OPTIONS = Set.of(

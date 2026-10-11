@@ -3,6 +3,9 @@ package com.jachwisunbae.rental.domain;
 import java.time.Instant;
 import java.time.LocalDate;
 
+/**
+ * 전체 수집본을 식별할 범위 키, 파일 해시, 계약일 범위와 수집 시각을 보관하고 검증한다.
+ */
 public record RentalSnapshot(
     String datasetKey,
     String transactionSha256,

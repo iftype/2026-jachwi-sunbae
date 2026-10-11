@@ -5,6 +5,9 @@ import com.jachwisunbae.rental.repository.query.RentalTransactionEntry;
 import java.time.LocalDate;
 import java.util.List;
 
+/**
+ * 조회 기간, 수집 정보와 거래 목록을 묶어 전달하고 다음 페이지 여부를 계산한다.
+ */
 public record RentalTransactionPage(
     String legalDongCode,
     String legalDongName,

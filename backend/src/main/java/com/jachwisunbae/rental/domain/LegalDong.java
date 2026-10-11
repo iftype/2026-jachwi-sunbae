@@ -1,5 +1,8 @@
 package com.jachwisunbae.rental.domain;
 
+/**
+ * 거래를 집계할 법정동의 공식 코드와 전체 이름을 보관하고 형식을 검증한다.
+ */
 public record LegalDong(String code, String name) {
     public LegalDong {
         if (!code.matches("[0-9]{10}") || name.isBlank()) {
