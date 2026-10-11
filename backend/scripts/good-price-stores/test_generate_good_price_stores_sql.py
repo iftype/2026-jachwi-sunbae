@@ -1,7 +1,9 @@
 import contextlib
 import io
+import socket
 import tempfile
 import unittest
+import urllib.error
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -131,6 +133,118 @@ class GeocodeResultTest(unittest.TestCase):
 
         with self.assertRaises(RuntimeError):
             build(csv_row(), geocode=broken)
+
+
+TOKEN_ISSUED = {"errCd": 0, "result": {"accessToken": "token-1", "accessTimeout": "1000000"}}
+GEOCODED = {"errCd": 0, "result": {"resultdata": [{"x": "127.1091021", "y": "37.3942055"}]}}
+
+
+class FakeSgis:
+    """경로별로 정해 둔 응답을 차례로 돌려준다. 예외를 넣으면 던진다."""
+
+    def __init__(self, auth=None, geocode=None):
+        self.responses = {"authentication": list(auth or [TOKEN_ISSUED]), "geocodewgs84": list(geocode or [])}
+        self.urls = []
+
+    def __call__(self, url):
+        self.urls.append(url)
+        responses = self.responses["authentication" if "authentication" in url else "geocodewgs84"]
+        response = responses.pop(0) if len(responses) > 1 else responses[0]
+        if isinstance(response, Exception):
+            raise response
+        return response
+
+    def count(self, path):
+        return sum(1 for url in self.urls if path in url)
+
+
+def http_error(code):
+    return urllib.error.HTTPError("https://sgisapi.mods.go.kr", code, "error", {}, None)
+
+
+def geocoder(sgis):
+    return script.SgisGeocoder("key", "secret", request=sgis, clock=lambda: 0, sleep=lambda seconds: None)
+
+
+class SgisGeocoderTest(unittest.TestCase):
+
+    def setUp(self):
+        self.stderr = contextlib.redirect_stderr(io.StringIO())
+        self.stderr.__enter__()
+
+    def tearDown(self):
+        self.stderr.__exit__(None, None, None)
+
+    def test_x는_경도_y는_위도로_변환한다(self):
+        self.assertEqual(("37.3942055", "127.1091021"), geocoder(FakeSgis(geocode=[GEOCODED]))("주소"))
+
+    def test_주소를_찾지_못하면_None을_반환한다(self):
+        self.assertIsNone(geocoder(FakeSgis(geocode=[{"errCd": -100, "errMsg": "검색결과가 존재하지 않습니다"}]))("주소"))
+
+    def test_토큰을_한_번_발급해_재사용한다(self):
+        sgis = FakeSgis(geocode=[GEOCODED])
+        geocode = geocoder(sgis)
+
+        geocode("주소1")
+        geocode("주소2")
+
+        self.assertEqual(1, sgis.count("authentication"))
+        self.assertIn("accessToken=token-1", sgis.urls[-1])
+
+    def test_토큰_만료가_가까우면_다시_발급한다(self):
+        sgis = FakeSgis(geocode=[GEOCODED])
+        now = [0]
+        geocode = script.SgisGeocoder("key", "secret", request=sgis, clock=lambda: now[0], sleep=lambda seconds: None)
+
+        geocode("주소1")
+        now[0] = 1000 - 60  # 만료(1000초) 1분 전
+        geocode("주소2")
+
+        self.assertEqual(2, sgis.count("authentication"))
+
+    def test_SGIS가_토큰을_거부하면_한_번_재발급해_다시_요청한다(self):
+        sgis = FakeSgis(geocode=[{"errCd": -401, "errMsg": "인증 정보가 존재하지 않습니다"}, GEOCODED])
+
+        self.assertEqual(("37.3942055", "127.1091021"), geocoder(sgis)("주소"))
+        self.assertEqual(2, sgis.count("authentication"))
+
+    def test_토큰_발급이_실패하면_전체_작업을_실패시킨다(self):
+        sgis = FakeSgis(auth=[{"errCd": -401, "errMsg": "잘못된 consumer key"}])
+
+        with self.assertRaisesRegex(script.SgisError, "토큰 발급"):
+            geocoder(sgis)("주소")
+
+    def test_HTTP_401이면_재시도하지_않고_전체_작업을_실패시킨다(self):
+        sgis = FakeSgis(auth=[http_error(401)])
+
+        with self.assertRaisesRegex(script.SgisError, "401"):
+            geocoder(sgis)("주소")
+        self.assertEqual(1, sgis.count("authentication"))
+
+    def test_5xx와_timeout은_재시도한다(self):
+        sgis = FakeSgis(geocode=[http_error(503), socket.timeout("timed out"), GEOCODED])
+
+        self.assertEqual(("37.3942055", "127.1091021"), geocoder(sgis)("주소"))
+        self.assertEqual(3, sgis.count("geocodewgs84"))
+
+    def test_재시도를_3회_하고도_실패하면_전체_작업을_실패시킨다(self):
+        sgis = FakeSgis(geocode=[http_error(500)])
+
+        with self.assertRaisesRegex(script.SgisError, "3회"):
+            geocoder(sgis)("주소")
+        self.assertEqual(4, sgis.count("geocodewgs84"))
+
+    def test_알_수_없는_오류_코드는_전체_작업을_실패시킨다(self):
+        sgis = FakeSgis(geocode=[{"errCd": -200, "errMsg": "필수 파라미터 없음"}])
+
+        with self.assertRaisesRegex(script.SgisError, "-200"):
+            geocoder(sgis)("주소")
+
+    def test_SGIS_장애가_나면_적재_대상을_만들지_않는다(self):
+        sgis = FakeSgis(geocode=[GEOCODED, http_error(500)])
+
+        with self.assertRaises(script.SgisError):
+            build(csv_row(), csv_row(업소명="다른식당"), geocode=geocoder(sgis))
 
 
 class SqlTest(unittest.TestCase):
