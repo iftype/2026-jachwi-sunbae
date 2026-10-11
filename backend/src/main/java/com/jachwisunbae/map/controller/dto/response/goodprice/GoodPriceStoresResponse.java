@@ -5,7 +5,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
-// dataAsOf는 공공데이터 기준일이다. 가격이 실시간 정보가 아니라는 것을 표시할 때 쓴다. 조회한 업소가 없으면 null이다.
+// dataAsOf는 공공데이터 기준일이다. 가격이 실시간 정보가 아니라는 것을 표시할 때 쓴다.
 public record GoodPriceStoresResponse(Center center, int radius, int count, LocalDate dataAsOf,
                                       List<GoodPriceStoreResponse> stores) {
 

@@ -5,7 +5,6 @@ import com.jachwisunbae.map.service.dto.result.goodprice.GoodPriceStoreResult;
 import java.math.BigDecimal;
 import java.util.List;
 
-// id는 서비스 DB의 업소 ID라 카카오 장소처럼 provider prefix를 붙이지 않는다. 다시 적재하면 바뀔 수 있다.
 public record GoodPriceStoreResponse(long id, String name, String businessType, String phone, String address,
                                      BigDecimal latitude, BigDecimal longitude, int distanceMeters,
                                      List<GoodPriceMenuResponse> menus) {

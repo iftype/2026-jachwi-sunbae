@@ -227,6 +227,12 @@ class SgisGeocoderTest(unittest.TestCase):
         self.assertEqual(("37.3942055", "127.1091021"), geocoder(sgis)("주소"))
         self.assertEqual(3, sgis.count("geocodewgs84"))
 
+    def test_SGIS_서버_오류는_재시도한다(self):
+        sgis = FakeSgis(geocode=[{"errCd": -1, "errMsg": "서버에서 처리 중 에러가 발생하였습니다."}, GEOCODED])
+
+        self.assertEqual(("37.3942055", "127.1091021"), geocoder(sgis)("주소"))
+        self.assertEqual(2, sgis.count("geocodewgs84"))
+
     def test_재시도를_3회_하고도_실패하면_전체_작업을_실패시킨다(self):
         sgis = FakeSgis(geocode=[http_error(500)])
 
@@ -245,6 +251,127 @@ class SgisGeocoderTest(unittest.TestCase):
 
         with self.assertRaises(script.SgisError):
             build(csv_row(), csv_row(업소명="다른식당"), geocode=geocoder(sgis))
+
+
+class SgisServerErrorTokenTest(unittest.TestCase):
+
+    def test_서버_오류가_계속되면_토큰을_새로_발급해_한_번_더_시도한다(self):
+        server_error = {"errCd": -1, "errMsg": "서버에서 처리 중 에러가 발생하였습니다."}
+        sgis = FakeSgis(geocode=[server_error] * 4 + [GEOCODED])
+
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(("37.3942055", "127.1091021"), geocoder(sgis)("주소"))
+        self.assertEqual(2, sgis.count("authentication"))
+
+    def test_새_토큰으로도_서버_오류가_계속되면_그_주소만_제외한다(self):
+        sgis = FakeSgis(geocode=[{"errCd": -1, "errMsg": "서버에서 처리 중 에러가 발생하였습니다."}])
+
+        with contextlib.redirect_stderr(io.StringIO()):
+            result = build(csv_row(), geocode=geocoder(sgis))
+
+        self.assertEqual([], result.stores)
+        self.assertEqual("sgis server error", result.geocode_failed[0][1])
+        self.assertEqual(8, sgis.count("geocodewgs84"))
+
+
+class CachedGeocoderTest(unittest.TestCase):
+
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.path = Path(self.directory.name) / "cache.jsonl"
+        self.calls = []
+        self.stderr = contextlib.redirect_stderr(io.StringIO())
+        self.stderr.__enter__()
+
+    def tearDown(self):
+        self.stderr.__exit__(None, None, None)
+        self.directory.cleanup()
+
+    def geocode(self, address):
+        self.calls.append(address)
+        return None if address == "없는 주소" else ("37.1", "127.1")
+
+    def test_변환_결과를_기록하고_다시_실행하면_호출하지_않는다(self):
+        script.CachedGeocoder(self.geocode, self.path)("주소")
+        script.CachedGeocoder(self.geocode, self.path)("없는 주소")
+
+        resumed = script.CachedGeocoder(self.geocode, self.path)
+
+        self.assertEqual(("37.1", "127.1"), resumed("주소"))
+        self.assertIsNone(resumed("없는 주소"))
+        self.assertEqual(["주소", "없는 주소"], self.calls)
+
+    def test_서버_오류_주소는_다시_호출하지_않고_파일에도_기록하지_않는다(self):
+        calls = []
+
+        def broken(address):
+            calls.append(address)
+            raise script.SgisAddressError()
+
+        cached = script.CachedGeocoder(broken, self.path)
+        for _ in range(2):
+            with self.assertRaises(script.SgisAddressError):
+                cached("주소")
+
+        self.assertEqual(["주소"], calls)
+        self.assertFalse(self.path.exists())
+
+    def test_장애로_실패한_주소는_기록하지_않는다(self):
+        def broken(address):
+            raise script.SgisError("장애")
+
+        with self.assertRaises(script.SgisError):
+            script.CachedGeocoder(broken, self.path)("주소")
+
+        self.assertEqual(("37.1", "127.1"), script.CachedGeocoder(self.geocode, self.path)("주소"))
+        self.assertEqual(["주소"], self.calls)
+
+
+class GeocodeAllTest(unittest.TestCase):
+
+    def setUp(self):
+        self.stderr = contextlib.redirect_stderr(io.StringIO())
+        self.stderr.__enter__()
+
+    def tearDown(self):
+        self.stderr.__exit__(None, None, None)
+
+    def test_필수_값이_있는_행의_주소를_한_번씩만_변환한다(self):
+        requested = []
+        rows = list(enumerate([csv_row(), csv_row(업소명="같은주소식당"), csv_row(주소="다른 주소"), csv_row(업종="")],
+                              start=2))
+
+        script.geocode_all(rows, lambda address: requested.append(address) or found(address), workers=4)
+
+        self.assertEqual(sorted(["경기도 성남시 분당구 판교역로 1", "다른 주소"]), sorted(requested))
+
+    def test_서버_오류_주소가_있어도_나머지는_변환한다(self):
+        def geocode(address):
+            if address == "오류 주소":
+                raise script.SgisAddressError()
+            return found(address)
+
+        rows = list(enumerate([csv_row(주소="오류 주소"), csv_row(주소="정상 주소")], start=2))
+
+        script.geocode_all(rows, geocode, workers=2)
+
+    def test_서버_오류_주소가_연달아_나오면_장애로_보고_중단한다(self):
+        def broken(address):
+            raise script.SgisAddressError()
+
+        rows = list(enumerate([csv_row(주소="주소" + str(index)) for index in range(10)], start=2))
+
+        with self.assertRaisesRegex(script.SgisError, "연달아"):
+            script.geocode_all(rows, broken, workers=4)
+
+    def test_변환_중_장애가_나면_전체_작업을_중단한다(self):
+        def broken(address):
+            raise script.SgisError("장애")
+
+        rows = list(enumerate([csv_row(주소="주소" + str(index)) for index in range(10)], start=2))
+
+        with self.assertRaises(script.SgisError):
+            script.geocode_all(rows, broken, workers=4)
 
 
 class SqlTest(unittest.TestCase):
@@ -276,6 +403,25 @@ class SqlTest(unittest.TestCase):
             output = Path(directory) / "out.sql"
             script.write_sql(output, stores, batch_size, SOURCE_DATE)
             return output.read_text(encoding="utf-8")
+
+
+class AroundTest(unittest.TestCase):
+
+    def test_기준_좌표_주변_사각형_안의_업소만_포함한다(self):
+        bounds = script.area((Decimal("37.3948"), Decimal("127.1119")), 2500)
+        inside = {"latitude": Decimal("37.4000000"), "longitude": Decimal("127.1100000")}
+        outside = {"latitude": Decimal("37.5665000"), "longitude": Decimal("126.9780000")}
+
+        self.assertTrue(script.contains(bounds, inside))
+        self.assertFalse(script.contains(bounds, outside))
+
+    def test_샘플_지역을_SQL_주석으로_남긴다(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "out.sql"
+            script.write_sql(output, [], 1000, SOURCE_DATE, [(Decimal("37.3948"), Decimal("127.1119"))], 2500)
+            sql = output.read_text(encoding="utf-8")
+
+        self.assertIn("-- 샘플 지역: 37.3948,127.1119 주변 2500m", sql)
 
 
 class SummaryTest(unittest.TestCase):

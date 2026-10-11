@@ -25,9 +25,7 @@ public class GoodPriceStoreController {
     }
 
     @GetMapping
-    @Operation(summary = "주변 착한가격업소 조회",
-            description = "행정안전부 착한가격업소 중 요청 반경 안의 업소를 가까운 순으로 모두 조회합니다. "
-                    + "업종과 메뉴 가격은 공공데이터 원본 문자열이며, dataAsOf는 공공데이터 기준일입니다.")
+    @Operation(summary = "주변 착한가격업소 조회")
     public ApiResponse<GoodPriceStoresResponse> nearby(@RequestParam BigDecimal latitude,
                                                        @RequestParam BigDecimal longitude,
                                                        @RequestParam int radius) {
