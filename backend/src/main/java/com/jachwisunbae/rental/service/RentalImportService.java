@@ -19,14 +19,22 @@ public class RentalImportService {
     }
 
     public boolean importSnapshot(final RentalSnapshot snapshot, final List<RentalTransaction> transactions) {
+        validateNotEmpty(transactions);
+        validateContractDateRange(snapshot, transactions);
+        return Objects.requireNonNull(transactionTemplate.execute(
+            status -> repository.replaceSnapshot(snapshot, transactions)));
+    }
+
+    private void validateNotEmpty(final List<RentalTransaction> transactions) {
         if (transactions.isEmpty()) {
             throw new IllegalArgumentException("빈 수집본으로 기존 거래를 교체할 수 없습니다.");
         }
+    }
+
+    private void validateContractDateRange(final RentalSnapshot snapshot, final List<RentalTransaction> transactions) {
         if (transactions.stream().anyMatch(transaction -> transaction.contractDate().isBefore(snapshot.datasetPeriodStart())
             || transaction.contractDate().isAfter(snapshot.datasetPeriodEnd()))) {
             throw new IllegalArgumentException("거래 계약일이 수집본 기간을 벗어났습니다.");
         }
-        return Objects.requireNonNull(transactionTemplate.execute(
-            status -> repository.replaceSnapshot(snapshot, transactions)));
     }
 }
