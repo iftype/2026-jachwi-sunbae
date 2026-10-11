@@ -40,6 +40,32 @@ class RentalCsvReaderTest {
     }
 
     @Test
+    void rejectsMissingRequiredHeaders() throws Exception {
+        Path path = directory.resolve("transactions.csv");
+        Files.writeString(path, HEADER.replace("housing_type", "unsupported_header") + csvRecord("20", 1),
+            StandardCharsets.UTF_8);
+
+        assertThatThrownBy(() -> new RentalCsvReader().read(path, CATALOG))
+            .isInstanceOf(IllegalArgumentException.class).hasMessage("정제 거래 CSV의 필수 헤더가 누락됐습니다.");
+    }
+
+    @Test
+    void rejectsInconsistentColumnCount() throws Exception {
+        Path path = write("", csvRecord("20", 1).stripTrailing() + ",extra\n");
+
+        assertThatThrownBy(() -> new RentalCsvReader().read(path, CATALOG))
+            .isInstanceOf(IllegalArgumentException.class).hasMessage("CSV 열 수가 일치하지 않습니다: 1");
+    }
+
+    @Test
+    void rejectsHeaderOnlyCsv() throws Exception {
+        Path path = write("", "");
+
+        assertThatThrownBy(() -> new RentalCsvReader().read(path, CATALOG))
+            .isInstanceOf(IllegalArgumentException.class).hasMessage("거래 CSV가 비어 있습니다.");
+    }
+
+    @Test
     void preservesIdenticalContractsWithDifferentSourceRows() throws Exception {
         Path path = write("", csvRecord("20", 1) + csvRecord("20", 2));
 
@@ -63,7 +89,8 @@ class RentalCsvReaderTest {
         Path path = write("", csvRecord("20", 1).replace(",신규,", ",미지원,"));
 
         assertThatThrownBy(() -> new RentalCsvReader().read(path, CATALOG))
-            .isInstanceOf(IllegalArgumentException.class).hasRootCauseMessage("알 수 없는 계약 구분입니다.");
+            .isInstanceOf(IllegalArgumentException.class).hasMessage("CSV 거래 값이 올바르지 않습니다: 행 1")
+            .hasRootCauseMessage("알 수 없는 계약 구분입니다.");
     }
 
     @ParameterizedTest
@@ -113,6 +140,15 @@ class RentalCsvReaderTest {
 
         assertThatThrownBy(() -> new RentalCsvReader().read(path, CATALOG))
             .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("중복");
+    }
+
+    @Test
+    void rejectsRepeatedSourceIdentityBeforeSkippingUnmatchedNames() throws Exception {
+        String unmatchedRecord = csvRecord("20", 1).replace("서울특별시 관악구 신림동", "경기도 관악구 신림동");
+        Path path = write("", unmatchedRecord + unmatchedRecord);
+
+        assertThatThrownBy(() -> new RentalCsvReader().read(path, CATALOG))
+            .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("원본 행 식별자가 중복됐습니다");
     }
 
     @Test

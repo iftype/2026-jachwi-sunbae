@@ -34,53 +34,82 @@ public class RentalCsvReader {
     );
 
     public Result read(final Path path, final LegalDongCatalog catalog) throws IOException {
+        CSVFormat format = CSVFormat.RFC4180.builder().setHeader().setSkipHeaderRecord(true)
+            .setDuplicateHeaderMode(DuplicateHeaderMode.DISALLOW).get();
+        try (PushbackReader reader = new PushbackReader(Files.newBufferedReader(path, StandardCharsets.UTF_8))) {
+            skipBom(reader);
+            try (CSVParser parser = format.parse(reader)) {
+                validateHeaders(parser);
+                return readRecords(parser, catalog);
+            }
+        }
+    }
+
+    private void skipBom(final PushbackReader reader) throws IOException {
+        int first = reader.read();
+        if (first != -1 && first != '\uFEFF') {
+            reader.unread(first);
+        }
+    }
+
+    private void validateHeaders(final CSVParser parser) {
+        if (!parser.getHeaderMap().keySet().containsAll(REQUIRED)) {
+            throw new IllegalArgumentException("정제 거래 CSV의 필수 헤더가 누락됐습니다.");
+        }
+    }
+
+    private Result readRecords(final CSVParser parser, final LegalDongCatalog catalog) {
         List<RentalTransaction> transactions = new ArrayList<>();
         Map<String, Integer> unmatched = new TreeMap<>();
         Set<SourceRow> identities = new HashSet<>();
         int totalRows = 0;
-        CSVFormat format = CSVFormat.RFC4180.builder().setHeader().setSkipHeaderRecord(true)
-            .setDuplicateHeaderMode(DuplicateHeaderMode.DISALLOW).get();
-        try (PushbackReader reader = new PushbackReader(Files.newBufferedReader(path, StandardCharsets.UTF_8))) {
-            int first = reader.read();
-            if (first != -1 && first != '\uFEFF') {
-                reader.unread(first);
+        for (CSVRecord csvRecord : parser) {
+            totalRows++;
+            validateColumnCount(csvRecord);
+            String legalDongName = LegalDongCatalog.normalizeName(csvRecord.get("legal_dong"));
+            validateUniqueSourceRow(csvRecord, identities);
+            String legalDongCode = catalog.findCode(legalDongName).orElse(null);
+            if (legalDongCode == null) {
+                unmatched.merge(legalDongName, 1, Integer::sum);
+                continue;
             }
-            try (CSVParser parser = format.parse(reader)) {
-                if (!parser.getHeaderMap().keySet().containsAll(REQUIRED)) {
-                    throw new IllegalArgumentException("정제 거래 CSV의 필수 헤더가 누락됐습니다.");
-                }
-                for (CSVRecord csvRecord : parser) {
-                    totalRows++;
-                    if (!csvRecord.isConsistent()) {
-                        throw new IllegalArgumentException("CSV 열 수가 일치하지 않습니다: " + csvRecord.getRecordNumber());
-                    }
-                    String legalDongName = LegalDongCatalog.normalizeName(csvRecord.get("legal_dong"));
-                    SourceRow identity = new SourceRow(
-                        csvRecord.get("source_file"), Long.parseLong(csvRecord.get("source_row_number")));
-                    if (!identities.add(identity)) {
-                        throw new IllegalArgumentException("원본 행 식별자가 중복됐습니다: " + identity);
-                    }
-                    String legalDongCode = catalog.findCode(legalDongName).orElse(null);
-                    if (legalDongCode == null) {
-                        unmatched.merge(legalDongName, 1, Integer::sum);
-                        continue;
-                    }
-                    try {
-                        transactions.add(parse(csvRecord, legalDongCode, legalDongName));
-                    } catch (IllegalArgumentException | ArithmeticException exception) {
-                        throw new IllegalArgumentException("CSV 거래 값이 올바르지 않습니다: 행 "
-                            + csvRecord.getRecordNumber(), exception);
-                    }
-                }
-            }
+            transactions.add(parse(csvRecord, legalDongCode, legalDongName));
         }
-        if (totalRows == 0) {
-            throw new IllegalArgumentException("거래 CSV가 비어 있습니다.");
-        }
+        validateNotEmpty(totalRows);
         return new Result(transactions, unmatched, totalRows);
     }
 
+    private void validateColumnCount(final CSVRecord csvRecord) {
+        if (!csvRecord.isConsistent()) {
+            throw new IllegalArgumentException("CSV 열 수가 일치하지 않습니다: " + csvRecord.getRecordNumber());
+        }
+    }
+
+    private void validateUniqueSourceRow(final CSVRecord csvRecord, final Set<SourceRow> identities) {
+        SourceRow identity = new SourceRow(csvRecord.get("source_file"), Long.parseLong(csvRecord.get("source_row_number")));
+        if (!identities.add(identity)) {
+            throw new IllegalArgumentException("원본 행 식별자가 중복됐습니다: " + identity);
+        }
+    }
+
+    private void validateNotEmpty(final int totalRows) {
+        if (totalRows == 0) {
+            throw new IllegalArgumentException("거래 CSV가 비어 있습니다.");
+        }
+    }
+
     private RentalTransaction parse(
+        final CSVRecord csvRecord, final String legalDongCode, final String legalDongName
+    ) {
+        try {
+            return createTransaction(csvRecord, legalDongCode, legalDongName);
+        } catch (IllegalArgumentException | ArithmeticException exception) {
+            throw new IllegalArgumentException("CSV 거래 값이 올바르지 않습니다: 행 "
+                + csvRecord.getRecordNumber(), exception);
+        }
+    }
+
+    private RentalTransaction createTransaction(
         final CSVRecord csvRecord, final String legalDongCode, final String legalDongName
     ) {
         HousingType housingType = HousingType.fromSourceValue(csvRecord.get("housing_type"));
