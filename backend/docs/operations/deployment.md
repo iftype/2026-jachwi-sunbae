@@ -229,6 +229,7 @@ MVP1 첫 dev 배포에서는 다음을 확인한다.
 
 3. Vault에 dev DB·JWT·CORS·지도 공급자 인증 정보·S3 접두사를 준비한다. 정적 AWS 키는 두지 않는다.
 4. `bus_stops` 테이블과 전국 정류장 데이터, 앱 DB 계정의 조회 권한을 확인한다. 준비되지 않았다면 [버스정류장 데이터 적재](#버스정류장-데이터-적재)를 애플리케이션 배포 전에 완료한다.
+   `good_price_stores` 테이블과 착한가격업소 데이터도 같은 방식으로 확인한다. 준비되지 않았다면 [착한가격업소 데이터 적재](#착한가격업소-데이터-적재)를 애플리케이션 배포 전에 완료한다.
 5. 프론트 dev Commands에 `API_BASE_URL=https://dev-api.jachwi-sunbae.kr`, `MAP_PROVIDER_MODE`, 지도 공급자 공개 키, 운영과 같은 `POSTHOG_PROJECT_TOKEN`, `POSTHOG_HOST=https://us.i.posthog.com`을 설정한다. PostHog는 `environment=development`로 구분한다.
 
 ### 버스정류장 데이터 적재
@@ -271,6 +272,40 @@ MVP1 첫 dev 배포에서는 다음을 확인한다.
 7. 새 버전의 동작을 확인한 뒤, 해당 환경의 Vault `app_env`에서 더 이상 쓰지 않는 `BUS_STOP_PROVIDER`, `DATA_GO_KR_SERVICE_KEY` 두 줄을 삭제하고 다른 설정은 유지한다. [Vault 환경변수 관리](#5-vault-환경변수-관리)에 따라 `fetch_env.sh dev` 또는 `fetch_env.sh prod`로 내려받고 성공했을 때 재시작한다. 서비스 중인 인스턴스별로 적용과 정상 동작을 확인한다. 서버의 `/etc/jachwi-sunbae/app.env`만 직접 수정하면 다음 배포에서 Vault 값으로 덮어써진다.
 
 데이터만 갱신할 때는 백업을 확인한 뒤 테이블 생성은 건너뛰고 3~5번을 진행한다. 데이터 갱신 자체에는 애플리케이션 재시작이 필요 없다. 적재한 스냅샷이 바뀌면 위 표도 함께 고친다.
+
+### 착한가격업소 데이터 적재
+
+| 항목                   | 기준                                                              |
+| ---------------------- | ----------------------------------------------------------------- |
+| 스냅샷                 | `행정안전부_착한가격업소 현황_20260630.csv` (기준일 `2026-06-30`) |
+| 원본 행 / 예상 적재 행 | 12,645 / 12,556 (주소를 찾지 못함 88행, SGIS 서버 오류 1행 제외)  |
+| 갱신 주기              | 약 3개월마다 공개. 새 스냅샷이 공개되면 같은 절차로 다시 적재한다 |
+
+애플리케이션은 `good_price_stores`를 조회만 한다. 테이블이 없으면 착한가격업소 조회가 실패하므로 **애플리케이션 배포 전에 테이블 생성과 데이터 적재를 완료한다.**
+절차는 [버스정류장 데이터 적재](#버스정류장-데이터-적재)와 같고, 다른 점은 다음과 같다.
+
+- 2번에서는 `good_price_stores`의 `CREATE TABLE` 문만 실행한다.
+- 3번의 적재 SQL은 주소를 SGIS로 좌표 변환하면서 만든다. 기본 4개 요청을 동시에 보내 (`--workers`) 전체 실행에 약 15분이 걸린다. SGIS 키는 애플리케이션과 같은 `SGIS_CONSUMER_KEY`, `SGIS_CONSUMER_SECRET` 환경변수로 전달한다.
+  출력의 summary에서 생성 행 수와 제외 이유를 확인한다. 제외된 행은 stderr의 `WARN` 로그로 확인한다.
+
+  ```bash
+  export SGIS_CONSUMER_KEY=... SGIS_CONSUMER_SECRET=...
+  python3 backend/scripts/good-price-stores/generate_good_price_stores_sql.py "<CSV 경로>" \
+    --source-date 2026-06-30 --output /tmp/good-price-stores.sql 2> /tmp/good-price-stores-warn.log
+  ```
+
+  SGIS 인증 실패나 재시도 후에도 계속되는 장애가 나면 SQL을 만들지 않고 중단한다. 변환 결과는 `<output>.geocode-cache.jsonl`에 바로 기록되므로, 원인을 확인한 뒤 같은 명령으로 다시 실행하면 이어서 변환한다. 새 스냅샷을 적재할 때는 이전 캐시 파일을 지우고 실행한다.
+
+- 5번에서는 적재 행 수와 기준일을 확인한다. 위 스냅샷은 `total_count`가 예상 적재 행과 같고 `source_date`가 `2026-06-30` 하나여야 한다.
+
+  ```sql
+  SELECT COUNT(*) AS total_count, MIN(source_date), MAX(source_date)
+  FROM good_price_stores;
+  ```
+
+- 6번에서는 `GET /api/maps/good-price-stores`를 500m·1km·2km 반경으로 요청해 결과와 `dataAsOf`를 확인한다.
+
+<!-- TODO: 착한가격업소 공공데이터 자동 갱신 (Scheduler). 파일데이터라 다운로드 경로가 고정되어 있지 않아 지금은 수동으로 적재한다. -->
 
 ## 8. 배포 확인과 로그
 
