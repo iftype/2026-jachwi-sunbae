@@ -3,9 +3,7 @@ package com.jachwisunbae.rental.domain;
 import java.time.LocalDate;
 import java.util.Objects;
 
-/**
- * 월세 실거래 한 건을 구성하고 주택 유형과 면적 기준의 조합을 검증한다.
- */
+// 월세 실거래 한 건을 구성하고 주택 유형과 면적 기준 등을 검증한다.
 public record RentalTransaction(
     LegalDong legalDong,
     HousingType housingType,

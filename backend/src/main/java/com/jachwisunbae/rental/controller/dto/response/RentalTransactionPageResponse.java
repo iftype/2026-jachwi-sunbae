@@ -6,9 +6,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 
-/**
- * 거래 페이지를 법정동 이름, 조회·수집 기간과 참고 정보 표시명이 포함된 API 응답으로 변환한다.
- */
+// 거래 페이지를 법정동·기간·참고 정보 표시명을 포함한 API 응답으로 변환한다.
 public record RentalTransactionPageResponse(
     String legalDongCode,
     @Schema(description = "집계 법정동 전체 이름. 보관된 법정동 정보가 없으면 null", nullable = true) String legalDongName,

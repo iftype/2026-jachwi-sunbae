@@ -25,9 +25,7 @@ import java.util.stream.Collectors;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-/**
- * 수집본 잠금 조회와 거래 저장·삭제·조회를 수행하고 DB 행을 도메인 객체로 변환한다.
- */
+// 수집본 잠금과 거래 저장·삭제·조회 및 DB 행 변환을 수행한다.
 @Repository
 public class JdbcRentalTransactionRepository {
     private final JdbcTemplate jdbcTemplate;

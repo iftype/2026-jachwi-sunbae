@@ -26,9 +26,7 @@ import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.csv.DuplicateHeaderMode;
 
-/**
- * 정제 CSV를 검증하고 법정동이 매핑된 거래와 미매핑 법정동 집계를 반환한다.
- */
+// 정제 CSV를 검증하고 거래 변환과 법정동 매핑을 수행한다.
 public class RentalCsvReader {
     private static final Set<String> REQUIRED = Set.of(
         "legal_dong", "housing_type", "deposit_10k_krw", "monthly_rent_10k_krw", "area_m2",
@@ -128,15 +126,11 @@ public class RentalCsvReader {
             new RentalSource(csvRecord.get("source_file"), Long.parseLong(csvRecord.get("source_row_number"))));
     }
 
-    /**
-     * 같은 원본 행이 CSV에 중복 포함됐는지 확인할 식별값이다.
-     */
+    // 원본 파일과 행 번호로 중복 거래를 식별한다.
     private record SourceRow(String sourceFile, long sourceRowNumber) {
     }
 
-    /**
-     * 변환한 거래, 미매핑 법정동별 건수와 전체 입력 행 수를 전달한다.
-     */
+    // 변환한 거래, 미매핑 법정동 집계와 전체 입력 건수를 전달한다.
     public record Result(List<RentalTransaction> transactions, Map<String, Integer> unmatched, int totalRows) {
         public Result {
             transactions = List.copyOf(transactions);

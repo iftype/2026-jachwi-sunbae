@@ -8,9 +8,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-/**
- * 거래 한 건을 원본 추적 정보 없이 금액·면적·계약일·유형을 담은 API 응답으로 변환한다.
- */
+// 거래 한 건을 금액·면적·계약일·유형을 담은 API 응답으로 변환한다.
 @Schema(description = "원룸 여부를 확인할 수 없는 소형 주택 월세 거래 참고 사례")
 public record RentalTransactionResponse(
     @Schema(description = "거래 식별자. 수집본 교체 시 변경될 수 있음") long rentalTransactionId,

@@ -3,9 +3,7 @@ package com.jachwisunbae.rental.domain;
 import java.util.Arrays;
 import java.util.Set;
 
-/**
- * 신규·갱신·미상 계약을 구분하고 CSV의 원본 계약 구분을 enum으로 변환한다.
- */
+// 신규·갱신·미상 계약을 구분한다.
 public enum ContractType {
     NEW("신규"),
     RENEWAL("갱신"),

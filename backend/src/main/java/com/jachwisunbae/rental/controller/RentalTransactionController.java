@@ -16,9 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * 인증된 사용자의 법정동별 월세 거래 조회 요청을 받아 API 응답으로 변환한다.
- */
+// 인증된 사용자의 법정동별 월세 거래 조회 요청을 처리한다.
 @RestController
 @RequestMapping("/api/rental-transactions")
 @Tag(name = "Rental transactions", description = "법정동별 소형 주택 월세 거래 참고 정보")

@@ -8,9 +8,7 @@ import java.util.Objects;
 import java.util.Optional;
 import org.springframework.transaction.support.TransactionTemplate;
 
-/**
- * 수집본 입력을 검증하고 전체 교체를 하나의 트랜잭션으로 실행한다.
- */
+// 수집본 검증과 전체 교체를 하나의 트랜잭션으로 실행한다.
 public class RentalImportService {
     private final JdbcRentalTransactionRepository repository;
     private final TransactionTemplate transactionTemplate;

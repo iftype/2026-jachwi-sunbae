@@ -16,9 +16,7 @@ import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.csv.DuplicateHeaderMode;
 
-/**
- * 공식 코드 자료에서 현재 존재하는 법정동을 읽어 전체 이름으로 코드를 찾는다.
- */
+// 공식 자료의 현재 법정동 전체 이름을 코드에 매핑한다.
 public record LegalDongCatalog(Map<String, String> codesByName) {
     public LegalDongCatalog {
         codesByName = Map.copyOf(codesByName);

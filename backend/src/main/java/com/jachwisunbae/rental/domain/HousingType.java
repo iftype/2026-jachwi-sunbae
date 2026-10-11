@@ -2,9 +2,7 @@ package com.jachwisunbae.rental.domain;
 
 import java.util.Arrays;
 
-/**
- * 지원하는 주택 유형을 정의하고 CSV의 원본 유형을 enum으로 변환한다.
- */
+// 지원하는 주택 유형을 구분한다.
 public enum HousingType {
     ROWHOUSE("연립다세대"),
     DETACHED("단독다가구"),

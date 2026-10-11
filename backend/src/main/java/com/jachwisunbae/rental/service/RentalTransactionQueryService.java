@@ -13,9 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * 조회 조건을 검증하고 법정동의 최근 6개월 거래와 수집 정보를 페이지로 반환한다.
- */
+// 법정동의 최근 6개월 거래와 수집 정보를 페이지로 조회한다.
 @Service
 public class RentalTransactionQueryService {
     private static final ZoneId KOREA = ZoneId.of("Asia/Seoul");

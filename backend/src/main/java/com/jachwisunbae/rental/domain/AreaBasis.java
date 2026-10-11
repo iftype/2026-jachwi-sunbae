@@ -2,9 +2,7 @@ package com.jachwisunbae.rental.domain;
 
 import java.util.Arrays;
 
-/**
- * 전용면적과 계약면적을 구분하고 CSV의 원본 면적 기준을 enum으로 변환한다.
- */
+// 전용·계약면적을 구분한다.
 public enum AreaBasis {
     EXCLUSIVE("exclusive"),
     CONTRACT("contract");
