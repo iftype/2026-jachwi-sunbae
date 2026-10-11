@@ -9,16 +9,21 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 // 거래 한 건을 금액·면적·계약일·유형을 담은 API 응답으로 변환한다.
-@Schema(description = "원룸 여부를 확인할 수 없는 소형 주택 월세 거래 참고 사례")
 public record RentalTransactionResponse(
-    @Schema(description = "거래 식별자. 수집본 교체 시 변경될 수 있음") long rentalTransactionId,
+    @Schema(description = "수집본 교체 시 변경될 수 있는 거래 ID")
+    long rentalTransactionId,
+    @Schema(description = "ROWHOUSE: 연립·다세대, DETACHED: 단독·다가구, OFFICETEL: 오피스텔")
     HousingType housingType,
-    @Schema(description = "보증금, 원 단위", example = "5000000") long depositAmountKrw,
-    @Schema(description = "월세, 원 단위. 관리비 정보는 제공되지 않음", example = "450000") long monthlyRentAmountKrw,
-    @Schema(description = "면적, 제곱미터 단위", example = "20.5000") BigDecimal areaM2,
-    @Schema(description = "EXCLUSIVE: 전용면적, CONTRACT: 단독·다가구 계약면적") AreaBasis areaBasis,
+    long depositAmountKrw,
+    @Schema(description = "원 단위 월세, 관리비 정보 미제공")
+    long monthlyRentAmountKrw,
+    @Schema(description = "제곱미터 면적")
+    BigDecimal areaM2,
+    @Schema(description = "EXCLUSIVE: 전용면적, CONTRACT: 단독·다가구 계약면적")
+    AreaBasis areaBasis,
     LocalDate contractDate,
-    @Schema(description = "NEW: 신규, RENEWAL: 갱신, UNKNOWN: 미상") ContractType contractType
+    @Schema(description = "NEW: 신규, RENEWAL: 갱신, UNKNOWN: 미상")
+    ContractType contractType
 ) {
     public static RentalTransactionResponse from(final RentalTransactionEntry entry) {
         var transaction = entry.transaction();

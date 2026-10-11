@@ -9,13 +9,19 @@ import java.util.List;
 // 거래 페이지를 법정동·기간·참고 정보 표시명을 포함한 API 응답으로 변환한다.
 public record RentalTransactionPageResponse(
     String legalDongCode,
-    @Schema(description = "집계 법정동 전체 이름. 보관된 법정동 정보가 없으면 null", nullable = true) String legalDongName,
-    @Schema(example = "소형 주택 월세 참고 정보") String referenceLabel,
-    @Schema(description = "한국 날짜 기준 최근 6개월 조회 시작일, 포함") LocalDate queryStartDate,
-    @Schema(description = "한국 날짜 기준 조회 마지막 날짜, 포함") LocalDate queryEndDate,
-    @Schema(description = "수집본에 포함하도록 지정한 계약일 범위의 시작일, 포함. 아직 적재되지 않았으면 null", nullable = true) LocalDate datasetPeriodStart,
-    @Schema(description = "수집본에 포함하도록 지정한 계약일 범위의 종료일, 포함. 최근 신고가 덜 반영될 수 있음", nullable = true) LocalDate datasetPeriodEnd,
-    @Schema(description = "원본 수집 시점, UTC. 아직 적재되지 않았으면 null", nullable = true) Instant collectedAt,
+    @Schema(description = "법정동 전체 이름, 미수집 시 null", nullable = true)
+    String legalDongName,
+    String referenceLabel,
+    @Schema(description = "최근 6개월 조회 시작일(한국 날짜, 포함)")
+    LocalDate queryStartDate,
+    @Schema(description = "조회 종료일(포함)")
+    LocalDate queryEndDate,
+    @Schema(description = "수집본 계약일 범위 시작일(포함), 미적재 시 null", nullable = true)
+    LocalDate datasetPeriodStart,
+    @Schema(description = "수집본 계약일 범위 종료일(포함), 미적재 시 null", nullable = true)
+    LocalDate datasetPeriodEnd,
+    @Schema(description = "원본 수집 시각(UTC), 미적재 시 null", nullable = true)
+    Instant collectedAt,
     List<RentalTransactionResponse> items,
     int page,
     int size,
