@@ -2,6 +2,10 @@ package com.jachwisunbae.rental.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
 
 import com.jachwisunbae.rental.domain.AreaBasis;
 import com.jachwisunbae.rental.domain.ContractType;
@@ -16,9 +20,11 @@ import com.jachwisunbae.rental.repository.JdbcRentalTransactionRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.stream.LongStream;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -156,6 +162,53 @@ class RentalImportServiceIntegrationTest {
     }
 
     @Test
+    void failedLaterBatchRollsBackTransactionsLegalDongsAndMetadata() {
+        service.importSnapshot(snapshot("a"), List.of(transaction(9999)));
+        var previousTransactions = jdbc.queryForList("SELECT * FROM rental_transactions ORDER BY id");
+        var previousLegalDongs = jdbc.queryForList("SELECT * FROM legal_dongs ORDER BY code");
+        var previousDataset = jdbc.queryForMap("SELECT * FROM rental_datasets");
+        LegalDong renamedDong = new LegalDong("1162010200", "서울특별시 관악구 신림동 수정");
+        LegalDong addedDong = new LegalDong("1111010100", "서울특별시 종로구 청운동");
+        List<RentalTransaction> transactions = new ArrayList<>(LongStream.rangeClosed(1, 1000)
+            .mapToObj(sourceRow -> transaction(sourceRow, ContractType.NEW, renamedDong)).toList());
+        RentalTransaction duplicatedTransaction = transaction(1001, ContractType.NEW, addedDong);
+        transactions.add(duplicatedTransaction);
+        transactions.add(duplicatedTransaction);
+
+        assertThatThrownBy(() -> service.importSnapshot(snapshot("b"), transactions))
+            .isInstanceOf(DuplicateKeyException.class);
+
+        assertThat(jdbc.queryForList("SELECT * FROM rental_transactions ORDER BY id"))
+            .isEqualTo(previousTransactions);
+        assertThat(jdbc.queryForList("SELECT * FROM legal_dongs ORDER BY code")).isEqualTo(previousLegalDongs);
+        assertThat(jdbc.queryForMap("SELECT * FROM rental_datasets")).isEqualTo(previousDataset);
+    }
+
+    @Test
+    void failureAfterMetadataUpdateRollsBackEntireReplacement() {
+        service.importSnapshot(snapshot("a"), List.of(transaction(1)));
+        var previousTransactions = jdbc.queryForList("SELECT * FROM rental_transactions ORDER BY id");
+        var previousDataset = jdbc.queryForMap("SELECT * FROM rental_datasets");
+        JdbcRentalTransactionRepository failingRepository = spy(repository);
+        doAnswer(invocation -> {
+            invocation.callRealMethod();
+            assertThat(jdbc.queryForObject("SELECT transaction_sha256 FROM rental_datasets", String.class))
+                .isEqualTo("b".repeat(64));
+            assertThat(repository.findByLegalDongCode("1162010200", FROM, TO, 20)).containsExactly(transaction(2));
+            throw new IllegalStateException("수집본 갱신 후 강제 실패");
+        }).when(failingRepository).updateSnapshot(any(RentalSnapshot.class), anyInt());
+        RentalImportService failingService = new RentalImportService(failingRepository,
+            new TransactionTemplate(new DataSourceTransactionManager(jdbc.getDataSource())));
+
+        assertThatThrownBy(() -> failingService.importSnapshot(snapshot("b"), List.of(transaction(2))))
+            .isInstanceOf(IllegalStateException.class).hasMessage("수집본 갱신 후 강제 실패");
+
+        assertThat(jdbc.queryForList("SELECT * FROM rental_transactions ORDER BY id"))
+            .isEqualTo(previousTransactions);
+        assertThat(jdbc.queryForMap("SELECT * FROM rental_datasets")).isEqualTo(previousDataset);
+    }
+
+    @Test
     void failedFirstImportRollsBackDatasetAndLegalDongs() {
         assertThatThrownBy(() -> service.importSnapshot(snapshot("a"), List.of(transaction(1), transaction(1))))
             .isInstanceOf(DuplicateKeyException.class);
@@ -223,7 +276,13 @@ class RentalImportServiceIntegrationTest {
     }
 
     private RentalTransaction transaction(final long sourceRow, final ContractType contractType) {
-        return new RentalTransaction(new LegalDong("1162010200", "서울특별시 관악구 신림동"), HousingType.ROWHOUSE,
+        return transaction(sourceRow, contractType, new LegalDong("1162010200", "서울특별시 관악구 신림동"));
+    }
+
+    private RentalTransaction transaction(
+        final long sourceRow, final ContractType contractType, final LegalDong legalDong
+    ) {
+        return new RentalTransaction(legalDong, HousingType.ROWHOUSE,
             new RentalPrice(5000000, 450000), new RentalArea(new BigDecimal("20.1234"), AreaBasis.EXCLUSIVE), TO.minusDays(1),
             contractType, "신림빌라", "3", "202610~202810", new RentalSource("raw/source.csv", sourceRow));
     }
