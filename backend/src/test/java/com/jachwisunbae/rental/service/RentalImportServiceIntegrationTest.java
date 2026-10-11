@@ -91,6 +91,31 @@ class RentalImportServiceIntegrationTest {
             .extracting(transaction -> transaction.source().sourceRowNumber()).containsExactly(3L);
     }
 
+    @Test
+    void changedCollectionTimeReplacesSnapshotEvenWhenHashesAreIdentical() {
+        service.importSnapshot(snapshot("a"), List.of(transaction(1)));
+        RentalSnapshot latest = new RentalSnapshot("seoul-eastern-gyeonggi", "a".repeat(64), "c".repeat(64),
+            FROM, TO, Instant.parse("2026-10-09T13:37:25Z"));
+
+        boolean changed = service.importSnapshot(latest, List.of(transaction(2)));
+
+        assertThat(changed).isTrue();
+        assertThat(repository.findDatasetInfo().orElseThrow().collectedAt()).isEqualTo(latest.collectedAt());
+        assertThat(repository.findByLegalDongCode("1162010200", FROM, TO, 20)).containsExactly(transaction(2));
+    }
+
+    @Test
+    void rejectsRepeatedSnapshotWhenStoredTransactionCountIsDifferent() {
+        List<RentalTransaction> transactions = List.of(transaction(1), transaction(2));
+        service.importSnapshot(snapshot("a"), transactions);
+        jdbc.update("DELETE FROM rental_transactions WHERE source_row_number = ?", 2);
+
+        assertThatThrownBy(() -> service.importSnapshot(snapshot("a"), transactions))
+            .isInstanceOf(IllegalStateException.class).hasMessage("동일 수집본의 DB 거래 건수가 일치하지 않습니다.");
+
+        assertThat(repository.findByLegalDongCode("1162010200", FROM, TO, 20)).containsExactly(transaction(1));
+    }
+
     @ParameterizedTest
     @EnumSource(ContractType.class)
     void preservesContractTypeWhenSavingAndRestoringTransactions(final ContractType contractType) {
@@ -128,6 +153,16 @@ class RentalImportServiceIntegrationTest {
             .isEqualTo("a".repeat(64));
         assertThat(repository.findByLegalDongCode("1162010200", FROM, TO, 20))
             .extracting(transaction -> transaction.source().sourceRowNumber()).containsExactly(1L);
+    }
+
+    @Test
+    void failedFirstImportRollsBackDatasetAndLegalDongs() {
+        assertThatThrownBy(() -> service.importSnapshot(snapshot("a"), List.of(transaction(1), transaction(1))))
+            .isInstanceOf(DuplicateKeyException.class);
+
+        assertThat(count()).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM rental_datasets", Long.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM legal_dongs", Long.class)).isZero();
     }
 
     @Test

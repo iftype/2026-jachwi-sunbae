@@ -33,35 +33,28 @@ public class JdbcRentalTransactionRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public boolean replaceSnapshot(final RentalSnapshot snapshot, final List<RentalTransaction> transactions) {
+    public void createDatasetIfAbsent(final String datasetKey) {
         jdbcTemplate.update("""
             INSERT INTO rental_datasets (dataset_key) VALUES (?)
             ON DUPLICATE KEY UPDATE dataset_key = dataset_key
-            """, snapshot.datasetKey());
-        Boolean unchanged = jdbcTemplate.queryForObject(
-            "SELECT * FROM rental_datasets WHERE dataset_key = ? FOR UPDATE", (rs, index) -> {
-                Timestamp collectedAt = rs.getTimestamp("collected_at");
-                if (collectedAt != null && collectedAt.toInstant().isAfter(snapshot.collectedAt())) {
-                    throw new IllegalArgumentException("이전 시점의 수집본으로 최신 거래를 교체할 수 없습니다.");
-                }
-                return Objects.equals(rs.getString("transaction_sha256"), snapshot.transactionSha256())
-                    && Objects.equals(rs.getString("legal_dong_sha256"), snapshot.legalDongSha256())
-                    && Objects.equals(rs.getDate("contract_from"), java.sql.Date.valueOf(snapshot.datasetPeriodStart()))
-                    && Objects.equals(rs.getDate("contract_to"), java.sql.Date.valueOf(snapshot.datasetPeriodEnd()))
-                    && Objects.equals(collectedAt, Timestamp.from(snapshot.collectedAt()));
-            },
-            snapshot.datasetKey());
-        if (Boolean.TRUE.equals(unchanged)) {
-            Long count = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM rental_transactions WHERE dataset_key = ?", Long.class, snapshot.datasetKey());
-            if (count == null || count != transactions.size()) {
-                throw new IllegalStateException("동일 수집본의 DB 거래 건수가 일치하지 않습니다.");
-            }
-            return false;
-        }
-        Map<String, String> legalDongNamesByCode = transactions.stream().collect(Collectors.toMap(
-            transaction -> transaction.legalDong().code(),
-            transaction -> transaction.legalDong().name(), (first, second) -> first));
+            """, datasetKey);
+    }
+
+    public Optional<RentalSnapshot> findSnapshotForUpdate(final String datasetKey) {
+        return Optional.ofNullable(jdbcTemplate.queryForObject("""
+            SELECT dataset_key, transaction_sha256, legal_dong_sha256, contract_from, contract_to, collected_at
+            FROM rental_datasets WHERE dataset_key = ? FOR UPDATE
+            """, (rs, index) -> restoreSnapshot(rs), datasetKey));
+    }
+
+    public long countByDatasetKey(final String datasetKey) {
+        return Objects.requireNonNull(jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM rental_transactions WHERE dataset_key = ?", Long.class, datasetKey));
+    }
+
+    public void upsertLegalDongs(final List<LegalDong> legalDongs) {
+        Map<String, String> legalDongNamesByCode = legalDongs.stream().collect(Collectors.toMap(
+            LegalDong::code, LegalDong::name, (first, second) -> first));
         jdbcTemplate.batchUpdate("""
             INSERT INTO legal_dongs (code, name) VALUES (?, ?)
             ON DUPLICATE KEY UPDATE name = VALUES(name)
@@ -69,7 +62,13 @@ public class JdbcRentalTransactionRepository {
                 statement.setString(1, entry.getKey());
                 statement.setString(2, entry.getValue());
             });
-        jdbcTemplate.update("DELETE FROM rental_transactions WHERE dataset_key = ?", snapshot.datasetKey());
+    }
+
+    public void deleteByDatasetKey(final String datasetKey) {
+        jdbcTemplate.update("DELETE FROM rental_transactions WHERE dataset_key = ?", datasetKey);
+    }
+
+    public void saveAll(final String datasetKey, final List<RentalTransaction> transactions) {
         jdbcTemplate.batchUpdate("""
             INSERT INTO rental_transactions
                 (dataset_key, legal_dong_code, housing_type, deposit_amount_krw, monthly_rent_amount_krw,
@@ -77,7 +76,7 @@ public class JdbcRentalTransactionRepository {
                  contract_period, source_file, source_row_number)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, transactions, 1000, (statement, transaction) -> {
-                statement.setString(1, snapshot.datasetKey());
+                statement.setString(1, datasetKey);
                 statement.setString(2, transaction.legalDong().code());
                 statement.setString(3, transaction.housingType().name());
                 statement.setLong(4, transaction.price().depositAmountKrw());
@@ -92,13 +91,15 @@ public class JdbcRentalTransactionRepository {
                 statement.setString(13, transaction.source().sourceFile());
                 statement.setLong(14, transaction.source().sourceRowNumber());
             });
+    }
+
+    public void updateSnapshot(final RentalSnapshot snapshot, final int transactionCount) {
         jdbcTemplate.update("""
             UPDATE rental_datasets SET transaction_sha256 = ?, legal_dong_sha256 = ?,
                 contract_from = ?, contract_to = ?, collected_at = ?, imported_at = UTC_TIMESTAMP(6), row_count = ?
             WHERE dataset_key = ?
             """, snapshot.transactionSha256(), snapshot.legalDongSha256(), snapshot.datasetPeriodStart(),
-            snapshot.datasetPeriodEnd(), Timestamp.from(snapshot.collectedAt()), transactions.size(), snapshot.datasetKey());
-        return true;
+            snapshot.datasetPeriodEnd(), Timestamp.from(snapshot.collectedAt()), transactionCount, snapshot.datasetKey());
     }
 
     public List<RentalTransaction> findByLegalDongCode(
@@ -142,6 +143,15 @@ public class JdbcRentalTransactionRepository {
             """, (rs, index) -> new RentalDatasetInfo(rs.getDate("contract_from").toLocalDate(),
                 rs.getDate("contract_to").toLocalDate(), rs.getTimestamp("collected_at").toInstant()),
             RentalSnapshot.DATASET_KEY).stream().findFirst();
+    }
+
+    private RentalSnapshot restoreSnapshot(final ResultSet rs) throws SQLException {
+        if (rs.getString("transaction_sha256") == null) {
+            return null;
+        }
+        return new RentalSnapshot(rs.getString("dataset_key"), rs.getString("transaction_sha256"),
+            rs.getString("legal_dong_sha256"), rs.getDate("contract_from").toLocalDate(),
+            rs.getDate("contract_to").toLocalDate(), rs.getTimestamp("collected_at").toInstant());
     }
 
     private RentalTransaction restoreTransaction(final ResultSet rs) throws SQLException {

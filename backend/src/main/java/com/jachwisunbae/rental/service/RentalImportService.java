@@ -5,6 +5,7 @@ import com.jachwisunbae.rental.domain.RentalTransaction;
 import com.jachwisunbae.rental.repository.JdbcRentalTransactionRepository;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 public class RentalImportService {
@@ -22,7 +23,34 @@ public class RentalImportService {
         validateNotEmpty(transactions);
         validateContractDateRange(snapshot, transactions);
         return Objects.requireNonNull(transactionTemplate.execute(
-            status -> repository.replaceSnapshot(snapshot, transactions)));
+            status -> replaceSnapshot(snapshot, transactions)));
+    }
+
+    private boolean replaceSnapshot(final RentalSnapshot snapshot, final List<RentalTransaction> transactions) {
+        repository.createDatasetIfAbsent(snapshot.datasetKey());
+        Optional<RentalSnapshot> previousSnapshot = repository.findSnapshotForUpdate(snapshot.datasetKey());
+        previousSnapshot.ifPresent(previous -> validateCollectionTime(snapshot, previous));
+        if (previousSnapshot.filter(snapshot::equals).isPresent()) {
+            validateTransactionCount(snapshot.datasetKey(), transactions.size());
+            return false;
+        }
+        repository.upsertLegalDongs(transactions.stream().map(RentalTransaction::legalDong).toList());
+        repository.deleteByDatasetKey(snapshot.datasetKey());
+        repository.saveAll(snapshot.datasetKey(), transactions);
+        repository.updateSnapshot(snapshot, transactions.size());
+        return true;
+    }
+
+    private void validateCollectionTime(final RentalSnapshot snapshot, final RentalSnapshot previousSnapshot) {
+        if (previousSnapshot.collectedAt().isAfter(snapshot.collectedAt())) {
+            throw new IllegalArgumentException("이전 시점의 수집본으로 최신 거래를 교체할 수 없습니다.");
+        }
+    }
+
+    private void validateTransactionCount(final String datasetKey, final int expectedCount) {
+        if (repository.countByDatasetKey(datasetKey) != expectedCount) {
+            throw new IllegalStateException("동일 수집본의 DB 거래 건수가 일치하지 않습니다.");
+        }
     }
 
     private void validateNotEmpty(final List<RentalTransaction> transactions) {
