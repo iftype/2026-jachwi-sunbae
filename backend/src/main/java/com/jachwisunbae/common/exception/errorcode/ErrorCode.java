@@ -51,7 +51,9 @@ public enum ErrorCode {
     // 지도
     MAP_QUERY_INVALID("지도 요청 값을 확인해 주세요."),
     MAP_ADDRESS_NOT_FOUND("해당 위치의 주소를 찾을 수 없습니다."),
-    MAP_PROVIDER_UNAVAILABLE("지도 정보를 불러오지 못했습니다.");
+    MAP_PROVIDER_UNAVAILABLE("지도 정보를 불러오지 못했습니다."),
+
+    RENTAL_QUERY_INVALID("지역 코드와 페이지 정보를 확인해 주세요.");
 
     private final String publicMessage;
 
