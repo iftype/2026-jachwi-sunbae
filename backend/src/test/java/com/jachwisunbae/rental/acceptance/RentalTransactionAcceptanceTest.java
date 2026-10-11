@@ -1,71 +1,71 @@
-package com.jachwisunbae.rental.controller;
+package com.jachwisunbae.rental.acceptance;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.jachwisunbae.auth.token.JwtTokenProvider;
-import com.jachwisunbae.auth.web.JwtAuthenticationFilter;
-import com.jachwisunbae.common.web.error.GlobalExceptionHandler;
-import com.jachwisunbae.rental.repository.JdbcRentalTransactionRepository;
-import com.jachwisunbae.rental.service.RentalTransactionQueryService;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import javax.sql.DataSource;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DriverManagerDataSource;
-import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @Testcontainers
-class RentalTransactionControllerIntegrationTest {
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+@Import(RentalTransactionAcceptanceTest.FixedClockConfig.class)
+@Tag("acceptance")
+class RentalTransactionAcceptanceTest {
     @Container
     private static final MySQLContainer<?> MYSQL = new MySQLContainer<>("mysql:8.4.10");
     private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-10-10T15:30:00Z"), ZoneOffset.UTC);
-    private static JdbcTemplate jdbc;
-    private static MockMvc mvc;
-    private static String token;
+    @Autowired
+    private JdbcTemplate jdbc;
+    @Autowired
+    private MockMvc mvc;
+    @Autowired
+    private ObjectMapper objectMapper;
+    private String token;
 
-    @BeforeAll
-    static void setUp() {
-        DataSource source = new DriverManagerDataSource(MYSQL.getJdbcUrl()
-            + "?connectionTimeZone=%2B00:00&forceConnectionTimeZoneToSession=true&preserveInstants=true",
-            MYSQL.getUsername(), MYSQL.getPassword());
-        new ResourceDatabasePopulator(new ClassPathResource("db/init/003-rental-schema.sql")).execute(source);
-        jdbc = new JdbcTemplate(source);
-        JwtTokenProvider provider = new JwtTokenProvider(
-            "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=", "jachwi-sunbae", "jachwi-sunbae-api", 43200, CLOCK);
-        token = provider.createAccessToken(7L);
-        RentalTransactionController controller = new RentalTransactionController(new RentalTransactionQueryService(
-            new JdbcRentalTransactionRepository(jdbc), CLOCK));
-        mvc = MockMvcBuilders.standaloneSetup(controller).setControllerAdvice(new GlobalExceptionHandler())
-            .setMessageConverters(new MappingJackson2HttpMessageConverter(Jackson2ObjectMapperBuilder.json()
-                .modulesToInstall(JavaTimeModule.class)
-                .featuresToDisable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS).build()))
-            .addFilters(new JwtAuthenticationFilter(provider, new ObjectMapper())).build();
+    @DynamicPropertySource
+    static void configureDatabase(final DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", () -> MYSQL.getJdbcUrl()
+            + "?connectionTimeZone=%2B00:00&forceConnectionTimeZoneToSession=true&preserveInstants=true");
+        registry.add("spring.datasource.username", MYSQL::getUsername);
+        registry.add("spring.datasource.password", MYSQL::getPassword);
     }
 
     @BeforeEach
-    void setUpTransactions() {
+    void setUpTransactions() throws Exception {
+        var login = mvc.perform(post("/api/auth/nickname").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"nickname\":\"월세인수테스트\"}"))
+            .andExpect(status().isOk()).andReturn();
+        token = objectMapper.readTree(login.getResponse().getContentAsString()).path("data").path("accessToken").asText();
         jdbc.update("DELETE FROM rental_transactions");
         jdbc.update("DELETE FROM rental_datasets");
         jdbc.update("DELETE FROM legal_dongs");
@@ -106,7 +106,7 @@ class RentalTransactionControllerIntegrationTest {
             .andExpect(jsonPath("$.data.items[0].sourceRowNumber").doesNotExist())
             .andExpect(jsonPath("$.data.hasNext").value(true)).andReturn();
 
-        var items = new ObjectMapper().readTree(response.getResponse().getContentAsString()).path("data").path("items");
+        var items = objectMapper.readTree(response.getResponse().getContentAsString()).path("data").path("items");
         assertThat(items.get(0).path("rentalTransactionId").asLong())
             .isGreaterThan(items.get(1).path("rentalTransactionId").asLong());
     }
@@ -215,7 +215,7 @@ class RentalTransactionControllerIntegrationTest {
             .andExpect(jsonPath("$.message").value("서버 내부 오류가 발생했습니다."));
     }
 
-    private static MockHttpServletRequestBuilder authenticated() {
+    private MockHttpServletRequestBuilder authenticated() {
         return get("/api/rental-transactions").header("Authorization", "Bearer " + token);
     }
 
@@ -231,5 +231,14 @@ class RentalTransactionControllerIntegrationTest {
             VALUES ('seoul-eastern-gyeonggi', '1162010200', 'ROWHOUSE', 5000000, 450000, 20, 'EXCLUSIVE', ?, 'NEW',
                 '신림빌라', '3', '', 'raw/source.csv', ?)
             """, contractDate, rowNumber);
+    }
+
+    @TestConfiguration
+    static class FixedClockConfig {
+        @Bean
+        @Primary
+        Clock rentalAcceptanceClock() {
+            return CLOCK;
+        }
     }
 }
