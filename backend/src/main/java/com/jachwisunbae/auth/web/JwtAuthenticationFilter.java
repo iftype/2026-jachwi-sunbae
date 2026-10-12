@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jachwisunbae.auth.token.JwtTokenProvider;
 import com.jachwisunbae.common.exception.client.AuthenticationFailedException;
 import com.jachwisunbae.common.exception.errorcode.ErrorCode;
+import com.jachwisunbae.common.observability.RequestLoggingFilter;
 import com.jachwisunbae.common.web.error.ErrorResponse;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -44,7 +45,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String authorization = request.getHeader("Authorization");
         if (!isBearerToken(authorization)) {
-            writeAuthenticationError(response);
+            writeAuthenticationError(request, response);
             return;
         }
 
@@ -53,7 +54,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     MEMBER_ID_ATTRIBUTE,
                     provider.parseMemberId(extractToken(authorization)));
         } catch (AuthenticationFailedException exception) { //잘못된 jwt. 클라 문제
-            writeAuthenticationError(response);
+            writeAuthenticationError(request, response);
             return;
         }
         chain.doFilter(request, response);
@@ -82,12 +83,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     // 필터는 Controller 앞에서 동작해 GlobalExceptionHandler를 거치지 않으므로, 같은 오류 응답 형식을 직접 쓴다.
-    private void writeAuthenticationError(HttpServletResponse response) throws IOException {
+    private void writeAuthenticationError(HttpServletRequest request, HttpServletResponse response) throws IOException {
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setCharacterEncoding("UTF-8");
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        objectMapper.writeValue(response.getWriter(),
-                new ErrorResponse(ErrorCode.ACCESS_TOKEN_INVALID.name(),
-                        ErrorCode.ACCESS_TOKEN_INVALID.publicMessage()));
+        ErrorResponse errorResponse = new ErrorResponse(ErrorCode.ACCESS_TOKEN_INVALID.name(),
+                ErrorCode.ACCESS_TOKEN_INVALID.publicMessage());
+        objectMapper.writeValue(response.getWriter(), errorResponse);
+        RequestLoggingFilter.recordErrorMessage(request, errorResponse.message());
     }
 }
