@@ -5,6 +5,7 @@ import com.jachwisunbae.transit.domain.GtfsFeed;
 import com.jachwisunbae.transit.domain.GtfsRoute;
 import com.jachwisunbae.transit.domain.GtfsStop;
 import com.jachwisunbae.transit.domain.GtfsTransfer;
+import com.jachwisunbae.transit.domain.vo.Coordinate;
 import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -33,6 +34,26 @@ public class JdbcGtfsNetworkRepository implements GtfsNetworkRepository {
         insertTransfers(feed.transfers());
     }
 
+    @Override
+    public List<GtfsStop> findStops() {
+        return jdbcTemplate.query("""
+                SELECT stop_id, stop_name, latitude, longitude, admin_dong_code
+                FROM gtfs_stops
+                """, (resultSet, rowNumber) -> new GtfsStop(resultSet.getString("stop_id"),
+                resultSet.getString("stop_name"),
+                new Coordinate(resultSet.getDouble("latitude"), resultSet.getDouble("longitude")),
+                resultSet.getString("admin_dong_code")));
+    }
+
+    @Override
+    public void updateAdminDongCodes(final List<GtfsStop> stops) {
+        String sql = "UPDATE gtfs_stops SET admin_dong_code = ? WHERE stop_id = ?";
+        jdbcTemplate.batchUpdate(sql, stops, BATCH_SIZE, (statement, stop) -> {
+            statement.setString(1, stop.adminDongCode());
+            statement.setString(2, stop.stopId());
+        });
+    }
+
     private void insertRoutes(final List<GtfsRoute> routes) {
         String sql = """
                 INSERT INTO gtfs_routes (route_id, short_name, long_name, route_type, wait_seconds)
@@ -49,14 +70,15 @@ public class JdbcGtfsNetworkRepository implements GtfsNetworkRepository {
 
     private void insertStops(final List<GtfsStop> stops) {
         String sql = """
-                INSERT INTO gtfs_stops (stop_id, stop_name, latitude, longitude)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO gtfs_stops (stop_id, stop_name, latitude, longitude, admin_dong_code)
+                VALUES (?, ?, ?, ?, ?)
                 """;
         jdbcTemplate.batchUpdate(sql, stops, BATCH_SIZE, (statement, stop) -> {
             statement.setString(1, stop.stopId());
             statement.setString(2, stop.stopName());
             statement.setDouble(3, stop.coordinate().latitude());
             statement.setDouble(4, stop.coordinate().longitude());
+            statement.setString(5, stop.adminDongCode());
         });
     }
 
