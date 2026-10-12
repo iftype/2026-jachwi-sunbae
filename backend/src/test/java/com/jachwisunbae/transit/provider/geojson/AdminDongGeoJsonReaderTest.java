@@ -84,6 +84,32 @@ class AdminDongGeoJsonReaderTest {
     }
 
     @Test
+    @DisplayName("객체가 아닌 원소가 끼어 있으면 앞부분만 적재하지 않고 위치를 알리고 멈춘다")
+    void failsWhenFeatureIsNotObject() throws IOException {
+        String feature = """
+                {"type":"Feature","properties":{"code":"%s","name":"사직동","sidoName":"서울특별시",
+                  "sigunguName":"종로구","fullName":"서울특별시 종로구 사직동","baseDate":"20250630"},
+                 "geometry":{"type":"Polygon","coordinates":[[[127.0,37.5],[127.1,37.5],[127.1,37.6],[127.0,37.5]]]}}
+                """;
+        Path file = write("{\"type\":\"FeatureCollection\",\"features\":["
+                + feature.formatted("11010530") + ",null," + feature.formatted("11010540") + "]}");
+
+        assertThatThrownBy(() -> reader.read(file))
+                .isInstanceOf(InternalSystemException.class)
+                .hasMessageContaining("features[1]");
+    }
+
+    @Test
+    @DisplayName("행정동이 하나도 없으면 기존 행정동을 지우지 않도록 적재를 멈춘다")
+    void failsWhenFeaturesAreEmpty() throws IOException {
+        Path file = write("{\"type\":\"FeatureCollection\",\"features\":[]}");
+
+        assertThatThrownBy(() -> reader.read(file))
+                .isInstanceOf(InternalSystemException.class)
+                .hasMessageContaining("행정동이 없습니다");
+    }
+
+    @Test
     @DisplayName("파일이 없으면 행정동 경계를 읽지 못했다고 알린다")
     void failsWhenFileIsMissing() {
         assertThatThrownBy(() -> reader.read(directory.resolve("none.geojson")))

@@ -57,16 +57,23 @@ public class AdminDongGeoJsonReader {
         throw failure("features 배열이 없습니다. file=" + file, null);
     }
 
+    // 배열 끝까지 읽는다. 객체가 아닌 원소가 끼어 있으면 앞부분만으로 기존 행정동을 교체하지 않도록 적재를 멈춘다.
     private List<AdminDong> readFeatures(final JsonParser parser) throws IOException {
         List<AdminDong> adminDongs = new ArrayList<>();
         Set<String> codes = new HashSet<>();
-        while (parser.nextToken() == JsonToken.START_OBJECT) {
-            JsonNode feature = parser.readValueAsTree();
-            AdminDong adminDong = toAdminDong(feature, adminDongs.size());
+        for (JsonToken token = parser.nextToken(); token != JsonToken.END_ARRAY; token = parser.nextToken()) {
+            int index = adminDongs.size();
+            if (token != JsonToken.START_OBJECT) {
+                throw failure("features[" + index + "]가 GeoJSON Feature 객체가 아닙니다. token=" + token, null);
+            }
+            AdminDong adminDong = toAdminDong(parser.readValueAsTree(), index);
             if (!codes.add(adminDong.code())) {
                 throw failure("행정동 코드가 중복됩니다. code=" + adminDong.code(), null);
             }
             adminDongs.add(adminDong);
+        }
+        if (adminDongs.isEmpty()) {
+            throw failure("features에 행정동이 없습니다. 빈 경계로 기존 행정동을 지우지 않습니다.", null);
         }
         return adminDongs;
     }
