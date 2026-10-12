@@ -8,13 +8,13 @@
 
 [CloudWatch 자취선배 운영 대시보드](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#dashboards/dashboard/jachwi-sunbae-operations)는 서울 리전의 dev·prod를 한 화면에서 비교한다. 기본 조회 범위는 최근 6시간이다.
 
-| 영역 | 확인할 내용 |
-| --- | --- |
-| 경보 상태 | 환경별 HTTP 5xx, 서비스 비정상 종료, CPU 과다, 정상 대상 없음, 비정상 대상 감지의 5종 경보 |
-| 오류 | 애플리케이션 로그 기반 HTTP 5xx 5분 합계, ALB 대상 5xx 5분 합계, 최근 5xx 요청의 시각·환경·요청 ID·경로 |
-| 가용성 | dev·prod ALB 대상 그룹의 정상 대상 수 1분 최솟값 |
-| 트래픽·성능 | ALB 대상 그룹별 요청 수 5분 합계, 대상 응답 시간 p95(초) |
-| 프로세스·자원 | 서비스 비정상 종료 1분 합계, ASG별 EC2 CPU 사용률 5분 평균 |
+| 영역          | 확인할 내용                                                                                             |
+| ------------- | ------------------------------------------------------------------------------------------------------- |
+| 경보 상태     | 환경별 HTTP 5xx, 서비스 비정상 종료, CPU 과다, 정상 대상 없음, 비정상 대상 감지의 5종 경보              |
+| 오류          | 애플리케이션 로그 기반 HTTP 5xx 5분 합계, ALB 대상 5xx 5분 합계, 최근 5xx 요청의 시각·환경·요청 ID·경로 |
+| 가용성        | dev·prod ALB 대상 그룹의 정상 대상 수 1분 최솟값                                                        |
+| 트래픽·성능   | ALB 대상 그룹별 요청 수 5분 합계, 대상 응답 시간 p95(초)                                                |
+| 프로세스·자원 | 서비스 비정상 종료 1분 합계, ASG별 EC2 CPU 사용률 5분 평균                                              |
 
 ALB 요청 수는 대상으로 전달된 요청만 집계한다. 트래픽이 없는 구간의 요청 수·응답 시간·5xx 그래프에는 데이터가 없을 수 있다. 대시보드의 경보 상태와 실제 요청 오류는 함께 확인한다.
 
@@ -22,13 +22,13 @@ ALB 요청 수는 대상으로 전달된 요청만 집계한다. 트래픽이 �
 
 2026-10-01 기준, dev·prod에 아래 5종의 경보를 같은 조건으로 설정했다. 모든 경보는 경보 진입과 정상 복귀를 각 환경의 `jachwi-sunbae-{dev|prod}-ops-alerts` SNS 주제에 알린다.
 
-| 관찰 대상 | dev 경보 | prod 경보 | 발동 조건 | 누락 데이터 |
-| --- | --- | --- | --- | --- |
-| HTTP 5xx | [`jachwi-dev-http-5xx`](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#alarmsV2:alarm/jachwi-dev-http-5xx) | [`jachwi-prod-http-5xx`](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#alarmsV2:alarm/jachwi-prod-http-5xx) | `Http5xxCount` 5분 합계 ≥ 5, 1/1 | 정상 취급 |
-| 서비스 비정상 종료 | [`jachwi-dev-service-failure`](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#alarmsV2:alarm/jachwi-dev-service-failure) | [`jachwi-prod-service-failure`](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#alarmsV2:alarm/jachwi-prod-service-failure) | `ServiceFailureCount` 1분 합계 ≥ 1, 1/1 | 정상 취급 |
-| CPU 사용률 | [`jachwi-dev-cpu-high`](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#alarmsV2:alarm/jachwi-dev-cpu-high) | [`jachwi-prod-cpu-high`](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#alarmsV2:alarm/jachwi-prod-cpu-high) | ASG `CPUUtilization` 5분 평균 ≥ 80%, 3/3 | 정상 취급 |
-| 정상 대상 없음 | [`jachwi-dev-no-healthy-target`](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#alarmsV2:alarm/jachwi-dev-no-healthy-target) | [`jachwi-prod-no-healthy-target`](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#alarmsV2:alarm/jachwi-prod-no-healthy-target) | ALB 대상 그룹 `HealthyHostCount` 1분 최솟값 < 1, 2/2 | 장애 취급 |
-| 비정상 대상 감지 | [`jachwi-dev-unhealthy-target`](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#alarmsV2:alarm/jachwi-dev-unhealthy-target) | [`jachwi-prod-unhealthy-target`](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#alarmsV2:alarm/jachwi-prod-unhealthy-target) | ALB 대상 그룹 `UnHealthyHostCount` 1분 최솟값 ≥ 1, 2/2 | 정상 취급 |
+| 관찰 대상          | dev 경보                                                                                                                                                          | prod 경보                                                                                                                                                           | 발동 조건                                              | 누락 데이터 |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ----------- |
+| HTTP 5xx           | [`jachwi-dev-http-5xx`](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#alarmsV2:alarm/jachwi-dev-http-5xx)                   | [`jachwi-prod-http-5xx`](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#alarmsV2:alarm/jachwi-prod-http-5xx)                   | `Http5xxCount` 5분 합계 ≥ 5, 1/1                       | 정상 취급   |
+| 서비스 비정상 종료 | [`jachwi-dev-service-failure`](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#alarmsV2:alarm/jachwi-dev-service-failure)     | [`jachwi-prod-service-failure`](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#alarmsV2:alarm/jachwi-prod-service-failure)     | `ServiceFailureCount` 1분 합계 ≥ 1, 1/1                | 정상 취급   |
+| CPU 사용률         | [`jachwi-dev-cpu-high`](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#alarmsV2:alarm/jachwi-dev-cpu-high)                   | [`jachwi-prod-cpu-high`](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#alarmsV2:alarm/jachwi-prod-cpu-high)                   | ASG `CPUUtilization` 5분 평균 ≥ 80%, 3/3               | 정상 취급   |
+| 정상 대상 없음     | [`jachwi-dev-no-healthy-target`](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#alarmsV2:alarm/jachwi-dev-no-healthy-target) | [`jachwi-prod-no-healthy-target`](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#alarmsV2:alarm/jachwi-prod-no-healthy-target) | ALB 대상 그룹 `HealthyHostCount` 1분 최솟값 < 1, 2/2   | 장애 취급   |
+| 비정상 대상 감지   | [`jachwi-dev-unhealthy-target`](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#alarmsV2:alarm/jachwi-dev-unhealthy-target)   | [`jachwi-prod-unhealthy-target`](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#alarmsV2:alarm/jachwi-prod-unhealthy-target)   | ALB 대상 그룹 `UnHealthyHostCount` 1분 최솟값 ≥ 1, 2/2 | 정상 취급   |
 
 HTTP 5xx는 각 환경의 `/jachwi-sunbae/{dev|prod}/application` 로그 그룹에 `{ $.status >= 500 }` 패턴의 `jachwi-{dev|prod}-http-5xx` 지표 필터를 둔다. 요청 로그의 `status`가 500 이상이면 `JachwiSunbae/{Dev|Prod} / Http5xxCount`에 1을 더하고, 일치하지 않는 로그가 들어오면 기본값 0을 게시한다. 5분에 1~4건의 5xx는 경보가 울리지 않으며, 경보가 정상이라고 해서 요청이나 로그 수집이 정상이라는 뜻도 아니다. 로그 수집 중단과 대상 그룹의 정상 호스트 수는 별도 지표로 판단한다.
 
