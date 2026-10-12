@@ -53,6 +53,10 @@ public enum ErrorCode {
     MAP_ADDRESS_NOT_FOUND("해당 위치의 주소를 찾을 수 없습니다."),
     MAP_PROVIDER_UNAVAILABLE("지도 정보를 불러오지 못했습니다."),
 
+    // 대중교통
+    TRANSIT_FEED_READ_FAILURE("대중교통 데이터를 불러오지 못했습니다."),
+    ADMIN_DONG_READ_FAILURE("행정동 경계 데이터를 불러오지 못했습니다."),
+
     RENTAL_QUERY_INVALID("지역 코드와 페이지 정보를 확인해 주세요.");
 
     private final String publicMessage;

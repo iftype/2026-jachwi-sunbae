@@ -12,6 +12,8 @@
 | [체크리스트](checklist.md)                                                    | 시스템·사용자·매물 적용 체크리스트와 진행 현황                                      |
 | [지도](map.md)                                                                | 위치 선택, 매물 핀과 주변 분석                                                      |
 | [매물 비교·PDF](compare.md)                                                   | 매물 선택, 선택 순서와 비교 PDF 구성                                                |
+| [생활권 탐색](commute-area.md)                                                | 목적지 기준 통근 가능 동네 탐색과 GTFS 노선망 적재                                  |
+| [생활권 탐색 GTFS 데이터](commute-area-gtfs.md)                               | GTFS CSV 구조, 파싱 흐름과 단계별 적재 건수                                         |
 | [소형 주택 월세 참고 정보](../../../src/product/specs/rental-transactions.md) | 후속 기능: 추천 지역의 최근 월세 사례, 제공 범위·표시 기준·빈 목록과 조회 실패 처리 |
 
 요구사항 ID는 `REQ-<도메인>-NNN`, 정책 ID는 `POL-<도메인>-NNN`, 인수 기준 ID는 `AC-<도메인>-NNN`을 사용합니다. 문서별 상세 상태·작성일·대상은 각 명세 상단을 따릅니다.
