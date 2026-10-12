@@ -3,6 +3,7 @@ package com.jachwisunbae.transit.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jachwisunbae.transit.domain.GtfsEdge;
 import com.jachwisunbae.transit.domain.GtfsFeed;
 import com.jachwisunbae.transit.domain.GtfsRoute;
@@ -10,6 +11,7 @@ import com.jachwisunbae.transit.domain.GtfsStop;
 import com.jachwisunbae.transit.domain.vo.Coordinate;
 import com.jachwisunbae.transit.domain.vo.Seconds;
 import com.jachwisunbae.transit.provider.gtfs.GtfsFeedReader;
+import com.jachwisunbae.transit.repository.JdbcAdminDongRepository;
 import com.jachwisunbae.transit.repository.JdbcGtfsNetworkRepository;
 import java.nio.file.Path;
 import java.util.List;
@@ -82,7 +84,8 @@ class GtfsImportServiceTransactionTest {
     // 스프링 컨텍스트 없이 운영과 같은 @Transactional 프록시를 씌운다.
     private GtfsImportService transactionalService(final GtfsFeed feed) {
         GtfsImportService service = new GtfsImportService(directory.toString(), readerReturning(feed),
-                new JdbcGtfsNetworkRepository(jdbcTemplate));
+                new JdbcGtfsNetworkRepository(jdbcTemplate),
+                new JdbcAdminDongRepository(jdbcTemplate, new ObjectMapper()));
         ProxyFactory proxyFactory = new ProxyFactory(service);
         proxyFactory.setProxyTargetClass(true);
         proxyFactory.addAdvice(new TransactionInterceptor(new DataSourceTransactionManager(dataSource),
