@@ -182,3 +182,22 @@ CREATE TABLE IF NOT EXISTS bus_stops (
     CONSTRAINT chk_bus_stops_latitude CHECK (latitude BETWEEN -90 AND 90),
     CONSTRAINT chk_bus_stops_longitude CHECK (longitude BETWEEN -180 AND 180)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 공공 CCTV (전국CCTV표준데이터 스냅샷)
+-- 공공데이터 CSV를 정제 스크립트로 적재하는 참조 데이터다. 애플리케이션은 조회만 한다.
+-- 설치목적은 원본 문자열 그대로 저장한다. 화소수와 보관일수는 비어 있거나 애매하면 NULL이다.
+CREATE TABLE IF NOT EXISTS cctvs (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    management_number VARCHAR(30) NOT NULL,
+    address VARCHAR(255) NOT NULL,
+    purpose VARCHAR(20) NOT NULL,
+    camera_count INT NOT NULL,
+    camera_pixels INT NULL,
+    retention_days INT NULL,
+    latitude DECIMAL(10, 7) NOT NULL,
+    longitude DECIMAL(11, 7) NOT NULL,
+    CONSTRAINT uk_cctvs_management_number UNIQUE (management_number),
+    CONSTRAINT chk_cctvs_camera_count CHECK (camera_count > 0),
+    CONSTRAINT chk_cctvs_latitude CHECK (latitude BETWEEN -90 AND 90),
+    CONSTRAINT chk_cctvs_longitude CHECK (longitude BETWEEN -180 AND 180)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
