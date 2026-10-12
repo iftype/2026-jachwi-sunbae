@@ -3,9 +3,7 @@ package com.jachwisunbae.map.domain.cctv;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.util.Arrays;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
@@ -39,20 +37,5 @@ class CctvPurposeTest {
     void rejectsUnknownSourceName(String sourceName) {
         assertThatThrownBy(() -> CctvPurpose.fromSourceName(sourceName))
                 .isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
-    @DisplayName("API 코드로 설치목적을 찾는다")
-    void findsByCode() {
-        Arrays.stream(CctvPurpose.values()).forEach(purpose ->
-                assertThat(CctvPurpose.findByCode(purpose.name())).contains(purpose));
-    }
-
-    @ParameterizedTest
-    @NullAndEmptySource
-    @ValueSource(strings = {"crime_prevention", "생활방범", "UNKNOWN"})
-    @DisplayName("목록에 없는 코드는 찾지 못한다")
-    void cannotFindUnknownCode(String code) {
-        assertThat(CctvPurpose.findByCode(code)).isEmpty();
     }
 }

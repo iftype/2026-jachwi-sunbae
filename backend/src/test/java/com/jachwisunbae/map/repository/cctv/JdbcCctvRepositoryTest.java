@@ -9,9 +9,7 @@ import com.jachwisunbae.map.domain.CoordinateBounds;
 import com.jachwisunbae.map.domain.cctv.Cctv;
 import com.jachwisunbae.map.domain.cctv.CctvPurpose;
 import java.math.BigDecimal;
-import java.util.EnumSet;
 import java.util.List;
-import java.util.Set;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,7 +23,7 @@ import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-// DECIMAL 좌표 비교, 설치목적 IN 조건, NULL 컬럼 복원은 MySQL 동작에 달려 있어 실제 MySQL로 검증한다.
+// DECIMAL 좌표 비교와 NULL 컬럼 복원은 MySQL 동작에 달려 있어 실제 MySQL로 검증한다.
 @Testcontainers
 class JdbcCctvRepositoryTest {
 
@@ -36,8 +34,6 @@ class JdbcCctvRepositoryTest {
     private static final CoordinateBounds PANGYO = CoordinateBounds.of(
             new BigDecimal("37.3858000"), new BigDecimal("37.4038000"),
             new BigDecimal("127.1000000"), new BigDecimal("127.1226000"));
-
-    private static final Set<CctvPurpose> ALL_PURPOSES = EnumSet.allOf(CctvPurpose.class);
 
     private static JdbcTemplate jdbcTemplate;
     private static JdbcCctvRepository cctvRepository;
@@ -67,7 +63,7 @@ class JdbcCctvRepositoryTest {
                     37.3948000, 127.1112000)
                 """);
 
-        List<Cctv> cctvs = cctvRepository.findAllWithin(PANGYO, ALL_PURPOSES);
+        List<Cctv> cctvs = cctvRepository.findAllWithin(PANGYO);
 
         assertThat(cctvs)
                 .extracting(Cctv::getManagementNumber, Cctv::getAddress, Cctv::getPurpose, Cctv::getCameraCount,
@@ -86,7 +82,7 @@ class JdbcCctvRepositoryTest {
         insert("경도 초과", "생활방범", "37.3948000", "127.1226001");
         insert("경도 미달", "생활방범", "37.3948000", "127.0999999");
 
-        assertThat(cctvRepository.findAllWithin(PANGYO, ALL_PURPOSES)).isEmpty();
+        assertThat(cctvRepository.findAllWithin(PANGYO)).isEmpty();
     }
 
     @Test
@@ -95,32 +91,9 @@ class JdbcCctvRepositoryTest {
         insert("남서쪽 모서리", "생활방범", "37.3858000", "127.1000000");
         insert("북동쪽 모서리", "생활방범", "37.4038000", "127.1226000");
 
-        assertThat(cctvRepository.findAllWithin(PANGYO, ALL_PURPOSES))
+        assertThat(cctvRepository.findAllWithin(PANGYO))
                 .extracting(Cctv::getManagementNumber)
                 .containsExactlyInAnyOrder("남서쪽 모서리", "북동쪽 모서리");
-    }
-
-    @Test
-    @DisplayName("요청한 설치목적의 CCTV만 조회한다")
-    void findsOnlyRequestedPurposes() {
-        insert("생활방범", "생활방범", "37.3948000", "127.1112000");
-        insert("어린이보호", "어린이보호", "37.3948000", "127.1112000");
-        insert("쓰레기단속", "쓰레기단속", "37.3948000", "127.1112000");
-
-        List<Cctv> cctvs = cctvRepository.findAllWithin(PANGYO,
-                EnumSet.of(CctvPurpose.CRIME_PREVENTION, CctvPurpose.CHILD_PROTECTION));
-
-        assertThat(cctvs)
-                .extracting(Cctv::getManagementNumber)
-                .containsExactlyInAnyOrder("생활방범", "어린이보호");
-    }
-
-    @Test
-    @DisplayName("설치목적이 비어 있으면 조회하지 않는다")
-    void returnsEmptyWhenNoPurpose() {
-        insert("생활방범", "생활방범", "37.3948000", "127.1112000");
-
-        assertThat(cctvRepository.findAllWithin(PANGYO, Set.of())).isEmpty();
     }
 
     @Test
@@ -129,7 +102,7 @@ class JdbcCctvRepositoryTest {
         insert("첫번째", "생활방범", "37.3948000", "127.1112000");
         insert("두번째", "생활방범", "37.3948000", "127.1112000");
 
-        assertThat(cctvRepository.findAllWithin(PANGYO, ALL_PURPOSES)).hasSize(2);
+        assertThat(cctvRepository.findAllWithin(PANGYO)).hasSize(2);
     }
 
     @Test
@@ -137,7 +110,7 @@ class JdbcCctvRepositoryTest {
     void findsCctvsWithNullableValues() {
         insert("정보없음", "생활방범", "37.3948000", "127.1112000");
 
-        List<Cctv> cctvs = cctvRepository.findAllWithin(PANGYO, ALL_PURPOSES);
+        List<Cctv> cctvs = cctvRepository.findAllWithin(PANGYO);
 
         assertThat(cctvs).singleElement().satisfies(cctv -> {
             assertThat(cctv.getCameraPixels()).isNull();
@@ -146,19 +119,21 @@ class JdbcCctvRepositoryTest {
     }
 
     @Test
-    @DisplayName("목록에 없는 설치목적으로 저장된 CCTV는 어떤 설치목적으로도 조회되지 않는다")
-    void excludesUnknownPurpose() {
-        insert("알수없음", "방범", "37.3948000", "127.1112000");
-
-        assertThat(cctvRepository.findAllWithin(PANGYO, ALL_PURPOSES)).isEmpty();
-    }
-
-    @Test
     @DisplayName("저장된 값이 CCTV 규칙을 만족하지 않으면 서버 데이터 문제로 처리한다")
     void rejectsInconsistentData() {
         insert(" ", "생활방범", "37.3948000", "127.1112000");
 
-        assertThatThrownBy(() -> cctvRepository.findAllWithin(PANGYO, ALL_PURPOSES))
+        assertThatThrownBy(() -> cctvRepository.findAllWithin(PANGYO))
+                .isInstanceOf(DataInconsistencyException.class)
+                .hasCauseInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("저장된 설치목적을 알 수 없으면 서버 데이터 문제로 처리한다")
+    void rejectsUnknownPurpose() {
+        insert("알수없음", "방범", "37.3948000", "127.1112000");
+
+        assertThatThrownBy(() -> cctvRepository.findAllWithin(PANGYO))
                 .isInstanceOf(DataInconsistencyException.class)
                 .hasCauseInstanceOf(IllegalArgumentException.class);
     }

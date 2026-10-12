@@ -7,7 +7,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.math.BigDecimal;
-import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -26,12 +25,10 @@ public class CctvController {
     }
 
     @GetMapping
-    @Operation(summary = "주변 CCTV 조회",
-            description = "반경 안의 공공 CCTV를 가까운 순으로 모두 조회합니다. purposes에 설치목적 코드를 쉼표로 주면 해당 설치목적만 조회하고, 생략하면 전체를 조회합니다.")
+    @Operation(summary = "주변 CCTV 조회", description = "반경 안의 공공 CCTV를 설치목적과 관계없이 가까운 순으로 모두 조회합니다.")
     public ApiResponse<CctvsResponse> nearby(@RequestParam BigDecimal latitude,
                                              @RequestParam BigDecimal longitude,
-                                             @RequestParam int radius,
-                                             @RequestParam(required = false) List<String> purposes) {
-        return ApiResponse.of(CctvsResponse.from(cctvService.nearby(latitude, longitude, radius, purposes)));
+                                             @RequestParam int radius) {
+        return ApiResponse.of(CctvsResponse.from(cctvService.nearby(latitude, longitude, radius)));
     }
 }

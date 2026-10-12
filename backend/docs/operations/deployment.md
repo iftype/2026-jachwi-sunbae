@@ -303,7 +303,7 @@ MVP1 첫 dev 배포에서는 다음을 확인한다.
   FROM cctvs;
   ```
 
-- 6번에서는 `GET /api/maps/cctvs`를 500m·1km·2km 반경으로 요청하고, `purposes`로 설치목적을 골라 해당 CCTV만 조회되는지 확인한다.
+- 6번에서는 `GET /api/maps/cctvs`를 500m·1km·2km 반경으로 요청해 선택 반경이 반영되는지 확인한다.
 
 <!-- TODO: CCTV 공공데이터 갱신 주기와 자동 갱신 (Scheduler). 지금은 내려받은 스냅샷을 수동으로 적재한다. -->
 

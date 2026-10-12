@@ -13,9 +13,7 @@ import com.jachwisunbae.map.service.dto.result.cctv.CctvResult;
 import com.jachwisunbae.map.service.dto.result.cctv.CctvsResult;
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.List;
-import java.util.Set;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,44 +27,15 @@ class CctvServiceTest {
     @DisplayName("요청 반경을 감싸는 사각형으로 후보를 조회한다")
     void requestsCandidatesWithinBounds() {
         List<CoordinateBounds> requested = new ArrayList<>();
-        CctvService service = new CctvService((bounds, purposes) -> {
+        CctvService service = new CctvService(bounds -> {
             requested.add(bounds);
             return List.of();
         });
 
-        service.nearby(LATITUDE, LONGITUDE, 1000, null);
+        service.nearby(LATITUDE, LONGITUDE, 1000);
 
         assertThat(requested).singleElement().usingRecursiveComparison()
                 .isEqualTo(CoordinateBounds.around(LATITUDE, LONGITUDE, 1000));
-    }
-
-    @Test
-    @DisplayName("설치목적을 지정하지 않으면 전체 설치목적으로 조회한다")
-    void requestsAllPurposesByDefault() {
-        List<Set<CctvPurpose>> requested = new ArrayList<>();
-        CctvService service = new CctvService((bounds, purposes) -> {
-            requested.add(purposes);
-            return List.of();
-        });
-
-        service.nearby(LATITUDE, LONGITUDE, 500, null);
-        service.nearby(LATITUDE, LONGITUDE, 500, List.of());
-
-        assertThat(requested).containsExactly(EnumSet.allOf(CctvPurpose.class), EnumSet.allOf(CctvPurpose.class));
-    }
-
-    @Test
-    @DisplayName("요청한 설치목적 코드로 조회하고 중복 코드는 한 번만 넘긴다")
-    void requestsGivenPurposes() {
-        List<Set<CctvPurpose>> requested = new ArrayList<>();
-        CctvService service = new CctvService((bounds, purposes) -> {
-            requested.add(purposes);
-            return List.of();
-        });
-
-        service.nearby(LATITUDE, LONGITUDE, 500, List.of("CRIME_PREVENTION", "CHILD_PROTECTION", "CRIME_PREVENTION"));
-
-        assertThat(requested).containsExactly(EnumSet.of(CctvPurpose.CRIME_PREVENTION, CctvPurpose.CHILD_PROTECTION));
     }
 
     @Test
@@ -75,9 +44,9 @@ class CctvServiceTest {
         CoordinateBounds bounds = CoordinateBounds.around(LATITUDE, LONGITUDE, 500);
         Cctv inside = cctv(1L, "37.3950000", "127.1090000");
         Cctv corner = cctv(2L, bounds.getMaxLatitude().toPlainString(), bounds.getMaxLongitude().toPlainString());
-        CctvService service = new CctvService((ignored, purposes) -> List.of(inside, corner));
+        CctvService service = new CctvService(ignored -> List.of(inside, corner));
 
-        CctvsResult result = service.nearby(LATITUDE, LONGITUDE, 500, null);
+        CctvsResult result = service.nearby(LATITUDE, LONGITUDE, 500);
 
         assertThat(result.cctvs()).extracting(CctvResult::cctv).containsExactly(inside);
     }
@@ -88,9 +57,9 @@ class CctvServiceTest {
         Cctv far = cctv(1L, "37.3980000", "127.1090000");
         Cctv nearSecond = cctv(3L, "37.3950000", "127.1090000");
         Cctv nearFirst = cctv(2L, "37.3950000", "127.1090000");
-        CctvService service = new CctvService((ignored, purposes) -> List.of(far, nearSecond, nearFirst));
+        CctvService service = new CctvService(ignored -> List.of(far, nearSecond, nearFirst));
 
-        CctvsResult result = service.nearby(LATITUDE, LONGITUDE, 1000, null);
+        CctvsResult result = service.nearby(LATITUDE, LONGITUDE, 1000);
 
         assertThat(result.cctvs()).extracting(cctvResult -> cctvResult.cctv().getId())
                 .containsExactly(2L, 3L, 1L);
@@ -103,18 +72,18 @@ class CctvServiceTest {
         for (long id = 1; id <= 3000; id++) {
             cctvs.add(cctv(id, "37.3940000", "127.1090000"));
         }
-        CctvService service = new CctvService((ignored, purposes) -> cctvs);
+        CctvService service = new CctvService(ignored -> cctvs);
 
-        assertThat(service.nearby(LATITUDE, LONGITUDE, 500, null).cctvs()).hasSize(3000);
+        assertThat(service.nearby(LATITUDE, LONGITUDE, 500).cctvs()).hasSize(3000);
     }
 
     @Test
     @DisplayName("거리는 GeoDistance로 계산해 미터 단위 정수로 반올림한다")
     void calculatesDistanceWithGeoDistance() {
         Cctv cctv = cctv(1L, "37.3950000", "127.1100000");
-        CctvService service = new CctvService((ignored, purposes) -> List.of(cctv));
+        CctvService service = new CctvService(ignored -> List.of(cctv));
 
-        CctvsResult result = service.nearby(LATITUDE, LONGITUDE, 500, null);
+        CctvsResult result = service.nearby(LATITUDE, LONGITUDE, 500);
 
         long expected = Math.round(GeoDistance.meters(LATITUDE, LONGITUDE, cctv.getLatitude(), cctv.getLongitude()));
         assertThat(result.cctvs()).singleElement()
@@ -125,9 +94,9 @@ class CctvServiceTest {
     @Test
     @DisplayName("요청 조건을 함께 반환한다")
     void returnsQuery() {
-        CctvService service = new CctvService((ignored, purposes) -> List.of());
+        CctvService service = new CctvService(ignored -> List.of());
 
-        CctvsResult result = service.nearby(LATITUDE, LONGITUDE, 2000, null);
+        CctvsResult result = service.nearby(LATITUDE, LONGITUDE, 2000);
 
         assertThat(result.latitude()).isEqualTo(LATITUDE);
         assertThat(result.longitude()).isEqualTo(LONGITUDE);
@@ -137,24 +106,21 @@ class CctvServiceTest {
     @Test
     @DisplayName("반경 안에 CCTV가 없으면 빈 목록을 반환한다")
     void returnsEmptyResult() {
-        CctvService service = new CctvService((ignored, purposes) -> List.of());
+        CctvService service = new CctvService(ignored -> List.of());
 
-        assertThat(service.nearby(LATITUDE, LONGITUDE, 500, null).cctvs()).isEmpty();
+        assertThat(service.nearby(LATITUDE, LONGITUDE, 500).cctvs()).isEmpty();
     }
 
     @Test
-    @DisplayName("좌표, 반경, 설치목적이 허용 범위를 벗어나면 사용자 입력 오류로 본다")
+    @DisplayName("좌표나 반경이 허용 범위를 벗어나면 사용자 입력 오류로 본다")
     void rejectsInvalidQuery() {
-        CctvService service = new CctvService((ignored, purposes) -> List.of());
+        CctvService service = new CctvService(ignored -> List.of());
 
-        assertInvalidQuery(() -> service.nearby(null, LONGITUDE, 500, null));
-        assertInvalidQuery(() -> service.nearby(LATITUDE, null, 500, null));
-        assertInvalidQuery(() -> service.nearby(new BigDecimal("90.1"), LONGITUDE, 500, null));
-        assertInvalidQuery(() -> service.nearby(LATITUDE, new BigDecimal("-180.1"), 500, null));
-        assertInvalidQuery(() -> service.nearby(LATITUDE, LONGITUDE, 700, null));
-        assertInvalidQuery(() -> service.nearby(LATITUDE, LONGITUDE, 500, List.of("CRIME_PREVENTION", "UNKNOWN")));
-        assertInvalidQuery(() -> service.nearby(LATITUDE, LONGITUDE, 500, List.of("생활방범")));
-        assertInvalidQuery(() -> service.nearby(LATITUDE, LONGITUDE, 500, List.of("crime_prevention")));
+        assertInvalidQuery(() -> service.nearby(null, LONGITUDE, 500));
+        assertInvalidQuery(() -> service.nearby(LATITUDE, null, 500));
+        assertInvalidQuery(() -> service.nearby(new BigDecimal("90.1"), LONGITUDE, 500));
+        assertInvalidQuery(() -> service.nearby(LATITUDE, new BigDecimal("-180.1"), 500));
+        assertInvalidQuery(() -> service.nearby(LATITUDE, LONGITUDE, 700));
     }
 
     private static void assertInvalidQuery(ThrowingCallable call) {

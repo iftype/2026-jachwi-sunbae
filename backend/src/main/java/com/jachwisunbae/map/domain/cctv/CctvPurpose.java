@@ -2,11 +2,10 @@ package com.jachwisunbae.map.domain.cctv;
 
 import java.util.Arrays;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-// 전국CCTV표준데이터의 설치목적구분. DB에는 원본 문자열(sourceName)을 저장하고, API는 enum 이름을 코드로 쓴다.
+// 전국CCTV표준데이터의 설치목적구분. DB에는 원본 문자열(sourceName)을 저장하고, API 응답은 enum 이름을 코드로 쓴다.
 public enum CctvPurpose {
 
     CRIME_PREVENTION("생활방범"),
@@ -22,8 +21,6 @@ public enum CctvPurpose {
 
     private static final Map<String, CctvPurpose> BY_SOURCE_NAME = Arrays.stream(values())
             .collect(Collectors.toUnmodifiableMap(purpose -> purpose.sourceName, Function.identity()));
-    private static final Map<String, CctvPurpose> BY_CODE = Arrays.stream(values())
-            .collect(Collectors.toUnmodifiableMap(Enum::name, Function.identity()));
 
     private final String sourceName;
 
@@ -38,11 +35,6 @@ public enum CctvPurpose {
             throw new IllegalArgumentException("알 수 없는 CCTV 설치목적입니다: " + sourceName);
         }
         return purpose;
-    }
-
-    // 요청으로 들어온 코드다. 목록에 없으면 호출한 쪽에서 입력 오류로 처리한다.
-    public static Optional<CctvPurpose> findByCode(String code) {
-        return Optional.ofNullable(code).map(BY_CODE::get);
     }
 
     public String getSourceName() {
