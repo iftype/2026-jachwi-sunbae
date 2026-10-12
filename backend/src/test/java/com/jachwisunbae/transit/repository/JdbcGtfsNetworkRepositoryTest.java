@@ -90,4 +90,20 @@ class JdbcGtfsNetworkRepositoryTest {
                 "SELECT COALESCE(admin_dong_code, '-') FROM gtfs_stops ORDER BY stop_id", String.class))
                 .containsExactly("-", "11010540");
     }
+
+    @Test
+    @DisplayName("탐색에 쓸 노선·구간·환승을 저장한 값 그대로 읽는다")
+    void readsNetworkForSearch() {
+        repository.replace(new GtfsFeed(
+                List.of(new GtfsRoute("R1", "1호선", "서울 1호선", 1, new Seconds(240))),
+                List.of(new GtfsStop("S1", "서울역", new Coordinate(37.55, 126.97)),
+                        new GtfsStop("S2", "시청", new Coordinate(37.56, 126.97))),
+                List.of(new GtfsEdge("R1", "S1", "S2", new Seconds(120))),
+                List.of(new GtfsTransfer("S2", "S1", new Seconds(180)))));
+
+        assertThat(repository.findRoutes())
+                .containsExactly(new GtfsRoute("R1", "1호선", "서울 1호선", 1, new Seconds(240)));
+        assertThat(repository.findEdges()).containsExactly(new GtfsEdge("R1", "S1", "S2", new Seconds(120)));
+        assertThat(repository.findTransfers()).containsExactly(new GtfsTransfer("S2", "S1", new Seconds(180)));
+    }
 }

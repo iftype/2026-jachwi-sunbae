@@ -6,6 +6,7 @@ import com.jachwisunbae.transit.domain.GtfsRoute;
 import com.jachwisunbae.transit.domain.GtfsStop;
 import com.jachwisunbae.transit.domain.GtfsTransfer;
 import com.jachwisunbae.transit.domain.vo.Coordinate;
+import com.jachwisunbae.transit.domain.vo.Seconds;
 import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -43,6 +44,35 @@ public class JdbcGtfsNetworkRepository implements GtfsNetworkRepository {
                 resultSet.getString("stop_name"),
                 new Coordinate(resultSet.getDouble("latitude"), resultSet.getDouble("longitude")),
                 resultSet.getString("admin_dong_code")));
+    }
+
+    @Override
+    public List<GtfsRoute> findRoutes() {
+        return jdbcTemplate.query("""
+                SELECT route_id, short_name, long_name, route_type, wait_seconds
+                FROM gtfs_routes
+                """, (resultSet, rowNumber) -> new GtfsRoute(resultSet.getString("route_id"),
+                resultSet.getString("short_name"), resultSet.getString("long_name"),
+                resultSet.getInt("route_type"), new Seconds(resultSet.getInt("wait_seconds"))));
+    }
+
+    @Override
+    public List<GtfsEdge> findEdges() {
+        return jdbcTemplate.query("""
+                SELECT route_id, from_stop_id, to_stop_id, travel_seconds
+                FROM gtfs_edges
+                """, (resultSet, rowNumber) -> new GtfsEdge(resultSet.getString("route_id"),
+                resultSet.getString("from_stop_id"), resultSet.getString("to_stop_id"),
+                new Seconds(resultSet.getInt("travel_seconds"))));
+    }
+
+    @Override
+    public List<GtfsTransfer> findTransfers() {
+        return jdbcTemplate.query("""
+                SELECT from_stop_id, to_stop_id, transfer_seconds
+                FROM gtfs_transfers
+                """, (resultSet, rowNumber) -> new GtfsTransfer(resultSet.getString("from_stop_id"),
+                resultSet.getString("to_stop_id"), new Seconds(resultSet.getInt("transfer_seconds"))));
     }
 
     @Override
