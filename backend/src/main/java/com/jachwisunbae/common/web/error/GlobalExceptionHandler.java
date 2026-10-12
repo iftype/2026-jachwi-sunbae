@@ -10,6 +10,7 @@ import com.jachwisunbae.common.exception.errorcode.ErrorCode;
 import com.jachwisunbae.common.exception.server.DataInconsistencyException;
 import com.jachwisunbae.common.exception.server.InternalSystemException;
 import com.jachwisunbae.common.exception.server.ServerException;
+import com.jachwisunbae.common.exception.server.ServiceUnavailableException;
 import com.jachwisunbae.common.exception.server.UpstreamServiceException;
 import com.jachwisunbae.common.observability.RequestLoggingFilter;
 import jakarta.servlet.http.HttpServletRequest;
@@ -186,6 +187,7 @@ public class GlobalExceptionHandler {
             case DataInconsistencyException dataInconsistency -> HttpStatus.INTERNAL_SERVER_ERROR;
             case InternalSystemException internalSystem -> HttpStatus.INTERNAL_SERVER_ERROR;
             case UpstreamServiceException upstream -> HttpStatus.BAD_GATEWAY;
+            case ServiceUnavailableException unavailable -> HttpStatus.SERVICE_UNAVAILABLE;
             // 상태를 정하지 않은 새 예외 타입은 서버 문제로 드러낸다.
             default -> HttpStatus.INTERNAL_SERVER_ERROR;
         };

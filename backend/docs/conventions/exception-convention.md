@@ -72,6 +72,7 @@ common
 │   │   ├── ServerException
 │   │   ├── DataInconsistencyException
 │   │   ├── InternalSystemException
+│   │   ├── ServiceUnavailableException
 │   │   └── UpstreamServiceException
 │   └── errorcode
 │       └── ErrorCode
@@ -194,7 +195,13 @@ DB에 저장된 데이터가 애플리케이션이 기대하는 상태를 만족
 
 외부 시스템이 HTTP 4xx를 반환해도 자취선배 사용자의 잘못이라는 뜻은 아니다. 예를 들어 서버의 API Key가 잘못되어 외부 API가 `401`을 반환했다면 사용자의 인증 실패가 아니라 서버 또는 외부 의존성 문제다. 외부 응답 상태를 클라이언트에 그대로 전달하지 않는다.
 
-### 6.4. UpstreamTimeoutException (504, 미도입)
+### 6.4. ServiceUnavailableException (503)
+
+기능에 필요한 데이터나 자원이 아직 준비되지 않아 지금은 처리할 수 없을 때 사용한다. 운영자가 준비를 마치면 같은 요청이 성공하므로, 클라이언트는 잠시 후 다시 시도하도록 안내한다.
+
+- 대중교통 노선망이 아직 적재되지 않아 생활권을 탐색할 수 없음
+
+### 6.5. UpstreamTimeoutException (504, 미도입)
 
 외부 시스템의 연결·응답 시간 초과를 일반적인 실패와 운영에서 구분해야 할 때 도입한다. 그전까지 timeout은 `UpstreamServiceException`으로 처리한다.
 
@@ -320,6 +327,7 @@ API 계약을 바꿀 때는 다음을 확인한다.
 | 지원하지 않는 Media Type | `415 Unsupported Media Type` |
 | 서버 내부 오류           | `500 Internal Server Error`  |
 | 외부 시스템 실패         | `502 Bad Gateway`            |
+| 데이터·자원 준비 안 됨   | `503 Service Unavailable`    |
 
 `409 Conflict`는 사용하지 않는다. 사용자가 요청을 바꿔 해결할 수 있는 상태 충돌이나 중복은 구체적인 `ErrorCode`와 `400`으로 표현한다.
 
@@ -378,6 +386,7 @@ Controller 이후 발생한 예외의 HTTP 변환은 `@RestControllerAdvice` 한
 | `DataInconsistencyException`     | `500`     |
 | `InternalSystemException`        | `500`     |
 | `UpstreamServiceException`       | `502`     |
+| `ServiceUnavailableException`    | `503`     |
 
 ### 12.2. 예상하지 못한 예외
 
@@ -546,13 +555,16 @@ try {
 2. 외부 시스템의 실패인가?
    ├─ Yes → UpstreamServiceException
    └─ No ↓
-3. 저장된 데이터의 불일치인가?
+3. 필요한 데이터나 자원이 아직 준비되지 않았고, 준비되면 같은 요청이 성공하는가?
+   ├─ Yes → ServiceUnavailableException
+   └─ No ↓
+4. 저장된 데이터의 불일치인가?
    ├─ Yes → DataInconsistencyException
    └─ No ↓
-4. 서버 내부 작업의 실패인가?
+5. 서버 내부 작업의 실패인가?
    ├─ Yes → InternalSystemException
    └─ 의미를 알 수 없음 ↓
-5. 잡지 않는다 → 500 INTERNAL_SERVER_ERROR
+6. 잡지 않는다 → 500 INTERNAL_SERVER_ERROR
 ```
 
 ## 21. 예시
