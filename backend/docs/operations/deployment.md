@@ -229,6 +229,7 @@ MVP1 첫 dev 배포에서는 다음을 확인한다.
 
 3. Vault에 dev DB·JWT·CORS·지도 공급자 인증 정보·S3 접두사를 준비한다. 정적 AWS 키는 두지 않는다.
 4. `bus_stops` 테이블과 전국 정류장 데이터, 앱 DB 계정의 조회 권한을 확인한다. 준비되지 않았다면 [버스정류장 데이터 적재](#버스정류장-데이터-적재)를 애플리케이션 배포 전에 완료한다.
+   `cctvs` 테이블과 전국 CCTV 데이터도 같은 방식으로 확인한다. 준비되지 않았다면 [CCTV 데이터 적재](#cctv-데이터-적재)를 애플리케이션 배포 전에 완료한다.
 5. 프론트 dev Commands에 `API_BASE_URL=https://dev-api.jachwi-sunbae.kr`, `MAP_PROVIDER_MODE`, 지도 공급자 공개 키, 운영과 같은 `POSTHOG_PROJECT_TOKEN`, `POSTHOG_HOST=https://us.i.posthog.com`을 설정한다. PostHog는 `environment=development`로 구분한다.
 
 ### 버스정류장 데이터 적재
@@ -271,6 +272,40 @@ MVP1 첫 dev 배포에서는 다음을 확인한다.
 7. 새 버전의 동작을 확인한 뒤, 해당 환경의 Vault `app_env`에서 더 이상 쓰지 않는 `BUS_STOP_PROVIDER`, `DATA_GO_KR_SERVICE_KEY` 두 줄을 삭제하고 다른 설정은 유지한다. [Vault 환경변수 관리](#5-vault-환경변수-관리)에 따라 `fetch_env.sh dev` 또는 `fetch_env.sh prod`로 내려받고 성공했을 때 재시작한다. 서비스 중인 인스턴스별로 적용과 정상 동작을 확인한다. 서버의 `/etc/jachwi-sunbae/app.env`만 직접 수정하면 다음 배포에서 Vault 값으로 덮어써진다.
 
 데이터만 갱신할 때는 백업을 확인한 뒤 테이블 생성은 건너뛰고 3~5번을 진행한다. 데이터 갱신 자체에는 애플리케이션 재시작이 필요 없다. 적재한 스냅샷이 바뀌면 위 표도 함께 고친다.
+
+### CCTV 데이터 적재
+
+| 항목                   | 기준                                                                                                      |
+| ---------------------- | --------------------------------------------------------------------------------------------------------- |
+| 스냅샷                 | 전국CCTV표준데이터 `CCTV정보.csv` (`2026-10-11` 다운로드)                                                 |
+| 원본 행 / 예상 적재 행 | 381,409 / 373,235 (국내 범위 밖 34행, 가짜 좌표 2,692행, 정밀도 낮은 좌표 5,215행, 카메라 0대 233행 제외) |
+| 갱신 주기              | 미정. 지금은 필요할 때 새 스냅샷을 내려받아 같은 절차로 다시 적재한다                                     |
+
+애플리케이션은 `cctvs`를 조회만 한다. 테이블이 없으면 CCTV 조회가 실패하므로 **애플리케이션 배포 전에 테이블 생성과 데이터 적재를 완료한다.**
+절차는 [버스정류장 데이터 적재](#버스정류장-데이터-적재)와 같고, 다른 점은 다음과 같다.
+
+- 2번에서는 `cctvs`의 `CREATE TABLE` 문만 실행한다.
+- 3번의 CSV는 CP949이고, 원본에 좌표가 있어 외부 API 키 없이 몇 초 만에 SQL을 만든다. 전체 SQL은 약 48MB이므로 저장소 밖에 두고 커밋하지 않는다.
+  출력의 summary에서 생성 행 수와 제외 이유별 건수, NULL로 바꾼 화소수·보관일수 건수를 확인한다. 제외된 행은 stderr의 `WARN` 로그로 확인한다.
+
+  ```bash
+  python3 backend/scripts/cctvs/generate_cctvs_sql.py "<CSV 경로>" \
+    --output /tmp/cctvs.sql 2> /tmp/cctvs-warn.log
+  ```
+
+  적재할 행에 관리번호가 중복되면 UNIQUE 제약 위반을 막기 위해 SQL을 만들지 않고 중단한다. 원본을 확인한 뒤 정제 규칙을 정해 다시 실행한다.
+
+- 5번에서는 적재 행 수와 관리번호 중복을 확인한다. 위 스냅샷은 두 값 모두 `373235`여야 한다.
+
+  ```sql
+  SELECT COUNT(*) AS total_count,
+         COUNT(DISTINCT management_number) AS unique_management_number_count
+  FROM cctvs;
+  ```
+
+- 6번에서는 `GET /api/maps/cctvs`를 500m·1km·2km 반경으로 요청하고, `purposes`로 설치목적을 골라 해당 CCTV만 조회되는지 확인한다.
+
+<!-- TODO: CCTV 공공데이터 갱신 주기와 자동 갱신 (Scheduler). 지금은 내려받은 스냅샷을 수동으로 적재한다. -->
 
 ## 8. 배포 확인과 로그
 
