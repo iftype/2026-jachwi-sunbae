@@ -31,7 +31,8 @@ class CommuteAreaServiceTest {
     private final InMemoryGtfsNetworkRepository networkRepository = new InMemoryGtfsNetworkRepository();
     private final InMemoryAdminDongRepository adminDongRepository =
             new InMemoryAdminDongRepository(List.of(NEAR_DONG, FAR_DONG));
-    private final CommuteAreaService service = new CommuteAreaService(networkRepository, adminDongRepository);
+    private final CommuteAreaService service =
+            new CommuteAreaService(new TransitNetworkCache(networkRepository), adminDongRepository);
 
     @Test
     @DisplayName("갈 수 있는 정류장을 행정동으로 묶고 통근 시간이 짧은 동네부터 돌려준다")

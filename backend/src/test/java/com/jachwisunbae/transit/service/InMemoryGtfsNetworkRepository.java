@@ -12,6 +12,7 @@ import java.util.List;
 class InMemoryGtfsNetworkRepository implements GtfsNetworkRepository {
 
     final List<GtfsFeed> replacedFeeds = new ArrayList<>();
+    int findStopsCount;
     private List<GtfsStop> stops = List.of();
     private List<GtfsRoute> routes = List.of();
     private List<GtfsEdge> edges = List.of();
@@ -33,6 +34,7 @@ class InMemoryGtfsNetworkRepository implements GtfsNetworkRepository {
 
     @Override
     public List<GtfsStop> findStops() {
+        findStopsCount++;
         return stops;
     }
 
