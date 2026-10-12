@@ -9,6 +9,7 @@ const { mockPostHog } = vi.hoisted(() => ({
     init: vi.fn(),
     opt_out_capturing: vi.fn(),
     reset: vi.fn(),
+    get_property: vi.fn(),
   },
 }));
 
@@ -76,8 +77,65 @@ describe('PostHog 제품 분석', () => {
     expect(capturePostHogException(error, { source: 'api_request' })).toBe(true);
 
     await vi.waitFor(() => {
-      expect(mockPostHog.captureException).toHaveBeenCalledWith(error, { source: 'api_request' });
+      expect(mockPostHog.captureException).toHaveBeenCalledWith(error, {
+        source: 'api_request',
+        error_category: 'uncaught',
+        severity: 'P0',
+      });
     });
+  });
+
+  it('라우트 경계가 P0로 보고해도 청크 오류는 P2로 낮추고 수집을 유지한다', async () => {
+    const error = new Error('Loading chunk 961 failed.');
+    error.name = 'ChunkLoadError';
+    initPostHog('phc_test', 'https://us.i.posthog.com');
+    expect(capturePostHogException(error, { boundary: 'lazy_route', severity: 'P0' })).toBe(true);
+    await vi.waitFor(() => {
+      expect(mockPostHog.captureException).toHaveBeenCalledWith(error, {
+        boundary: 'lazy_route',
+        error_category: 'chunk_load',
+        severity: 'P2',
+      });
+    });
+  });
+
+  it('자동 수집된 청크 오류만 P2로 낮추고 다른 이벤트와 오류 등급은 유지한다', async () => {
+    initPostHog('phc_test', 'https://us.i.posthog.com');
+    await vi.waitFor(() => expect(mockPostHog.init).toHaveBeenCalledOnce());
+    const beforeSend = mockPostHog.init.mock.calls[0][1].before_send;
+    for (const exception of [
+      { type: 'ChunkLoadError', value: 'Loading chunk 961 failed.' },
+      { type: 'Error', value: 'Loading chunk 961 failed. (error: https://example.com/961.js)' },
+      { type: 'Error', value: 'Loading CSS chunk 12 failed.' },
+    ]) {
+      expect(beforeSend({ event: '$exception', properties: { $exception_list: [exception], severity: 'P0' } })).toEqual(
+        {
+          event: '$exception',
+          properties: { $exception_list: [exception], error_category: 'chunk_load', severity: 'P2' },
+        },
+      );
+    }
+    expect(beforeSend({ event: '$exception', properties: {} }).properties).toEqual({
+      error_category: 'uncaught',
+      severity: 'P0',
+    });
+    const serverError = { event: '$exception', properties: { error_category: 'api_server', severity: 'P1' } };
+    expect(beforeSend(serverError)).toEqual(serverError);
+    const pageview = { event: '$pageview', properties: {} };
+    expect(beforeSend(pageview)).toEqual(pageview);
+    expect(beforeSend(null)).toBeNull();
+  });
+
+  it('일반 화면 오류와 서버 오류는 수동 수집 등급을 유지한다', async () => {
+    initPostHog('phc_test', 'https://us.i.posthog.com');
+    for (const properties of [
+      { error_category: 'render', severity: 'P0' },
+      { error_category: 'api_server', severity: 'P1' },
+    ]) {
+      const error = new Error('서버 오류가 발생했습니다.');
+      capturePostHogException(error, properties);
+      await vi.waitFor(() => expect(mockPostHog.captureException).toHaveBeenCalledWith(error, properties));
+    }
   });
 
   it('세션 환경과 버전 정보를 공통 속성으로 등록한다', async () => {

@@ -1,5 +1,7 @@
 export type MapCategory = 'HOSPITAL' | 'TRANSPORT' | 'SCHOOL' | 'CONVENIENCE' | 'AGENCY';
 
+export type MapBounds = { south: number; west: number; north: number; east: number };
+
 export type MapMarker = {
   id: string;
   latitude: number;

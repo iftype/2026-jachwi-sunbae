@@ -189,7 +189,7 @@ DB에 저장된 데이터가 애플리케이션이 기대하는 상태를 만족
 
 자취선배가 의존하는 외부 시스템이 정상적인 결과를 제공하지 못했을 때 사용한다.
 
-- Kakao Local, 행정안전부 주소, SGIS, TAGO API 실패
+- Kakao Local, 행정안전부 주소, SGIS API 실패
 - S3 요청 실패
 
 외부 시스템이 HTTP 4xx를 반환해도 자취선배 사용자의 잘못이라는 뜻은 아니다. 예를 들어 서버의 API Key가 잘못되어 외부 API가 `401`을 반환했다면 사용자의 인증 실패가 아니라 서버 또는 외부 의존성 문제다. 외부 응답 상태를 클라이언트에 그대로 전달하지 않는다.
@@ -284,10 +284,10 @@ MAP_PROVIDER_UNAVAILABLE
 
 ### 8.3. publicMessage와 debugMessage를 구분한다
 
-| 구분 | 용도 | 예 |
-| --- | --- | --- |
-| `ErrorCode.publicMessage` | 클라이언트에 공개하는 안전한 문구 | 지도 정보를 불러오지 못했습니다. |
-| 예외의 `debugMessage` | 로그에서 원인을 찾기 위한 상세 정보 | SGIS geocode failed: errCd=-401 |
+| 구분                      | 용도                                | 예                               |
+| ------------------------- | ----------------------------------- | -------------------------------- |
+| `ErrorCode.publicMessage` | 클라이언트에 공개하는 안전한 문구   | 지도 정보를 불러오지 못했습니다. |
+| 예외의 `debugMessage`     | 로그에서 원인을 찾기 위한 상세 정보 | SGIS geocode failed: errCd=-401  |
 
 응답에는 `publicMessage`만 쓴다. 로그에는 필요한 경우 `debugMessage`와 `cause`를 기록한다.
 
@@ -295,9 +295,9 @@ MAP_PROVIDER_UNAVAILABLE
 
 `ErrorCode`는 API 계약이므로 다음 변경은 프론트엔드 영향을 확인한다.
 
-| 구분 | 변경 |
-| --- | --- |
-| 호환 가능 | 새 `ErrorCode` 추가, `publicMessage` 문구 변경 |
+| 구분          | 변경                                                               |
+| ------------- | ------------------------------------------------------------------ |
+| 호환 가능     | 새 `ErrorCode` 추가, `publicMessage` 문구 변경                     |
 | API 계약 변경 | 기존 `ErrorCode` 삭제·이름 변경·의미 변경, 반환되는 HTTP 상태 변경 |
 
 API 계약을 바꿀 때는 다음을 확인한다.
@@ -308,18 +308,18 @@ API 계약을 바꿀 때는 다음을 확인한다.
 
 ## 10. HTTP 상태 코드
 
-| 상황 | HTTP 상태 |
-| --- | --- |
-| 입력 형식·값 오류 | `400 Bad Request` |
-| 비즈니스 규칙 위반 | `400 Bad Request` |
-| 인증 실패 | `401 Unauthorized` |
-| 권한 없음 | `403 Forbidden` |
-| 리소스 없음 | `404 Not Found` |
-| 지원하지 않는 Method | `405 Method Not Allowed` |
-| Body가 너무 큼 | `413 Payload Too Large` |
+| 상황                     | HTTP 상태                    |
+| ------------------------ | ---------------------------- |
+| 입력 형식·값 오류        | `400 Bad Request`            |
+| 비즈니스 규칙 위반       | `400 Bad Request`            |
+| 인증 실패                | `401 Unauthorized`           |
+| 권한 없음                | `403 Forbidden`              |
+| 리소스 없음              | `404 Not Found`              |
+| 지원하지 않는 Method     | `405 Method Not Allowed`     |
+| Body가 너무 큼           | `413 Payload Too Large`      |
 | 지원하지 않는 Media Type | `415 Unsupported Media Type` |
-| 서버 내부 오류 | `500 Internal Server Error` |
-| 외부 시스템 실패 | `502 Bad Gateway` |
+| 서버 내부 오류           | `500 Internal Server Error`  |
+| 외부 시스템 실패         | `502 Bad Gateway`            |
 
 `409 Conflict`는 사용하지 않는다. 사용자가 요청을 바꿔 해결할 수 있는 상태 충돌이나 중복은 구체적인 `ErrorCode`와 `400`으로 표현한다.
 
@@ -333,11 +333,11 @@ API 계약을 바꿀 때는 다음을 확인한다.
 }
 ```
 
-| 필드 | 의미 |
-| --- | --- |
-| `code` | 클라이언트가 오류를 식별하는 안정적인 코드 |
+| 필드      | 의미                                                                |
+| --------- | ------------------------------------------------------------------- |
+| `code`    | 클라이언트가 오류를 식별하는 안정적인 코드                          |
 | `message` | 사용자에게 공개할 수 있는 안전한 메시지 (`ErrorCode.publicMessage`) |
-| `errors` | 요청 검증의 필드별 오류. 그 외 오류에서는 빈 배열 |
+| `errors`  | 요청 검증의 필드별 오류. 그 외 오류에서는 빈 배열                   |
 
 ### 11.1. 검증 오류
 
@@ -368,16 +368,16 @@ Controller 이후 발생한 예외의 HTTP 변환은 `@RestControllerAdvice` 한
 
 예외 타입으로 HTTP 상태를 정하고, 응답 메시지는 `ErrorCode.publicMessage`를 쓴다.
 
-| 예외 | HTTP 상태 |
-| --- | --- |
-| `InvalidInputException` | `400` |
-| `BusinessRuleViolationException` | `400` |
-| `AuthenticationFailedException` | `401` |
-| `AuthorizationFailedException` | `403` |
-| `ResourceNotFoundException` | `404` |
-| `DataInconsistencyException` | `500` |
-| `InternalSystemException` | `500` |
-| `UpstreamServiceException` | `502` |
+| 예외                             | HTTP 상태 |
+| -------------------------------- | --------- |
+| `InvalidInputException`          | `400`     |
+| `BusinessRuleViolationException` | `400`     |
+| `AuthenticationFailedException`  | `401`     |
+| `AuthorizationFailedException`   | `403`     |
+| `ResourceNotFoundException`      | `404`     |
+| `DataInconsistencyException`     | `500`     |
+| `InternalSystemException`        | `500`     |
+| `UpstreamServiceException`       | `502`     |
 
 ### 12.2. 예상하지 못한 예외
 
@@ -395,14 +395,14 @@ Controller 이후 발생한 예외의 HTTP 변환은 `@RestControllerAdvice` 한
 
 Spring MVC가 Controller 호출 전후에 발생시키는 예외도 공통 오류 응답 형식으로 변환한다.
 
-| 예외 | HTTP 상태 | 오류 코드 |
-| --- | --- | --- |
-| `MethodArgumentNotValidException`, `BindException`, `HandlerMethodValidationException`, `ConstraintViolationException`, `MethodArgumentTypeMismatchException`, `HttpMessageNotReadableException`, `MissingServletRequestParameterException`, `MissingServletRequestPartException` | `400` | `INVALID_REQUEST` |
-| `HttpRequestMethodNotSupportedException` | `405` | `METHOD_NOT_ALLOWED` |
-| `MaxUploadSizeExceededException` | `413` | `PHOTO_FILE_TOO_LARGE` |
-| `HttpMediaTypeNotSupportedException` | `415` | `UNSUPPORTED_MEDIA_TYPE` |
-| `NoResourceFoundException` (존재하지 않는 API 경로) | `404` | `RESOURCE_NOT_FOUND` |
-| `MissingPathVariableException` | `500` | `INTERNAL_SERVER_ERROR` |
+| 예외                                                                                                                                                                                                                                                                              | HTTP 상태 | 오류 코드                |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ------------------------ |
+| `MethodArgumentNotValidException`, `BindException`, `HandlerMethodValidationException`, `ConstraintViolationException`, `MethodArgumentTypeMismatchException`, `HttpMessageNotReadableException`, `MissingServletRequestParameterException`, `MissingServletRequestPartException` | `400`     | `INVALID_REQUEST`        |
+| `HttpRequestMethodNotSupportedException`                                                                                                                                                                                                                                          | `405`     | `METHOD_NOT_ALLOWED`     |
+| `MaxUploadSizeExceededException`                                                                                                                                                                                                                                                  | `413`     | `PHOTO_FILE_TOO_LARGE`   |
+| `HttpMediaTypeNotSupportedException`                                                                                                                                                                                                                                              | `415`     | `UNSUPPORTED_MEDIA_TYPE` |
+| `NoResourceFoundException` (존재하지 않는 API 경로)                                                                                                                                                                                                                               | `404`     | `RESOURCE_NOT_FOUND`     |
+| `MissingPathVariableException`                                                                                                                                                                                                                                                    | `500`     | `INTERNAL_SERVER_ERROR`  |
 
 - 요청 검증 오류는 가능한 경우 `field`, `reason`을 `errors`에 넣는다.
 - 업로드 크기 제한은 사진 업로드에만 걸리므로 `PHOTO_FILE_TOO_LARGE`를 쓴다.
@@ -433,7 +433,7 @@ DB 예외 메시지나 드라이버 오류 문구를 파싱해서 제약 종류�
 
 ## 15. 외부 API 예외
 
-외부 API Client는 외부 시스템과의 통신 실패를 애플리케이션이 이해할 수 있는 서버 예외로 변환한다. 대상은 Kakao, SGIS, 행정안전부 주소 API, TAGO, S3 등이다.
+외부 API Client는 외부 시스템과의 통신 실패를 애플리케이션이 이해할 수 있는 서버 예외로 변환한다. 대상은 Kakao, SGIS, 행정안전부 주소 API, S3 등이다.
 
 ### 15.1. RuntimeException 전체를 외부 장애로 변환하지 않는다
 
@@ -459,27 +459,29 @@ try {
 
 외부 API가 HTTP 200을 반환해도 서비스에 필요한 데이터를 제공하지 않았다면 따로 판단한다.
 
-| 상황 | 처리 |
-| --- | --- |
-| SGIS가 성공 응답했지만 좌표 형식이 잘못됨 | `UpstreamServiceException` |
-| Kakao의 특정 장소 하나에서 필수 필드가 누락됨 | 그 장소만 제외할 수 있다면 제외하고 `WARN` 로그 |
-| 응답 전체 구조가 깨져 사용할 수 있는 결과가 없음 | `UpstreamServiceException` |
+| 상황                                             | 처리                                            |
+| ------------------------------------------------ | ----------------------------------------------- |
+| SGIS가 성공 응답했지만 좌표 형식이 잘못됨        | `UpstreamServiceException`                      |
+| Kakao의 특정 장소 하나에서 필수 필드가 누락됨    | 그 장소만 제외할 수 있다면 제외하고 `WARN` 로그 |
+| 응답 전체 구조가 깨져 사용할 수 있는 결과가 없음 | `UpstreamServiceException`                      |
 
 부분 실패를 무시할지 전체 요청을 실패시킬지는 기능별 제품 정책으로 정한다.
 
 ## 16. 대체 처리 (Fallback)
 
-외부 시스템이 실패해도 일부 기능만 제외하고 정상 결과를 반환할 수 있다. 예를 들어 주변 시설 검색은 성공했지만 TAGO 버스정류장 조회가 실패하면, 제품 정책상 버스정류장 없이 결과를 제공한다.
+외부 시스템이 실패해도 일부 기능만 제외하고 정상 결과를 반환할 수 있다. 예를 들어 주요 결과는 성공했지만 부가 정보를 주는 외부 API가 실패하면, 제품 정책에 따라 부가 정보 없이 결과를 제공할 수 있다.
 
 이때 **예상한 외부 장애만** 잡는다.
 
 ```java
 try {
-    busStopProvider.nearby(...);
+    supplementProvider.find(...);
 } catch (UpstreamServiceException exception) {
     log.warn(...);
 }
 ```
+
+우리 DB에서 조회하는 데이터는 외부 장애가 아니므로 대체 처리하지 않는다. 예를 들어 버스정류장은 서비스 DB에서 조회하므로, 조회가 실패하면 그대로 `500`으로 드러낸다.
 
 `catch (RuntimeException)`으로 모든 예외를 잡아 우리 코드의 `NullPointerException`까지 대체 처리로 숨기지 않는다.
 
@@ -495,21 +497,21 @@ try {
 }
 ```
 
-| 상황 | HTTP 상태 | 오류 코드 |
-| --- | --- | --- |
-| Access Token 누락, Bearer가 아닌 인증 방식 | `401` | `ACCESS_TOKEN_INVALID` |
-| Access Token 만료 | `401` | `ACCESS_TOKEN_INVALID` |
-| 서명·issuer·audience·subject·형식 오류 | `401` | `ACCESS_TOKEN_INVALID` |
+| 상황                                       | HTTP 상태 | 오류 코드              |
+| ------------------------------------------ | --------- | ---------------------- |
+| Access Token 누락, Bearer가 아닌 인증 방식 | `401`     | `ACCESS_TOKEN_INVALID` |
+| Access Token 만료                          | `401`     | `ACCESS_TOKEN_INVALID` |
+| 서명·issuer·audience·subject·형식 오류     | `401`     | `ACCESS_TOKEN_INVALID` |
 
 응답 작성 로직은 사용처가 Filter 하나뿐이므로 Filter 안에 둔다. 재사용이 필요해지면 별도 객체로 분리한다.
 
 ## 18. 계층별 예외 책임
 
-| 계층 | 책임 |
-| --- | --- |
-| Service | 유스케이스의 의미를 알고 있으므로 비즈니스 정책 위반을 판단해 `JachwiException`으로 표현한다. `HttpStatus`, `ResponseEntity`를 알지 않는다. |
-| Repository | DB 접근과 복원을 담당하고 DB 문제를 애플리케이션이 이해할 수 있는 형태로 바꾼다. 예: 복원 실패 → `DataInconsistencyException` |
-| 외부 Client, Storage | 외부 라이브러리 예외가 Service까지 퍼지지 않도록 경계에서 `UpstreamServiceException`으로 바꾼다. |
+| 계층                 | 책임                                                                                                                                        |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Service              | 유스케이스의 의미를 알고 있으므로 비즈니스 정책 위반을 판단해 `JachwiException`으로 표현한다. `HttpStatus`, `ResponseEntity`를 알지 않는다. |
+| Repository           | DB 접근과 복원을 담당하고 DB 문제를 애플리케이션이 이해할 수 있는 형태로 바꾼다. 예: 복원 실패 → `DataInconsistencyException`               |
+| 외부 Client, Storage | 외부 라이브러리 예외가 Service까지 퍼지지 않도록 경계에서 `UpstreamServiceException`으로 바꾼다.                                            |
 
 ## 19. 예외를 잡는 규칙
 
@@ -555,24 +557,23 @@ try {
 
 ## 21. 예시
 
-| 상황 | 흐름 | 결과 |
-| --- | --- | --- |
-| 잘못된 닉네임 | `Nickname` → `InvalidInputException(NICKNAME_INVALID)` | `400` |
-| 틀린 비밀번호 | `AuthService` → `AuthenticationFailedException(NICKNAME_AUTHENTICATION_FAILED)` | `401` |
-| 손상된 DB 비밀번호 해시 | 저장된 해시 검증 실패 → `DataInconsistencyException` | `500` |
-| 존재하지 않는 매물 | `PropertyService` → `ResourceNotFoundException(PROPERTY_NOT_FOUND)` | `404` |
-| SGIS 장애 | `SgisAddressClient` → `UpstreamServiceException(MAP_PROVIDER_UNAVAILABLE)` | `502` |
-| TAGO 장애 | `TagoBusStopProvider` → `UpstreamServiceException`, `MapService`가 이 예외만 잡고 `WARN` 로그 | Kakao 결과만 `200` |
-| 우리 코드의 `NullPointerException` | 잡지 않음 → `GlobalExceptionHandler` | `500` |
+| 상황                               | 흐름                                                                            | 결과  |
+| ---------------------------------- | ------------------------------------------------------------------------------- | ----- |
+| 잘못된 닉네임                      | `Nickname` → `InvalidInputException(NICKNAME_INVALID)`                          | `400` |
+| 틀린 비밀번호                      | `AuthService` → `AuthenticationFailedException(NICKNAME_AUTHENTICATION_FAILED)` | `401` |
+| 손상된 DB 비밀번호 해시            | 저장된 해시 검증 실패 → `DataInconsistencyException`                            | `500` |
+| 존재하지 않는 매물                 | `PropertyService` → `ResourceNotFoundException(PROPERTY_NOT_FOUND)`             | `404` |
+| SGIS 장애                          | `SgisAddressClient` → `UpstreamServiceException(MAP_PROVIDER_UNAVAILABLE)`      | `502` |
+| 우리 코드의 `NullPointerException` | 잡지 않음 → `GlobalExceptionHandler`                                            | `500` |
 
 ### 하지 않는 것
 
-| 하지 않는 것 | 이유 |
-| --- | --- |
-| `catch (RuntimeException)` → `InvalidInputException` | 서버 버그를 사용자 입력 오류로 숨긴다 |
-| `catch (RuntimeException)` → `UpstreamServiceException` | 서버 버그를 외부 장애로 숨긴다 |
-| `DataIntegrityViolationException` → `409` | 원인을 모르는 DB 오류를 사용자 문제로 응답한다 |
-| `new ErrorResponse(code, exception.getMessage())` | 내부 디버깅 메시지가 응답에 노출된다 |
+| 하지 않는 것                                            | 이유                                           |
+| ------------------------------------------------------- | ---------------------------------------------- |
+| `catch (RuntimeException)` → `InvalidInputException`    | 서버 버그를 사용자 입력 오류로 숨긴다          |
+| `catch (RuntimeException)` → `UpstreamServiceException` | 서버 버그를 외부 장애로 숨긴다                 |
+| `DataIntegrityViolationException` → `409`               | 원인을 모르는 DB 오류를 사용자 문제로 응답한다 |
+| `new ErrorResponse(code, exception.getMessage())`       | 내부 디버깅 메시지가 응답에 노출된다           |
 
 ## 22. 향후 정리할 항목
 

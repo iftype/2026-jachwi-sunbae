@@ -27,7 +27,7 @@ describe('지도 위치 이동', () => {
     );
     let fallback = { latitude: 37, longitude: 127, label: '이전 매물' };
     const { result } = renderHook(() => useMapLocation());
-    let pending: Promise<void> = Promise.resolve();
+    let pending: ReturnType<typeof result.current.moveToCurrentLocation> = Promise.resolve(null);
     act(() => {
       pending = result.current.moveToCurrentLocation(() => fallback);
     });

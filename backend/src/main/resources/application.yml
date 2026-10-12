@@ -40,10 +40,6 @@ map:
     consumer-secret: ${SGIS_CONSUMER_SECRET:}
   kakao:
     rest-api-key: ${KAKAO_REST_API_KEY:}
-  bus-stops:
-    provider: ${BUS_STOP_PROVIDER:none}
-    tago:
-      service-key: ${DATA_GO_KR_SERVICE_KEY:}
   connect-timeout-millis: ${MAP_CONNECT_TIMEOUT_MILLIS:2000}
   read-timeout-millis: ${MAP_READ_TIMEOUT_MILLIS:5000}
 

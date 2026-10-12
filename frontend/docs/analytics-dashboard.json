@@ -1,0 +1,109 @@
+{
+  "dashboardId": 2149589,
+  "name": "자취선배 방문·기록·재사용",
+  "dateFrom": "-56d",
+  "defaultEnvironment": "production",
+  "internalCohortExcluded": 520731,
+  "timezone": "UTC",
+  "action": { "id": 376802, "name": "매물 기록 행동", "events": ["checklist_item_checked", "property_memo_saved"] },
+  "insights": [
+    {
+      "id": 12338943,
+      "name": "일별 방문자 (비로그인 포함)",
+      "kind": "TrendsQuery",
+      "events": ["$pageview"],
+      "math": "dau",
+      "interval": "day"
+    },
+    {
+      "id": 12617255,
+      "name": "유입 도메인별 방문자",
+      "kind": "TrendsQuery",
+      "events": ["$pageview"],
+      "math": "dau",
+      "interval": "day",
+      "breakdown": "$referring_domain"
+    },
+    {
+      "id": 12617256,
+      "name": "랜딩 시작 버튼을 누른 사람",
+      "kind": "TrendsQuery",
+      "events": ["landing_cta_clicked"],
+      "math": "dau",
+      "interval": "day",
+      "breakdown": "destination"
+    },
+    {
+      "id": 12440018,
+      "name": "주간 기록 사용자",
+      "kind": "TrendsQuery",
+      "actionId": 376802,
+      "math": "dau",
+      "interval": "week"
+    },
+    {
+      "id": 12338946,
+      "name": "기능별 일별 사용한 사람",
+      "kind": "TrendsQuery",
+      "events": [
+        "property_created",
+        "checklist_item_checked",
+        "property_memo_saved",
+        "property_comparison_pdf_exported"
+      ],
+      "math": "dau",
+      "interval": "day"
+    },
+    {
+      "id": 12440058,
+      "name": "주간 기록 재사용 (W1·W2 우선)",
+      "kind": "RetentionQuery",
+      "targetActionId": 376802,
+      "returningActionId": 376802,
+      "period": "Week",
+      "totalIntervals": 5,
+      "retentionType": "retention_first_time",
+      "cumulative": false
+    },
+    {
+      "id": 12338944,
+      "name": "방문 → 로그인 성공 (같은 세션)",
+      "kind": "FunnelsQuery",
+      "events": ["$pageview", "login_started", "login_succeeded"],
+      "aggregateBy": "properties.$session_id",
+      "windowHours": 1
+    },
+    {
+      "id": 12338945,
+      "name": "매물 등록 시작 → 저장 성공",
+      "kind": "FunnelsQuery",
+      "events": ["property_creation_started", "property_creation_submitted", "property_created"],
+      "aggregateBy": "properties.$session_id",
+      "windowHours": 1
+    },
+    {
+      "id": 12339244,
+      "name": "로그인 → 매물 저장 성공 (같은 세션)",
+      "kind": "FunnelsQuery",
+      "events": ["login_succeeded", "property_creation_started", "property_creation_submitted", "property_created"],
+      "aggregateBy": "properties.$session_id",
+      "windowHours": 1
+    },
+    {
+      "id": 12342935,
+      "name": "로그인 실패 추이",
+      "kind": "TrendsQuery",
+      "events": ["login_failed"],
+      "math": "total",
+      "interval": "day"
+    },
+    {
+      "id": 12338947,
+      "name": "오류·반복 클릭 신호",
+      "kind": "TrendsQuery",
+      "events": ["$exception", "$rageclick", "login_failed"],
+      "math": "total",
+      "interval": "day"
+    }
+  ]
+}

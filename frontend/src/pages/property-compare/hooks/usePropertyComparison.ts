@@ -25,29 +25,28 @@ const usePropertyComparison = () => {
   const hasRecordedView = useRef(false);
   const { mutate: recordComparisonView } = useRecordPropertyComparisonView();
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const selectedIdsRef = useRef<number[]>([]);
   const [isExporting, setIsExporting] = useState(false);
   const [hasExportError, setHasExportError] = useState(false);
 
   useEffect(() => {
-    trackPostHogEvent('property_comparison_started');
-  }, []);
-
-  useEffect(() => {
     if (hasRecordedView.current) return;
     hasRecordedView.current = true;
+    trackPostHogEvent('property_comparison_started');
     recordComparisonView();
   }, [recordComparisonView]);
 
   const toggle = (propertyId: number) => {
     setHasExportError(false);
-    setSelectedIds((current) => {
-      if (current.includes(propertyId)) {
-        trackPostHogEvent('property_selected_for_comparison', { selected: false, selected_count: current.length - 1 });
-        return current.filter((id) => id !== propertyId);
-      }
-      if (current.length >= MAX_SELECTION) return current;
-      trackPostHogEvent('property_selected_for_comparison', { selected: true, selected_count: current.length + 1 });
-      return [...current, propertyId];
+    const current = selectedIdsRef.current;
+    const isSelected = current.includes(propertyId);
+    if (!isSelected && current.length >= MAX_SELECTION) return;
+    const next = isSelected ? current.filter((id) => id !== propertyId) : [...current, propertyId];
+    selectedIdsRef.current = next;
+    setSelectedIds(next);
+    trackPostHogEvent('property_selected_for_comparison', {
+      selected: !isSelected,
+      selected_count: next.length,
     });
   };
 
