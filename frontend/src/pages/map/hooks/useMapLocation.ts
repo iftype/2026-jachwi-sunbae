@@ -16,8 +16,10 @@ import type { MapAddress } from '@/features/map/model/Map';
 export type MapLocationStatus = 'locating' | 'ready' | 'fallback';
 
 /** 지도가 어디를 보고 있는지와, 그 위치를 어떻게 얻었는지를 함께 관리한다. */
-const useMapLocation = () => {
-  const [viewportCenter, setViewportCenter] = useState(() => readLastMapCenter() ?? DEFAULT_MAP_CENTER);
+const useMapLocation = (initialCenter?: MapCoordinate) => {
+  const [viewportCenter, setViewportCenter] = useState(
+    () => initialCenter ?? readLastMapCenter() ?? DEFAULT_MAP_CENTER,
+  );
   const [currentPosition, setCurrentPosition] = useState<MapCoordinate | null>(null);
   const [locationStatus, setLocationStatus] = useState<MapLocationStatus>('ready');
   const [locationFailure, setLocationFailure] = useState<MapLocationFailure>('unavailable');
@@ -36,7 +38,7 @@ const useMapLocation = () => {
         const coordinate = await requestCurrentMapLocation();
         if (!isActive) return;
         setCurrentPosition(coordinate);
-        if (readLastMapCenter() !== null) return;
+        if (initialCenter !== undefined || readLastMapCenter() !== null) return;
         setViewportCenter(coordinate);
         writeLastMapCenter(coordinate);
         setLocationLabel('현재 위치');
@@ -47,7 +49,7 @@ const useMapLocation = () => {
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [initialCenter]);
 
   /** 위치를 얻지 못하면 실패 시점의 최신 대체 좌표를 읽는다. */
   const moveToCurrentLocation = useCallback(
@@ -62,6 +64,7 @@ const useMapLocation = () => {
         writeLastMapCenter(coordinate);
         setLocationLabel('현재 위치');
         setLocationStatus('ready');
+        return coordinate;
       } catch (error) {
         setLocationFailure(error instanceof MapLocationError ? error.reason : 'unavailable');
         // 이미 거부된 권한은 눌러도 창이 뜨지 않는다. 버튼을 내놓을지 여기서 가른다.
@@ -81,6 +84,7 @@ const useMapLocation = () => {
           setLocationLabel('우테코 판교사옥');
         }
         setLocationStatus('fallback');
+        return null;
       }
     },
     [],

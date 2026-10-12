@@ -29,6 +29,35 @@
   padding-bottom: 0;
 }
 
+.root[data-map-page='true'] .content {
+  --map-sheet-bottom: calc(var(--bottom-navigation-height) + 1.1rem + env(safe-area-inset-bottom));
+  padding-bottom: 0;
+  overflow: hidden;
+}
+
+/* 네이티브 탭은 WebView 아래의 형제 뷰다. 지도 내부에서는 탭 여백을 다시 예약하지 않는다. */
+.root[data-map-page='true'][data-native-tab-bar='true'] {
+  height: 100%;
+}
+
+.root[data-map-page='true'][data-native-tab-bar='true'] .content {
+  --map-sheet-bottom: 0px;
+  padding-bottom: 0;
+}
+
+/* 새 앱은 탭을 WebView 위에 겹친다. 구버전의 형제 뷰 배치는 유지한다. */
+.root[data-map-page='true'][data-native-tab-overlay='true'] .content {
+  --map-sheet-bottom: calc(
+    var(--bottom-navigation-height) + var(--native-tab-bar-safe-bottom, env(safe-area-inset-bottom))
+  );
+}
+
+.root[data-native-tab-overlay='true']:not([data-full-screen='true']):not([data-map-page='true']) .content {
+  padding-bottom: calc(
+    var(--bottom-navigation-height) + 1.1rem + var(--native-tab-bar-safe-bottom, env(safe-area-inset-bottom))
+  );
+}
+
 .content::-webkit-scrollbar {
   display: none;
 }
@@ -39,29 +68,33 @@
  */
 .bottomNavigation {
   position: fixed;
-  bottom: calc(0.55rem + env(safe-area-inset-bottom));
+  bottom: 0;
   left: 50%;
   z-index: 100;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  width: calc(min(100%, var(--app-max-width)) - 1.25rem);
+  width: min(100%, var(--app-max-width));
   transform: translateX(-50%);
-  min-height: var(--bottom-navigation-height);
+  min-height: calc(var(--bottom-navigation-height) + 1.1rem + env(safe-area-inset-bottom));
+  box-sizing: border-box;
   margin: 0;
-  padding: 0.25rem;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
+  padding: 0;
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  border-radius: 0;
   background: var(--color-navigation-surface);
 }
 
 .bottomNavigation a {
   display: grid;
-  min-height: calc(var(--bottom-navigation-height) - 0.5rem);
+  min-height: var(--bottom-navigation-height);
+  box-sizing: border-box;
+  padding: 0.55rem 0 calc(0.55rem + env(safe-area-inset-bottom));
   place-items: center;
   align-content: center;
   gap: 0.16rem;
   margin: 0;
-  border-radius: 999px;
+  border-radius: 0;
   color: var(--color-muted);
   font-size: 0.68rem;
   font-weight: 800;

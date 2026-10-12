@@ -10,7 +10,7 @@ import { PublicConfigProvider } from '@/shared/config/PublicConfigContext';
 
 vi.mock('@/features/map/api/mapApi', () => ({ fetchNearby: vi.fn() }));
 
-it('GPS가 없으면 원과 반경 조회를 생략하고, GPS를 얻은 뒤에는 화면을 움직여도 기준을 유지한다', async () => {
+it('GPS 없이 선택 좌표로 조회하고, 저장 좌표가 기준이면 화면 이동에도 기준을 유지한다', async () => {
   vi.mocked(fetchNearby).mockResolvedValue({
     center: { latitude: 37.5, longitude: 127 },
     radius: 500,
@@ -25,17 +25,17 @@ it('GPS가 없으면 원과 반경 조회를 생략하고, GPS를 얻은 뒤에�
   );
   const { result, rerender, unmount } = renderHook(
     ({ viewport, gps }: { viewport: MapCoordinate; gps: MapCoordinate | null }) =>
-      useMapNearby(viewport, 4, [], 500, gps),
+      useMapNearby(gps ?? viewport, 4, [], 500),
     { wrapper, initialProps: { viewport: { latitude: 37.4, longitude: 127.1 }, gps: null as MapCoordinate | null } },
   );
-  expect(result.current.circles).toEqual([]);
-  expect(fetchNearby).not.toHaveBeenCalled();
+  expect(result.current.circles).toEqual([{ radiusMeters: 500, label: '500m' }]);
+  await waitFor(() => expect(result.current.nearby.isSuccess).toBe(true));
   const gps = { latitude: 37.5, longitude: 127 };
   rerender({ viewport: gps, gps });
   await waitFor(() => expect(result.current.nearby.isSuccess).toBe(true));
   expect(result.current.circles).toEqual([{ radiusMeters: 500, label: '500m' }]);
   rerender({ viewport: { latitude: 37.6, longitude: 127.2 }, gps });
-  expect(fetchNearby).toHaveBeenCalledTimes(1);
+  expect(fetchNearby).toHaveBeenCalledTimes(2);
   expect(fetchNearby).toHaveBeenCalledWith(
     expect.anything(),
     37.5,

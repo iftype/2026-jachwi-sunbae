@@ -1,10 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { describePropertyLoadError } from '@/features/property/api/propertyErrorMessages';
 import { usePropertyDetail } from '@/features/property/api/useProperties';
 import { useRemoveProperty } from '@/features/property/api/usePropertyMutations';
 import { parsePositiveId } from '@/features/property/lib/propertyFormat';
+import {
+  getPropertyReturnPath,
+  getPropertyReturnState,
+  type PropertyReturnPath,
+} from '@/features/property/lib/propertyNavigation';
 import type { PropertyDetail } from '@/features/property/model/Property';
 import PropertyPhotoViewer from '@/features/property/ui/property-photo-viewer/PropertyPhotoViewer';
 import { trackPostHogEvent } from '@/shared/lib/analytics/posthog';
@@ -23,18 +28,24 @@ import PropertyPhotoSection from './ui/property-photo-section/PropertyPhotoSecti
 
 import styles from './PropertyDetailPage.module.css';
 
-const backToList = <Link to="/properties">매물 목록으로 돌아가기</Link>;
 const describeError = describePropertyLoadError('매물 상세를 불러오지 못했어요.');
 
-type PropertyDetailViewProps = { propertyId: number; detail: PropertyDetail };
+type PropertyDetailViewProps = { propertyId: number; detail: PropertyDetail; backTo: PropertyReturnPath };
 
 const PropertyDetailPage = () => {
   const propertyId = parsePositiveId(useParams().propertyId);
-  if (propertyId === null) return <ContentState title="올바른 매물 주소가 아니에요.">{backToList}</ContentState>;
-  return <ResolvedPropertyDetailPage propertyId={propertyId} />;
+  const backTo = getPropertyReturnPath(useLocation().state);
+  if (propertyId === null) {
+    return (
+      <ContentState title="올바른 매물 주소가 아니에요.">
+        <Link to={backTo}>{backTo === '/map' ? '매물 지도로 돌아가기' : '매물 목록으로 돌아가기'}</Link>
+      </ContentState>
+    );
+  }
+  return <ResolvedPropertyDetailPage propertyId={propertyId} backTo={backTo} />;
 };
 
-const ResolvedPropertyDetailPage = ({ propertyId }: { propertyId: number }) => {
+const ResolvedPropertyDetailPage = ({ propertyId, backTo }: { propertyId: number; backTo: PropertyReturnPath }) => {
   const property = usePropertyDetail(propertyId);
 
   return (
@@ -42,15 +53,16 @@ const ResolvedPropertyDetailPage = ({ propertyId }: { propertyId: number }) => {
       query={property}
       loadingTitle="매물 상세를 불러오는 중이에요."
       describeError={describeError}
-      errorAction={backToList}
+      errorAction={<Link to={backTo}>{backTo === '/map' ? '매물 지도로 돌아가기' : '매물 목록으로 돌아가기'}</Link>}
     >
-      {(detail) => <PropertyDetailView propertyId={propertyId} detail={detail} />}
+      {(detail) => <PropertyDetailView propertyId={propertyId} detail={detail} backTo={backTo} />}
     </QueryState>
   );
 };
 
-const PropertyDetailView = ({ propertyId, detail }: PropertyDetailViewProps) => {
+const PropertyDetailView = ({ propertyId, detail, backTo }: PropertyDetailViewProps) => {
   const navigate = useNavigate();
+  const returnState = getPropertyReturnState(useLocation().state);
   const removeMutation = useRemoveProperty(propertyId);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
@@ -65,7 +77,7 @@ const PropertyDetailView = ({ propertyId, detail }: PropertyDetailViewProps) => 
     try {
       await removeMutation.mutateAsync();
       setIsDeleteDialogOpen(false);
-      navigate('/properties', { replace: true, state: { focusHeading: true } });
+      navigate(backTo, { replace: true, state: { focusHeading: true } });
     } catch {
       // 삭제 확인 창에서 재시도할 수 있도록 유지한다.
     }
@@ -78,7 +90,8 @@ const PropertyDetailView = ({ propertyId, detail }: PropertyDetailViewProps) => 
           propertyId={propertyId}
           propertyName={detail.name}
           photos={detail.photoPreview.photos}
-          backTo="/properties"
+          backTo={backTo}
+          backState={returnState}
           onOpen={() => {
             photoTriggerRef.current = null;
             setSelectedPhotoIndex(0);

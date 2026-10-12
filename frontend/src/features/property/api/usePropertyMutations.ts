@@ -1,9 +1,12 @@
-import { useMutation } from '@tanstack/react-query';
+import type { InfiniteData } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { queryClient } from '@/shared/api/queryClient';
 import { usePublicConfig } from '@/shared/config/PublicConfigContext';
 
-import type { PropertyBasicInfo, PropertyDetail } from '../model/Property';
+import type { PropertyCreationEntrypoint } from '../lib/propertyAnalytics';
+import { trackPropertyEvent } from '../lib/propertyAnalytics';
+import type { PropertyBasicInfo, PropertyDetail, PropertyPage } from '../model/Property';
 import type {
   PropertyInputDto,
   SavePropertyMemoDocumentRequestDto,
@@ -19,13 +22,26 @@ import {
 } from './propertyApi';
 import { propertyQueryKeys } from './propertyQueryKeys';
 
-export const useCreateProperty = () => {
+export const useCreateProperty = (entrypoint: PropertyCreationEntrypoint = 'form') => {
   const config = usePublicConfig();
+  const client = useQueryClient();
   return useMutation({
     mutationFn: (request: PropertyInputDto) => createProperty(config, request),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: propertyQueryKeys.lists() });
+    onMutate: () => {
+      const total = client.getQueryData<InfiniteData<PropertyPage>>(propertyQueryKeys.list(''))?.pages[0]
+        ?.totalElements;
+      trackPropertyEvent('property_creation_submitted', { entrypoint });
+      return { firstProperty: total === undefined ? undefined : total === 0 };
     },
+    onSuccess: async (created, _request, context) => {
+      trackPropertyEvent('property_created', {
+        entrypoint,
+        property_id: created.propertyId,
+        ...(context?.firstProperty === undefined ? {} : { first_property: context.firstProperty }),
+      });
+      await client.invalidateQueries({ queryKey: propertyQueryKeys.lists() });
+    },
+    onError: () => trackPropertyEvent('property_creation_failed', { entrypoint, error_kind: 'request' }),
   });
 };
 
@@ -90,7 +106,9 @@ export const useSavePropertyMemoDocument = (propertyId: number) => {
     mutationFn: (request: SavePropertyMemoDocumentRequestDto) => savePropertyMemoDocument(config, propertyId, request),
     onSuccess: (memo) => {
       queryClient.setQueryData(propertyQueryKeys.memo(propertyId), memo);
+      trackPropertyEvent('property_memo_saved', { property_id: propertyId });
     },
+    onError: () => trackPropertyEvent('property_memo_save_failed', { property_id: propertyId, error_kind: 'request' }),
   });
 };
 

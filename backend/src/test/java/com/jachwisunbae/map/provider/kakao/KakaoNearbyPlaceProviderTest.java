@@ -98,18 +98,27 @@ class KakaoNearbyPlaceProviderTest {
     }
 
     @Test
-    @DisplayName("카테고리마다 카카오 카테고리 코드로 조회한다")
-    void mapsEveryCategoryToKakaoCode() {
+    @DisplayName("교통을 뺀 카테고리마다 카카오 카테고리 코드로 조회한다")
+    void mapsEveryFacilityCategoryToKakaoCode() {
         client.respond("HP8", 1, true, document("1", "병원", null));
-        client.respond("SW8", 1, true, document("2", "지하철역", null));
         client.respond("SC4", 1, true, document("3", "학교", null));
         client.respond("CS2", 1, true, document("4", "편의점", null));
         client.respond("AG2", 1, true, document("5", "중개업소", null));
+        EnumSet<MapCategory> facilities = EnumSet.complementOf(EnumSet.of(MapCategory.TRANSPORT));
 
-        List<NearbyPlace> places = provider.nearby(LATITUDE, LONGITUDE, 500, EnumSet.allOf(MapCategory.class));
+        List<NearbyPlace> places = provider.nearby(LATITUDE, LONGITUDE, 500, facilities);
 
-        assertThat(places).extracting(NearbyPlace::category).containsExactly(MapCategory.values());
-        assertThat(client.requests()).containsExactly("HP8:1", "SW8:1", "SC4:1", "CS2:1", "AG2:1");
+        assertThat(places).extracting(NearbyPlace::category).containsExactlyElementsOf(facilities);
+        assertThat(client.requests()).containsExactly("HP8:1", "SC4:1", "CS2:1", "AG2:1");
+    }
+
+    @Test
+    @DisplayName("교통 카테고리는 카카오로 조회하지 않는다")
+    void doesNotSearchTransportCategory() {
+        List<NearbyPlace> places = provider.nearby(LATITUDE, LONGITUDE, 500, EnumSet.of(MapCategory.TRANSPORT));
+
+        assertThat(places).isEmpty();
+        assertThat(client.requests()).isEmpty();
     }
 
     private static KakaoCategorySearchResponse.Document document(String id, String roadAddress, String address) {

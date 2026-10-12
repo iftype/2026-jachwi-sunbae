@@ -37,14 +37,14 @@ const detailWithoutPhotosFixture = {
 };
 const detailWithoutPhotos = propertyDetailResponseFixture(detailWithoutPhotosFixture);
 
-const renderAuthenticated = (path: string) => {
+const renderAuthenticated = (path: string, state?: unknown) => {
   setAuthentication({ accessToken: 'memory-token', tokenType: 'Bearer', expiresIn: 60 });
   server.use(http.get(`${config.apiBaseUrl}/api/members/me`, () => HttpResponse.json(successEnvelope(memberFixture))));
 
   return render(
     <StrictMode>
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={[path]}>
+        <MemoryRouter initialEntries={[{ pathname: path, state }]}>
           <PublicConfigProvider config={config}>
             <AppRoutes />
           </PublicConfigProvider>
@@ -53,6 +53,18 @@ const renderAuthenticated = (path: string) => {
     </StrictMode>,
   );
 };
+
+it.each([
+  [{ returnTo: '/map' }, '매물 지도로 돌아가기', '/map'],
+  [undefined, '매물 목록으로 돌아가기', '/properties'],
+  [{ returnTo: 'https://other.example' }, '매물 목록으로 돌아가기', '/properties'],
+])('상세의 돌아가기 목적지는 진입 화면을 따르고 외부 주소는 허용하지 않는다 (%j)', async (state, label, href) => {
+  server.use(
+    http.get(`${config.apiBaseUrl}/api/properties/10`, () => HttpResponse.json(successEnvelope(detailWithoutPhotos))),
+  );
+  renderAuthenticated('/properties/10', state);
+  expect(await screen.findByRole('link', { name: label as string })).toHaveAttribute('href', href);
+});
 
 describe('FE-2 매물 목록', () => {
   it('매물 0개와 검색 결과 없음을 구분한다', async () => {

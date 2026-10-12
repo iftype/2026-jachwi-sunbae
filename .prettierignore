@@ -1,0 +1,16 @@
+# Independently managed mobile project
+mobile/
+
+# Dependencies and generated output
+**/node_modules/
+**/build/
+**/dist/
+**/storybook-static/
+**/coverage/
+**/.next/
+
+# QA execution artifacts
+qa/test-results/
+qa/playwright-report/
+qa/blob-report/
+qa/runs/

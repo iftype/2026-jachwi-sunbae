@@ -208,4 +208,18 @@ CREATE TABLE IF NOT EXISTS gtfs_transfers (
     PRIMARY KEY (from_stop_id, to_stop_id),
     CONSTRAINT fk_gtfs_transfers_from_stop FOREIGN KEY (from_stop_id) REFERENCES gtfs_stops (stop_id),
     CONSTRAINT fk_gtfs_transfers_to_stop FOREIGN KEY (to_stop_id) REFERENCES gtfs_stops (stop_id)
+
+-- 버스정류장 (국토교통부 전국 버스정류장 위치정보 스냅샷)
+-- 공공데이터 CSV를 정제 스크립트로 적재하는 참조 데이터다. 애플리케이션은 조회만 한다.
+CREATE TABLE IF NOT EXISTS bus_stops (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    node_id VARCHAR(20) NOT NULL,
+    name VARCHAR(50) NOT NULL,
+    latitude DECIMAL(10, 7) NOT NULL,
+    longitude DECIMAL(11, 7) NOT NULL,
+    city_code VARCHAR(5) NOT NULL,
+    city_name VARCHAR(30) NOT NULL,
+    CONSTRAINT uk_bus_stops_node_id UNIQUE (node_id),
+    CONSTRAINT chk_bus_stops_latitude CHECK (latitude BETWEEN -90 AND 90),
+    CONSTRAINT chk_bus_stops_longitude CHECK (longitude BETWEEN -180 AND 180)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

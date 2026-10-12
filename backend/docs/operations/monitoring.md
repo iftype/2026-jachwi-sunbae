@@ -21,18 +21,18 @@
 
 ## 로그 구성
 
-| 실행 환경 | 출력 | 용도 |
-| --- | --- | --- |
-| `local`, `test` | 사람이 읽는 콘솔 로그 | 개발과 테스트 |
-| `prod` 프로필 | 콘솔 + ECS JSON 파일 | dev·prod EC2와 CloudWatch 수집 |
+| 실행 환경       | 출력                  | 용도                           |
+| --------------- | --------------------- | ------------------------------ |
+| `local`, `test` | 사람이 읽는 콘솔 로그 | 개발과 테스트                  |
+| `prod` 프로필   | 콘솔 + ECS JSON 파일  | dev·prod EC2와 CloudWatch 수집 |
 
 dev와 prod EC2는 모두 Spring의 `prod` 프로필을 사용한다. `DEPLOYMENT_ENVIRONMENT`를 각각 `dev`, `prod`로 두어 JSON의 `service.environment`를 구분한다.
 
 로그 파일은 다음과 같다.
 
-| 파일 | 내용 | 보존 |
-| --- | --- | --- |
-| `/var/log/jachwi-sunbae/application.log` | 애플리케이션·요청·예외 JSON | 10MB 단위, 최대 14일·1GB |
+| 파일                                        | 내용                                | 보존                                            |
+| ------------------------------------------- | ----------------------------------- | ----------------------------------------------- |
+| `/var/log/jachwi-sunbae/application.log`    | 애플리케이션·요청·예외 JSON         | 10MB 단위, 최대 14일·1GB                        |
 | `/var/log/jachwi-sunbae/service-events.log` | systemd가 기록한 프로세스 종료 결과 | 종료당 한 줄을 누적하고 CloudWatch에서 7일 보존 |
 
 요청 로그에는 `request_id`, `http_method`, `path`, `status`, `duration_ms`만 넣는다. 쿼리 문자열, Authorization 헤더, 요청·응답 본문은 기록하지 않는다. 애플리케이션 내부 예외 로그도 같은 `request_id`를 가지므로 요청 완료 로그와 연결할 수 있다.
@@ -71,9 +71,9 @@ dev·prod EC2의 `ec2-project` instance role에 `CloudWatchAgentServerPolicy`와
 
 CloudWatch Logs에서 다음 로그 그룹을 만들고 보존 기간을 7일로 설정한다.
 
-| 환경 | 애플리케이션 | 프로세스 종료 |
-| --- | --- | --- |
-| dev | `/jachwi-sunbae/dev/application` | `/jachwi-sunbae/dev/service-events` |
+| 환경 | 애플리케이션                      | 프로세스 종료                        |
+| ---- | --------------------------------- | ------------------------------------ |
+| dev  | `/jachwi-sunbae/dev/application`  | `/jachwi-sunbae/dev/service-events`  |
 | prod | `/jachwi-sunbae/prod/application` | `/jachwi-sunbae/prod/service-events` |
 
 부하 테스트 전후의 로그가 7일보다 오래 필요하면 이슈에 필요한 시각 범위를 기록한 뒤 해당 기간만 보존 기간을 늘린다.
@@ -178,16 +178,16 @@ fields @timestamp, service_result, exit_code, exit_status
 
 ## 로그로 판단하는 장애
 
-| 관찰 | 우선 판단 | 다음 확인 |
-| --- | --- | --- |
-| 5xx와 예외 스택이 같은 `request_id`로 존재 | 애플리케이션 처리 실패 | 첫 예외의 `error_type`과 cause |
-| `duration_ms`가 먼저 증가하고 5xx가 뒤따름 | 과부하 또는 하위 의존성 지연 | 같은 시각 EC2 CPU와 RDS 상태 |
-| DB 연결 예외가 여러 요청에서 반복 | DB 연결·권한·가용성 문제 | RDS 상태, 보안 그룹, connection pool |
-| `service_result=oom-kill` | Linux OOM killer가 프로세스를 종료 | EC2 메모리와 JVM 최대 메모리 |
-| `exit_code=killed`, `exit_status=KILL` | 강제 종료 또는 OOM 가능성 | 같은 시각 커널 로그와 실행한 장애 주입 명령 |
-| `application_stopping` 뒤 종료 | SIGTERM 기반 정상 종료 | 배포 또는 운영자 재시작 기록 |
-| 종료 이벤트 뒤 `application_ready` | systemd 자동 재시작 성공 | 두 시각의 차이와 health 응답 |
-| 애플리케이션·종료 로그가 동시에 끊김 | 인스턴스·네트워크·Agent 장애 가능성 | EC2 status check와 CloudWatch Agent 상태 |
+| 관찰                                       | 우선 판단                           | 다음 확인                                   |
+| ------------------------------------------ | ----------------------------------- | ------------------------------------------- |
+| 5xx와 예외 스택이 같은 `request_id`로 존재 | 애플리케이션 처리 실패              | 첫 예외의 `error_type`과 cause              |
+| `duration_ms`가 먼저 증가하고 5xx가 뒤따름 | 과부하 또는 하위 의존성 지연        | 같은 시각 EC2 CPU와 RDS 상태                |
+| DB 연결 예외가 여러 요청에서 반복          | DB 연결·권한·가용성 문제            | RDS 상태, 보안 그룹, connection pool        |
+| `service_result=oom-kill`                  | Linux OOM killer가 프로세스를 종료  | EC2 메모리와 JVM 최대 메모리                |
+| `exit_code=killed`, `exit_status=KILL`     | 강제 종료 또는 OOM 가능성           | 같은 시각 커널 로그와 실행한 장애 주입 명령 |
+| `application_stopping` 뒤 종료             | SIGTERM 기반 정상 종료              | 배포 또는 운영자 재시작 기록                |
+| 종료 이벤트 뒤 `application_ready`         | systemd 자동 재시작 성공            | 두 시각의 차이와 health 응답                |
+| 애플리케이션·종료 로그가 동시에 끊김       | 인스턴스·네트워크·Agent 장애 가능성 | EC2 status check와 CloudWatch Agent 상태    |
 
 로그만으로 CPU 고갈, 네트워크 단절, AWS 물리 호스트 장애를 항상 확정할 수는 없다. 로그가 끊긴 경우에는 EC2의 `StatusCheckFailed_System`, `StatusCheckFailed_Instance`, CPU 지표를 함께 확인한다.
 

@@ -7,6 +7,8 @@ import propertyDetailImage from '@/shared/assets/landing/instagram-property-deta
 import propertyExtraImage from '@/shared/assets/landing/instagram-property-extra.jpg';
 import propertyListImage from '@/shared/assets/landing/instagram-property-list.jpg';
 
+import { trackLandingCta } from './lib/landingAnalytics';
+
 import styles from './LandingPage.module.css';
 
 const APP_STORE_URL = 'https://apps.apple.com/us/app/%EC%9E%90%EC%B7%A8%EC%84%A0%EB%B0%B0/id6816321229';
@@ -77,6 +79,7 @@ const LandingPage = () => {
         <a
           className={styles.brand}
           href={isIOS ? APP_STORE_URL : WEB_LOGIN_URL}
+          onClick={() => trackLandingCta(isIOS ? 'app_store' : 'web', 'brand')}
           aria-label={isIOS ? '자취선배 앱 다운로드' : '자취선배 웹 시작하기'}
         >
           <img src={mascotImage} alt="자취선배 오리 로고" width={36} height={36} />
@@ -136,10 +139,15 @@ const LandingPage = () => {
           </div>
         </div>
         <nav className={styles.actions} aria-label="자취선배 시작하기">
-          <a className={styles.appButton} href={APP_STORE_URL} aria-label="App Store에서 자취선배 다운로드">
+          <a
+            className={styles.appButton}
+            href={APP_STORE_URL}
+            onClick={() => trackLandingCta('app_store', 'actions')}
+            aria-label="App Store에서 자취선배 다운로드"
+          >
             <img src={appStoreBadge} alt="App Store에서 다운로드하기" />
           </a>
-          <a className={styles.webButton} href={WEB_LOGIN_URL}>
+          <a className={styles.webButton} href={WEB_LOGIN_URL} onClick={() => trackLandingCta('web', 'actions')}>
             <span>
               <small>설치 없이</small>
               <strong>웹에서 시작</strong>

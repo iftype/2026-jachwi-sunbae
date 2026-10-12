@@ -2,9 +2,7 @@ import { useNavigate } from 'react-router-dom';
 
 import type { MapAddress } from '@/features/map/model/Map';
 import type { PropertyInputDto } from '@/features/property/api/dtos/PropertyDto';
-import { usePropertyList } from '@/features/property/api/useProperties';
 import { useCreateProperty } from '@/features/property/api/usePropertyMutations';
-import { trackPostHogEvent } from '@/shared/lib/analytics/posthog';
 
 type UseLocationConfirmOptions = {
   returnTo: string;
@@ -17,7 +15,6 @@ type UseLocationConfirmOptions = {
  */
 const useLocationConfirm = ({ returnTo, registrationDraft }: UseLocationConfirmOptions) => {
   const navigate = useNavigate();
-  const properties = usePropertyList();
   const createProperty = useCreateProperty();
 
   const confirm = (selected: MapAddress) => {
@@ -26,14 +23,9 @@ const useLocationConfirm = ({ returnTo, registrationDraft }: UseLocationConfirmO
       void createProperty
         .mutateAsync({ ...registrationDraft, address, latitude: selected.latitude, longitude: selected.longitude })
         .then((created) => {
-          trackPostHogEvent('property_created', {
-            first_property: (properties.data?.pages[0]?.totalElements ?? 0) === 0,
-          });
           navigate(`/properties/${created.propertyId}`, { replace: true });
         })
-        .catch((error) =>
-          trackPostHogEvent('property_creation_failed', { error_kind: error instanceof Error ? 'request' : 'unknown' }),
-        );
+        .catch(() => undefined);
       return;
     }
     navigate(returnTo, {

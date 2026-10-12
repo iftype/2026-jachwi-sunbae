@@ -13,7 +13,9 @@ services:
       - "127.0.0.1:${DB_PORT:-3306}:3306"
     volumes:
       - mysql-data:/var/lib/mysql
-      - ./src/main/resources/db/init:/docker-entrypoint-initdb.d:ro
+      - ./src/main/resources/db/init/001-schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+      - ./src/main/resources/db/init/002-seed.sql:/docker-entrypoint-initdb.d/002-seed.sql:ro
+      - ./docker/mysql/init/003-bus-stops-sample.sql:/docker-entrypoint-initdb.d/003-bus-stops-sample.sql:ro
     healthcheck:
       test: [ "CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD" ]
       interval: 5s

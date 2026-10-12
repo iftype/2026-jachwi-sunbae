@@ -21,6 +21,10 @@
   pointer-events: none;
 }
 
+.toast[data-add-mode='true'] {
+  bottom: calc(8.5rem + env(safe-area-inset-bottom));
+}
+
 @media (max-width: 340px) {
   .toast {
     right: 0.5rem;

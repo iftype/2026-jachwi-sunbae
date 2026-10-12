@@ -1,5 +1,5 @@
 /** 앱이 웹에 알려 주는 네이티브 기능. 구버전 앱은 목록이 없거나 비어 있다. */
-export type NativeAppFeature = 'tab-bar';
+export type NativeAppFeature = 'tab-bar' | 'tab-bar-overlay';
 
 type NativeAppContext = {
   platform: string;

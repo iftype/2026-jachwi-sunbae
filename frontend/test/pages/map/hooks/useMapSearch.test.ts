@@ -20,7 +20,7 @@ describe('지도 검색 동작', () => {
     await act(async () => {
       await result.current.submitSearch();
     });
-    expect(searchAddress).toHaveBeenCalledWith({ apiBaseUrl: '/api' }, '서울');
+    expect(searchAddress).toHaveBeenCalledWith({ apiBaseUrl: '/api' }, '서울', expect.any(AbortSignal));
     expect(result.current.searchResults).toHaveLength(1);
     act(() => result.current.changeQuery('  '));
     expect(result.current.searchResults).toEqual([]);

@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +24,12 @@ public class KakaoNearbyPlaceProvider implements NearbyPlaceProvider {
 
     // 캐시 없이 요청마다 호출하므로 카테고리당 호출 수를 제한한다.
     private static final int MAX_PAGE_COUNT = 3;
+    // 카카오로 조회하는 카테고리와 카카오 카테고리 코드. 교통은 버스정류장 DB에서 조회한다.
+    private static final Map<MapCategory, String> CATEGORY_CODES = new EnumMap<>(Map.of(
+            MapCategory.HOSPITAL, "HP8",
+            MapCategory.SCHOOL, "SC4",
+            MapCategory.CONVENIENCE, "CS2",
+            MapCategory.AGENCY, "AG2"));
     private static final Logger LOG = LoggerFactory.getLogger(KakaoNearbyPlaceProvider.class);
 
     private final KakaoPlaceClient client;
@@ -37,6 +44,9 @@ public class KakaoNearbyPlaceProvider implements NearbyPlaceProvider {
         Map<String, NearbyPlace> unique = new LinkedHashMap<>();
 
         for (MapCategory category : categories) {
+            if (!CATEGORY_CODES.containsKey(category)) {
+                continue;
+            }
             List<KakaoCategorySearchResponse.Document> documents = searchPages(category, latitude, longitude, radius);
             List<KakaoCategorySearchResponse.Document> validDocuments = filterValid(documents, category);
             addUniquePlaces(unique, validDocuments, category);
@@ -50,7 +60,7 @@ public class KakaoNearbyPlaceProvider implements NearbyPlaceProvider {
         List<KakaoCategorySearchResponse.Document> documents = new ArrayList<>();
         for (int page = 1; page <= MAX_PAGE_COUNT; page++) {
             KakaoCategorySearchResponse response =
-                    client.searchCategory(categoryCode(category), latitude, longitude, radius, page);
+                    client.searchCategory(CATEGORY_CODES.get(category), latitude, longitude, radius, page);
             documents.addAll(response.documents());
 
             if (response.end()) {
@@ -104,15 +114,5 @@ public class KakaoNearbyPlaceProvider implements NearbyPlaceProvider {
             return document.addressName();
         }
         return document.roadAddressName();
-    }
-
-    private String categoryCode(MapCategory category) {
-        return switch (category) {
-            case HOSPITAL -> "HP8";
-            case TRANSPORT -> "SW8";
-            case SCHOOL -> "SC4";
-            case CONVENIENCE -> "CS2";
-            case AGENCY -> "AG2";
-        };
     }
 }

@@ -3,6 +3,24 @@ set +x
 set -euo pipefail
 umask 077
 
+if [[ "$#" != 1 ]]; then
+  echo '사용법: fetch_env.sh <dev|prod>' >&2
+  exit 1
+fi
+
+case "$1" in
+  dev|prod)
+    DEPLOY_ENV="$1"
+    ;;
+  *)
+    echo "알 수 없는 배포 환경입니다: $1" >&2
+    exit 1
+    ;;
+esac
+
+VAULT_ROLE="jachwi-${DEPLOY_ENV}"
+SECRET_PATH="jachwi-sunbae/${DEPLOY_ENV}"
+
 export VAULT_ADDR='https://10.0.100.209:8200'
 export VAULT_CACERT='/etc/jachwi-sunbae/vault-ca.crt'
 export VAULT_CLIENT_TIMEOUT=15s
@@ -44,9 +62,10 @@ LOGIN_RESPONSE=''
 for attempt in {1..6}; do
   if LOGIN_RESPONSE=$(jq -n \
     --arg signature "${EC2_SIGNATURE}" \
+    --arg role "${VAULT_ROLE}" \
     --rawfile nonce "${NONCE_FILE}" \
     '{
-      role: "jachwi-dev",
+      role: $role,
       pkcs7: $signature,
       nonce: ($nonce | rtrimstr("\n"))
     }' | vault write -format=json auth/aws/login -); then
@@ -71,7 +90,7 @@ TEMP_FILE=$(mktemp "${ENV_DIR}/.app.env.XXXXXX")
 trap 'rm -f "${TEMP_FILE}"; unset VAULT_TOKEN' EXIT
 
 vault kv get -mount=secret -field=app_env \
-  jachwi-sunbae/dev > "${TEMP_FILE}"
+  "${SECRET_PATH}" > "${TEMP_FILE}"
 
 test -s "${TEMP_FILE}"
 
@@ -86,4 +105,4 @@ chown root:root "${TEMP_FILE}"
 chmod 0600 "${TEMP_FILE}"
 mv -fT "${TEMP_FILE}" "${ENV_FILE}"
 
-echo 'Vault에서 dev app.env를 갱신했습니다.'
+echo "Vault에서 ${DEPLOY_ENV} app.env를 갱신했습니다."

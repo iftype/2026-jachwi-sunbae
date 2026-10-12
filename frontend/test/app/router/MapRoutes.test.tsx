@@ -85,6 +85,8 @@ const nearbyResult = (radius: number) => ({
   ],
 });
 
+let visitNumber = 0;
+
 const renderAuthenticated = (path: string) => {
   setAuthentication({ accessToken: 'demo-token', tokenType: 'Bearer', expiresIn: 60 });
   server.use(
@@ -96,7 +98,7 @@ const renderAuthenticated = (path: string) => {
   return render(
     <StrictMode>
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={[path]}>
+        <MemoryRouter initialEntries={[{ pathname: path, key: `map-route-visit-${++visitNumber}` }]}>
           <PublicConfigProvider config={config}>
             <AppRoutes />
           </PublicConfigProvider>
@@ -111,6 +113,13 @@ const originalGeolocation = navigator.geolocation;
 describe('MVP2 지도 화면', () => {
   beforeEach(() => {
     queryClient.clear();
+    server.use(
+      http.get(`${config.apiBaseUrl}/api/maps/nearby`, ({ request }) =>
+        HttpResponse.json(
+          successEnvelope(nearbyResult(Number(new URL(request.url).searchParams.get('radius') ?? 500))),
+        ),
+      ),
+    );
     Object.defineProperty(navigator, 'geolocation', {
       configurable: true,
       value: {
@@ -156,14 +165,94 @@ describe('MVP2 지도 화면', () => {
 
     expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalledOnce();
     expect(await screen.findByRole('img', { name: '현재 위치' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '내 현재 위치로 이동' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '현재 위치 확인' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '500m' })).toBeEnabled();
 
     // 상단 검색바 확인
     expect(screen.getByRole('button', { name: '주소 또는 위치 검색' })).toBeInTheDocument();
 
     // 하단 매물 카드 오버레이 확인 (PropertyCard 컴포넌트)
     expect(await screen.findByRole('region', { name: '지도 주변 매물 목록' })).toBeInTheDocument();
-    expect(screen.getByText('신림역 원룸')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '지도 위 매물 목록 열기' }));
+    expect(
+      within(screen.getByRole('region', { name: '지도 주변 매물 목록' })).getByText('신림역 원룸'),
+    ).toBeInTheDocument();
     expect(screen.getByText(/1,000만원 \/ 월세 55만원/)).toBeInTheDocument();
+  });
+
+  it('GPS 없이 매물 추가 중에도 반경과 시설 필터를 유지하고 취소하면 목록을 복원한다', async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.get(`${config.apiBaseUrl}/api/properties`, () =>
+        HttpResponse.json(successEnvelope({ totalCount: 0, items: [] })),
+      ),
+      http.get(`${config.apiBaseUrl}/api/maps/reverse-geocode`, () => HttpResponse.json(successEnvelope(mapAddress))),
+    );
+    renderAuthenticated('/map');
+    await user.click(await screen.findByRole('button', { name: '지도에서 매물 추가' }));
+    expect(screen.getByRole('button', { name: '500m' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: '1km' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '2km' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /병원 표시하기/ }));
+    expect(await screen.findByRole('button', { name: /병원 숨기기/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: '취소' }));
+    expect(screen.getByRole('region', { name: '지도 주변 매물 목록' })).toBeInTheDocument();
+  });
+
+  it('위치 조회 안내는 하단 위치 이동 버튼 옆에 표시하고 상단 확인 버튼은 표시하지 않는다', async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.get(`${config.apiBaseUrl}/api/properties`, () =>
+        HttpResponse.json(successEnvelope({ totalCount: 0, items: [] })),
+      ),
+    );
+    vi.mocked(navigator.geolocation.getCurrentPosition).mockImplementation(() => undefined);
+    renderAuthenticated('/map');
+    const locationButton = await screen.findByRole('button', { name: '내 현재 위치로 이동' });
+    await user.click(locationButton);
+    expect(screen.queryByRole('button', { name: '현재 위치 확인' })).not.toBeInTheDocument();
+    expect(within(locationButton.parentElement!).getByRole('status')).toHaveTextContent(
+      '현재 위치를 확인하는 중이에요.',
+    );
+    expect(locationButton).toBeDisabled();
+  });
+
+  it('매물 마커 선택 후 반경을 바꿔도 저장 좌표를 유지하고 지도 빈 곳을 누르면 선택을 해제한다', async () => {
+    const user = userEvent.setup();
+    const requests: URL[] = [];
+    server.use(
+      http.get(`${config.apiBaseUrl}/api/properties`, () =>
+        HttpResponse.json(successEnvelope({ totalCount: 1, items: [property] })),
+      ),
+      http.get(`${config.apiBaseUrl}/api/maps/nearby`, ({ request }) => {
+        const url = new URL(request.url);
+        requests.push(url);
+        return HttpResponse.json(successEnvelope(nearbyResult(Number(url.searchParams.get('radius')))));
+      }),
+    );
+    renderAuthenticated('/map');
+    await user.click(await screen.findByRole('button', { name: '내 현재 위치로 이동' }));
+    await user.click(await screen.findByRole('button', { name: property.name }));
+    await user.click(screen.getByRole('button', { name: '2km' }));
+    await waitFor(() =>
+      expect(
+        requests.some(
+          (url) =>
+            url.searchParams.get('latitude') === String(property.latitude) &&
+            url.searchParams.get('longitude') === String(property.longitude) &&
+            url.searchParams.get('radius') === '2000',
+        ),
+      ).toBe(true),
+    );
+    expect(screen.queryByRole('combobox', { name: '주변 시설을 확인할 매물' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '선택한 매물 정보 닫기' })).not.toBeInTheDocument();
+    expect(screen.queryByText('지도 위 매물')).not.toBeInTheDocument();
+    expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalledOnce();
+    await user.click(screen.getByRole('generic', { name: '데모 지도' }));
+    expect(screen.getByRole('button', { name: '지도 위 매물 목록 열기' })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('link', { name: property.name })).not.toBeInTheDocument();
   });
 
   it('등록한 매물이 없어도 지도 바텀시트를 열 수 있다', async () => {
@@ -179,14 +268,35 @@ describe('MVP2 지도 화면', () => {
     const sheet = await screen.findByRole('region', { name: '지도 주변 매물 목록' });
     const trigger = within(sheet).getByRole('button', { name: '지도 위 매물 목록 열기' });
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
-    expect(within(sheet).getByText('현재 지도 화면에 등록된 매물이 없어요.')).toBeInTheDocument();
-
     await user.click(trigger);
 
-    expect(within(sheet).getByRole('button', { name: '지도 위 매물 목록 높이 변경' })).toHaveAttribute(
+    expect(await within(sheet).findByText('현재 지도 화면에 등록된 매물이 없어요.')).toBeVisible();
+
+    expect(within(sheet).getByRole('button', { name: '지도 위 매물 목록 닫기' })).toHaveAttribute(
       'aria-expanded',
       'true',
     );
+  });
+
+  it('매물 응답 전부터 손잡이를 표시하고 펼친 내부만 로딩 처리한다', async () => {
+    const user = userEvent.setup();
+    let resolveRequest!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      resolveRequest = resolve;
+    });
+    server.use(
+      http.get(`${config.apiBaseUrl}/api/properties`, async () => {
+        await pending;
+        return HttpResponse.json(successEnvelope({ totalCount: 0, items: [] }));
+      }),
+    );
+    renderAuthenticated('/map');
+    const sheet = await screen.findByRole('region', { name: '지도 주변 매물 목록' });
+    expect(within(sheet).queryByRole('status')).not.toBeInTheDocument();
+    await user.click(within(sheet).getByRole('button', { name: '지도 위 매물 목록 열기' }));
+    expect(within(sheet).getByRole('status')).toHaveTextContent('매물을 불러오는 중이에요.');
+    resolveRequest();
+    expect(await within(sheet).findByText('현재 지도 화면에 등록된 매물이 없어요.')).toBeVisible();
   });
 
   it('주소 검색은 필요할 때 열고 도로명·지번 주소와 좌표를 위치 선택에 유지한다', async () => {

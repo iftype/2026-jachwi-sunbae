@@ -1,64 +1,25 @@
 import { useCallback, useState } from 'react';
 
-import { searchAddress } from '@/features/map/api/mapApi';
-import type { MapAddress } from '@/features/map/model/Map';
-import { usePublicConfig } from '@/shared/config/PublicConfigContext';
+import useAddressSearch from '@/features/map/api/useAddressSearch';
 
+/** 페이지는 검색 화면의 열기·닫기만 맡고 주소 조회는 지도 기능에서 관리한다. */
 const useMapSearch = () => {
-  const config = usePublicConfig();
   const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<MapAddress[]>([]);
-  const [searchStatus, setSearchStatus] = useState<'idle' | 'loading' | 'error'>('idle');
-
-  const executeSearch = useCallback(
-    async (text: string) => {
-      if (text.trim() === '') return;
-      setSearchStatus('loading');
-      try {
-        setSearchResults(await searchAddress(config, text.trim()));
-        setSearchStatus('idle');
-      } catch {
-        setSearchStatus('error');
-      }
-    },
-    [config],
-  );
-
+  const search = useAddressSearch();
   const closeSearch = useCallback(() => {
     setSearchOpen(false);
-    setSearchQuery('');
-    setSearchResults([]);
-    setSearchStatus('idle');
-  }, []);
-
-  const clearSearch = useCallback(() => {
-    setSearchQuery('');
-    setSearchResults([]);
-    setSearchStatus('idle');
-  }, []);
-
+    search.clear();
+  }, [search.clear]);
   const openSearch = useCallback(() => setSearchOpen(true), []);
-  const changeQuery = useCallback(
-    (value: string) => {
-      setSearchQuery(value);
-      if (value.trim() === '') clearSearch();
-    },
-    [clearSearch],
-  );
-  const submitSearch = () => executeSearch(searchQuery);
-
   return {
     searchOpen,
     openSearch,
-    searchQuery,
-    changeQuery,
-    searchResults,
-    searchStatus,
-    submitSearch,
+    searchQuery: search.query,
+    changeQuery: search.changeQuery,
+    searchResults: search.results,
+    searchStatus: search.status,
+    submitSearch: search.submit,
     closeSearch,
-    clearSearch,
   };
 };
-
 export default useMapSearch;
