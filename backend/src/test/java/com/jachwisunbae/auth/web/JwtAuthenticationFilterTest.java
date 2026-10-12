@@ -2,13 +2,19 @@ package com.jachwisunbae.auth.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jachwisunbae.auth.token.JwtTokenProvider;
+import com.jachwisunbae.common.exception.errorcode.ErrorCode;
+import com.jachwisunbae.common.observability.RequestLoggingFilter;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -99,12 +105,25 @@ class JwtAuthenticationFilterTest {
     private void assertUnauthorized(MockHttpServletRequest request) throws Exception {
         MockHttpServletResponse response = new MockHttpServletResponse();
         MockFilterChain chain = new MockFilterChain();
+        Logger logger = (Logger) LoggerFactory.getLogger(RequestLoggingFilter.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
 
-        filter.doFilter(request, response, chain);
+        try {
+            new RequestLoggingFilter().doFilter(request, response,
+                    (servletRequest, servletResponse) -> filter.doFilter(servletRequest, servletResponse, chain));
 
-        assertThat(chain.getRequest()).isNull();
-        assertThat(response.getStatus()).isEqualTo(401);
-        assertThat(response.getContentAsString()).contains("\"code\":\"ACCESS_TOKEN_INVALID\"");
+            assertThat(chain.getRequest()).isNull();
+            assertThat(response.getStatus()).isEqualTo(401);
+            assertThat(response.getContentAsString()).contains("\"code\":\"ACCESS_TOKEN_INVALID\"");
+            assertThat(appender.list).hasSize(1);
+            assertThat(appender.list.getFirst().getFormattedMessage())
+                    .contains(ErrorCode.ACCESS_TOKEN_INVALID.publicMessage());
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
     }
 
     private static MockHttpServletRequest request(String method, String path) {

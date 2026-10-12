@@ -1,8 +1,47 @@
 # 모니터링
 
-- 상태: 애플리케이션·배포 설정 구현, AWS 적용 전
+- 상태: dev·prod 애플리케이션·서비스 종료 로그 수집, 환경별 5종 경보 및 운영 대시보드 적용
 
-현재 예산에서는 구조화 로그로 장애 발생 시각과 원인을 찾는 것을 우선한다. CPU·메모리 대시보드와 알림은 로그 수집을 확인한 뒤 추가한다.
+현재 예산에서는 구조화 로그로 장애 발생 시각과 원인을 찾고, 기존 CloudWatch·ALB 지표로 서비스 상태를 확인한다. 메모리·JVM 지표는 후속 작업이다.
+
+## 운영 대시보드
+
+[CloudWatch 자취선배 운영 대시보드](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#dashboards/dashboard/jachwi-sunbae-operations)는 서울 리전의 dev·prod를 한 화면에서 비교한다. 기본 조회 범위는 최근 6시간이다.
+
+| 영역          | 위젯명                           | 확인할 내용                                         |
+| ------------- | -------------------------------- | --------------------------------------------------- |
+| 경보 상태     | dev 경보 상태                    | dev의 HTTP 5xx·서비스 종료·CPU·대상 그룹 경보 상태  |
+| 경보 상태     | prod 경보 상태                   | prod의 HTTP 5xx·서비스 종료·CPU·대상 그룹 경보 상태 |
+| 오류          | HTTP 5xx 발생 수 (5분)           | 애플리케이션 요청 로그의 환경별 5xx 합계            |
+| 오류          | ALB 대상 5xx 응답 수 (5분)       | ALB 대상 그룹의 환경별 5xx 합계                     |
+| 오류          | 최근 HTTP 5xx 요청 (dev + prod)  | 최근 요청의 시각·환경·요청 ID·경로                  |
+| 가용성        | ALB 정상 대상 수 (1분 최솟값)    | dev·prod 대상 그룹의 정상 대상 수                   |
+| 트래픽·성능   | ALB 요청 수 (5분 합계)           | 환경별 대상 그룹에 전달된 요청 수                   |
+| 트래픽·성능   | ALB 대상 응답 시간 p95 (초)      | 환경별 대상 그룹의 응답 시간 95백분위수             |
+| 프로세스·자원 | 서비스 비정상 종료 수 (1분)      | 환경별 서비스 비정상 종료 건수                      |
+| 프로세스·자원 | EC2 CPU 사용률 (ASG별, 5분 평균) | 환경별 Auto Scaling 그룹의 평균 CPU 사용률          |
+
+ALB 요청 수는 대상으로 전달된 요청만 집계한다. 트래픽이 없는 구간의 요청 수·응답 시간·5xx 그래프에는 데이터가 없을 수 있다. 대시보드의 경보 상태와 실제 요청 오류는 함께 확인한다.
+
+## 경보
+
+2026-10-01 기준, dev·prod에 아래 5종의 경보를 같은 조건으로 설정했다. 모든 경보는 경보 진입과 정상 복귀를 각 환경의 `jachwi-sunbae-{dev|prod}-ops-alerts` SNS 주제에 알린다.
+
+| 관찰 대상          | dev 경보                                                                                                                                                          | prod 경보                                                                                                                                                           | 발동 조건                                              | 누락 데이터 |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ----------- |
+| HTTP 5xx           | [`jachwi-dev-http-5xx`](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#alarmsV2:alarm/jachwi-dev-http-5xx)                   | [`jachwi-prod-http-5xx`](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#alarmsV2:alarm/jachwi-prod-http-5xx)                   | `Http5xxCount` 5분 합계 ≥ 5, 1/1                       | 정상 취급   |
+| 서비스 비정상 종료 | [`jachwi-dev-service-failure`](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#alarmsV2:alarm/jachwi-dev-service-failure)     | [`jachwi-prod-service-failure`](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#alarmsV2:alarm/jachwi-prod-service-failure)     | `ServiceFailureCount` 1분 합계 ≥ 1, 1/1                | 정상 취급   |
+| CPU 사용률         | [`jachwi-dev-cpu-high`](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#alarmsV2:alarm/jachwi-dev-cpu-high)                   | [`jachwi-prod-cpu-high`](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#alarmsV2:alarm/jachwi-prod-cpu-high)                   | ASG `CPUUtilization` 5분 평균 ≥ 80%, 3/3               | 정상 취급   |
+| 정상 대상 없음     | [`jachwi-dev-no-healthy-target`](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#alarmsV2:alarm/jachwi-dev-no-healthy-target) | [`jachwi-prod-no-healthy-target`](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#alarmsV2:alarm/jachwi-prod-no-healthy-target) | ALB 대상 그룹 `HealthyHostCount` 1분 최솟값 < 1, 2/2   | 장애 취급   |
+| 비정상 대상 감지   | [`jachwi-dev-unhealthy-target`](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#alarmsV2:alarm/jachwi-dev-unhealthy-target)   | [`jachwi-prod-unhealthy-target`](https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#alarmsV2:alarm/jachwi-prod-unhealthy-target)   | ALB 대상 그룹 `UnHealthyHostCount` 1분 최솟값 ≥ 1, 2/2 | 정상 취급   |
+
+HTTP 5xx는 각 환경의 `/jachwi-sunbae/{dev|prod}/application` 로그 그룹에 `{ $.status >= 500 }` 패턴의 `jachwi-{dev|prod}-http-5xx` 지표 필터를 둔다. 요청 로그의 `status`가 500 이상이면 `JachwiSunbae/{Dev|Prod} / Http5xxCount`에 1을 더하고, 일치하지 않는 로그가 들어오면 기본값 0을 게시한다. 5분에 1~4건의 5xx는 경보가 울리지 않으며, 경보가 정상이라고 해서 요청이나 로그 수집이 정상이라는 뜻도 아니다. 로그 수집 중단과 대상 그룹의 정상 호스트 수는 별도 지표로 판단한다.
+
+prod HTTP 5xx 지표 필터는 생성 이후 수집된 로그에만 적용된다. 생성 전 로그를 소급 집계하지 않는다. prod SNS 주제에는 확인된 구독 1개가 있다. 실제 경보 메일 수신은 이후 경보 전환 기록과 팀 메일함을 함께 확인한다.
+
+서비스 비정상 종료는 각 환경의 `/jachwi-sunbae/{dev|prod}/service-events` 로그 그룹에 `{ $.event_type = "service_exit" && $.service_result != "success" }` 패턴의 지표 필터를 둔다. 필터 이름은 `jachwi-{dev|prod}-service-failure`, 지표는 `JachwiSunbae/{Dev|Prod} / ServiceFailureCount`이며 일치 시 1, 기본값 0, 단위는 `Count`다. prod 필터도 생성 전 로그에는 소급 적용되지 않는다.
+
+CPU 경보는 인스턴스 ID 대신 `jachwi-sunbae-{dev|prod}-asg`를 차원으로 사용한다. ALB 경보는 공통 `jachwi-sunbae-alb`와 환경별 대상 그룹(`jachwi-sunbae-dev-tg`, `jachwi-sunbae-tg`)을 함께 사용한다. 경보의 설정과 SNS 연결은 콘솔에서 확인했으며, 실제 장애에 따른 알림 수신 여부는 별도 검증이 필요하다.
 
 ## 관찰 대상
 
@@ -35,11 +74,15 @@ dev와 prod EC2는 모두 Spring의 `prod` 프로필을 사용한다. `DEPLOYMEN
 | `/var/log/jachwi-sunbae/application.log`    | 애플리케이션·요청·예외 JSON         | 10MB 단위, 최대 14일·1GB                        |
 | `/var/log/jachwi-sunbae/service-events.log` | systemd가 기록한 프로세스 종료 결과 | 종료당 한 줄을 누적하고 CloudWatch에서 7일 보존 |
 
-요청 로그에는 `request_id`, `http_method`, `path`, `status`, `duration_ms`만 넣는다. 쿼리 문자열, Authorization 헤더, 요청·응답 본문은 기록하지 않는다. 애플리케이션 내부 예외 로그도 같은 `request_id`를 가지므로 요청 완료 로그와 연결할 수 있다.
+요청 로그에는 `request_id`, `http_method`, `path`, `status`, `duration_ms`를 기본 필드로 넣는다. 쿼리 문자열, Authorization 헤더, 요청·응답 본문은 기록하지 않는다. 애플리케이션 내부 예외 로그도 같은 `request_id`를 가지므로 요청 완료 로그와 연결할 수 있다.
+
+서버 예외로 실패한 요청 로그에는 `error_type`과 `message`의 `HTTP request failed: <오류 메시지>`를 기록한다. 따라서 5xx 요청 목록에서 오류 메시지를 바로 확인할 수 있다. 자세한 호출 위치와 원인은 같은 `request_id`의 예외 로그에 있는 `error.stack_trace`를 확인한다. 예외 객체 없이 5xx 상태만 반환된 경우에는 원인 메시지가 없으므로 `HTTP request failed`만 남는다. HTTP 응답에는 내부 오류 메시지 대신 공개 오류 메시지를 사용한다.
+
+4xx 요청 로그의 `message`에는 응답의 공개 오류 메시지를 기록한다. 예를 들어 사진 등록 한도 초과는 `등록할 수 있는 사진 개수를 초과했습니다.`, 인증 실패는 `인증 정보를 확인할 수 없습니다.`로 표시된다. 필드별 검증 사유는 HTTP 오류 응답의 `errors`에서 확인한다. 4xx는 `INFO`, 5xx는 `ERROR` 수준으로 남긴다.
 
 `X-Request-Id`는 서버가 매 요청마다 새로 만들고 응답 헤더로 반환한다. 사용자가 전달한 값을 신뢰해 재사용하지 않는다.
 
-## EC2 적용 전 준비
+## 새 EC2 적용 점검
 
 `/etc/jachwi-sunbae/app.env`에 `DEPLOYMENT_ENVIRONMENT`와 `LOG_PATH`를 환경에 맞게 추가한다.
 
@@ -52,7 +95,7 @@ sudo tail -n 20 /var/log/jachwi-sunbae/application.log
 sudo tail -n 20 /var/log/jachwi-sunbae/service-events.log
 ```
 
-## CloudWatch Logs 적용
+## CloudWatch Logs 구성 및 재구축
 
 ### 1. 권한 확인
 
@@ -137,8 +180,17 @@ sudo tail -n 100 /opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.l
 ### 최근 5xx 요청
 
 ```text
-fields @timestamp, request_id, http_method, path, status, duration_ms, message
+fields @timestamp, request_id, http_method, path, status, duration_ms, message, error_type
 | filter status >= 500
+| sort @timestamp desc
+| limit 100
+```
+
+### 최근 4xx 요청
+
+```text
+fields @timestamp, request_id, http_method, path, status, duration_ms, message
+| filter status >= 400 and status < 500
 | sort @timestamp desc
 | limit 100
 ```
@@ -146,7 +198,7 @@ fields @timestamp, request_id, http_method, path, status, duration_ms, message
 ### 요청 ID로 전체 흐름 추적
 
 ```text
-fields @timestamp, `log.level`, `log.logger`, message, status, duration_ms
+fields @timestamp, `log.level`, `log.logger`, message, error.message, error.stack_trace, status, duration_ms
 | filter request_id = "확인할-요청-ID"
 | sort @timestamp asc
 ```
