@@ -78,6 +78,7 @@ import useMapFilters from './hooks/useMapFilters';
 
 import styles from './MapPage.module.css';
 ```
+
 - 기능의 DTO 변환처럼 내부 사정은 페이지로 꺼내지 않습니다. `useUpdateProperty`, `useCreateChecklist`처럼 기능의 Hook이 화면 모델을 받아 API 형식으로 바꿉니다.
 
 불필요한 `index.ts` 재-export와 순환 의존성은 만들지 않습니다.

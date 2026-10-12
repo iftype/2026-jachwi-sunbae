@@ -27,6 +27,17 @@ const FAULTS: Record<string, Fault> = {
       });
     },
   },
+  'geocode-down': {
+    description: '좌표의 주소 변환 응답(GET /api/maps/reverse-geocode)을 503으로 바꿔 외부 주소 API 장애를 흉내 낸다.',
+    apply: async (context) => {
+      await context.route(/\/api\/maps\/reverse-geocode(\?.*)?$/, (route) =>
+        route.fulfill({
+          status: 503,
+          json: { code: 'SERVICE_UNAVAILABLE', message: '주소 변환 서비스를 사용할 수 없습니다.', data: null },
+        }),
+      );
+    },
+  },
 };
 
 export type ActiveFault = { name: string; description: string };

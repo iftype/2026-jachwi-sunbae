@@ -1,0 +1,11 @@
+{
+  "name": "jachwi-sunbae-docs",
+  "private": true,
+  "scripts": {
+    "format:docs": "prettier --config .prettierrc.json --ignore-path .prettierignore --write \"*.md\" \"docs/**/*.md\" \"backend/docs/**/*.md\" \"frontend/**/*.md\" \".github/**/*.md\" \"qa/**/*.md\"",
+    "format:docs:check": "prettier --config .prettierrc.json --ignore-path .prettierignore --check \"*.md\" \"docs/**/*.md\" \"backend/docs/**/*.md\" \"frontend/**/*.md\" \".github/**/*.md\" \"qa/**/*.md\""
+  },
+  "devDependencies": {
+    "prettier": "3.9.6"
+  }
+}

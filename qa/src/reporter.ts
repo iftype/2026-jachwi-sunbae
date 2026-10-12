@@ -1,15 +1,16 @@
 import { copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
 
-import type { Reporter, TestCase, TestResult } from '@playwright/test/reporter';
+import type { FullConfig, Reporter, Suite, TestCase, TestResult } from '@playwright/test/reporter';
 
 import { analyzeRun, type AnalysisRecord } from './ai-analysis';
 import { writeReport } from './report';
 import type { ScenarioResult } from './scenario-run';
+import { writeBatchSummary } from './summary';
 
 // 테스트가 끝난 뒤 Run 디렉터리를 마무리한다.
 // trace는 테스트가 끝난 뒤에 만들어지므로 테스트 안이 아니라 리포터에서 Run 디렉터리로 옮긴다.
-// 모든 테스트가 끝나면 AI 분석을 실행하고 Run Report(report.md)를 만든다.
+// 모든 테스트가 끝나면 AI 분석을 실행하고 Run Report(report.md)를 만든다. Scenario를 여러 개 실행했으면 일괄 실행 요약도 만든다.
 // QA_AI_ANALYSIS: failed(기본, PASS가 아닌 Run만), always, off
 
 const REPOSITORY_ROOT = resolve(__dirname, '../..');
@@ -55,6 +56,11 @@ const describeAnalysis = (record: AnalysisRecord): string => {
 
 class QaRunReporter implements Reporter {
   private readonly runs: ScenarioResult[] = [];
+  private startedAt = new Date();
+
+  onBegin(_config: FullConfig, _suite: Suite): void {
+    this.startedAt = new Date();
+  }
 
   onTestEnd(_test: TestCase, result: TestResult): void {
     const scenarioResult = readScenarioResult(result);
@@ -78,6 +84,12 @@ class QaRunReporter implements Reporter {
         console.log(`    ${describeAnalysis(await analyzeRun(runDir))}`);
       }
       console.log(`    Run Report: ${relative(REPOSITORY_ROOT, writeReport(runDir))}`);
+    }
+
+    if (this.runs.length > 1) {
+      const { path, changedCount } = writeBatchSummary(this.runs, this.startedAt);
+      const change = changedCount === null ? '비교할 직전 일괄 실행 없음' : `직전 대비 판정이 바뀐 Scenario ${changedCount}개`;
+      console.log(`\n일괄 실행 요약: ${relative(REPOSITORY_ROOT, path)} (${change})`);
     }
   }
 

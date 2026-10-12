@@ -2,6 +2,7 @@ package com.jachwisunbae.map.provider;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.jachwisunbae.map.provider.database.DatabaseBusStopProvider;
 import com.jachwisunbae.map.provider.demo.DemoAddressProvider;
 import com.jachwisunbae.map.provider.demo.DemoNearbyPlaceProvider;
 import com.jachwisunbae.map.provider.kakao.KakaoNearbyPlaceProvider;
@@ -11,7 +12,9 @@ import com.jachwisunbae.map.provider.publicdata.juso.JusoAddressClient;
 import com.jachwisunbae.map.provider.publicdata.sgis.SgisAddressClient;
 import com.jachwisunbae.map.provider.publicdata.sgis.SgisAuthClient;
 import com.jachwisunbae.map.provider.publicdata.sgis.SgisTokenProvider;
+import com.jachwisunbae.map.repository.BusStopRepository;
 import java.time.Clock;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -24,9 +27,11 @@ class MapProviderSelectionTest {
             .withInitializer(context -> context.getEnvironment().getPropertySources()
                     .remove(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME))
             .withBean(Clock.class, Clock::systemUTC)
+            .withBean(BusStopRepository.class, () -> bounds -> List.of())
             .withUserConfiguration(DemoAddressProvider.class, DemoNearbyPlaceProvider.class,
                     JusoAddressClient.class, SgisAuthClient.class, SgisTokenProvider.class, SgisAddressClient.class,
-                    PublicDataAddressProvider.class, KakaoPlaceClient.class, KakaoNearbyPlaceProvider.class);
+                    PublicDataAddressProvider.class, KakaoPlaceClient.class, KakaoNearbyPlaceProvider.class,
+                    DatabaseBusStopProvider.class);
 
     @Test
     @DisplayName("설정이 없으면 주소와 주변 시설 모두 demo 공급자를 사용한다")
@@ -35,6 +40,17 @@ class MapProviderSelectionTest {
             assertThat(context).getBean(AddressProvider.class).isInstanceOf(DemoAddressProvider.class);
             assertThat(context).getBean(NearbyPlaceProvider.class).isInstanceOf(DemoNearbyPlaceProvider.class);
         });
+    }
+
+    @Test
+    @DisplayName("버스정류장은 설정과 관계없이 서비스 DB에서 조회한다")
+    void alwaysUsesDatabaseBusStopProvider() {
+        contextRunner.run(context ->
+                assertThat(context).getBean(BusStopProvider.class).isInstanceOf(DatabaseBusStopProvider.class));
+        contextRunner
+                .withPropertyValues("map.nearby.provider=kakao", "map.kakao.rest-api-key=kakao-key")
+                .run(context ->
+                        assertThat(context).getBean(BusStopProvider.class).isInstanceOf(DatabaseBusStopProvider.class));
     }
 
     @Test

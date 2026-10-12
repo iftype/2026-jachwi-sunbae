@@ -44,10 +44,10 @@ GitHub Actions는 검사, CodePipeline은 소스 조회·빌드·배포 연결, 
 
 ### 환경별 파이프라인과 대상
 
-| 환경 | 브랜치 | CodePipeline | CodeDeploy 배포 그룹 | EC2 선택 태그 |
-| --- | --- | --- | --- | --- |
-| dev | `develop` | `jachwi-sunbae-dev-line` | `jachwi-sunbae-dev-group` | `DeployTarget=jachwi-sunbae-dev` |
-| prod | `main` | `jachwi-sunbae-line` | `jachwi-sunbae-codeDeploy-group` | `DeployTarget=jachwi-sunbae-prod` |
+| 환경 | 브랜치    | CodePipeline             | CodeDeploy 배포 그룹             | EC2 선택 태그                     |
+| ---- | --------- | ------------------------ | -------------------------------- | --------------------------------- |
+| dev  | `develop` | `jachwi-sunbae-dev-line` | `jachwi-sunbae-dev-group`        | `DeployTarget=jachwi-sunbae-dev`  |
+| prod | `main`    | `jachwi-sunbae-line`     | `jachwi-sunbae-codeDeploy-group` | `DeployTarget=jachwi-sunbae-prod` |
 
 dev는 `jachwi-sunbae-dev-asg`, prod는 `jachwi-sunbae-prod-asg`를 사용하며 각 환경의 기본 운영 대수는 1대다. CodeDeploy가 태그로 대상을 선택하므로 새 인스턴스에도 환경에 맞는 태그를 지정한다.
 
@@ -76,11 +76,11 @@ GitHub Actions는 PR과 `main`·`develop` push에서 `clean build`를 실행한�
 
 Corretto 21을 준비하고 소스 SHA를 애플리케이션 빌드 정보와 `deployment-revision.txt`에 기록한다.
 
-| 설정 | 값 |
-| --- | --- |
-| Source 변수 네임스페이스 | `SourceVariables` |
-| Build 환경변수 | `SOURCE_COMMIT_ID=#{SourceVariables.CommitId}` |
-| 아티팩트 버킷 | `techcourse-project-2026-artifacts` |
+| 설정                     | 값                                             |
+| ------------------------ | ---------------------------------------------- |
+| Source 변수 네임스페이스 | `SourceVariables`                              |
+| Build 환경변수           | `SOURCE_COMMIT_ID=#{SourceVariables.CommitId}` |
+| 아티팩트 버킷            | `techcourse-project-2026-artifacts`            |
 
 ```bash
 REVISION="${SOURCE_COMMIT_ID:?source revision is missing}"
@@ -95,13 +95,13 @@ printf '%s\n' "${REVISION}" > deployment-revision.txt
 
 [appspec.yml](../../deploy/appspec.yml)이 순서와 제한 시간을 정의한다. 배포 경로는 `/opt/jachwi-sunbae`다.
 
-| 훅 | 처리 |
-| --- | --- |
-| `ApplicationStop` | 기존 서비스를 중지한다. 직전 리비전의 스크립트를 사용하며 첫 배포에는 실행되지 않는다 |
-| `BeforeInstall` | 배포 디렉터리를 비운다 |
-| `AfterInstall` | 환경별 Vault 도구·인증서와 `app.env`를 준비하고 사용자·권한 확인 후 systemd 유닛을 설치한다 |
-| `ApplicationStart` | `systemctl restart`로 새 애플리케이션을 실행한다 |
-| `ValidateService` | 서비스 실행, `health=UP`, 실행 SHA와 배포 SHA 일치를 확인한다 |
+| 훅                 | 처리                                                                                        |
+| ------------------ | ------------------------------------------------------------------------------------------- |
+| `ApplicationStop`  | 기존 서비스를 중지한다. 직전 리비전의 스크립트를 사용하며 첫 배포에는 실행되지 않는다       |
+| `BeforeInstall`    | 배포 디렉터리를 비운다                                                                      |
+| `AfterInstall`     | 환경별 Vault 도구·인증서와 `app.env`를 준비하고 사용자·권한 확인 후 systemd 유닛을 설치한다 |
+| `ApplicationStart` | `systemctl restart`로 새 애플리케이션을 실행한다                                            |
+| `ValidateService`  | 서비스 실행, `health=UP`, 실행 SHA와 배포 SHA 일치를 확인한다                               |
 
 과거 서비스 중지가 누락되어 `start`가 옛 프로세스를 유지하고, 그 health 응답으로 배포가 성공 처리된 경험이 있다. 이를 방지하려고 **명시적 restart와 SHA 비교**를 함께 사용한다.
 
@@ -119,12 +119,12 @@ EC2에는 Java 21, 실행 사용자 `jachwi`, CodeDeploy 에이전트와 배포 
 
 포트 변경 시 `application-prod.yml`, `validate.sh`의 확인 URL, ALB 대상 그룹을 함께 변경한다. 대상 그룹의 포트는 생성 후 변경할 수 없다.
 
-| 경로 | 권한·용도 |
-| --- | --- |
-| `/etc/jachwi-sunbae/app.env` | `0600 root:root`. systemd가 읽는 환경변수 |
-| `/etc/jachwi-sunbae/vault-ca.crt` | `0644 root:root`. Vault TLS 검증용 공개 인증서 |
-| `/etc/jachwi-sunbae/vault-ec2-nonce` | `0600 root:root`. 인스턴스별 재인증 값 |
-| `/var/log/jachwi-sunbae` | `0750 jachwi:jachwi`. 애플리케이션·종료 이벤트 로그 |
+| 경로                                 | 권한·용도                                           |
+| ------------------------------------ | --------------------------------------------------- |
+| `/etc/jachwi-sunbae/app.env`         | `0600 root:root`. systemd가 읽는 환경변수           |
+| `/etc/jachwi-sunbae/vault-ca.crt`    | `0644 root:root`. Vault TLS 검증용 공개 인증서      |
+| `/etc/jachwi-sunbae/vault-ec2-nonce` | `0600 root:root`. 인스턴스별 재인증 값              |
+| `/var/log/jachwi-sunbae`             | `0750 jachwi:jachwi`. 애플리케이션·종료 이벤트 로그 |
 
 ### 자동 재시작
 
@@ -147,10 +147,10 @@ EC2 자체의 중지·종료는 systemd로 복구할 수 없으며 ASG 구성에
 
 Vault 주소는 `https://10.0.100.209:8200`이다. KV v2의 `app_env` 필드에 환경변수 파일 전체를 저장한다.
 
-| 환경 | 스크립트 인자 | 인증 역할 / 읽기 정책 | 비밀값 경로 |
-| --- | --- | --- | --- |
-| dev | `dev` | `jachwi-dev` / `jachwi-dev-read` | `secret/jachwi-sunbae/dev` |
-| prod | `prod` | `jachwi-prod` / `jachwi-prod-read` | `secret/jachwi-sunbae/prod` |
+| 환경 | 스크립트 인자 | 인증 역할 / 읽기 정책              | 비밀값 경로                 |
+| ---- | ------------- | ---------------------------------- | --------------------------- |
+| dev  | `dev`         | `jachwi-dev` / `jachwi-dev-read`   | `secret/jachwi-sunbae/dev`  |
+| prod | `prod`        | `jachwi-prod` / `jachwi-prod-read` | `secret/jachwi-sunbae/prod` |
 
 AWS EC2 인증으로 계정·리전·VPC·서브넷과 허용 인스턴스 ID를 검사한다. 앱에는 해당 환경의 읽기만 허용하고 토큰은 최대 5분으로 제한한다. 공용 `ec2-project` IAM 역할만으로 팀을 구분하지 않으며, 공용 AWS 계정의 관리자 권한까지 격리하는 구성은 아니다.
 
@@ -240,8 +240,85 @@ MVP1 첫 dev 배포에서는 다음을 확인한다.
    WHERE main_photo.property_id <> photo.property_id;
    ```
 
-3. Vault에 dev DB·JWT·CORS·지도 공급자 인증 정보·S3 접두사를 준비한다. 정적 AWS 키는 두지 않는다. 버스정류소 API 미승인 시 `BUS_STOP_PROVIDER=none`으로 둔다.
-4. 프론트 dev Commands에 `API_BASE_URL=https://dev-api.jachwi-sunbae.kr`, `MAP_PROVIDER_MODE`, 지도 공급자 공개 키, 운영과 같은 `POSTHOG_PROJECT_TOKEN`, `POSTHOG_HOST=https://us.i.posthog.com`을 설정한다. PostHog는 `environment=development`로 구분한다.
+3. Vault에 dev DB·JWT·CORS·지도 공급자 인증 정보·S3 접두사를 준비한다. 정적 AWS 키는 두지 않는다.
+4. `bus_stops` 테이블과 전국 정류장 데이터, 앱 DB 계정의 조회 권한을 확인한다. 준비되지 않았다면 [버스정류장 데이터 적재](#버스정류장-데이터-적재)를 애플리케이션 배포 전에 완료한다.
+   `good_price_stores` 테이블과 착한가격업소 데이터도 같은 방식으로 확인한다. 준비되지 않았다면 [착한가격업소 데이터 적재](#착한가격업소-데이터-적재)를 애플리케이션 배포 전에 완료한다.
+5. 프론트 dev Commands에 `API_BASE_URL=https://dev-api.jachwi-sunbae.kr`, `MAP_PROVIDER_MODE`, 지도 공급자 공개 키, 운영과 같은 `POSTHOG_PROJECT_TOKEN`, `POSTHOG_HOST=https://us.i.posthog.com`을 설정한다. PostHog는 `environment=development`로 구분한다.
+
+### 버스정류장 데이터 적재
+
+| 항목                   | 기준                                                        |
+| ---------------------- | ----------------------------------------------------------- |
+| 스냅샷                 | `국토교통부_전국 버스정류장 위치정보_20251031.csv`          |
+| 원본 행 / 예상 적재 행 | 227,065 / 227,053 (빈 좌표 5행, 국내 범위 밖 좌표 7행 제외) |
+| 갱신 주기              | 연 1회 수동. 새 스냅샷이 공개되면 같은 절차로 다시 적재한다 |
+
+애플리케이션은 `bus_stops`를 조회만 한다. 테이블이 없으면 교통 조회가 실패하므로 **애플리케이션 배포 전에 테이블 생성과 데이터 적재를 완료한다.**
+`develop` 병합은 dev 배포를 시작하므로 dev DB를 먼저 준비한다. dev 검증 후 prod DB도 준비하고 `main`으로 승격한다.
+
+1. 대상 환경의 DB와 최신 자동 백업 복구 지점을 확인하고, 식별자와 확인 시각을 배포 이슈에 기록한다.
+2. 처음 적재할 때만 관리자 계정으로 테이블을 만든다. [기준 스키마](../../src/main/resources/db/init/001-schema.sql) 전체가 아니라 `bus_stops`의 `CREATE TABLE` 문만 실행한다. 앱 DB 계정에는 `CREATE` 권한을 추가하지 않는다. 이미 테이블이 있으면 구조와 기존 데이터의 스냅샷을 확인한다.
+3. 저장소 루트에서 CSV (EUC-KR)로 적재 SQL을 만든다. 전체 SQL은 약 20MB이므로 저장소 밖에 두고 커밋하지 않는다. 전국 데이터를 만들 때는 지역 샘플용 `--around` 옵션을 사용하지 않는다. 출력의 적재 행 수와 제외 행 목록을 확인한다.
+
+   ```bash
+   python3 backend/scripts/bus-stops/generate_bus_stops_sql.py "<CSV 경로>" --output /tmp/bus-stops.sql
+   ```
+
+4. RDS에 접속할 수 있는 해당 환경의 EC2로 SQL 파일을 옮긴다. 아래 변수에는 대상 환경의 접속값을 사용하고, `DB_USERNAME`에는 적재에 필요한 `DELETE`, `INSERT` 권한이 있는 계정을 지정한다. 비밀번호는 `-p` 입력 요청에 입력한다.
+
+   ```bash
+   mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USERNAME" -p \
+     --default-character-set=utf8mb4 "$DB_NAME" < /tmp/bus-stops.sql
+   ```
+
+   SQL은 한 트랜잭션 안에서 기존 정류장을 지우고 다시 넣는다. InnoDB에서 커밋 전 오류로 배치 실행이 중단되고 연결이 종료되면 미커밋 변경은 롤백된다. 오류 후에도 실행을 계속하는 `--force` 옵션은 사용하지 않으며, 실행이 실패하면 원인과 DB 상태를 확인한 뒤 재시도한다.
+
+5. 실제 앱 DB 계정으로 접속해 조회 권한과 적재 결과를 확인한다. 위 스냅샷은 두 값 모두 `227053`이어야 한다. 사용한 스냅샷과 결과를 배포 이슈에 기록한다.
+
+   ```sql
+   SELECT COUNT(*) AS total_count,
+          COUNT(DISTINCT node_id) AS unique_node_count
+   FROM bus_stops;
+   ```
+
+6. 애플리케이션을 배포한 뒤 서비스 상태·health·실행 SHA와 실제 교통 조회를 확인한다. 같은 좌표에서 500m·1km·2km 반경을 각각 요청해 선택 반경이 반영되는지 확인한다.
+7. 새 버전의 동작을 확인한 뒤, 해당 환경의 Vault `app_env`에서 더 이상 쓰지 않는 `BUS_STOP_PROVIDER`, `DATA_GO_KR_SERVICE_KEY` 두 줄을 삭제하고 다른 설정은 유지한다. [Vault 환경변수 관리](#5-vault-환경변수-관리)에 따라 `fetch_env.sh dev` 또는 `fetch_env.sh prod`로 내려받고 성공했을 때 재시작한다. 서비스 중인 인스턴스별로 적용과 정상 동작을 확인한다. 서버의 `/etc/jachwi-sunbae/app.env`만 직접 수정하면 다음 배포에서 Vault 값으로 덮어써진다.
+
+데이터만 갱신할 때는 백업을 확인한 뒤 테이블 생성은 건너뛰고 3~5번을 진행한다. 데이터 갱신 자체에는 애플리케이션 재시작이 필요 없다. 적재한 스냅샷이 바뀌면 위 표도 함께 고친다.
+
+### 착한가격업소 데이터 적재
+
+| 항목                   | 기준                                                              |
+| ---------------------- | ----------------------------------------------------------------- |
+| 스냅샷                 | `행정안전부_착한가격업소 현황_20260630.csv` (기준일 `2026-06-30`) |
+| 원본 행 / 예상 적재 행 | 12,645 / 12,556 (주소를 찾지 못함 88행, SGIS 서버 오류 1행 제외)  |
+| 갱신 주기              | 약 3개월마다 공개. 새 스냅샷이 공개되면 같은 절차로 다시 적재한다 |
+
+애플리케이션은 `good_price_stores`를 조회만 한다. 테이블이 없으면 착한가격업소 조회가 실패하므로 **애플리케이션 배포 전에 테이블 생성과 데이터 적재를 완료한다.**
+절차는 [버스정류장 데이터 적재](#버스정류장-데이터-적재)와 같고, 다른 점은 다음과 같다.
+
+- 2번에서는 `good_price_stores`의 `CREATE TABLE` 문만 실행한다.
+- 3번의 적재 SQL은 주소를 SGIS로 좌표 변환하면서 만든다. 기본 4개 요청을 동시에 보내 (`--workers`) 전체 실행에 약 15분이 걸린다. SGIS 키는 애플리케이션과 같은 `SGIS_CONSUMER_KEY`, `SGIS_CONSUMER_SECRET` 환경변수로 전달한다.
+  출력의 summary에서 생성 행 수와 제외 이유를 확인한다. 제외된 행은 stderr의 `WARN` 로그로 확인한다.
+
+  ```bash
+  export SGIS_CONSUMER_KEY=... SGIS_CONSUMER_SECRET=...
+  python3 backend/scripts/good-price-stores/generate_good_price_stores_sql.py "<CSV 경로>" \
+    --source-date 2026-06-30 --output /tmp/good-price-stores.sql 2> /tmp/good-price-stores-warn.log
+  ```
+
+  SGIS 인증 실패나 재시도 후에도 계속되는 장애가 나면 SQL을 만들지 않고 중단한다. 변환 결과는 `<output>.geocode-cache.jsonl`에 바로 기록되므로, 원인을 확인한 뒤 같은 명령으로 다시 실행하면 이어서 변환한다. 새 스냅샷을 적재할 때는 이전 캐시 파일을 지우고 실행한다.
+
+- 5번에서는 적재 행 수와 기준일을 확인한다. 위 스냅샷은 `total_count`가 예상 적재 행과 같고 `source_date`가 `2026-06-30` 하나여야 한다.
+
+  ```sql
+  SELECT COUNT(*) AS total_count, MIN(source_date), MAX(source_date)
+  FROM good_price_stores;
+  ```
+
+- 6번에서는 `GET /api/maps/good-price-stores`를 500m·1km·2km 반경으로 요청해 결과와 `dataAsOf`를 확인한다.
+
+<!-- TODO: 착한가격업소 공공데이터 자동 갱신 (Scheduler). 파일데이터라 다운로드 경로가 고정되어 있지 않아 지금은 수동으로 적재한다. -->
 
 ## 8. 배포 확인과 로그
 

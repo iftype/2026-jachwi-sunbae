@@ -23,6 +23,8 @@ export type ScenarioDoc = {
   id: string;
   title: string;
   status: string;
+  /** 머리 표의 근거 명세 ID */
+  basis: string;
   /** 저장소 루트 기준 경로 */
   path: string;
   markdown: string;
@@ -73,6 +75,7 @@ export const loadScenario = (scenarioId: string): ScenarioDoc => {
     id: scenarioId,
     title,
     status: meta['상태'] ?? '',
+    basis: meta['근거'] ?? '',
     path: relative(REPOSITORY_ROOT, filePath),
     markdown,
     expected: readTable(markdown, 'Expected').map(([id, text, basis, judgedBy]) => ({ id, text, basis, judgedBy })),
@@ -83,3 +86,11 @@ export const loadScenario = (scenarioId: string): ScenarioDoc => {
     })),
   };
 };
+
+/** `qa/docs/scenarios/`의 모든 Scenario 문서를 ID 순서로 읽는다. */
+export const listScenarios = (): ScenarioDoc[] =>
+  readdirSync(SCENARIO_DIR)
+    .map((name) => /^(F\d{2}-S\d{2})-.+\.md$/.exec(name)?.[1])
+    .filter((id): id is string => id !== undefined)
+    .sort()
+    .map(loadScenario);

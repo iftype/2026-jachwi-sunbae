@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { type APIRequestContext, expect, type Page } from '@playwright/test';
 
 import { isApiResponse } from './api';
 
@@ -10,10 +10,21 @@ export type QaMember = {
   startedAt: Date;
   /** 프론트엔드가 호출하는 API 서버 주소. 예: https://dev-api.jachwi-sunbae.kr */
   apiOrigin: string;
+  /** API를 직접 호출할 때 쓰는 인증 토큰. Evidence와 result.json에 남기지 않는다. */
+  accessToken: string;
+};
+
+/** 화면 없이 API로 시작한 회원. 한 Run에서 다른 회원이 필요할 때 쓴다. */
+export type ApiMember = {
+  nickname: string;
+  memberId: number;
+  /** Evidence와 result.json에 남기지 않는다. */
+  accessToken: string;
 };
 
 type LoginResponseBody = {
   data: {
+    accessToken: string;
     newMember: boolean;
     member: { memberId: number; name: string };
   };
@@ -46,5 +57,22 @@ export const startAsNewMember = async (page: Page, runId: string): Promise<QaMem
     memberId: body.data.member.memberId,
     startedAt,
     apiOrigin: new URL(loginResponse.url()).origin,
+    accessToken: body.data.accessToken,
   };
+};
+
+/**
+ * 닉네임으로 비밀번호 없이 API로 시작한다(F01). 화면을 쓰지 않는 두 번째 회원을 준비할 때 쓴다.
+ * 로그인 응답의 `newMember`로 다른 실행의 회원과 섞이지 않았는지 확인한다.
+ */
+export const startApiMember = async (
+  request: APIRequestContext,
+  apiOrigin: string,
+  nickname: string,
+): Promise<ApiMember> => {
+  const response = await request.post(`${apiOrigin}/api/auth/nickname`, { data: { nickname } });
+  expect(response.ok(), `닉네임 로그인 응답이 실패했습니다: ${response.status()}`).toBe(true);
+  const body = (await response.json()) as LoginResponseBody;
+  expect(body.data.newMember, `${nickname}이 이미 있는 회원입니다. 다른 실행의 기록과 섞일 수 있습니다.`).toBe(true);
+  return { nickname, memberId: body.data.member.memberId, accessToken: body.data.accessToken };
 };

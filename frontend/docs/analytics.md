@@ -4,13 +4,13 @@
 
 `src/shared/lib/analytics/posthog.ts`는 기존 호출부가 사용하는 안정된 진입점이다. SDK는 정적으로 import하지 않는다. 수명주기 상태는 한 런타임이 소유하며 파일별 전역 상태를 함께 초기화하는 조립 로직은 없앤다.
 
-| 모듈 (`shared/lib/analytics/posthog/`) | 책임 |
-| --- | --- |
-| `runtime.ts` | SDK lazy load·초기화·큐·공통 속성·식별·페이지뷰 캐시의 단일 상태 소유자, 실패 진단 |
-| `configuration.ts` | 공개 설정 검증, 마스킹·자동 수집 옵션 |
-| `platform.ts` | 앱 주입 정보·전용 UA·브라우저 UA로 플랫폼 분류 |
-| `errorClassification.ts`, `exceptions.ts` | 순수 오류 분류와 오류 전송 |
-| `types.ts` | SDK·공통 속성·오류 등급 타입 |
+| 모듈 (`shared/lib/analytics/posthog/`)    | 책임                                                                               |
+| ----------------------------------------- | ---------------------------------------------------------------------------------- |
+| `runtime.ts`                              | SDK lazy load·초기화·큐·공통 속성·식별·페이지뷰 캐시의 단일 상태 소유자, 실패 진단 |
+| `configuration.ts`                        | 공개 설정 검증, 마스킹·자동 수집 옵션                                              |
+| `platform.ts`                             | 앱 주입 정보·전용 UA·브라우저 UA로 플랫폼 분류                                     |
+| `errorClassification.ts`, `exceptions.ts` | 순수 오류 분류와 오류 전송                                                         |
+| `types.ts`                                | SDK·공통 속성·오류 등급 타입                                                       |
 
 `app/analytics/PostHogTracker.tsx`는 React와 SDK 수명주기를 연결한다. 초기화·공통 속성·식별은 layout effect에서 처리해 페이지의 첫 effect 이벤트가 초기화보다 먼저 실행되어 버려지지 않게 한다. 페이지뷰는 그 이후 전송한다. 로그인은 수집의 전제 조건이 아니며 익명 방문에서도 경로와 기능 이벤트를 수집한다.
 

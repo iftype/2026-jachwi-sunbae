@@ -20,11 +20,13 @@ qa/
 ├── src/                   # 공통실행, Evidence 수집, AI 분석 및 Run Report 생성 코드
 ├── tests/                 # Scenario별 Playwright 테스트
 ├── runs/                  # 실행 결과, 보고서 및 증거(Git 제외)
-│    ├── evidence/          # 스크린샷 및 API 응답 등 실제 실행 증거
-│    ├── result.json        # 코드가 기록한 실행 결과와 판정
-│    ├── report.md          # 사람이 읽고 판정을 작성하는 QA 보고서
-│    ├── analysis-prompt.md # AI 분석에 전달한 프롬프트 원문 — 분석 시 생성
-│    └── analysis.json      # AI 분석 결과·모델·시간·추정 비용 — 분석 시 생성
+│   ├── summary-{일괄 실행 ID}.md # 여러 Scenario를 한 번에 실행했을 때의 전체 요약
+│   └── {Run ID}/          # Scenario 한 번의 실행(Run)
+│       ├── evidence/          # 스크린샷 및 API 응답 등 실제 실행 증거
+│       ├── result.json        # 코드가 기록한 실행 결과와 판정
+│       ├── report.md          # 사람이 읽고 판정을 작성하는 QA 보고서
+│       ├── analysis-prompt.md # AI 분석에 전달한 프롬프트 원문 — 분석 시 생성
+│       └── analysis.json      # AI 분석 결과·모델·시간·추정 비용 — 분석 시 생성
 └── playwright.config.ts   # 실행 설정
 ```
 
@@ -67,65 +69,82 @@ Run Report
 재검증 ── 수정 후 같은 Scenario를 다시 실행해 이전 Run과 비교
 ```
 
-## 3. 역할
+## 3. 실행 시점
 
-### 3.1. 달라지는 일하는 방식
+QA 결과는 사람이 그 결과로 무언가를 결정할 때 의미가 있다. 그래서 정해진 주기가 아니라 판단이 필요한 시점에 실행한다.
+
+| 시점                         | 답하는 질문                                  | 범위          | 사람 판정                                    | 필요도                     |
+| ---------------------------- | -------------------------------------------- | ------------- | -------------------------------------------- | -------------------------- |
+| 운영 배포 전(develop → main) | 운영에 내보내도 되는가                       | 전체          | 모든 `FAIL`, `NEEDS_REVIEW` 판정과 출시 판단 | 필수                       |
+| 결함 수정 후                 | 결함이 고쳐졌는가                            | 해당 Scenario | 수정 확인                                    | 필수                       |
+| 명세나 Scenario 변경 후      | 바뀐 기준대로 동작하는가                     | 해당 Scenario | 결과 확인                                    | 필수                       |
+| DEV 배포 후                  | 방금 변경이 다른 기능을 깨뜨렸는가           | 전체          | 직전 실행과 판정이 바뀐 Scenario만           | 권장. CI 연결 후 자동 실행 |
+| 정기(하루 1회)               | 배포가 없어도 DEV 환경과 외부 API가 정상인가 | 전체          | `ENV_ISSUE`만                                | 선택                       |
+
+- CI의 단위, 통합 테스트는 PR마다 "코드가 의도대로 동작하는가"를 본다. E2E QA는 "배포된 제품이 명세대로 동작하는가"를 사용자 관점에서 본다. 둘은 서로를 대신하지 않는다.
+- 배포마다 같은 실패를 반복해 판정하면 결과를 무시하게 된다. [일괄 실행 요약](#85-일괄-실행-요약)은 직전 일괄 실행과 비교해 판정이 바뀐 Scenario를 따로 보여준다.
+- 주 1회처럼 긴 주기는 회귀 탐지에 늦다. 그사이 여러 변경이 쌓여 무엇이 깨뜨렸는지 알기 어렵고, 배포가 없으면 결과가 같다.
+- 지금은 사람이 명령으로 실행한다. CI와 정기 실행 연결은 별도 작업이다.
+
+## 4. 역할
+
+### 4.1. 달라지는 일하는 방식
 
 QA 사이클은 사람이 직접 하던 실행과 기록을 코드와 AI에 맡기고, 사람은 기준을 정하고 판단하는 일에 집중하도록 역할을 다시 나눈다.
 
-| 단계 | 기존 수동 점검 | QA 사이클 |
-| --- | --- | --- |
-| 기준 정의 | 확인할 내용이 사람과 시점마다 다르다 | 사람이 명세를 근거로 Flow와 Scenario를 정의하고 승인한다 |
-| 실행과 기록 | 사람이 화면을 직접 조작하고 결과를 기억이나 메모로 남긴다 | 코드가 같은 절차를 반복 실행하고 Evidence를 빠짐없이 저장한다 |
-| 분석 | 실패 원인을 사람이 처음부터 찾는다 | AI가 Evidence를 종합해 원인 가설과 추가로 확인할 곳을 제안한다 |
-| 판단 | 사람이 판단한다 | 사람이 AI 분석을 검증한 뒤 결함 여부, 심각도, 출시를 결정한다 |
-| 재검증 | 수정 후 다시 손으로 확인한다 | 같은 Scenario를 다시 실행해 이전 Run과 비교한다 |
+| 단계        | 기존 수동 점검                                            | QA 사이클                                                      |
+| ----------- | --------------------------------------------------------- | -------------------------------------------------------------- |
+| 기준 정의   | 확인할 내용이 사람과 시점마다 다르다                      | 사람이 명세를 근거로 Flow와 Scenario를 정의하고 승인한다       |
+| 실행과 기록 | 사람이 화면을 직접 조작하고 결과를 기억이나 메모로 남긴다 | 코드가 같은 절차를 반복 실행하고 Evidence를 빠짐없이 저장한다  |
+| 분석        | 실패 원인을 사람이 처음부터 찾는다                        | AI가 Evidence를 종합해 원인 가설과 추가로 확인할 곳을 제안한다 |
+| 판단        | 사람이 판단한다                                           | 사람이 AI 분석을 검증한 뒤 결함 여부, 심각도, 출시를 결정한다  |
+| 재검증      | 수정 후 다시 손으로 확인한다                              | 같은 Scenario를 다시 실행해 이전 Run과 비교한다                |
 
-### 3.2. 역할 분담
+### 4.2. 역할 분담
 
-| 주체 | 하는 일 | 하지 않는 일 |
-| --- | --- | --- |
-| 사람 | Scenario 정의와 승인, 결함 여부와 최종 심각도 판단, 수정 우선순위와 출시 결정, AI 분석 검증과 판단 기록 | 자동화한 Scenario의 반복 실행 |
-| 코드 | 정해진 행동 수행, 결정적 비교(상태 코드, 값 일치, 요소 존재), Evidence 저장, 수정 후 재실행 | 해석이 필요한 판정 |
-| AI | 해석이 필요한 Expected의 판정 초안, 원인 가설, 심각도 제안, 추가 확인 제안, 재실행 결과와 이전 Run 비교 | 명세에 없는 기대 동작 만들기, 최종 판정, 명세와 Scenario 수정 |
+| 주체 | 하는 일                                                                                                 | 하지 않는 일                                                  |
+| ---- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| 사람 | Scenario 정의와 승인, 결함 여부와 최종 심각도 판단, 수정 우선순위와 출시 결정, AI 분석 검증과 판단 기록 | 자동화한 Scenario의 반복 실행                                 |
+| 코드 | 정해진 행동 수행, 결정적 비교(상태 코드, 값 일치, 요소 존재), Evidence 저장, 수정 후 재실행             | 해석이 필요한 판정                                            |
+| AI   | 해석이 필요한 Expected의 판정 초안, 원인 가설, 심각도 제안, 추가 확인 제안, 재실행 결과와 이전 Run 비교 | 명세에 없는 기대 동작 만들기, 최종 판정, 명세와 Scenario 수정 |
 
-### 3.3. 나누는 기준
+### 4.3. 나누는 기준
 
 - **반복과 기록은 코드에 맡긴다.** 같은 절차를 매번 똑같이 수행하고 빠짐없이 기록하는 일은 사람이 하면 느리고 누락이 생긴다.
 - **정답이 분명한 비교는 코드가 판정한다.** AI는 같은 입력에도 다른 답을 낼 수 있으므로 상태 코드나 값 일치처럼 정답이 분명한 비교에는 쓰지 않는다.
 - **AI는 해석과 종합에 쓴다.** 여러 Evidence를 엮어 원인 후보를 좁히고 다음에 볼 곳을 제안하는 일은 규칙으로 정하기 어렵고 시간이 많이 든다.
 - **책임이 따르는 결정은 사람이 한다.** 무엇이 정상인지, 실제 결함인지, 얼마나 심각한지, 출시해도 되는지는 제품 맥락이 필요하고 틀리면 사용자에게 바로 영향을 준다. AI 분석은 이 결정의 재료로만 쓴다.
 
-### 3.4. AI 분석 검증
+### 4.4. AI 분석 검증
 
 - AI 분석은 사람이 확인하기 전까지 초안이다.
 - AI의 모든 주장에는 근거 Evidence ID와 명세 ID가 있어야 한다. 근거가 없는 주장은 채택하지 않는다.
 - 사람은 AI 판단을 `수용`, `수정`, `기각` 중 하나로 기록한다. 수정하거나 기각하면 [판단 기록](docs/decision-log/README.md)에 이유를 남기고, Scenario나 AI 분석 방식을 고쳐 같은 오판을 줄인다.
 - AI 판단 수용 비율과 오판 유형을 보고 AI에 맡기는 범위를 넓히거나 줄인다.
 
-### 3.5. 효과 측정
+### 4.5. 효과 측정
 
-역할을 나눈 결과가 실제로 나아졌는지 다음 지표로 확인한다. 모두 Scenario 문서와 Run Report에서 얻는다.
+역할을 나눈 결과가 실제로 나아졌는지 다음 지표로 확인한다. 모두 Scenario 문서, Run Report, 일괄 실행 요약에서 얻는다.
 
-| 지표 | 보는 것 | 출처 |
-| --- | --- | --- |
-| 실행 시간 | 같은 Scenario의 수동 실행과 자동 실행 소요 시간 | Scenario 실행 기록 |
-| 검증 범위 | 전체 AC 중 Scenario로 연결된 AC 비율, 자동화한 Scenario 수 | Scenario 목록 |
-| 결함 발견 | `CONFIRMED_BUG` 수와 심각도 분포, 운영 배포 전에 발견했는지 | Run Report 사람 판정 |
-| AI 판단 품질 | AI 판단 수용 비율, 오판 유형 | Run Report 사람 판정, 판단 기록 |
-| 재검증 | 수정 후 재실행 결과 | Run Report |
+| 지표         | 보는 것                                                               | 출처                            |
+| ------------ | --------------------------------------------------------------------- | ------------------------------- |
+| 실행 시간    | 같은 Scenario의 수동 실행과 자동 실행 소요 시간                       | Scenario 실행 기록              |
+| 검증 범위    | 전체 AC 중 자동화한 Scenario가 검증하는 AC 비율, 자동화한 Scenario 수 | 일괄 실행 요약, Scenario 목록   |
+| 결함 발견    | `CONFIRMED_BUG` 수와 심각도 분포, 운영 배포 전에 발견했는지           | Run Report 사람 판정            |
+| AI 판단 품질 | AI 판단 수용 비율, 오판 유형                                          | Run Report 사람 판정, 판단 기록 |
+| 재검증       | 수정 후 재실행 결과                                                   | Run Report                      |
 
-## 4. 대상 환경
+## 5. 대상 환경
 
-| 환경 | 프론트엔드 | API | 용도 |
-| --- | --- | --- | --- |
-| DEV | `https://dev.jachwi-sunbae.kr` | `https://dev-api.jachwi-sunbae.kr` | 기본 QA 대상 |
-| 로컬 | `http://localhost:3000` | `http://localhost:8080` | 자동화 코드 디버깅 |
+| 환경 | 프론트엔드                     | API                                | 용도               |
+| ---- | ------------------------------ | ---------------------------------- | ------------------ |
+| DEV  | `https://dev.jachwi-sunbae.kr` | `https://dev-api.jachwi-sunbae.kr` | 기본 QA 대상       |
+| 로컬 | `http://localhost:3000`        | `http://localhost:8080`            | 자동화 코드 디버깅 |
 
 - 운영(prod)에서는 QA를 실행하지 않는다. 운영 데이터에 테스트 회원과 매물이 생기기 때문이다. 운영 URL을 지정하면 실행 코드가 실행을 거부한다.
 - DEV는 `develop` 병합 시 배포된다. Run Report에 실행 시점의 대상 버전을 남긴다.
 
-## 5. 테스트 데이터
+## 6. 테스트 데이터
 
 - 실행마다 새 회원을 만든다. 닉네임은 `qa-{runId}`(`runId`는 `YYMMDD-HHmmss`)이고 비밀번호 없이 시작한다. 다른 실행이나 실제 사용자의 데이터와 섞이지 않고, 회원별 한도(매물 30개)의 영향도 받지 않는다.
 - 로그인 응답에서 새 회원이 아니면 실행을 실패시켜 다른 실행의 기록과 섞이지 않게 한다.
@@ -133,9 +152,9 @@ QA 사이클은 사람이 직접 하던 실행과 기록을 코드와 AI에 맡�
 - 비밀번호 없는 닉네임은 닉네임을 아는 누구나 접근할 수 있다. 테스트 데이터에 실제 개인정보를 쓰지 않는다.
 - 만든 데이터는 지우지 않는다. 삭제해도 논리 삭제로 남으므로 `qa-` 접두사로 구분한다.
 
-## 6. 실행 방법
+## 7. 실행 방법
 
-### 6.1. 준비
+### 7.1. 준비
 
 - Node 22.23.x (`.nvmrc`)
 - Playwright, 모바일 화면(Pixel 7, Chromium)
@@ -147,54 +166,57 @@ npm ci
 npx playwright install chromium
 ```
 
-### 6.2. 명령
+### 7.2. 명령
 
 ```bash
 npm run test:smoke                 # 실행 환경 점검
-npm test                           # 전체 테스트
+npm test                           # 전체 테스트. Scenario가 여러 개면 일괄 실행 요약도 만듦
+npx playwright test F02-S03        # Scenario 하나만 실행(파일 이름 일부로 고름)
 npm run report                     # 마지막 실행의 Playwright HTML 리포트 열기
 npm run typecheck                  # 타입 검사
 npm run analyze -- runs/<Run ID>   # 저장된 Run을 다시 AI 분석하고 Run Report를 다시 만듦
 npm run render -- runs/<Run ID>    # AI 분석 없이 Run Report만 다시 만듦
 ```
 
-### 6.3. 환경변수
+### 7.3. 환경변수
 
-| 이름 | 기본값 | 설명 |
-| --- | --- | --- |
-| `QA_BASE_URL` | `https://dev.jachwi-sunbae.kr` | QA 대상 프론트엔드 URL. 로컬은 `http://localhost:3000` |
-| `QA_AI_ANALYSIS` | `failed` | AI 분석 대상. `failed`는 PASS가 아닌 Run만, `always`는 모든 Run, `off`는 분석하지 않음 |
-| `QA_AI_MODEL` | `claude-sonnet-5-5` | 분석에 쓸 모델 ID. 기본값은 고정이며 모델 비교 실험에만 바꾼다([DL-002](docs/decision-log/DL-002-analysis-model.md)). 예: `claude-opus-5-5` |
-| `QA_AI_TIMEOUT_MS` | `300000` | AI 분석 제한 시간 |
-| `QA_FAULT` | 없음 | 의도적으로 주입할 결함 이름. 예: `detail-rent` |
+| 이름               | 기본값                         | 설명                                                                                                                                        |
+| ------------------ | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `QA_BASE_URL`      | `https://dev.jachwi-sunbae.kr` | QA 대상 프론트엔드 URL. 로컬은 `http://localhost:3000`                                                                                      |
+| `QA_AI_ANALYSIS`   | `failed`                       | AI 분석 대상. `failed`는 PASS가 아닌 Run만, `always`는 모든 Run, `off`는 분석하지 않음                                                      |
+| `QA_AI_MODEL`      | `claude-sonnet-5-5`            | 분석에 쓸 모델 ID. 기본값은 고정이며 모델 비교 실험에만 바꾼다([DL-002](docs/decision-log/DL-002-analysis-model.md)). 예: `claude-opus-5-5` |
+| `QA_AI_TIMEOUT_MS` | `300000`                       | AI 분석 제한 시간                                                                                                                           |
+| `QA_FAULT`         | 없음                           | 의도적으로 주입할 결함 이름. 예: `detail-rent`, `geocode-down`                                                                              |
 
 `.env.example`을 `.env`로 복사해 설정하거나 셸 환경변수로 넘긴다. 둘 다 있으면 셸 환경변수가 우선한다. `.env`는 커밋하지 않는다.
 
-### 6.4. 실행 방식
+### 7.4. 실행 방식
 
 - 테스트마다 회원을 새로 만들고 DEV를 공유하므로 한 번에 하나씩 실행한다.
 - 불안정한 결과를 가리지 않도록 실패한 테스트를 재시도하지 않는다.
 - 제품 분석 데이터에 섞이지 않도록 PostHog 요청을 차단한다.
 
-### 6.5. 실행 산출물
+### 7.5. 실행 산출물
 
-| 위치 | 내용 |
-| --- | --- |
-| `runs/{Run ID}/` | Run Report(`report.md`), 실행 결과(`result.json`), Evidence(`evidence/`), AI 분석(`analysis.json`) |
-| `test-results/` | Playwright가 남기는 실패 테스트의 스크린샷과 trace |
-| `playwright-report/` | Playwright HTML 리포트 |
+| 위치                             | 내용                                                                                               |
+| -------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `runs/{Run ID}/`                 | Run Report(`report.md`), 실행 결과(`result.json`), Evidence(`evidence/`), AI 분석(`analysis.json`) |
+| `runs/summary-{일괄 실행 ID}.md` | 일괄 실행 요약. 비교에 쓰는 같은 이름의 `.json`이 함께 생긴다                                      |
+| `test-results/`                  | Playwright가 남기는 실패 테스트의 스크린샷과 trace                                                 |
+| `playwright-report/`             | Playwright HTML 리포트                                                                             |
 
 모두 Git에 포함하지 않는다. trace는 `npx playwright show-trace <trace.zip 경로>`로 연다.
 
-## 7. 실행 코드 구조
+## 8. 실행 코드 구조
 
-### 7.1. Scenario 자동화
+### 8.1. Scenario 자동화
 
 - 테스트 파일 이름은 Scenario ID로 시작한다. 예: `tests/F02-S01-property-create.spec.ts`
 - `ScenarioRun`이 `docs/scenarios/`의 Scenario 문서에서 상태와 Expected를 읽는다. 기대 결과를 코드에 다시 적지 않아 문서와 실행 결과가 어긋나지 않는다.
 - 상태가 `승인` 또는 `자동화`인 Scenario만 실행한다.
 - Expected마다 `pass`, `fail`, `needsReview`로 판정하고 실제 결과를 문장으로 남긴다. 단계가 중간에 멈추면 확인하지 못한 Expected는 `BLOCKED`다.
 - 최종 판정이 `PASS`가 아니면 테스트를 실패로 표시해 스크린샷과 trace를 남긴다.
+- 회원이 필요하면 fixture를 쓴다. `member`는 화면에서 시작한 새 회원 `qa-{runId}`, `otherMember`는 같은 Run의 두 번째 회원 `qa-{runId}-b`로 화면 없이 API로 시작한다. 화면에서 할 수 없는 시도(다른 회원의 자원 접근 등)는 `callApi`로 API를 직접 호출한다.
 
 ```ts
 await run.execute(async () => {
@@ -206,22 +228,22 @@ await run.execute(async () => {
 });
 ```
 
-### 7.2. Evidence 수집
+### 8.2. Evidence 수집
 
 [QA 실행 결과 형식](docs/report-schema.md#3-evidence)의 세 계층을 따른다.
 
-| 계층 | 수집 방법 | 파일 |
-| --- | --- | --- |
-| Scenario 지정 | 테스트에서 `run.captureScreen(EV ID)`, `run.captureApi(EV ID, response)` 호출. 설명은 Scenario 문서의 Required Evidence에서 가져온다 | `EV1-api.json`, `EV2-screen.png` |
-| 항상 | 실행이 끝나면 마지막 화면 저장 | `EV+1-final-screen.png` |
-| 실패 시 추가 | 최종 판정이 `PASS`가 아니면 콘솔, 네트워크 기록, trace 저장 | `EV+2-console.json`, `EV+3-network.json`, `EV+4-trace.zip` |
+| 계층          | 수집 방법                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | 파일                                                                                |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Scenario 지정 | 테스트에서 `run.captureScreen(EV ID, focus)`, `run.captureApi(EV ID, response)`, `run.captureRequests(EV ID, watch)` 호출. 설명은 Scenario 문서의 Required Evidence에서 가져온다. 확인 대상이 안쪽 스크롤 영역에 있으면 전체 페이지 스크린샷에 찍히지 않으므로 `focus`로 그 요소까지 스크롤한 뒤 찍는다. `captureRequests`는 `watchRequests`로 감시한 요청의 본문과 응답 상태를 기록하며, 요청이 없으면 0건으로 남는다. 브라우저 안에서 모은 기록(예: 위치 권한 요청 호출)은 `run.captureLog(EV ID, 이름, 기록)`으로, `callApi`로 직접 호출한 요청과 응답은 `run.captureApiCall(EV ID, call)`로 남긴다. 인증 토큰은 `Bearer ***`로 가린다 | `EV1-api.json`, `EV2-screen.png`, `EV5-requests.json`, `EV4-geolocation-calls.json` |
+| 항상          | 실행이 끝나면 마지막 화면 저장                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | `EV+1-final-screen.png`                                                             |
+| 실패 시 추가  | 최종 판정이 `PASS`가 아니면 콘솔, 네트워크 기록, trace 저장                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | `EV+2-console.json`, `EV+3-network.json`, `EV+4-trace.zip`                          |
 
 - Scenario 문서에 없는 EV ID로 수집하면 오류가 난다. 요구한 Evidence를 수집하지 못하면 `result.json`의 `missingEvidence`에 남는다.
 - API Evidence와 네트워크 기록에는 요청 ID(`X-Request-Id`)를 남겨 서버 로그와 대조할 수 있게 한다.
 - 요청과 응답 본문의 토큰, 비밀번호, 쿠키 값은 `***`로 가린다.
 - trace는 테스트가 끝난 뒤 만들어지므로 `src/reporter.ts`가 Run 디렉터리로 옮긴다.
 
-### 7.3. AI 분석
+### 8.3. AI 분석
 
 테스트가 모두 끝나면 `src/reporter.ts`가 Run마다 `claude -p`로 분석을 요청한다.
 
@@ -232,12 +254,12 @@ await run.execute(async () => {
 - AI가 인용한 명세 ID와 Evidence ID가 실제로 있는지 코드가 확인해 `validation`에 남긴다.
 - 의도적 결함 주입 여부(`faultInjection`)는 AI에게 넘기지 않는다.
 
-| 파일 | 내용 |
-| --- | --- |
-| `analysis.json` | 분석 결과, 사용 모델, 소요 시간, 비용, 인용 검증 결과 |
-| `analysis-prompt.md` | AI에게 보낸 프롬프트 원문 |
+| 파일                 | 내용                                                  |
+| -------------------- | ----------------------------------------------------- |
+| `analysis.json`      | 분석 결과, 사용 모델, 소요 시간, 비용, 인용 검증 결과 |
+| `analysis-prompt.md` | AI에게 보낸 프롬프트 원문                             |
 
-### 7.4. Run Report
+### 8.4. Run Report
 
 테스트가 모두 끝나면 Run마다 `runs/{Run ID}/report.md`를 만든다. 형식은 [QA 실행 결과 형식](docs/report-schema.md#2-run-report-구조)을 따른다.
 
@@ -246,37 +268,49 @@ await run.execute(async () => {
 - 의도적 결함을 주입한 Run이면 맨 위에 표시한다.
 - 사람 판정은 `report.md`에서 직접 채운다. Run 판정 표와, AI가 낸 Expected 판정 초안과 기타 관찰마다 한 줄씩 생기는 항목별 판단 표가 있다. `npm run analyze`나 `npm run render`로 다시 만들어도 채운 값은 유지된다.
 
-### 7.5. 의도적 결함 주입
+### 8.5. 일괄 실행 요약
+
+Scenario를 두 개 이상 한 번에 실행하면 `src/summary.ts`가 `runs/summary-{일괄 실행 ID}.md`를 만든다. 일괄 실행 ID는 실행을 시작한 시각(`YYMMDD-HHmmss`)이다.
+
+- Scenario별 판정, 소요 시간, AI 판정 제안, Run Report 링크를 한 표로 보여준다.
+- 직전 일괄 실행과 비교해 판정이 바뀐 Scenario를 `새로 실패`, `회복`, `바뀜`으로 표시하고, 사람이 먼저 볼 Run을 따로 적는다. 직전 일괄 실행이 없으면 `PASS`가 아닌 Run을 먼저 볼 Run으로 적는다.
+- 의도적 결함을 주입한 일괄 실행은 맨 위에 표시하고, 다음 일괄 실행의 비교 기준으로 쓰지 않는다.
+- 검증 범위로 자동화한 Scenario 수와, 그 Scenario들이 근거로 삼는 인수 기준(AC) 수를 Scenario 문서와 명세에서 센다.
+
+### 8.6. 의도적 결함 주입
 
 실제 결함 없이 실패 경로를 확인하거나, 원인을 아는 실패로 AI 분석이 맞는지 채점할 때 쓴다. 제품 코드와 DEV 데이터는 바꾸지 않고 브라우저가 받는 응답만 바꾼다. 주입한 결함은 `result.json`의 `faultInjection`에 남는다.
 
-| 이름 | 바꾸는 것 |
-| --- | --- |
-| `detail-rent` | 매물 상세 조회 응답의 월세를 실제 값의 1/10로 바꾼다 |
+| 이름           | 바꾸는 것                                                                                                             |
+| -------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `detail-rent`  | 매물 상세 조회 응답의 월세를 실제 값의 1/10로 바꾼다                                                                  |
+| `geocode-down` | 좌표의 주소 변환 응답을 503으로 바꿔 외부 주소 API 장애를 흉내 낸다. 사전 조건 실패가 `BLOCKED`로 기록되는지 확인한다 |
 
 ```bash
 QA_FAULT=detail-rent npx playwright test tests/F02-S01-property-create.spec.ts
 ```
 
-### 7.6. 소스 파일
+### 8.7. 소스 파일
 
-| 파일 | 역할 |
-| --- | --- |
-| `src/config.ts` | 환경변수, 운영 실행 차단 |
-| `src/run-id.ts` | runId 생성 |
-| `src/member.ts` | 새 회원으로 시작(F01) |
-| `src/fixtures.ts` | 공통 fixture |
-| `src/api.ts` | API 응답 대기와 본문 읽기 |
-| `src/scenario-doc.ts` | Scenario 문서 읽기 |
-| `src/scenario-run.ts` | Expected 판정 기록 |
-| `src/evidence.ts` | Evidence 수집과 민감 정보 가림 |
-| `src/faults.ts` | 의도적 결함 주입 |
-| `src/ai-analysis.ts` | `claude -p` 분석과 인용 검증 |
-| `src/report.ts` | Run Report(`report.md`) 생성 |
-| `src/analyze-cli.ts` | 저장된 Run 재분석과 Run Report 재생성 명령 |
-| `src/reporter.ts` | Run 마무리(trace 이동, AI 분석, Run Report 생성) |
+| 파일                   | 역할                                                                         |
+| ---------------------- | ---------------------------------------------------------------------------- |
+| `src/config.ts`        | 환경변수, 운영 실행 차단                                                     |
+| `src/run-id.ts`        | runId 생성                                                                   |
+| `src/member.ts`        | 새 회원으로 시작(F01). 화면으로 시작하거나 API로 시작                        |
+| `src/fixtures.ts`      | 공통 fixture(`member`, `otherMember`)                                        |
+| `src/property-form.ts` | 매물 등록 화면의 입력란과 조작, 사전 조건용 매물 등록, 입력란 오류 안내 읽기 |
+| `src/api.ts`           | API 응답 대기와 본문 읽기, 요청 감시, API 직접 호출                          |
+| `src/scenario-doc.ts`  | Scenario 문서 읽기                                                           |
+| `src/scenario-run.ts`  | Expected 판정 기록                                                           |
+| `src/evidence.ts`      | Evidence 수집과 민감 정보 가림                                               |
+| `src/faults.ts`        | 의도적 결함 주입                                                             |
+| `src/ai-analysis.ts`   | `claude -p` 분석과 인용 검증                                                 |
+| `src/report.ts`        | Run Report(`report.md`) 생성                                                 |
+| `src/summary.ts`       | 일괄 실행 요약 생성과 직전 일괄 실행 비교                                    |
+| `src/analyze-cli.ts`   | 저장된 Run 재분석과 Run Report 재생성 명령                                   |
+| `src/reporter.ts`      | Run 마무리(trace 이동, AI 분석, Run Report 생성)                             |
 
-## 8. 문서 변경 규칙
+## 9. 문서 변경 규칙
 
 - 명세는 QA 편의를 위해 바꾸지 않는다. 명세는 제품 결정으로만 바뀐다.
 - Flow, Scenario, Run Report 형식은 실제로 실행하며 개선한다. 판정 기준을 바꾸면 판단 기록에 이유를 남긴다.

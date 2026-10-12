@@ -63,9 +63,9 @@ prod → /main.8a49163cbe52bf996d07.js
 | `API_BASE_URL`          | `https://api.jachwi-sunbae.kr` | `https://dev-api.jachwi-sunbae.kr` |
 | `MAP_PROVIDER_MODE`     | `naver`                        | `naver`                            |
 | `NAVER_MAP_CLIENT_ID`   | Naver Maps Client ID           | 같은 Naver Maps Application의 ID   |
-| `POSTHOG_PROJECT_TOKEN` | PostHog 프로젝트 토큰          | 같은 PostHog 프로젝트 토큰          |
-| `POSTHOG_HOST`          | `https://us.i.posthog.com`     | `https://us.i.posthog.com`          |
-| `APP_VERSION`           | `package.json` 버전            | `package.json` 버전                 |
+| `POSTHOG_PROJECT_TOKEN` | PostHog 프로젝트 토큰          | 같은 PostHog 프로젝트 토큰         |
+| `POSTHOG_HOST`          | `https://us.i.posthog.com`     | `https://us.i.posthog.com`         |
+| `APP_VERSION`           | `package.json` 버전            | `package.json` 버전                |
 
 값은 CodePipeline Commands 빌드 액션의 환경변수로 전달한다. Naver Maps Client ID와 PostHog 프로젝트 토큰은 브라우저 번들에 포함되는 공개 식별자이며 REST API 키나 Client Secret 등 비밀값을 넣지 않는다. Naver Maps Application에 `https://www.jachwi-sunbae.kr`과 `https://dev.jachwi-sunbae.kr`을 Web 서비스 URL로 등록한다.
 

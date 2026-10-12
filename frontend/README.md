@@ -56,12 +56,12 @@ API 변경 작업 전에는 [실행 리비전](https://dev-api.jachwi-sunbae.kr/
 
 ### 환경변수
 
-| 환경변수              | 데모 기본               | 설명                                  |
-| --------------------- | ----------------------- | ------------------------------------- |
-| `API_BASE_URL`        | `http://localhost:8080` | 백엔드 기준 URL                       |
-| `MAP_PROVIDER_MODE`   | 키가 있으면 `naver`     | `demo` 또는 `naver`                   |
-| `NAVER_MAP_CLIENT_ID` | 비움                    | `naver` 모드의 공개 Maps Client ID    |
-| `ENABLE_MSW`          | `false`                 | dev fixture가 필요할 때만 `true`      |
+| 환경변수              | 데모 기본               | 설명                               |
+| --------------------- | ----------------------- | ---------------------------------- |
+| `API_BASE_URL`        | `http://localhost:8080` | 백엔드 기준 URL                    |
+| `MAP_PROVIDER_MODE`   | 키가 있으면 `naver`     | `demo` 또는 `naver`                |
+| `NAVER_MAP_CLIENT_ID` | 비움                    | `naver` 모드의 공개 Maps Client ID |
+| `ENABLE_MSW`          | `false`                 | dev fixture가 필요할 때만 `true`   |
 
 JWT secret, 지도 Client Secret, S3 자격증명은 프론트에 넣지 않습니다. PostHog는 공개 토큰과 호스트가 설정된 dev/prod 번들에서 초기화하며, 비로그인 방문도 수집합니다. 코드 구조와 이벤트 추가 기준은 [분석 수집 문서](docs/analytics.md), 방문자·리텐션·사용성의 정의와 확인 순서는 [지표 기준](docs/analytics-goals.md)을 참고합니다.
 
