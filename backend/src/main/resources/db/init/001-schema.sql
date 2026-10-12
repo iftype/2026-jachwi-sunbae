@@ -168,6 +168,48 @@ CREATE TABLE IF NOT EXISTS property_checklist_items (
     CONSTRAINT chk_prop_check_items_status CHECK (status IN ('UNCONFIRMED', 'GOOD', 'CAUTION'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 대중교통 노선 (국가대중교통정보센터 GTFS의 트램·지하철·버스)
+-- GTFS를 다시 적재할 때 네 테이블을 모두 비우고 새로 채운다.
+CREATE TABLE IF NOT EXISTS gtfs_routes (
+    route_id VARCHAR(100) PRIMARY KEY,
+    short_name VARCHAR(100) NOT NULL,
+    long_name VARCHAR(300) NOT NULL,
+    route_type TINYINT UNSIGNED NOT NULL,
+    wait_seconds INT NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 대중교통 정류장
+CREATE TABLE IF NOT EXISTS gtfs_stops (
+    stop_id VARCHAR(100) PRIMARY KEY,
+    stop_name VARCHAR(150) NOT NULL,
+    latitude DECIMAL(10, 7) NOT NULL,
+    longitude DECIMAL(11, 7) NOT NULL,
+    INDEX idx_gtfs_stops_location (latitude, longitude)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 같은 노선에서 연속한 두 정류장 사이의 대표 이동 시간 (운행별 이동 시간의 중앙값)
+CREATE TABLE IF NOT EXISTS gtfs_edges (
+    route_id VARCHAR(100) NOT NULL,
+    from_stop_id VARCHAR(100) NOT NULL,
+    to_stop_id VARCHAR(100) NOT NULL,
+    travel_seconds INT NOT NULL,
+    PRIMARY KEY (route_id, from_stop_id, to_stop_id),
+    INDEX idx_gtfs_edges_from (from_stop_id),
+    CONSTRAINT fk_gtfs_edges_route FOREIGN KEY (route_id) REFERENCES gtfs_routes (route_id),
+    CONSTRAINT fk_gtfs_edges_from_stop FOREIGN KEY (from_stop_id) REFERENCES gtfs_stops (stop_id),
+    CONSTRAINT fk_gtfs_edges_to_stop FOREIGN KEY (to_stop_id) REFERENCES gtfs_stops (stop_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 정류장 간 도보 환승 시간
+CREATE TABLE IF NOT EXISTS gtfs_transfers (
+    from_stop_id VARCHAR(100) NOT NULL,
+    to_stop_id VARCHAR(100) NOT NULL,
+    transfer_seconds INT NOT NULL,
+    PRIMARY KEY (from_stop_id, to_stop_id),
+    CONSTRAINT fk_gtfs_transfers_from_stop FOREIGN KEY (from_stop_id) REFERENCES gtfs_stops (stop_id),
+    CONSTRAINT fk_gtfs_transfers_to_stop FOREIGN KEY (to_stop_id) REFERENCES gtfs_stops (stop_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- 버스정류장 (국토교통부 전국 버스정류장 위치정보 스냅샷)
 -- 공공데이터 CSV를 정제 스크립트로 적재하는 참조 데이터다. 애플리케이션은 조회만 한다.
 CREATE TABLE IF NOT EXISTS bus_stops (
@@ -181,6 +223,32 @@ CREATE TABLE IF NOT EXISTS bus_stops (
     CONSTRAINT uk_bus_stops_node_id UNIQUE (node_id),
     CONSTRAINT chk_bus_stops_latitude CHECK (latitude BETWEEN -90 AND 90),
     CONSTRAINT chk_bus_stops_longitude CHECK (longitude BETWEEN -180 AND 180)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  
+-- 착한가격업소 (행정안전부 착한가격업소 현황 스냅샷)
+-- 공공데이터 CSV를 정제 스크립트로 적재하는 참조 데이터다. 애플리케이션은 조회만 한다.
+-- 업종, 연락처, 가격은 원본 문자열 그대로 저장한다. 원본에 좌표가 없어 적재 시 주소를 SGIS로 변환한다.
+CREATE TABLE IF NOT EXISTS good_price_stores (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    province VARCHAR(30) NOT NULL,
+    district VARCHAR(30) NULL,
+    business_type VARCHAR(30) NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    phone VARCHAR(30) NULL,
+    address VARCHAR(255) NOT NULL,
+    latitude DECIMAL(10, 7) NOT NULL,
+    longitude DECIMAL(11, 7) NOT NULL,
+    menu_name_1 VARCHAR(100) NULL,
+    menu_price_1 VARCHAR(100) NULL,
+    menu_name_2 VARCHAR(100) NULL,
+    menu_price_2 VARCHAR(100) NULL,
+    menu_name_3 VARCHAR(100) NULL,
+    menu_price_3 VARCHAR(100) NULL,
+    menu_name_4 VARCHAR(100) NULL,
+    menu_price_4 VARCHAR(100) NULL,
+    source_date DATE NOT NULL,
+    CONSTRAINT chk_good_price_stores_latitude CHECK (latitude BETWEEN -90 AND 90),
+    CONSTRAINT chk_good_price_stores_longitude CHECK (longitude BETWEEN -180 AND 180)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 공공 CCTV (전국CCTV표준데이터 스냅샷)
@@ -199,5 +267,8 @@ CREATE TABLE IF NOT EXISTS cctvs (
     CONSTRAINT uk_cctvs_management_number UNIQUE (management_number),
     CONSTRAINT chk_cctvs_camera_count CHECK (camera_count > 0),
     CONSTRAINT chk_cctvs_latitude CHECK (latitude BETWEEN -90 AND 90),
-    CONSTRAINT chk_cctvs_longitude CHECK (longitude BETWEEN -180 AND 180)
+   CONSTRAINT chk_cctvs_longitude CHECK (longitude BETWEEN -180 AND 180)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+
