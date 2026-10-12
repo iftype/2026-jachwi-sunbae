@@ -68,4 +68,26 @@ class JdbcGtfsNetworkRepositoryTest {
         assertThat(jdbcTemplate.queryForObject("SELECT travel_seconds FROM gtfs_edges", Integer.class))
                 .isEqualTo(120);
     }
+
+    @Test
+    @DisplayName("정류장을 행정동 코드와 함께 저장하고, 행정동 코드만 다시 붙일 수 있다")
+    void savesAndUpdatesAdminDongCodes() {
+        repository.replace(new GtfsFeed(
+                List.of(new GtfsRoute("R1", "1호선", "서울 1호선", 1, new Seconds(240))),
+                List.of(new GtfsStop("S1", "서울역", new Coordinate(37.55, 126.97), "11010530"),
+                        new GtfsStop("S2", "시청", new Coordinate(37.56, 126.97))),
+                List.of(),
+                List.of()));
+
+        assertThat(repository.findStops()).extracting(GtfsStop::adminDongCode)
+                .containsExactlyInAnyOrder("11010530", null);
+
+        repository.updateAdminDongCodes(List.of(
+                new GtfsStop("S1", "서울역", new Coordinate(37.55, 126.97)),
+                new GtfsStop("S2", "시청", new Coordinate(37.56, 126.97), "11010540")));
+
+        assertThat(jdbcTemplate.queryForList(
+                "SELECT COALESCE(admin_dong_code, '-') FROM gtfs_stops ORDER BY stop_id", String.class))
+                .containsExactly("-", "11010540");
+    }
 }

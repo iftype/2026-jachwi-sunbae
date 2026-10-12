@@ -184,7 +184,9 @@ CREATE TABLE IF NOT EXISTS gtfs_stops (
     stop_name VARCHAR(150) NOT NULL,
     latitude DECIMAL(10, 7) NOT NULL,
     longitude DECIMAL(11, 7) NOT NULL,
-    INDEX idx_gtfs_stops_location (latitude, longitude)
+    admin_dong_code VARCHAR(10) NULL,
+    INDEX idx_gtfs_stops_location (latitude, longitude),
+    INDEX idx_gtfs_stops_admin_dong (admin_dong_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 같은 노선에서 연속한 두 정류장 사이의 대표 이동 시간 (운행별 이동 시간의 중앙값)
@@ -208,6 +210,21 @@ CREATE TABLE IF NOT EXISTS gtfs_transfers (
     PRIMARY KEY (from_stop_id, to_stop_id),
     CONSTRAINT fk_gtfs_transfers_from_stop FOREIGN KEY (from_stop_id) REFERENCES gtfs_stops (stop_id),
     CONSTRAINT fk_gtfs_transfers_to_stop FOREIGN KEY (to_stop_id) REFERENCES gtfs_stops (stop_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 행정동 경계 (통계청 SGIS 행정동 경계를 지도용으로 단순화한 GeoJSON geometry)
+-- 다시 적재할 때 모두 비우고 새로 채운다. gtfs_stops.admin_dong_code가 이 코드를 가리키지만,
+-- 두 데이터를 따로 적재하므로 외래 키는 두지 않는다.
+CREATE TABLE IF NOT EXISTS admin_dongs (
+    code VARCHAR(10) PRIMARY KEY,
+    name VARCHAR(50) NOT NULL,
+    sido_name VARCHAR(30) NOT NULL,
+    sigungu_name VARCHAR(30) NOT NULL,
+    full_name VARCHAR(120) NOT NULL,
+    center_latitude DECIMAL(10, 7) NOT NULL,
+    center_longitude DECIMAL(11, 7) NOT NULL,
+    boundary JSON NOT NULL,
+    base_date DATE NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 버스정류장 (국토교통부 전국 버스정류장 위치정보 스냅샷)

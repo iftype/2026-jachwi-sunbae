@@ -54,7 +54,8 @@ public enum ErrorCode {
     MAP_PROVIDER_UNAVAILABLE("지도 정보를 불러오지 못했습니다."),
 
     // 대중교통
-    TRANSIT_FEED_READ_FAILURE("대중교통 데이터를 불러오지 못했습니다.");
+    TRANSIT_FEED_READ_FAILURE("대중교통 데이터를 불러오지 못했습니다."),
+    ADMIN_DONG_READ_FAILURE("행정동 경계 데이터를 불러오지 못했습니다.");
 
     private final String publicMessage;
 

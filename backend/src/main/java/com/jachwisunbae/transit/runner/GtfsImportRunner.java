@@ -40,8 +40,9 @@ public class GtfsImportRunner implements ApplicationRunner {
     int importFeed() {
         try {
             GtfsImportResult result = importService.importFeed();
-            LOG.info("GTFS 노선망을 적재했습니다. routes={}, stops={}, edges={}, transfers={}",
-                    result.routeCount(), result.stopCount(), result.edgeCount(), result.transferCount());
+            LOG.info("GTFS 노선망을 적재했습니다. routes={}, stops={}, edges={}, transfers={}, matchedStops={}",
+                    result.routeCount(), result.stopCount(), result.edgeCount(), result.transferCount(),
+                    result.matchedStopCount());
             return SUCCESS;
         } catch (RuntimeException exception) {
             LOG.error("GTFS 노선망 적재에 실패했습니다. 기존 노선망은 그대로 남습니다.", exception);
