@@ -71,7 +71,6 @@ docker compose exec -T mysql mysql -ujachwi_sunbae -plocal_password jachwi_sunba
 
 적재 SQL은 한 트랜잭션 안에서 기존 정류장을 지우고 다시 넣으므로, 샘플을 전국 데이터로 바꾸거나 전국 데이터를 다시 적재할 때도 같은 명령을 쓴다.
 
-
 ### CCTV 데이터
 
 CCTV 조회 (`GET /api/maps/cctvs`)는 `cctvs` 테이블에서 조회한다.
@@ -118,7 +117,6 @@ docker compose exec -T mysql mysql -ujachwi_sunbae -plocal_password jachwi_sunba
 ```
 
 적재 SQL은 한 트랜잭션 안에서 기존 업소를 지우고 다시 넣는다. 정제 규칙은 스크립트 상단에 있고, 테스트는 `scripts/good-price-stores`에서 `python3 -m unittest`로 실행한다.
-
 
 ## 4. 백엔드 실행
 
