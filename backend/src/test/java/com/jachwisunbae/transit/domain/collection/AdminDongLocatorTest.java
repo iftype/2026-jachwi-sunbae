@@ -31,6 +31,16 @@ class AdminDongLocatorTest {
         assertThat(locator.locate(new Coordinate(33.50, 126.50))).isEmpty();
     }
 
+    @Test
+    @DisplayName("두 행정동에 걸친 좌표는 받은 순서와 상관없이 코드가 작은 행정동으로 정한다")
+    void choosesSmallerCodeWhenBoundariesOverlap() {
+        AdminDong overlapping = adminDong("11010520", 127.08, 127.20);
+        Coordinate border = new Coordinate(37.55, 127.09);
+
+        assertThat(new AdminDongLocator(List.of(WEST, overlapping)).locate(border)).contains(overlapping);
+        assertThat(new AdminDongLocator(List.of(overlapping, WEST)).locate(border)).contains(overlapping);
+    }
+
     private static AdminDong adminDong(final String code, final double west, final double east) {
         double[] ring = {west, 37.50, east, 37.50, east, 37.60, west, 37.60, west, 37.50};
         return new AdminDong(code, "동" + code, "서울특별시", "종로구", "서울특별시 종로구 동" + code,

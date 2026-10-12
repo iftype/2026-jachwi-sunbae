@@ -5,13 +5,15 @@ import com.jachwisunbae.transit.domain.GtfsStop;
 import com.jachwisunbae.transit.domain.vo.AdminDongBoundary;
 import com.jachwisunbae.transit.domain.vo.Coordinate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 // 좌표가 속한 행정동을 찾는다. 전국 행정동을 매번 모두 검사하지 않도록 경계 상자를 격자에 미리 나눠 담는다.
-// 경계선 위의 점처럼 두 행정동에 걸치면 먼저 받은 행정동을 고른다.
+// 단순화한 경계는 이웃 행정동과 조금씩 겹쳐, 두 행정동에 들어가는 좌표가 생긴다(KTDB 정류장 214,237개 중 227개).
+// 받은 순서와 상관없이 같은 결과가 나오도록 코드가 가장 작은 행정동을 고른다.
 public class AdminDongLocator {
 
     // 0.05도는 위도 기준 약 5.5km로, 행정동 하나가 격자 몇 칸에 걸치는 크기다.
@@ -27,7 +29,7 @@ public class AdminDongLocator {
         long cell = cell(row(coordinate.latitude()), column(coordinate.longitude()));
         return adminDongsByCell.getOrDefault(cell, List.of()).stream()
                 .filter(adminDong -> adminDong.contains(coordinate))
-                .findFirst();
+                .min(Comparator.comparing(AdminDong::code));
     }
 
     // 정류장마다 속한 행정동 코드를 붙인다. 어느 행정동에도 들지 않으면 코드를 비운다.
