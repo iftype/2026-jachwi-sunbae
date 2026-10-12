@@ -241,3 +241,29 @@ CREATE TABLE IF NOT EXISTS bus_stops (
     CONSTRAINT chk_bus_stops_latitude CHECK (latitude BETWEEN -90 AND 90),
     CONSTRAINT chk_bus_stops_longitude CHECK (longitude BETWEEN -180 AND 180)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 착한가격업소 (행정안전부 착한가격업소 현황 스냅샷)
+-- 공공데이터 CSV를 정제 스크립트로 적재하는 참조 데이터다. 애플리케이션은 조회만 한다.
+-- 업종, 연락처, 가격은 원본 문자열 그대로 저장한다. 원본에 좌표가 없어 적재 시 주소를 SGIS로 변환한다.
+CREATE TABLE IF NOT EXISTS good_price_stores (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    province VARCHAR(30) NOT NULL,
+    district VARCHAR(30) NULL,
+    business_type VARCHAR(30) NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    phone VARCHAR(30) NULL,
+    address VARCHAR(255) NOT NULL,
+    latitude DECIMAL(10, 7) NOT NULL,
+    longitude DECIMAL(11, 7) NOT NULL,
+    menu_name_1 VARCHAR(100) NULL,
+    menu_price_1 VARCHAR(100) NULL,
+    menu_name_2 VARCHAR(100) NULL,
+    menu_price_2 VARCHAR(100) NULL,
+    menu_name_3 VARCHAR(100) NULL,
+    menu_price_3 VARCHAR(100) NULL,
+    menu_name_4 VARCHAR(100) NULL,
+    menu_price_4 VARCHAR(100) NULL,
+    source_date DATE NOT NULL,
+    CONSTRAINT chk_good_price_stores_latitude CHECK (latitude BETWEEN -90 AND 90),
+    CONSTRAINT chk_good_price_stores_longitude CHECK (longitude BETWEEN -180 AND 180)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

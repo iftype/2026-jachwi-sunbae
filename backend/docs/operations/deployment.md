@@ -49,7 +49,7 @@ GitHub Actions는 검사, CodePipeline은 소스 조회·빌드·배포 연결, 
 | dev  | `develop` | `jachwi-sunbae-dev-line` | `jachwi-sunbae-dev-group`        | `DeployTarget=jachwi-sunbae-dev`  |
 | prod | `main`    | `jachwi-sunbae-line`     | `jachwi-sunbae-codeDeploy-group` | `DeployTarget=jachwi-sunbae-prod` |
 
-dev는 `jachwi-sunbae-dev-asg`, prod는 현재 단일 EC2를 사용한다. CodeDeploy가 태그로 대상을 선택하므로 새 인스턴스에도 환경에 맞는 태그를 지정한다.
+dev는 `jachwi-sunbae-dev-asg`, prod는 `jachwi-sunbae-prod-asg`를 사용하며 각 환경의 기본 운영 대수는 1대다. CodeDeploy가 태그로 대상을 선택하므로 새 인스턴스에도 환경에 맞는 태그를 지정한다.
 
 ### 사용자 요청 경로
 
@@ -61,10 +61,10 @@ dev는 `jachwi-sunbae-dev-asg`, prod는 현재 단일 EC2를 사용한다. CodeD
 
 공유 ALB의 443 리스너는 호스트로 요청을 나누며 인증서는 SNI로 함께 연결한다.
 
-| 요청                                    | 대상 그룹                |
-| --------------------------------------- | ------------------------ |
-| `dev-api.jachwi-sunbae.kr`              | `jachwi-sunbae-dev-tg`   |
-| 기본 작업 — `api.jachwi-sunbae.kr` 포함 | `jachwi-sunbe-tg` (prod) |
+| 요청                                    | 대상 그룹                 |
+| --------------------------------------- | ------------------------- |
+| `dev-api.jachwi-sunbae.kr`              | `jachwi-sunbae-dev-tg`    |
+| 기본 작업 — `api.jachwi-sunbae.kr` 포함 | `jachwi-sunbae-tg` (prod) |
 
 조건에 해당하지 않는 요청도 prod로 간다. dev 규칙을 수정할 때 기본 작업을 바꾸지 않는다.
 
@@ -154,7 +154,7 @@ Vault 주소는 `https://10.0.100.209:8200`이다. KV v2의 `app_env` 필드에 
 
 AWS EC2 인증으로 계정·리전·VPC·서브넷과 허용 인스턴스 ID를 검사한다. 앱에는 해당 환경의 읽기만 허용하고 토큰은 최대 5분으로 제한한다. 공용 `ec2-project` IAM 역할만으로 팀을 구분하지 않으며, 공용 AWS 계정의 관리자 권한까지 격리하는 구성은 아니다.
 
-dev 허용 ID는 Vault 서버의 `jachwi-sync-dev-asg.timer`가 ASG의 실행·시작 중 인스턴스 목록으로 약 30초마다 갱신한다. prod는 현재 `i-0ee91aab315b53005`에 제한하므로 교체 시 허용 ID를 갱신해야 한다.
+Vault 서버의 `jachwi-sync-dev-asg.timer`와 `jachwi-sync-prod-asg.timer`가 각 ASG의 실행·시작 중 인스턴스 목록으로 환경별 허용 ID를 약 30초마다 갱신한다. 새 인스턴스는 목록 반영까지 인증을 재시도한다. 동기화 서비스는 비밀값 읽기 권한 없이 해당 환경의 허용 ID만 갱신한다.
 
 ### 동작에 필요한 것
 
@@ -189,7 +189,7 @@ sudo timeout --kill-after=5s 180s bash /opt/jachwi-sunbae/scripts/fetch_env.sh d
 
 `app.env` 삭제나 `restart`만으로 다운로드가 실행되지는 않는다.
 
-**2026-10-07 확인 상태:** dev는 새 ASG 인스턴스의 다운로드·자동 배포·ALB health를 확인했다. prod는 비밀값 등록·원본 일치·dev 읽기 및 prod 쓰기 차단을 확인했다. 이 리비전의 실제 prod CodeDeploy, CLI가 없는 EC2의 패키지 설치 경로, Vault 서버 장애 복구는 아직 검증하지 않았다.
+**2026-10-07 확인 상태:** dev·prod 모두 새 ASG 인스턴스의 Vault 환경변수 수신·자동 배포·ALB health를 확인했다. prod의 새 AMI 검증에서는 `AfterInstall`이 `app.env`와 nonce를 새로 생성하고, 실행 커밋과 배포 커밋이 `175dd50f5142bf3baa7a95dceed9242a5a1e9b4d`로 일치함을 확인했다. Vault 서버 장애 복구는 아직 검증하지 않았다.
 
 ## 6. AMI와 ASG 복구
 
@@ -197,11 +197,24 @@ AMI는 Java·에이전트 등 기반 실행 환경을 제공하고 CodeDeploy가
 
 AMI 생성은 서비스 중인 EC2 대신 분리한 작업용 인스턴스에서 진행한다. 앱 자동 시작을 해제하고 `app.env`·백업·인증 nonce·비밀값이 포함될 수 있는 작업 흔적을 제외한다. 기존 검증은 파일 경로에서의 제외이며 과거 디스크 데이터의 완전 소거까지 확인한 것은 아니다.
 
-2026-10-07 dev AMI `ami-010ffe62c648da620`과 시작 템플릿 `jachwi-sunbae-dev-lt` 버전 `10`의 복구 배포를 확인했다. ASG는 `$Latest` 대신 검증한 버전을 명시한다. 확인 가능한 배포는 [CodeDeploy d-NAY58TW7L](https://ap-northeast-2.console.aws.amazon.com/codesuite/codedeploy/deployments/d-NAY58TW7L?region=ap-northeast-2)이다.
+2026-10-07 확인한 AMI와 자동 복구 배포는 다음과 같다. ASG는 `$Latest` 대신 검증한 시작 템플릿 버전을 명시한다.
+
+| 환경 | AMI                     | 시작 템플릿 / 버전            | 자동 복구 배포                                                                                                                  |
+| ---- | ----------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| dev  | `ami-010ffe62c648da620` | `jachwi-sunbae-dev-lt` / `10` | [d-NAY58TW7L](https://ap-northeast-2.console.aws.amazon.com/codesuite/codedeploy/deployments/d-NAY58TW7L?region=ap-northeast-2) |
+| prod | `ami-0093d03506064b614` | `jachwi-sunbae-prod-lt` / `6` | [d-UVUI5B28L](https://ap-northeast-2.console.aws.amazon.com/codesuite/codedeploy/deployments/d-UVUI5B28L?region=ap-northeast-2) |
+
+prod AMI 이름은 `jachwi-sunbae-prod-vault-base-20261007`이다. 작업용 EC2에서 환경변수·인증 nonce·배포 캐시·앱 로그·명령 이력을 제외하고 앱 자동 시작을 해제한 뒤, 중지 상태에서 생성했다. prod의 CloudWatch 로그 그룹 설정은 유지했다. 새 서버 `i-0aaba75457ce1e3be`가 Vault 설정으로 버전 `1.1.0`을 실행하고 ALB `healthy`가 되는 것을 확인했다.
+
+AMI 전환 시 기존 prod를 유지하면서 ASG의 최대·원하는 대수를 잠시 2로 늘렸다. 새 서버의 배포 성공과 `InService / Healthy`를 확인한 뒤 기존 서버를 원하는 대수 감소 옵션으로 분리하고, 기본 대수 1로 복귀했다. 기존 서버는 배포 대상 태그도 변경해 후속 배포에서 제외한다.
+
+prod CodeDeploy 배포 그룹은 `WITH_TRAFFIC_CONTROL`로 `jachwi-sunbae-tg`를 연동한다. 배포 중 대상 등록·해제를 CodeDeploy가 처리한다. 이번 새 서버 배포에서는 트래픽 허용 단계까지 성공했다. 기존 서버 재배포 중 교체 방지는 별도 재배포 시나리오로 확인해야 하며, 단일 서버 배포의 서비스 공백은 남는다.
 
 새 EC2는 Vault 허용 목록 반영과 CodeDeploy 배포에 성공한 후 앱을 시작한다. EC2·EBS·AMI·스냅샷에는 `Service=techcourse`, `Role=techcourse-etc`, `ProjectTeam=jachwi-sunbae` 태그를 지정한다.
 
 기존 dev 복구용 `i-03524d449110c0d08`과 AMI 작업용 `i-08b93ed167aeb8b26`은 중지 상태로 보관 중이다. EBS 비용은 계속 발생하며 재시작만으로 ASG나 Vault 허용 목록에 복귀하지 않는다. 복구 시 [롤백 문서](rollback.md)를 함께 참고한다.
+
+prod의 기존 서버 `i-0d3fe294c2c23cd1f`도 ASG·ALB에서 분리하고 `jachwi-sunbae-prod-rollback-20261007` 태그로 중지 보관한다. prod AMI 작업용 `i-0b07bdd2885e8dfd5` 역시 중지 상태다. 두 서버의 EBS는 남아 있으며, 기존 서버를 다시 운영에 편입하려면 배포 태그·ASG 편입·Vault 허용 목록을 함께 복구해야 한다.
 
 ## 7. DB·기능 설정 변경 시 사전 확인
 
@@ -229,6 +242,7 @@ MVP1 첫 dev 배포에서는 다음을 확인한다.
 
 3. Vault에 dev DB·JWT·CORS·지도 공급자 인증 정보·S3 접두사를 준비한다. 정적 AWS 키는 두지 않는다.
 4. `bus_stops` 테이블과 전국 정류장 데이터, 앱 DB 계정의 조회 권한을 확인한다. 준비되지 않았다면 [버스정류장 데이터 적재](#버스정류장-데이터-적재)를 애플리케이션 배포 전에 완료한다.
+   `good_price_stores` 테이블과 착한가격업소 데이터도 같은 방식으로 확인한다. 준비되지 않았다면 [착한가격업소 데이터 적재](#착한가격업소-데이터-적재)를 애플리케이션 배포 전에 완료한다.
 5. 프론트 dev Commands에 `API_BASE_URL=https://dev-api.jachwi-sunbae.kr`, `MAP_PROVIDER_MODE`, 지도 공급자 공개 키, 운영과 같은 `POSTHOG_PROJECT_TOKEN`, `POSTHOG_HOST=https://us.i.posthog.com`을 설정한다. PostHog는 `environment=development`로 구분한다.
 
 ### 버스정류장 데이터 적재
@@ -271,6 +285,40 @@ MVP1 첫 dev 배포에서는 다음을 확인한다.
 7. 새 버전의 동작을 확인한 뒤, 해당 환경의 Vault `app_env`에서 더 이상 쓰지 않는 `BUS_STOP_PROVIDER`, `DATA_GO_KR_SERVICE_KEY` 두 줄을 삭제하고 다른 설정은 유지한다. [Vault 환경변수 관리](#5-vault-환경변수-관리)에 따라 `fetch_env.sh dev` 또는 `fetch_env.sh prod`로 내려받고 성공했을 때 재시작한다. 서비스 중인 인스턴스별로 적용과 정상 동작을 확인한다. 서버의 `/etc/jachwi-sunbae/app.env`만 직접 수정하면 다음 배포에서 Vault 값으로 덮어써진다.
 
 데이터만 갱신할 때는 백업을 확인한 뒤 테이블 생성은 건너뛰고 3~5번을 진행한다. 데이터 갱신 자체에는 애플리케이션 재시작이 필요 없다. 적재한 스냅샷이 바뀌면 위 표도 함께 고친다.
+
+### 착한가격업소 데이터 적재
+
+| 항목                   | 기준                                                              |
+| ---------------------- | ----------------------------------------------------------------- |
+| 스냅샷                 | `행정안전부_착한가격업소 현황_20260630.csv` (기준일 `2026-06-30`) |
+| 원본 행 / 예상 적재 행 | 12,645 / 12,556 (주소를 찾지 못함 88행, SGIS 서버 오류 1행 제외)  |
+| 갱신 주기              | 약 3개월마다 공개. 새 스냅샷이 공개되면 같은 절차로 다시 적재한다 |
+
+애플리케이션은 `good_price_stores`를 조회만 한다. 테이블이 없으면 착한가격업소 조회가 실패하므로 **애플리케이션 배포 전에 테이블 생성과 데이터 적재를 완료한다.**
+절차는 [버스정류장 데이터 적재](#버스정류장-데이터-적재)와 같고, 다른 점은 다음과 같다.
+
+- 2번에서는 `good_price_stores`의 `CREATE TABLE` 문만 실행한다.
+- 3번의 적재 SQL은 주소를 SGIS로 좌표 변환하면서 만든다. 기본 4개 요청을 동시에 보내 (`--workers`) 전체 실행에 약 15분이 걸린다. SGIS 키는 애플리케이션과 같은 `SGIS_CONSUMER_KEY`, `SGIS_CONSUMER_SECRET` 환경변수로 전달한다.
+  출력의 summary에서 생성 행 수와 제외 이유를 확인한다. 제외된 행은 stderr의 `WARN` 로그로 확인한다.
+
+  ```bash
+  export SGIS_CONSUMER_KEY=... SGIS_CONSUMER_SECRET=...
+  python3 backend/scripts/good-price-stores/generate_good_price_stores_sql.py "<CSV 경로>" \
+    --source-date 2026-06-30 --output /tmp/good-price-stores.sql 2> /tmp/good-price-stores-warn.log
+  ```
+
+  SGIS 인증 실패나 재시도 후에도 계속되는 장애가 나면 SQL을 만들지 않고 중단한다. 변환 결과는 `<output>.geocode-cache.jsonl`에 바로 기록되므로, 원인을 확인한 뒤 같은 명령으로 다시 실행하면 이어서 변환한다. 새 스냅샷을 적재할 때는 이전 캐시 파일을 지우고 실행한다.
+
+- 5번에서는 적재 행 수와 기준일을 확인한다. 위 스냅샷은 `total_count`가 예상 적재 행과 같고 `source_date`가 `2026-06-30` 하나여야 한다.
+
+  ```sql
+  SELECT COUNT(*) AS total_count, MIN(source_date), MAX(source_date)
+  FROM good_price_stores;
+  ```
+
+- 6번에서는 `GET /api/maps/good-price-stores`를 500m·1km·2km 반경으로 요청해 결과와 `dataAsOf`를 확인한다.
+
+<!-- TODO: 착한가격업소 공공데이터 자동 갱신 (Scheduler). 파일데이터라 다운로드 경로가 고정되어 있지 않아 지금은 수동으로 적재한다. -->
 
 ## 8. 배포 확인과 로그
 

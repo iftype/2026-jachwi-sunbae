@@ -11,6 +11,8 @@ import com.jachwisunbae.common.exception.server.DataInconsistencyException;
 import com.jachwisunbae.common.exception.server.InternalSystemException;
 import com.jachwisunbae.common.exception.server.ServerException;
 import com.jachwisunbae.common.exception.server.UpstreamServiceException;
+import com.jachwisunbae.common.observability.RequestLoggingFilter;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -30,14 +32,21 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(JachwiException.class)
-    public ResponseEntity<ErrorResponse> handleJachwiException(final JachwiException exception) {
+    public ResponseEntity<ErrorResponse> handleJachwiException(
+            final JachwiException exception,
+            final HttpServletRequest request) {
         HttpStatus status = statusOf(exception);
+        if (status.is5xxServerError()) {
+            RequestLoggingFilter.recordHandledServerError(request, exception);
+        }
         logJachwiException(exception, status);
         return response(status, exception.getErrorCode());
     }
@@ -128,7 +137,10 @@ public class GlobalExceptionHandler {
     // 예상하지 못한 DB 제약 위반(DataIntegrityViolationException), Controller 매핑 오류(MissingPathVariableException),
     // 내부 불변식 위반(IllegalArgumentException, IllegalStateException)도 여기서 500이 된다.
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleUnexpectedException(final Exception exception) {
+    public ResponseEntity<ErrorResponse> handleUnexpectedException(
+            final Exception exception,
+            final HttpServletRequest request) {
+        RequestLoggingFilter.recordHandledServerError(request, exception);
         log.error("Unexpected server error: type={}", exception.getClass().getSimpleName(), exception);
         return response(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.INTERNAL_SERVER_ERROR);
     }
@@ -142,8 +154,11 @@ public class GlobalExceptionHandler {
             final HttpStatus status,
             final ErrorCode errorCode,
             final List<FieldErrorResponse> errors) {
-        return ResponseEntity.status(status)
-                .body(new ErrorResponse(errorCode.name(), errorCode.publicMessage(), errors));
+        ErrorResponse body = new ErrorResponse(errorCode.name(), errorCode.publicMessage(), errors);
+        if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attributes) {
+            RequestLoggingFilter.recordErrorMessage(attributes.getRequest(), body.message());
+        }
+        return ResponseEntity.status(status).body(body);
     }
 
     private String reasonOf(final String reason) {

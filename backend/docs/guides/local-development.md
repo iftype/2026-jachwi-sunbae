@@ -32,8 +32,8 @@ docker compose ps
 ```
 
 MySQL과 MinIO가 healthy여야 한다. 빈 MySQL 볼륨은 [기준 스키마·시스템 체크 항목](../../src/main/resources/db/init/)과
-[로컬 버스정류장 샘플](../../docker/mysql/init/003-bus-stops-sample.sql)로 자동 초기화된다.
-Compose가 각 SQL을 읽기 전용으로 마운트하며 파일명의 `001` → `002` → `003` 순서로 실행한다.
+[로컬 버스정류장 샘플](../../docker/mysql/init/003-bus-stops-sample.sql), [로컬 착한가격업소 샘플](../../docker/mysql/init/004-good-price-stores-sample.sql)로 자동 초기화된다.
+Compose가 각 SQL을 읽기 전용으로 마운트하며 파일명의 `001` → `002` → `003` → `004` 순서로 실행한다.
 초기화 SQL은 기존 볼륨에 다시 적용되지 않으며, 볼륨을 삭제하면 로컬 데이터도 사라진다.
 
 초기화 SQL이 바뀐 뒤 예전 볼륨으로 실행해 `Unknown column` 같은 스키마 오류가 나면 MySQL 볼륨만 다시 만든다. `docker compose down -v`는 MinIO 사진 볼륨까지 지우므로 쓰지 않는다.
@@ -70,6 +70,30 @@ docker compose exec -T mysql mysql -ujachwi_sunbae -plocal_password jachwi_sunba
 ```
 
 적재 SQL은 한 트랜잭션 안에서 기존 정류장을 지우고 다시 넣으므로, 샘플을 전국 데이터로 바꾸거나 전국 데이터를 다시 적재할 때도 같은 명령을 쓴다.
+
+### 착한가격업소 데이터
+
+착한가격업소 조회 (`GET /api/maps/good-price-stores`)는 `good_price_stores` 테이블에서 조회한다.
+빈 볼륨에는 `docker/mysql/init/004-good-price-stores-sample.sql`이 버스정류장 샘플과 같은 판교, 서울 시청, 신림 주변 2.5km의 업소 샘플을 자동으로 넣는다.
+샘플은 로컬 Docker 초기화 전용이며 애플리케이션 JAR에 포함하지 않는다.
+
+이미 만든 볼륨에는 테이블과 샘플이 생기지 않으므로 다음 명령으로 추가한다. 샘플 적재는 기존 `good_price_stores` 데이터를 샘플로 교체한다.
+
+```bash
+docker compose exec -T mysql mysql -ujachwi_sunbae -plocal_password jachwi_sunbae < src/main/resources/db/init/001-schema.sql
+docker compose exec -T mysql mysql -ujachwi_sunbae -plocal_password jachwi_sunbae < docker/mysql/init/004-good-price-stores-sample.sql
+```
+
+전체 데이터가 필요하면 [행정안전부 착한가격업소 현황](https://www.data.go.kr/data/3045247/fileData.do) CSV를 내려받아 적재 SQL을 만든다.
+원본에 좌표가 없어 주소를 SGIS로 변환하므로 SGIS 키가 필요하고, 전체 실행에 약 15분이 걸린다. 중간에 중단되면 같은 명령으로 다시 실행해 이어서 변환한다.
+
+```bash
+export SGIS_CONSUMER_KEY=... SGIS_CONSUMER_SECRET=...
+python3 scripts/good-price-stores/generate_good_price_stores_sql.py "<CSV 경로>" --source-date 2026-06-30 --output /tmp/good-price-stores.sql
+docker compose exec -T mysql mysql -ujachwi_sunbae -plocal_password jachwi_sunbae < /tmp/good-price-stores.sql
+```
+
+적재 SQL은 한 트랜잭션 안에서 기존 업소를 지우고 다시 넣는다. 정제 규칙은 스크립트 상단에 있고, 테스트는 `scripts/good-price-stores`에서 `python3 -m unittest`로 실행한다.
 
 ## 4. 백엔드 실행
 

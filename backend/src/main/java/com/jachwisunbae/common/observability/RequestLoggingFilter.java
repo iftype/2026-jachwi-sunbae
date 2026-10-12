@@ -32,6 +32,16 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
     private static final String STATUS = "status";
     private static final String DURATION_MILLIS = "duration_ms";
     private static final String ERROR_TYPE = "error_type";
+    private static final String HANDLED_ERROR_ATTRIBUTE = RequestLoggingFilter.class.getName() + ".handledError";
+    private static final String ERROR_MESSAGE_ATTRIBUTE = RequestLoggingFilter.class.getName() + ".errorMessage";
+
+    public static void recordHandledServerError(HttpServletRequest request, Throwable error) {
+        request.setAttribute(HANDLED_ERROR_ATTRIBUTE, error);
+    }
+
+    public static void recordErrorMessage(HttpServletRequest request, String message) {
+        request.setAttribute(ERROR_MESSAGE_ATTRIBUTE, message);
+    }
 
     @Override
     protected void doFilterInternal(
@@ -57,12 +67,13 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
             failure = exception;
             throw exception;
         } finally {
-            logCompletedRequest(response, startedAt, failure);
+            logCompletedRequest(request, response, startedAt, failure);
             restoreContext(previousContext);
         }
     }
 
     private void logCompletedRequest(
+            final HttpServletRequest request,
             final HttpServletResponse response,
             final long startedAt,
             final Throwable failure) {
@@ -75,13 +86,57 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
         event.addKeyValue(STATUS, status)
                 .addKeyValue(DURATION_MILLIS, durationMillis);
 
-        if (failure != null) {
-            event.addKeyValue(ERROR_TYPE, failure.getClass().getName())
-                    .setCause(failure)
-                    .log("HTTP request failed");
+        if (status < HttpServletResponse.SC_BAD_REQUEST) {
+            logSuccessfulRequest(event);
             return;
         }
+        logFailedRequest(request, event, failure);
+    }
+
+    private void logSuccessfulRequest(final LoggingEventBuilder event) {
         event.log("HTTP request completed");
+    }
+
+    private void logFailedRequest(
+            final HttpServletRequest request,
+            final LoggingEventBuilder event,
+            final Throwable failure) {
+        Throwable error = resolveError(request, failure);
+        if (error != null) {
+            logException(event, error, failure);
+            return;
+        }
+        Object message = request.getAttribute(ERROR_MESSAGE_ATTRIBUTE);
+        if (message instanceof String text && !text.isBlank()) {
+            event.log("HTTP request failed: {}", text);
+            return;
+        }
+        event.log("HTTP request failed");
+    }
+
+    private Throwable resolveError(
+            final HttpServletRequest request,
+            final Throwable failure) {
+        if (failure != null) {
+            return failure;
+        }
+        Object handledError = request.getAttribute(HANDLED_ERROR_ATTRIBUTE);
+        return handledError instanceof Throwable throwable ? throwable : null;
+    }
+
+    private void logException(
+            final LoggingEventBuilder event,
+            final Throwable error,
+            final Throwable failure) {
+        String errorMessage = error.getMessage();
+        if (errorMessage == null || errorMessage.isBlank()) {
+            errorMessage = error.getClass().getSimpleName();
+        }
+        event.addKeyValue(ERROR_TYPE, error.getClass().getName());
+        if (failure != null) {
+            event.setCause(failure);
+        }
+        event.log("HTTP request failed: {}", errorMessage);
     }
 
     private void restoreContext(final Map<String, String> previousContext) {
