@@ -208,6 +208,7 @@ CREATE TABLE IF NOT EXISTS gtfs_transfers (
     PRIMARY KEY (from_stop_id, to_stop_id),
     CONSTRAINT fk_gtfs_transfers_from_stop FOREIGN KEY (from_stop_id) REFERENCES gtfs_stops (stop_id),
     CONSTRAINT fk_gtfs_transfers_to_stop FOREIGN KEY (to_stop_id) REFERENCES gtfs_stops (stop_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 버스정류장 (국토교통부 전국 버스정류장 위치정보 스냅샷)
 -- 공공데이터 CSV를 정제 스크립트로 적재하는 참조 데이터다. 애플리케이션은 조회만 한다.
