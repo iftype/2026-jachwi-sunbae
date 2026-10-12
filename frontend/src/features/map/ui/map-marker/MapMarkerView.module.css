@@ -4,6 +4,8 @@
   width: 1.55rem;
   height: 1.55rem;
   padding: 0;
+  margin: 0;
+  box-sizing: border-box;
   border: 2px solid white;
   border-radius: 50%;
   background: #64748b;
@@ -24,32 +26,45 @@ button.clusterMarker::before {
   content: '';
 }
 
-/* 물방울 모양은 ::before만 회전해 지도 SDK의 overlay transform과 충돌하지 않게 한다. */
+/* 검정 물방울 핀 안에 대표 사진 또는 오리 로고를 표시한다. */
 .propertyMarker {
   z-index: 8;
-  width: 2.7rem;
-  height: 2.7rem;
+  width: calc(2.35rem * var(--map-marker-scale, 1));
+  height: calc(2.35rem * var(--map-marker-scale, 1));
   border: 0;
-  border-radius: 0;
+  border-radius: 50%;
   background: transparent;
   box-shadow: none;
   isolation: isolate;
 }
 
-.propertyMarker::before {
+.propertyMarker > * {
+  z-index: 1;
+}
+
+.propertyMarker::before,
+.selectedMarker::before {
   position: absolute;
   z-index: 0;
   inset: 0;
-  border: 2px solid white;
   border-radius: 50% 50% 50% 0;
-  background: #f04444;
-  box-shadow: 0 0.28rem 0.8rem rgb(44 50 39 / 28%);
+  background: var(--color-ink, #212124);
   content: '';
   transform: rotate(-45deg);
+  pointer-events: none;
 }
 
-.propertyMarker > * {
+.propertyMarker .markerPhoto,
+.selectedMarker .markerPhoto {
+  position: relative;
   z-index: 1;
+  box-sizing: border-box;
+  border: 2px solid var(--color-ink, #212124);
+}
+
+.propertyMarker.activeMarker .markerPhoto,
+.selectedMarker.activeMarker .markerPhoto {
+  border-width: 3px;
 }
 
 /* 현재 위치는 지도 앱 관례대로 파란 점으로 그린다. */
@@ -67,25 +82,26 @@ button.clusterMarker::before {
 
 .selectedMarker {
   z-index: 9;
-  width: 3.35rem;
-  height: 3.35rem;
-  background: #f54242;
+  width: calc(2.6rem * var(--map-marker-scale, 1));
+  height: calc(2.6rem * var(--map-marker-scale, 1));
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  box-shadow: none;
 }
 
 .activeMarker {
-  outline: 2px solid white;
+  outline: 1px solid #212124;
   outline-offset: 2px;
-  filter: saturate(1.15);
   scale: 1.08;
 }
 
-.propertyMarker.activeMarker {
+.propertyMarker.activeMarker,
+.selectedMarker.activeMarker,
+.propertyClusterMarker.activeMarker {
+  border-width: 3px;
   outline: 0;
-}
-
-.propertyMarker.activeMarker::before {
-  outline: 2px solid white;
-  outline-offset: 2px;
+  scale: 1;
 }
 
 .placeMarker {
@@ -93,32 +109,34 @@ button.clusterMarker::before {
 }
 
 .placeMarker[data-category='HOSPITAL'] {
-  background: #f06b57;
+  background: #212124;
 }
 
 .placeMarker[data-category='TRANSPORT'] {
-  background: #7963e8;
+  background: #212124;
 }
 
 .placeMarker[data-category='SCHOOL'] {
-  background: #f59e0b;
+  background: #ffbf00;
+  color: #212124;
 }
 
 .placeMarker[data-category='CONVENIENCE'] {
-  background: #08a982;
+  background: #212124;
 }
 
 .placeMarker[data-category='AGENCY'] {
-  background: #64748b;
+  background: #212124;
 }
 
-/* 매물 군집은 물방울이 아니라 원으로 그려 하나의 매물과 구분한다. */
+/* 매물 군집은 숫자 배지로 구분한다. */
 .propertyClusterMarker {
   z-index: 8;
-  width: 2.7rem;
-  height: 2.7rem;
-  border-radius: 50%;
-  background: #f04444;
+  width: calc(2.35rem * var(--map-marker-scale, 1));
+  height: calc(2.35rem * var(--map-marker-scale, 1));
+  border: 2px solid var(--color-ink, #212124);
+  border-radius: 0.6rem;
+  background: var(--color-ink, #212124);
 }
 
 .propertyClusterMarker .markerCount {
@@ -135,30 +153,31 @@ button.clusterMarker::before {
   width: 1.95rem;
   height: 1.95rem;
   border-width: 2px;
-  background: rgb(52 116 236 / 90%);
+  background: #212124;
   box-shadow:
-    0 0 0 0.22rem rgb(52 116 236 / 18%),
-    0 0.3rem 0.9rem rgb(31 65 127 / 24%);
+    0 0 0 0.22rem rgb(0 0 0 / 12%),
+    0 0.3rem 0.9rem rgb(0 0 0 / 18%);
 }
 
 .clusterMarker[data-category='HOSPITAL'] {
-  background: rgb(240 107 87 / 92%);
+  background: #212124;
 }
 
 .clusterMarker[data-category='TRANSPORT'] {
-  background: rgb(121 99 232 / 92%);
+  background: #212124;
 }
 
 .clusterMarker[data-category='SCHOOL'] {
-  background: rgb(245 158 11 / 92%);
+  background: #ffbf00;
+  color: #212124;
 }
 
 .clusterMarker[data-category='CONVENIENCE'] {
-  background: rgb(8 169 130 / 92%);
+  background: #212124;
 }
 
 .clusterMarker[data-category='AGENCY'] {
-  background: rgb(100 116 139 / 92%);
+  background: #212124;
 }
 
 .markerIcon {
@@ -169,22 +188,12 @@ button.clusterMarker::before {
 
 .markerPhoto {
   display: block;
-  width: 1.95rem;
-  height: 1.95rem;
-  border-radius: 50%;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
   background: var(--color-surface-muted, #f7f7f7);
   object-fit: cover;
   pointer-events: none;
-}
-
-.selectedMarker .markerPhoto {
-  width: 2.5rem;
-  height: 2.5rem;
-}
-
-.propertyClusterMarker .markerPhoto {
-  width: 2.1rem;
-  height: 2.1rem;
 }
 
 .categoryIcon {
@@ -228,4 +237,14 @@ button.clusterMarker::before {
   white-space: nowrap;
   transform: translateX(-50%);
   pointer-events: none;
+}
+
+/* WebView에서 지도 이동 중 DOM 마커의 그림자·캡션 합성 비용을 줄인다. */
+:global([data-map-gesture='true']) .marker {
+  box-shadow: none;
+  filter: none;
+}
+
+:global([data-map-gesture='true']) .markerCaption {
+  visibility: hidden;
 }

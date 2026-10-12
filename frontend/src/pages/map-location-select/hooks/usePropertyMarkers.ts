@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 
 import { DEFAULT_MAP_CENTER } from '@/features/map/lib/mapLocation';
-import type { MapMarker } from '@/features/map/ui/map-canvas/MapCanvas';
+import type { MapMarker } from '@/features/map/model/Map';
 import { usePropertyList } from '@/features/property/api/useProperties';
 
 /** 위치를 고를 때 참고하도록 이미 등록한 매물을 지도 마커로 보여 준다. */

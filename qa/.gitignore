@@ -1,0 +1,5 @@
+# Playwright와 QA Run 실행 산출물
+test-results/
+playwright-report/
+blob-report/
+runs/

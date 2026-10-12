@@ -1,0 +1,73 @@
+.state,
+.error {
+  padding: 2rem 1rem;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.state {
+  color: var(--color-muted, #868b94);
+}
+
+.error {
+  color: var(--color-error, #e53e3e);
+}
+
+.results {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--color-border, #eaebed);
+  border-bottom: 1px solid var(--color-border, #eaebed);
+  background: var(--color-surface, #fff);
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border: 0;
+  border-bottom: 1px solid var(--color-border, #eaebed);
+  background: transparent;
+  color: var(--color-ink, #212124);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.results li:last-child .item {
+  border-bottom: 0;
+}
+
+.item:hover {
+  background: var(--color-surface-muted, #f2f3f5);
+}
+
+.text {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.text strong,
+.text small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.text strong {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.text small {
+  color: var(--color-muted, #868b94);
+  font-size: 0.72rem;
+}

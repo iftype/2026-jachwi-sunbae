@@ -10,10 +10,17 @@
 }
 
 .mapStage {
+  grid-area: 1 / 1;
   position: relative;
   width: 100%;
   height: 100%;
   min-height: 0;
   overflow: hidden;
   box-sizing: border-box;
+}
+
+/* 검색 화면 아래 지도 크기와 SDK 인스턴스를 유지한다. 입력 중에는 조작할 수 없다. */
+.mapStage[data-search-open='true'] {
+  visibility: hidden;
+  pointer-events: none;
 }

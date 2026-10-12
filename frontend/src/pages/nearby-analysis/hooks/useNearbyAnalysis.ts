@@ -7,7 +7,8 @@ import type { MapCoordinate } from '@/features/map/lib/mapLocation';
 import { coordinatesAreClose, SEOUL_MAP_CENTER } from '@/features/map/lib/mapLocation';
 import { ALL_MAP_CATEGORIES } from '@/features/map/lib/mapPresentation';
 import type { MapCategory } from '@/features/map/model/Map';
-import type { MapMarker, MapRadiusCircle } from '@/features/map/ui/map-canvas/MapCanvas';
+import type { MapMarker } from '@/features/map/model/Map';
+import type { MapRadiusCircle } from '@/features/map/model/MapCanvas';
 import { usePublicConfig } from '@/shared/config/PublicConfigContext';
 
 export const NEARBY_RADII = [500, 1000, 2000] as const;

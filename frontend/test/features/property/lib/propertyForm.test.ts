@@ -21,6 +21,18 @@ describe('매물 입력 검증', () => {
     expect(parseMoneyInput('9,007,199,254,740,992')).toBeNull();
   });
 
+  it('만원을 원화로 변환할 때 안전한 최대 입력값까지만 허용한다', () => {
+    expect(parseMoneyInput(MAX_PROPERTY_AMOUNT.toLocaleString('ko-KR'))).toBe(MAX_PROPERTY_AMOUNT);
+    expect(
+      validatePropertyForm({
+        name: '매물',
+        depositAmount: `${MAX_PROPERTY_AMOUNT + 1}`,
+        monthlyRentAmount: '0',
+        discoverySource: '',
+      }),
+    ).toMatchObject({ depositAmount: expect.any(String) });
+  });
+
   it('편집 중 숫자와 콤마만 받아 안정적으로 다시 포맷한다', () => {
     expect(formatMoneyInput('1000000')).toBe('1,000,000');
     expect(formatMoneyInput('1,000,000')).toBe('1,000,000');
@@ -47,11 +59,22 @@ describe('매물 입력 검증', () => {
         depositAmount: '0',
         monthlyRentAmount: '0',
         discoverySource: '나'.repeat(501),
+        address: '다'.repeat(256),
       }),
     ).toMatchObject({
       name: expect.any(String),
       discoverySource: expect.any(String),
+      address: expect.any(String),
     });
+
+    expect(
+      validatePropertyForm({
+        name: '😀'.repeat(16),
+        depositAmount: '0',
+        monthlyRentAmount: '0',
+        discoverySource: '',
+      }),
+    ).toMatchObject({ name: expect.any(String) });
   });
 
   it('URL과 일반 텍스트 발견 경로를 같은 요청 문자열로 보존한다', () => {

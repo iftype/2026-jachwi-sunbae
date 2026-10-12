@@ -37,14 +37,14 @@ const detailWithoutPhotosFixture = {
 };
 const detailWithoutPhotos = propertyDetailResponseFixture(detailWithoutPhotosFixture);
 
-const renderAuthenticated = (path: string) => {
+const renderAuthenticated = (path: string, state?: unknown) => {
   setAuthentication({ accessToken: 'memory-token', tokenType: 'Bearer', expiresIn: 60 });
   server.use(http.get(`${config.apiBaseUrl}/api/members/me`, () => HttpResponse.json(successEnvelope(memberFixture))));
 
   return render(
     <StrictMode>
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={[path]}>
+        <MemoryRouter initialEntries={[{ pathname: path, state }]}>
           <PublicConfigProvider config={config}>
             <AppRoutes />
           </PublicConfigProvider>
@@ -53,6 +53,18 @@ const renderAuthenticated = (path: string) => {
     </StrictMode>,
   );
 };
+
+it.each([
+  [{ returnTo: '/map' }, '매물 지도로 돌아가기', '/map'],
+  [undefined, '매물 목록으로 돌아가기', '/properties'],
+  [{ returnTo: 'https://other.example' }, '매물 목록으로 돌아가기', '/properties'],
+])('상세의 돌아가기 목적지는 진입 화면을 따르고 외부 주소는 허용하지 않는다 (%j)', async (state, label, href) => {
+  server.use(
+    http.get(`${config.apiBaseUrl}/api/properties/10`, () => HttpResponse.json(successEnvelope(detailWithoutPhotos))),
+  );
+  renderAuthenticated('/properties/10', state);
+  expect(await screen.findByRole('link', { name: label as string })).toHaveAttribute('href', href);
+});
 
 describe('FE-2 매물 목록', () => {
   it('매물 0개와 검색 결과 없음을 구분한다', async () => {
@@ -373,6 +385,39 @@ describe('FE-2 등록·수정·메모', () => {
       expect(createCalls).toBe(0);
     } finally {
       Object.defineProperty(navigator, 'geolocation', { configurable: true, value: originalGeolocation });
+    }
+  });
+
+  it('모바일에서는 첫 입력에 자동 포커스하지 않고 키패드 확인으로 다음 단계로 이동한다', async () => {
+    const matchMedia = vi.spyOn(window, 'matchMedia').mockImplementation(
+      (query) =>
+        ({
+          matches: query === '(max-width: 430px)',
+          media: query,
+          onchange: null,
+          addListener: () => undefined,
+          removeListener: () => undefined,
+          addEventListener: () => undefined,
+          removeEventListener: () => undefined,
+          dispatchEvent: () => false,
+        }) as MediaQueryList,
+    );
+
+    try {
+      const user = userEvent.setup();
+      renderAuthenticated('/properties/new');
+
+      const depositField = await screen.findByLabelText('보증금 입력 (만원)');
+      expect(depositField).not.toHaveFocus();
+      expect(screen.queryByRole('button', { name: '다음' })).not.toBeInTheDocument();
+
+      await user.type(depositField, '1000');
+      await user.keyboard('{Enter}');
+
+      expect(await screen.findByLabelText('월세 입력 (만원)')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: '다음' })).not.toBeInTheDocument();
+    } finally {
+      matchMedia.mockRestore();
     }
   });
 

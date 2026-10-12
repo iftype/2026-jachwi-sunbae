@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { useCurrentMember } from '@/features/auth/api/useCurrentMember';
@@ -19,23 +19,23 @@ const PostHogTracker = () => {
   const { session } = useAuthentication();
   const currentMember = useCurrentMember(session !== null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     initPostHog(config.posthogProjectToken ?? '', config.posthogHost ?? '');
   }, [config.posthogProjectToken, config.posthogHost]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setPostHogSessionContext({
       environment: config.appEnvironment ?? 'production',
       app_version: config.appVersion ?? 'unknown',
       platform: getPostHogPlatform(),
     });
-  }, [config.appEnvironment, config.appVersion]);
+  }, [config.appEnvironment, config.appVersion, config.posthogProjectToken, config.posthogHost]);
 
   useEffect(() => {
     trackPostHogPageView(`${location.pathname}${location.search}`);
-  }, [location.pathname, location.search]);
+  }, [location.pathname, location.search, config.posthogProjectToken, config.posthogHost]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (session === null) {
       resetPostHogIdentity();
       return;
@@ -44,7 +44,7 @@ const PostHogTracker = () => {
     if (currentMember.data !== undefined) {
       identifyPostHogMember(currentMember.data.memberId, currentMember.data.displayName);
     }
-  }, [session, currentMember.data]);
+  }, [session, currentMember.data, config.posthogProjectToken, config.posthogHost]);
 
   return null;
 };

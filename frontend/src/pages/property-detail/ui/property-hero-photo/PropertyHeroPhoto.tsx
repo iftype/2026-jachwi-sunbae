@@ -11,10 +11,11 @@ type PropertyHeroPhotoProps = {
   propertyName: string;
   photos: PropertyPhotoPreview[];
   backTo: string;
+  backState?: unknown;
   onOpen: () => void;
 };
 
-const PropertyHeroPhoto = ({ propertyId, propertyName, photos, backTo, onOpen }: PropertyHeroPhotoProps) => (
+const PropertyHeroPhoto = ({ propertyId, propertyName, photos, backTo, backState, onOpen }: PropertyHeroPhotoProps) => (
   <section className={styles.section} aria-label="대표 사진">
     {photos.length > 0 ? (
       <button
@@ -39,7 +40,12 @@ const PropertyHeroPhoto = ({ propertyId, propertyName, photos, backTo, onOpen }:
         </span>
       </Link>
     )}
-    <Link className={styles.backButton} to={backTo} aria-label="매물 목록으로 돌아가기">
+    <Link
+      className={styles.backButton}
+      to={backTo}
+      state={backState}
+      aria-label={backTo === '/map' ? '매물 지도로 돌아가기' : '매물 목록으로 돌아가기'}
+    >
       <Icon name="chevron-left" size={24} />
     </Link>
   </section>

@@ -2,6 +2,7 @@ import type { CSSProperties, KeyboardEvent } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import MoneyField from '@/features/property/ui/money-field/MoneyField';
+import useIsMobileViewport from '@/shared/lib/hooks/useIsMobileViewport';
 import { useKeyboardInset } from '@/shared/lib/hooks/useKeyboardInset';
 import BottomActionArea from '@/shared/ui/bottom-action-area/BottomActionArea';
 import { Button } from '@/shared/ui/button/Button';
@@ -13,15 +14,17 @@ import PropertyLocationPicker from './ui/property-location-picker/PropertyLocati
 
 import styles from './CreatePropertyPage.module.css';
 
-const stepNotice = (revealedStep: number, isReadyToSubmit: boolean) => {
+const stepNotice = (revealedStep: number, isReadyToSubmit: boolean, isMobileViewport: boolean) => {
   if (isReadyToSubmit) return '필수 정보를 모두 입력했다면 매물을 등록해 주세요.';
-  if (revealedStep === 0) return '보증금을 입력한 뒤 다음을 눌러 주세요.';
-  if (revealedStep === 1) return '월세를 입력한 뒤 다음을 눌러 주세요.';
+  const action = isMobileViewport ? '키패드의 확인을 눌러 주세요.' : '다음을 눌러 주세요.';
+  if (revealedStep === 0) return `보증금을 입력한 뒤 ${action}`;
+  if (revealedStep === 1) return `월세를 입력한 뒤 ${action}`;
   return '위치를 선택한 뒤 다음을 눌러 주세요.';
 };
 
 const CreatePropertyPage = () => {
   const routeState = (useLocation().state as PropertyCreationRouteState | null) ?? {};
+  const isMobileViewport = useIsMobileViewport();
   const keyboardInset = useKeyboardInset();
   const form = usePropertyCreationForm(routeState);
   const { values, errors, revealedStep, nameStep } = form;
@@ -58,7 +61,6 @@ const CreatePropertyPage = () => {
             error={errors.depositAmount}
             enterKeyHint="next"
             onKeyDown={submitOnKeyboardEnter}
-            autoFocus
           />
           {revealedStep >= 1 && (
             <MoneyField
@@ -100,9 +102,9 @@ const CreatePropertyPage = () => {
             </p>
           )}
           <p className={styles.stepNotice}>
-            {stepNotice(revealedStep, isNameStep && form.location.status === 'ready')}
+            {stepNotice(revealedStep, isNameStep && form.location.status === 'ready', isMobileViewport)}
           </p>
-          {keyboardInset === 0 && (
+          {keyboardInset === 0 && (isNameStep || revealedStep >= 2 || !isMobileViewport) && (
             <BottomActionArea>
               <Button variant="primary" type="submit" fullWidth isLoading={form.isCreating}>
                 {isNameStep ? '매물 등록' : '다음'}

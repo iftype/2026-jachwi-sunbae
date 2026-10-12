@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useLocation, useOutletContext } from 'react-router-dom';
 
 import type { Member } from '@/features/auth/model/Member';
+import { hasNativeAppFeature } from '@/shared/lib/native-app/nativeApp';
 import Icon from '@/shared/ui/icon/Icon';
 
 import { MAIN_TABS } from './mainTabs';
@@ -25,6 +26,8 @@ const PropertyAppLayout = () => {
       className={styles.root}
       data-full-screen={fullScreen || undefined}
       data-native-tab-bar={hasNativeTabBar || undefined}
+      data-native-tab-overlay={hasNativeTabBar && hasNativeAppFeature('tab-bar-overlay') ? true : undefined}
+      data-map-page={location.pathname === '/map' || undefined}
     >
       <div className={styles.content}>
         <Outlet context={member} />

@@ -11,9 +11,8 @@
   padding: 0.75rem;
   border: 1px solid rgb(225 226 218 / 92%);
   border-radius: 1rem;
-  background: rgb(255 255 255 / 96%);
+  background: var(--color-surface);
   box-shadow: 0 0.5rem 1.6rem rgb(42 48 35 / 20%);
-  backdrop-filter: blur(10px);
 }
 
 .heading {
@@ -34,42 +33,4 @@
   color: var(--color-ink);
   cursor: pointer;
   place-items: center;
-}
-
-.panel > p {
-  margin: 0;
-  color: var(--color-muted);
-  font-size: 0.66rem;
-}
-
-.panel ul {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  border: 1px solid var(--color-border);
-  border-radius: 0.75rem;
-  list-style: none;
-}
-
-.panel li + li {
-  border-top: 1px solid var(--color-border);
-}
-
-.panel li > button {
-  display: grid;
-  width: 100%;
-  gap: 0.2rem;
-  padding: 0.65rem;
-  border: 0;
-  background: white;
-  color: var(--color-ink);
-  font-size: 0.65rem;
-  text-align: left;
-  cursor: pointer;
-}
-
-.panel li span {
-  color: var(--color-muted);
-  font-size: 0.58rem;
 }

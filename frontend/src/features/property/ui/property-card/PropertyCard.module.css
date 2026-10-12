@@ -2,7 +2,7 @@
   display: flex;
   min-width: 0;
   align-items: stretch;
-  gap: 0.5rem;
+  gap: 0.875rem;
   padding: 0.425rem 0;
   border-bottom: 0;
   background: var(--color-canvas, #fff);
@@ -19,6 +19,8 @@
 }
 
 .photo {
+  border: 0;
+  padding: 0;
   display: grid;
   width: 100%;
   height: 100%;

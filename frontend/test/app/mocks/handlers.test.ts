@@ -26,6 +26,56 @@ describe('최종 API 명세 MSW handlers', () => {
     });
   });
 
+  it('지도 시설 응답은 선택 좌표·반경·카테고리를 반영한다', async () => {
+    const body = await readJson(
+      await fetch(apiUrl('/api/maps/nearby?latitude=37.48&longitude=126.93&radius=500&categories=HOSPITAL')),
+    );
+    expect(body).toMatchObject({
+      code: 'SUCCESS',
+      data: {
+        center: { latitude: 37.48, longitude: 126.93 },
+        radius: 500,
+        counts: { HOSPITAL: 5, TRANSPORT: 0, SCHOOL: 0, CONVENIENCE: 0, AGENCY: 0 },
+      },
+    });
+    const data = body.data as { places: Array<{ category: string; distanceMeters: number; latitude: number }> };
+    expect(data.places).toHaveLength(5);
+    expect(data.places.every((place) => place.category === 'HOSPITAL' && place.distanceMeters <= 500)).toBe(true);
+    expect(data.places.every((place) => Math.abs(place.latitude - 37.48) < 0.005)).toBe(true);
+  });
+
+  it('역지오코딩은 샘플 매물 주소와 선택 좌표를 일치시킨다', async () => {
+    const body = await readJson(
+      await fetch(apiUrl('/api/maps/reverse-geocode?latitude=37.4841234&longitude=126.9291234')),
+    );
+    expect(body).toMatchObject({
+      data: { roadAddress: '서울 관악구 신림로 12길 3', latitude: 37.4841234, longitude: 126.9291234 },
+    });
+  });
+
+  it('매물 목록은 dev 계약의 items·좌표·대표 사진 필드를 제공한다', async () => {
+    const body = await readJson(await fetch(apiUrl('/api/properties')));
+    expect(body).toMatchObject({
+      data: {
+        totalCount: 2,
+        items: expect.arrayContaining([
+          expect.objectContaining({
+            id: 10,
+            latitude: 37.4841234,
+            longitude: 126.9291234,
+            representativePhoto: expect.objectContaining({
+              id: expect.any(Number),
+              url: expect.any(String),
+              contentType: 'image/png',
+            }),
+            stages: expect.any(Array),
+            overallProgress: expect.any(Object),
+          }),
+        ]),
+      },
+    });
+  });
+
   it('매물 메모는 자유 메모만 전체 교체한다', async () => {
     const response = await fetch(apiUrl('/api/properties/10/memo'), {
       method: 'PUT',

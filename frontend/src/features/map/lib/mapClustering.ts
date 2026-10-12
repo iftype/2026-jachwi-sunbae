@@ -1,5 +1,5 @@
 import type { NearbyPlace } from '../model/Map';
-import type { MapMarker } from '../ui/map-canvas/MapCanvas';
+import type { MapMarker } from '../model/Map';
 import { getMapCategoryLabel } from './mapPresentation';
 
 type PlaceCluster = {

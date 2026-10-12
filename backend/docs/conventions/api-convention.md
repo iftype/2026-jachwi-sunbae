@@ -27,13 +27,13 @@ POST /api/properties/create     금지
 GET  /api/get-properties        금지
 ```
 
-| Method | 용도 |
-| --- | --- |
-| `GET` | 조회 |
-| `POST` | 생성 |
-| `PATCH` | 일부 수정 |
-| `PUT` | 전체 교체 |
-| `DELETE` | 삭제 |
+| Method   | 용도      |
+| -------- | --------- |
+| `GET`    | 조회      |
+| `POST`   | 생성      |
+| `PATCH`  | 일부 수정 |
+| `PUT`    | 전체 교체 |
+| `DELETE` | 삭제      |
 
 검색·필터·정렬·페이징은 Query Parameter를 사용한다.
 
@@ -63,16 +63,16 @@ createdAt
 
 ## HTTP 상태 코드
 
-| 상황 | 상태 코드 |
-| --- | --- |
-| 일반 조회·수정 성공 | `200 OK` |
-| 생성 성공 | `201 Created` |
-| 응답 본문 없는 삭제 성공 | `204 No Content` |
-| 잘못된 요청·규칙 위반 | `400 Bad Request` |
-| 인증 필요 | `401 Unauthorized` |
-| 권한 없음 | `403 Forbidden` |
-| 리소스 없음 | `404 Not Found` |
-| 서버 오류 | `500 Internal Server Error` |
+| 상황                     | 상태 코드                   |
+| ------------------------ | --------------------------- |
+| 일반 조회·수정 성공      | `200 OK`                    |
+| 생성 성공                | `201 Created`               |
+| 응답 본문 없는 삭제 성공 | `204 No Content`            |
+| 잘못된 요청·규칙 위반    | `400 Bad Request`           |
+| 인증 필요                | `401 Unauthorized`          |
+| 권한 없음                | `403 Forbidden`             |
+| 리소스 없음              | `404 Not Found`             |
+| 서버 오류                | `500 Internal Server Error` |
 
 `409 Conflict`는 사용하지 않는다. 상태 충돌은 `400`으로 표현한다.
 

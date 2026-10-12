@@ -1,7 +1,10 @@
 import type { PropertyInputDto } from '../api/dtos/PropertyDto';
 
-export const MAX_PROPERTY_AMOUNT = Number.MAX_SAFE_INTEGER;
 export const WON_PER_MANWON = 10_000;
+/** API로 보낼 원화 금액을 JS에서 정확하게 표현할 수 있는 최대값. */
+export const MAX_SAFE_WON_AMOUNT = Number.MAX_SAFE_INTEGER;
+/** 입력 UI가 만원 단위이므로 원화 안전 최대값을 만원으로 내림한 값. */
+export const MAX_PROPERTY_AMOUNT = Math.floor(MAX_SAFE_WON_AMOUNT / WON_PER_MANWON);
 
 export type PropertyFormValues = {
   name: string;
@@ -16,8 +19,6 @@ export type PropertyFormValues = {
 export type PropertyFormField = keyof PropertyFormValues;
 export type PropertyFormErrors = Partial<Record<PropertyFormField, string>>;
 export type PropertyFormMode = 'default' | 'registration';
-
-const countCodePoints = (value: string) => Array.from(value).length;
 
 export const formatMoneyInput = (value: string): string | null => {
   if (value === '') {
@@ -54,34 +55,44 @@ export const parseMoneyInput = (value: string): number | null => {
 
 const toWon = (manwon: number): number | null => {
   const amount = manwon * WON_PER_MANWON;
-  return Number.isSafeInteger(amount) && amount <= MAX_PROPERTY_AMOUNT ? amount : null;
+  return Number.isSafeInteger(amount) && amount <= MAX_SAFE_WON_AMOUNT ? amount : null;
 };
 
-/** 주소·좌표는 지도에서 고르므로 여기서는 검증하지 않는다. 등록·수정 모드 차이도 없다. */
 export const validatePropertyForm = (values: PropertyFormValues): PropertyFormErrors => {
   const errors: PropertyFormErrors = {};
   const name = values.name.trim();
+  const address = values.address?.trim() ?? '';
   const discoverySource = values.discoverySource.trim();
 
   if (name.length === 0) {
     errors.name = '매물을 구분할 이름을 입력해 주세요.';
-  } else if (countCodePoints(name) > 30) {
+  } else if (name.length > 30) {
     errors.name = '이름은 30자 이하로 입력해 주세요.';
   }
 
   if (values.depositAmount === '') {
     errors.depositAmount = '보증금을 입력해 주세요.';
-  } else if (values.depositAmount !== '' && parseMoneyInput(values.depositAmount) === null) {
-    errors.depositAmount = '보증금은 0 이상 최대 안전 정수 이하의 정수로 입력해 주세요.';
+  } else {
+    const depositInput = parseMoneyInput(values.depositAmount);
+    if (depositInput === null || toWon(depositInput) === null) {
+      errors.depositAmount = '보증금이 입력 가능한 최대 금액을 초과했어요.';
+    }
   }
 
   if (values.monthlyRentAmount === '') {
     errors.monthlyRentAmount = '월세를 입력해 주세요.';
-  } else if (values.monthlyRentAmount !== '' && parseMoneyInput(values.monthlyRentAmount) === null) {
-    errors.monthlyRentAmount = '월세는 0 이상 최대 안전 정수 이하의 정수로 입력해 주세요.';
+  } else {
+    const monthlyRentInput = parseMoneyInput(values.monthlyRentAmount);
+    if (monthlyRentInput === null || toWon(monthlyRentInput) === null) {
+      errors.monthlyRentAmount = '월세가 입력 가능한 최대 금액을 초과했어요.';
+    }
   }
 
-  if (countCodePoints(discoverySource) > 500) {
+  if (address.length > 255) {
+    errors.address = '주소는 255자 이하로 입력해 주세요.';
+  }
+
+  if (discoverySource.length > 500) {
     errors.discoverySource = '확인한 곳은 500자 이하로 입력해 주세요.';
   }
 

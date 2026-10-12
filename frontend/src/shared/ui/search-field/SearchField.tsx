@@ -43,7 +43,7 @@ const SearchField = ({
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    onSubmit();
+    if (!disabled) onSubmit();
   };
 
   const clear = () => {
@@ -72,6 +72,12 @@ const SearchField = ({
         enterKeyHint="search"
         autoFocus={autoFocus}
         onChange={(event) => onValueChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' && event.nativeEvent.isComposing) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        }}
       />
 
       {value.length > 0 && (
@@ -106,7 +112,12 @@ const SearchField = ({
       className={classNames}
       role="search"
       onKeyDown={(event) => {
-        if (event.key === 'Enter') {
+        if (
+          event.key === 'Enter' &&
+          event.target instanceof HTMLInputElement &&
+          !event.nativeEvent.isComposing &&
+          !disabled
+        ) {
           event.preventDefault();
           onSubmit();
         }

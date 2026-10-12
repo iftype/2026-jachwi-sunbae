@@ -1,11 +1,12 @@
 import type { ChangeEvent, FormEvent } from 'react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { requestCurrentMapLocation } from '@/features/map/lib/mapLocation';
 import type { MapAddress } from '@/features/map/model/Map';
 import type { PropertyInputDto } from '@/features/property/api/dtos/PropertyDto';
 import { useCreateProperty } from '@/features/property/api/usePropertyMutations';
+import { trackPropertyEvent } from '@/features/property/lib/propertyAnalytics';
 import type { PropertyFormErrors, PropertyFormValues } from '@/features/property/lib/propertyForm';
 import { formatAmountForInput, toPropertyInputDto, validatePropertyForm } from '@/features/property/lib/propertyForm';
 import { trackPostHogEvent } from '@/shared/lib/analytics/posthog';
@@ -46,6 +47,8 @@ const draftToValues = (draft: PropertyInputDto | undefined): PropertyFormValues 
 export const usePropertyCreationForm = (routeState: PropertyCreationRouteState) => {
   const navigate = useNavigate();
   const hasPresetLocation = routeState.selectedLocation !== undefined;
+  const entrypoint = hasPresetLocation ? 'map' : 'form';
+  const hasTrackedStart = useRef(false);
   const nameStep = hasPresetLocation ? 2 : 3;
   const [values, setValues] = useState<PropertyFormValues>(() => {
     const draft = draftToValues(routeState.registrationDraft);
@@ -62,14 +65,16 @@ export const usePropertyCreationForm = (routeState: PropertyCreationRouteState) 
   const [errors, setErrors] = useState<PropertyFormErrors>({});
   const [revealedStep, setRevealedStep] = useState(0);
   const [createError, setCreateError] = useState<string | null>(null);
-  const createProperty = useCreateProperty();
+  const createProperty = useCreateProperty(entrypoint);
   const clearCreateError = useCallback(() => setCreateError(null), []);
   const location = usePropertyLocation(routeState.selectedLocation, clearCreateError);
   const search = useAddressSearch();
 
   useEffect(() => {
-    trackPostHogEvent('property_creation_started');
-  }, []);
+    if (hasTrackedStart.current) return;
+    hasTrackedStart.current = true;
+    trackPropertyEvent('property_creation_started', { entrypoint });
+  }, [entrypoint]);
 
   useEffect(() => {
     if (location.locationStatus !== 'ready') return;
@@ -105,6 +110,10 @@ export const usePropertyCreationForm = (routeState: PropertyCreationRouteState) 
   const submitProperty = async () => {
     const validationErrors = validatePropertyForm(values);
     setErrors(validationErrors);
+    if (validationErrors.address !== undefined) {
+      setCreateError(validationErrors.address);
+      return;
+    }
     if (Object.keys(validationErrors).length > 0) return;
     if (location.locationStatus !== 'ready') {
       setCreateError(
@@ -118,7 +127,6 @@ export const usePropertyCreationForm = (routeState: PropertyCreationRouteState) 
     if (input === null) return;
     setCreateError(null);
     trackPostHogEvent(stepEvents.name);
-    trackPostHogEvent('property_creation_submitted');
     const { selectedLocation } = location;
     try {
       const created = await createProperty.mutateAsync({
@@ -129,7 +137,6 @@ export const usePropertyCreationForm = (routeState: PropertyCreationRouteState) 
       });
       navigate(`/properties/${created.propertyId}`, { replace: true });
     } catch {
-      trackPostHogEvent('property_creation_failed', { error_kind: 'server' });
       setCreateError('매물을 등록하지 못했어요. 입력한 정보는 유지되니 다시 시도해 주세요.');
     }
   };
@@ -137,9 +144,19 @@ export const usePropertyCreationForm = (routeState: PropertyCreationRouteState) 
   const submitStep = (event: FormEvent) => {
     event.preventDefault();
     const next: PropertyFormErrors = {};
-    if (values.depositAmount.length === 0) next.depositAmount = '보증금을 입력해 주세요.';
-    if (revealedStep >= 1 && values.monthlyRentAmount.length === 0) next.monthlyRentAmount = '월세를 입력해 주세요.';
-    if (revealedStep >= nameStep && values.name.trim().length === 0) next.name = '매물 이름을 입력해 주세요.';
+    const validationErrors = validatePropertyForm(values);
+    if (values.depositAmount.length === 0 || validationErrors.depositAmount !== undefined) {
+      next.depositAmount = validationErrors.depositAmount ?? '보증금을 입력해 주세요.';
+    }
+    if (
+      revealedStep >= 1 &&
+      (values.monthlyRentAmount.length === 0 || validationErrors.monthlyRentAmount !== undefined)
+    ) {
+      next.monthlyRentAmount = validationErrors.monthlyRentAmount ?? '월세를 입력해 주세요.';
+    }
+    if (revealedStep >= nameStep && (values.name.trim().length === 0 || validationErrors.name !== undefined)) {
+      next.name = validationErrors.name ?? '매물 이름을 입력해 주세요.';
+    }
     setErrors(next);
     if (Object.keys(next).length > 0) return;
     if (revealedStep === 0) {

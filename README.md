@@ -1,4 +1,4 @@
-# 자취선배 MVP2
+# 자취선배
 
 > **집은 매물 앱에서 찾고, 결정은 자취선배에서.**
 
@@ -10,7 +10,7 @@
 ## 실행 환경
 
 | 환경 | 브랜치    | 프론트엔드                     | 백엔드                             |
-|------|-----------|--------------------------------|------------------------------------|
+| ---- | --------- | ------------------------------ | ---------------------------------- |
 | dev  | `develop` | `https://dev.jachwi-sunbae.kr` | `https://dev-api.jachwi-sunbae.kr` |
 | prod | `main`    | `https://www.jachwi-sunbae.kr` | `https://api.jachwi-sunbae.kr`     |
 
@@ -23,9 +23,14 @@
 
 - [제품 문서 안내](docs/product/README.md) — 기능별 요구사항·정책·인수 기준
 
+### QA
+
+- [QA 안내](qa/README.md) — AI E2E QA 사이클, 정답 기준, 사용자 흐름, Scenario, 실행 결과 형식과 판정 기준, 실행 방법
+
 ### 개발과 운영
 
 - [컨벤션](docs/convention/README.md) — 브랜치·커밋, 이슈·PR, 코드 리뷰
+- [Markdown 작성 규칙](docs/convention/markdown-formatting.md) — 루트 포맷팅 명령, IDE 주의사항, Markdown CI
 - [변경 내역](CHANGELOG.md) — 릴리스별 기능·수정·성능 개선
 - [버전 관리](docs/convention/versioning.md) — SemVer, Git 태그, 릴리스와 롤백 기준
 - [백엔드 문서](backend/docs/README.md) — 코드·API·예외 컨벤션, 패키지 구조, 환경변수·로컬 실행·운영
@@ -36,17 +41,22 @@
 
 ```text
 2026-jachwi-sunbae/
-├── .github/              # Issue·PR 템플릿, 백엔드·프론트엔드 CI
+├── .github/              # Issue·PR 템플릿, 백엔드·프론트엔드·Markdown CI
 ├── backend/              # Spring Boot, MySQL, MinIO, CodeDeploy 파일
 ├── frontend/             # React, TypeScript, Webpack, S3·CloudFront 배포 파일
 ├── mobile/               # React Native 기반 iOS WebView 앱 셸
+├── qa/                   # AI E2E QA 기준 문서(docs/)와 Playwright 실행 코드
 ├── docs/
 │   ├── convention/       # 저장소 공통 규칙
 │   └── product/          # 제품 기능 명세
 ├── .editorconfig
 ├── .gitignore
+├── .prettierignore
+├── .prettierrc.json
 ├── AGENTS.md
 ├── CLAUDE.md
+├── package.json          # Markdown 포맷팅 도구와 실행 명령
+├── package-lock.json
 └── README.md
 ```
 
@@ -78,10 +88,7 @@ npm run dev
 - Swagger UI: `http://localhost:8080/swagger-ui/index.html`
 - MinIO 콘솔: `http://localhost:9001`
 
-
 처음 보는 닉네임은 새 기록 공간을 만듭니다. 비밀번호를 비우면 같은 닉네임을 아는 사람이 기록을 함께 수정할 수 있고, 비밀번호를 입력하면 같은 닉네임이라도 비밀번호 없는 기록과 분리된 보호 기록을 사용합니다.
-
-
 
 ### iOS 앱
 
