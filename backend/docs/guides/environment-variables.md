@@ -87,7 +87,8 @@ AWS S3는 EC2 `ec2-project` instance role로 접근하므로 `PHOTO_STORAGE_ENDP
 백엔드는 네이버 API를 사용하지 않는다.
 
 `src/main/resources/db/init/001-schema.sql`과 `002-seed.sql`은 로컬 Docker 초기화와 통합 테스트에서 공유하는 기준 스키마와 시스템 체크 항목이다.
-`docker/mysql/init/003-bus-stops-sample.sql`, `004-good-price-stores-sample.sql`은 로컬 Docker 초기화 전용 버스정류장·착한가격업소 샘플이며 애플리케이션 JAR에 포함하지 않는다.
+`docker/mysql/init/003-bus-stops-sample.sql`, `004-good-price-stores-sample.sql`, `005-cctvs-sample.sql`은 로컬 Docker 초기화 전용 샘플이며 애플리케이션 JAR에 포함하지 않는다.
+월세 거래 테이블은 `001-schema.sql` 끝에 정의한다. 기존 DB에 월세 테이블이 필요하면 관리자가 해당 테이블 정의만 순서대로 적용한다.
 애플리케이션은 기동 중 스키마를 변경하지 않는다.
 dev·prod RDS를 이 기준선으로 전환할 때는 자동 백업의 최신 복구 지점을 먼저 확인하고, 별도의 데이터 이관 절차로 기존 회원·매물 데이터를 보존해야 한다.
 

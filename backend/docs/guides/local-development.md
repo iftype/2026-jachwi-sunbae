@@ -31,9 +31,9 @@ docker compose up -d
 docker compose ps
 ```
 
-MySQL과 MinIO가 healthy여야 한다. 빈 MySQL 볼륨은 [기준 스키마·시스템 체크 항목](../../src/main/resources/db/init/)과
+MySQL과 MinIO가 healthy여야 한다. 빈 MySQL 볼륨은 [월세 거래 테이블을 포함한 기준 스키마](../../src/main/resources/db/init/001-schema.sql)와 시스템 체크 항목,
 [로컬 버스정류장 샘플](../../docker/mysql/init/003-bus-stops-sample.sql), [로컬 CCTV 샘플](../../docker/mysql/init/005-cctvs-sample.sql)로 자동 초기화된다.
-Compose가 각 SQL을 읽기 전용으로 마운트하며 파일명의 번호 순서 (`001` → `002` → `003` → `005`)로 실행한다.
+Compose가 각 SQL을 읽기 전용으로 마운트하며 파일명의 번호 순서 (`001` → `002` → `003` → `004` → `005`)로 실행한다.
 초기화 SQL은 기존 볼륨에 다시 적용되지 않으며, 볼륨을 삭제하면 로컬 데이터도 사라진다.
 
 초기화 SQL이 바뀐 뒤 예전 볼륨으로 실행해 `Unknown column` 같은 스키마 오류가 나면 MySQL 볼륨만 다시 만든다. `docker compose down -v`는 MinIO 사진 볼륨까지 지우므로 쓰지 않는다.
@@ -117,6 +117,23 @@ docker compose exec -T mysql mysql -ujachwi_sunbae -plocal_password jachwi_sunba
 ```
 
 적재 SQL은 한 트랜잭션 안에서 기존 업소를 지우고 다시 넣는다. 정제 규칙은 스크립트 상단에 있고, 테스트는 `scripts/good-price-stores`에서 `python3 -m unittest`로 실행한다.
+
+### 월세 거래 데이터
+
+월세 거래 조회 (`GET /api/rental-transactions`)는 `rental_transactions` 테이블에서 조회한다. 빈 볼륨에는 [기준 스키마](../../src/main/resources/db/init/001-schema.sql)가 월세 테이블을 만들며 거래 데이터는 넣지 않는다.
+기존 DB에 월세 테이블이 없다면 관리자가 기준 스키마 끝의 `legal_dongs`, `rental_datasets`, `rental_transactions` 테이블 정의만 순서대로 적용한다. 운영 DB에 기준 스키마 전체를 다시 실행하지 않는다.
+적재 도구는 테이블을 만들지 않고 기존 스키마를 확인한다.
+법정동은 `admin_dongs`의 행정동과 코드 체계가 달라 `legal_dongs`에 별도로 저장한다. 면적 기준은 주택 유형에서 결정되므로 거래 테이블에 중복 저장하지 않으며, 정제 CSV의 `area_basis` 값은 적재 전에 주택 유형과 일치하는지 검증한다.
+주택·계약 유형, 월세와 면적의 제공 조건은 적재 전에 도메인에서 검증하고, DB는 수집본·법정동 참조와 원본 행의 중복을 제약한다.
+
+월세 적재에는 원본 다운로드 후 제공 조건에 맞게 정제한 거래 CSV와 공식 법정동 코드 ZIP 또는 TXT가 필요하다. 검증만 실행하려면 `backend`에서 다음과 같이 실행한다.
+
+```bash
+./gradlew importRentalTransactions --args="--transactions=/path/to/transactions.csv --legal-dong-codes=/path/to/legal-dong-codes.zip --from=2026-04-09 --to=2026-10-09 --collected-at=2026-10-09T12:00:00+09:00 --expected-rows=86079 --report-dir=/path/to/rental-report"
+```
+
+기간·수집 시각·예상 건수는 실제 자료에 맞게 지정한다. 보고서가 `VALIDATED`이고 미매핑 법정동이 0건일 때 `--apply`를 붙여 DB에 적재한다.
+재실행할 때는 새 보고서 경로를 사용한다. 조회 API는 적재된 거래만 반환한다.
 
 ## 4. 백엔드 실행
 
