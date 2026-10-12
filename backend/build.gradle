@@ -70,6 +70,8 @@ tasks.register('testAll', Test) {
 	testClassesDirs = sourceSets.test.output.classesDirs
 	classpath = sourceSets.test.runtimeClasspath
 	useJUnitPlatform()
+	dependsOn tasks.named('bootJar')
+	systemProperty 'rental.import.jar', tasks.named('bootJar').get().archiveFile.get().asFile.absolutePath
 }
 
 tasks.register('importRentalTransactions', JavaExec) {

@@ -19,11 +19,9 @@ import java.util.Set;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.springframework.boot.DefaultApplicationArguments;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
-import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.springframework.transaction.support.TransactionTemplate;
 
 // CSV 검증·선택적 적재를 실행하고 보고서를 저장하는 일회성 도구다.
@@ -63,8 +61,9 @@ public class RentalImportCommand {
             DriverManagerDataSource dataSource = new DriverManagerDataSource(databaseUrl(),
                 System.getenv().getOrDefault("DB_USERNAME", "jachwi_sunbae"),
                 System.getenv().getOrDefault("DB_PASSWORD", "local_password"));
-            new ResourceDatabasePopulator(new ClassPathResource("db/init/003-rental-schema.sql")).execute(dataSource);
-            JdbcRentalTransactionRepository repository = new JdbcRentalTransactionRepository(new JdbcTemplate(dataSource));
+            JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+            new RentalSchemaValidator().validate(jdbcTemplate);
+            JdbcRentalTransactionRepository repository = new JdbcRentalTransactionRepository(jdbcTemplate);
             RentalImportService service = new RentalImportService(repository,
                 new TransactionTemplate(new DataSourceTransactionManager(dataSource)));
             status = service.importSnapshot(snapshot, result.transactions()) ? "IMPORTED" : "UNCHANGED";
