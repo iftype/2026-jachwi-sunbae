@@ -7,8 +7,10 @@ import com.jachwisunbae.map.domain.goodprice.GoodPriceMenu;
 import com.jachwisunbae.map.domain.goodprice.GoodPriceStore;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -36,6 +38,12 @@ public class JdbcGoodPriceStoreRepository implements GoodPriceStoreRepository {
                 """;
         return jdbcTemplate.query(sql, goodPriceStoreRowMapper(),
                 bounds.getMinLatitude(), bounds.getMaxLatitude(), bounds.getMinLongitude(), bounds.getMaxLongitude());
+    }
+
+    @Override
+    public Optional<LocalDate> findLatestSourceDate() {
+        return Optional.ofNullable(
+                jdbcTemplate.queryForObject("SELECT MAX(source_date) FROM good_price_stores", LocalDate.class));
     }
 
     // DB에 저장된 값이 업소 규칙(필수 값, 좌표 범위)을 만족하지 않는 것은 적재 데이터 문제다.

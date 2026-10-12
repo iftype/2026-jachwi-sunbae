@@ -130,6 +130,30 @@ class JdbcGoodPriceStoreRepositoryTest {
                 .hasCauseInstanceOf(IllegalArgumentException.class);
     }
 
+    @Test
+    @DisplayName("조회 범위와 관계없이 적재된 업소의 기준일을 조회한다")
+    void findsLatestSourceDate() {
+        insert("멀리있는식당", "35.1795543", "129.0756416");
+
+        assertThat(goodPriceStoreRepository.findLatestSourceDate()).contains(LocalDate.of(2026, 6, 30));
+    }
+
+    @Test
+    @DisplayName("기준일이 섞여 있으면 가장 최근 기준일을 조회한다")
+    void findsMostRecentSourceDate() {
+        insert("이전식당", "37.3948000", "127.1112000");
+        jdbcTemplate.update("UPDATE good_price_stores SET source_date = '2026-03-31'");
+        insert("최근식당", "37.3948000", "127.1112000");
+
+        assertThat(goodPriceStoreRepository.findLatestSourceDate()).contains(LocalDate.of(2026, 6, 30));
+    }
+
+    @Test
+    @DisplayName("적재된 업소가 없으면 기준일이 없다")
+    void findsNoSourceDateWhenEmpty() {
+        assertThat(goodPriceStoreRepository.findLatestSourceDate()).isEmpty();
+    }
+
     private void insert(String name, String latitude, String longitude) {
         jdbcTemplate.update("""
                 INSERT INTO good_price_stores (province, business_type, name, address, latitude, longitude,

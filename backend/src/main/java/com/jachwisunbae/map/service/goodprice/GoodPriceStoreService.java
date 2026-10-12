@@ -36,16 +36,15 @@ public class GoodPriceStoreService {
                 .sorted(Comparator.comparingDouble(Candidate::distanceMeters)
                         .thenComparing(candidate -> candidate.store().getId()))
                 .toList();
-        return new GoodPriceStoresResult(latitude, longitude, radius, dataAsOf(candidates),
+        return new GoodPriceStoresResult(latitude, longitude, radius, dataAsOf(),
                 candidates.stream().map(Candidate::toResult).toList());
     }
 
+    // 기준일은 조회 결과가 아니라 적재된 공공데이터 전체의 값이라, 반경 안에 업소가 없어도 내려준다.
     // 적재할 때마다 전체를 다시 채우므로 모든 업소의 기준일이 같다. 혹시 섞여 있으면 가장 최근 값을 쓴다.
-    private LocalDate dataAsOf(List<Candidate> candidates) {
-        return candidates.stream()
-                .map(candidate -> candidate.store().getSourceDate())
-                .max(Comparator.naturalOrder())
-                .orElse(null);
+    // 테이블이 비어 있을 때(적재 전)만 null이다.
+    private LocalDate dataAsOf() {
+        return goodPriceStoreRepository.findLatestSourceDate().orElse(null);
     }
 
     private void validateQuery(BigDecimal latitude, BigDecimal longitude, int radius) {

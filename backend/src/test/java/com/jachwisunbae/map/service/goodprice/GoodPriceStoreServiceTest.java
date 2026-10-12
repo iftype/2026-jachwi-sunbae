@@ -8,12 +8,14 @@ import com.jachwisunbae.common.exception.errorcode.ErrorCode;
 import com.jachwisunbae.map.domain.CoordinateBounds;
 import com.jachwisunbae.map.domain.GeoDistance;
 import com.jachwisunbae.map.domain.goodprice.GoodPriceStore;
+import com.jachwisunbae.map.repository.goodprice.GoodPriceStoreRepository;
 import com.jachwisunbae.map.service.dto.result.goodprice.GoodPriceStoreResult;
 import com.jachwisunbae.map.service.dto.result.goodprice.GoodPriceStoresResult;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,15 +29,12 @@ class GoodPriceStoreServiceTest {
     @Test
     @DisplayName("요청 반경을 감싸는 사각형으로 후보를 조회한다")
     void requestsCandidatesWithinBounds() {
-        List<CoordinateBounds> requested = new ArrayList<>();
-        GoodPriceStoreService service = new GoodPriceStoreService(bounds -> {
-            requested.add(bounds);
-            return List.of();
-        });
+        FakeGoodPriceStoreRepository repository = new FakeGoodPriceStoreRepository(List.of(), SOURCE_DATE);
+        GoodPriceStoreService service = new GoodPriceStoreService(repository);
 
         service.nearby(LATITUDE, LONGITUDE, 1000);
 
-        assertThat(requested).singleElement().usingRecursiveComparison()
+        assertThat(repository.requestedBounds).singleElement().usingRecursiveComparison()
                 .isEqualTo(CoordinateBounds.around(LATITUDE, LONGITUDE, 1000));
     }
 
@@ -46,7 +45,8 @@ class GoodPriceStoreServiceTest {
         GoodPriceStore inside = store(1L, "37.3950000", "127.1090000");
         GoodPriceStore corner = store(2L, bounds.getMaxLatitude().toPlainString(),
                 bounds.getMaxLongitude().toPlainString());
-        GoodPriceStoreService service = new GoodPriceStoreService(ignored -> List.of(inside, corner));
+        GoodPriceStoreService service = new GoodPriceStoreService(
+                new FakeGoodPriceStoreRepository(List.of(inside, corner), SOURCE_DATE));
 
         GoodPriceStoresResult result = service.nearby(LATITUDE, LONGITUDE, 500);
 
@@ -59,7 +59,8 @@ class GoodPriceStoreServiceTest {
         GoodPriceStore far = store(1L, "37.3980000", "127.1090000");
         GoodPriceStore nearSecond = store(3L, "37.3950000", "127.1090000");
         GoodPriceStore nearFirst = store(2L, "37.3950000", "127.1090000");
-        GoodPriceStoreService service = new GoodPriceStoreService(ignored -> List.of(far, nearSecond, nearFirst));
+        GoodPriceStoreService service = new GoodPriceStoreService(
+                new FakeGoodPriceStoreRepository(List.of(far, nearSecond, nearFirst), SOURCE_DATE));
 
         GoodPriceStoresResult result = service.nearby(LATITUDE, LONGITUDE, 1000);
 
@@ -74,7 +75,8 @@ class GoodPriceStoreServiceTest {
         for (long id = 1; id <= 100; id++) {
             stores.add(store(id, "37.3940000", "127.1090000"));
         }
-        GoodPriceStoreService service = new GoodPriceStoreService(ignored -> stores);
+        GoodPriceStoreService service = new GoodPriceStoreService(
+                new FakeGoodPriceStoreRepository(stores, SOURCE_DATE));
 
         assertThat(service.nearby(LATITUDE, LONGITUDE, 500).stores()).hasSize(100);
     }
@@ -83,7 +85,8 @@ class GoodPriceStoreServiceTest {
     @DisplayName("거리는 GeoDistance로 계산해 미터 단위 정수로 반올림한다")
     void calculatesDistanceWithGeoDistance() {
         GoodPriceStore store = store(1L, "37.3950000", "127.1100000");
-        GoodPriceStoreService service = new GoodPriceStoreService(ignored -> List.of(store));
+        GoodPriceStoreService service = new GoodPriceStoreService(
+                new FakeGoodPriceStoreRepository(List.of(store), SOURCE_DATE));
 
         GoodPriceStoresResult result = service.nearby(LATITUDE, LONGITUDE, 500);
 
@@ -97,7 +100,7 @@ class GoodPriceStoreServiceTest {
     @DisplayName("요청 조건과 공공데이터 기준일을 함께 반환한다")
     void returnsQueryAndDataAsOf() {
         GoodPriceStoreService service = new GoodPriceStoreService(
-                ignored -> List.of(store(1L, "37.3950000", "127.1090000")));
+                new FakeGoodPriceStoreRepository(List.of(store(1L, "37.3950000", "127.1090000")), SOURCE_DATE));
 
         GoodPriceStoresResult result = service.nearby(LATITUDE, LONGITUDE, 2000);
 
@@ -108,9 +111,31 @@ class GoodPriceStoreServiceTest {
     }
 
     @Test
-    @DisplayName("반경 안에 업소가 없으면 빈 목록과 기준일 없음을 반환한다")
-    void returnsEmptyResult() {
-        GoodPriceStoreService service = new GoodPriceStoreService(ignored -> List.of());
+    @DisplayName("반경 안에 업소가 없어도 공공데이터 기준일을 반환한다")
+    void returnsDataAsOfWithoutStores() {
+        GoodPriceStoreService service = new GoodPriceStoreService(
+                new FakeGoodPriceStoreRepository(List.of(), SOURCE_DATE));
+
+        GoodPriceStoresResult result = service.nearby(LATITUDE, LONGITUDE, 500);
+
+        assertThat(result.stores()).isEmpty();
+        assertThat(result.dataAsOf()).isEqualTo(SOURCE_DATE);
+    }
+
+    @Test
+    @DisplayName("기준일은 조회 결과와 관계없이 적재된 데이터의 기준일을 쓴다")
+    void usesDataAsOfOfLoadedData() {
+        LocalDate latest = LocalDate.of(2026, 9, 30);
+        GoodPriceStoreService service = new GoodPriceStoreService(
+                new FakeGoodPriceStoreRepository(List.of(store(1L, "37.3950000", "127.1090000")), latest));
+
+        assertThat(service.nearby(LATITUDE, LONGITUDE, 500).dataAsOf()).isEqualTo(latest);
+    }
+
+    @Test
+    @DisplayName("적재된 데이터가 없으면 빈 목록과 기준일 없음을 반환한다")
+    void returnsEmptyResultBeforeLoading() {
+        GoodPriceStoreService service = new GoodPriceStoreService(new FakeGoodPriceStoreRepository(List.of(), null));
 
         GoodPriceStoresResult result = service.nearby(LATITUDE, LONGITUDE, 500);
 
@@ -121,7 +146,8 @@ class GoodPriceStoreServiceTest {
     @Test
     @DisplayName("좌표나 반경이 허용 범위를 벗어나면 사용자 입력 오류로 본다")
     void rejectsInvalidQuery() {
-        GoodPriceStoreService service = new GoodPriceStoreService(ignored -> List.of());
+        GoodPriceStoreService service = new GoodPriceStoreService(
+                new FakeGoodPriceStoreRepository(List.of(), SOURCE_DATE));
 
         assertInvalidQuery(() -> service.nearby(null, LONGITUDE, 500));
         assertInvalidQuery(() -> service.nearby(new BigDecimal("90.1"), LONGITUDE, 500));
@@ -138,5 +164,28 @@ class GoodPriceStoreServiceTest {
     private static GoodPriceStore store(Long id, String latitude, String longitude) {
         return GoodPriceStore.reconstruct(id, "경기도", "성남시", "한식", "식당" + id, null, "경기도 성남시 분당구 판교역로 1",
                 new BigDecimal(latitude), new BigDecimal(longitude), List.of(), SOURCE_DATE);
+    }
+
+    private static class FakeGoodPriceStoreRepository implements GoodPriceStoreRepository {
+
+        private final List<GoodPriceStore> stores;
+        private final LocalDate latestSourceDate;
+        private final List<CoordinateBounds> requestedBounds = new ArrayList<>();
+
+        private FakeGoodPriceStoreRepository(List<GoodPriceStore> stores, LocalDate latestSourceDate) {
+            this.stores = stores;
+            this.latestSourceDate = latestSourceDate;
+        }
+
+        @Override
+        public List<GoodPriceStore> findAllWithin(CoordinateBounds bounds) {
+            requestedBounds.add(bounds);
+            return stores;
+        }
+
+        @Override
+        public Optional<LocalDate> findLatestSourceDate() {
+            return Optional.ofNullable(latestSourceDate);
+        }
     }
 }
