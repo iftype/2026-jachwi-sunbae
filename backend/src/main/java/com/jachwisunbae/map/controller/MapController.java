@@ -20,7 +20,6 @@ import java.util.Set;
 @RestController
 @RequestMapping("/api/maps")
 @Tag(name = "Maps", description = "주소 검색과 주변 시설 분석 API")
-@SecurityRequirement(name = "bearerAuth")
 public class MapController {
 
     private final MapService mapService;

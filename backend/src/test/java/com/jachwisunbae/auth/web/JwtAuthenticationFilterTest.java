@@ -61,7 +61,7 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
-    @DisplayName("로그인, 체크 항목 조회, API가 아닌 경로, CORS 사전 요청은 토큰 없이 통과한다")
+    @DisplayName("로그인, 공개 조회, API가 아닌 경로, CORS 사전 요청은 토큰 없이 통과한다")
     void passesPublicRequestsWithoutToken() throws Exception {
         MockHttpServletRequest preflight = request("OPTIONS", "/api/properties");
         preflight.addHeader(HttpHeaders.ORIGIN, "http://localhost:3000");
@@ -69,6 +69,9 @@ class JwtAuthenticationFilterTest {
 
         assertPassed(request("POST", "/api/auth/nickname"));
         assertPassed(request("GET", "/api/check-items"));
+        assertPassed(request("GET", "/api/maps/geocode"));
+        assertPassed(request("GET", "/api/guest/properties"));
+        assertPassed(request("GET", "/api/guest/checklists"));
         assertPassed(request("GET", "/actuator/health"));
         assertPassed(preflight);
     }
@@ -77,6 +80,12 @@ class JwtAuthenticationFilterTest {
     @DisplayName("체크 항목도 조회가 아니면 토큰이 필요하다")
     void requiresTokenForNonGetCheckItems() throws Exception {
         assertUnauthorized(request("POST", "/api/check-items"));
+    }
+
+    @Test
+    @DisplayName("게스트 API도 조회가 아니면 토큰이 필요하다")
+    void requiresTokenForNonGetGuest() throws Exception {
+        assertUnauthorized(request("POST", "/api/guest/properties"));
     }
 
     private void assertPassed(MockHttpServletRequest request) throws Exception {
