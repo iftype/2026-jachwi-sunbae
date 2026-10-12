@@ -17,6 +17,8 @@ services:
       - ./src/main/resources/db/init/002-seed.sql:/docker-entrypoint-initdb.d/002-seed.sql:ro
       - ./docker/mysql/init/003-bus-stops-sample.sql:/docker-entrypoint-initdb.d/003-bus-stops-sample.sql:ro
       - ./docker/mysql/init/004-good-price-stores-sample.sql:/docker-entrypoint-initdb.d/004-good-price-stores-sample.sql:ro
+      - ./docker/mysql/init/005-cctvs-sample.sql:/docker-entrypoint-initdb.d/005-cctvs-sample.sql:ro
+
     healthcheck:
       test: [ "CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD" ]
       interval: 5s
