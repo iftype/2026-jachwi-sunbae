@@ -61,9 +61,9 @@ dev는 `jachwi-sunbae-dev-asg`, prod는 `jachwi-sunbae-prod-asg`를 사용하며
 
 공유 ALB의 443 리스너는 호스트로 요청을 나누며 인증서는 SNI로 함께 연결한다.
 
-| 요청 | 대상 그룹 |
-| --- | --- |
-| `dev-api.jachwi-sunbae.kr` | `jachwi-sunbae-dev-tg` |
+| 요청                                    | 대상 그룹                 |
+| --------------------------------------- | ------------------------- |
+| `dev-api.jachwi-sunbae.kr`              | `jachwi-sunbae-dev-tg`    |
 | 기본 작업 — `api.jachwi-sunbae.kr` 포함 | `jachwi-sunbae-tg` (prod) |
 
 조건에 해당하지 않는 요청도 prod로 간다. dev 규칙을 수정할 때 기본 작업을 바꾸지 않는다.
@@ -199,9 +199,9 @@ AMI 생성은 서비스 중인 EC2 대신 분리한 작업용 인스턴스에서
 
 2026-10-07 확인한 AMI와 자동 복구 배포는 다음과 같다. ASG는 `$Latest` 대신 검증한 시작 템플릿 버전을 명시한다.
 
-| 환경 | AMI | 시작 템플릿 / 버전 | 자동 복구 배포 |
-| --- | --- | --- | --- |
-| dev | `ami-010ffe62c648da620` | `jachwi-sunbae-dev-lt` / `10` | [d-NAY58TW7L](https://ap-northeast-2.console.aws.amazon.com/codesuite/codedeploy/deployments/d-NAY58TW7L?region=ap-northeast-2) |
+| 환경 | AMI                     | 시작 템플릿 / 버전            | 자동 복구 배포                                                                                                                  |
+| ---- | ----------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| dev  | `ami-010ffe62c648da620` | `jachwi-sunbae-dev-lt` / `10` | [d-NAY58TW7L](https://ap-northeast-2.console.aws.amazon.com/codesuite/codedeploy/deployments/d-NAY58TW7L?region=ap-northeast-2) |
 | prod | `ami-0093d03506064b614` | `jachwi-sunbae-prod-lt` / `6` | [d-UVUI5B28L](https://ap-northeast-2.console.aws.amazon.com/codesuite/codedeploy/deployments/d-UVUI5B28L?region=ap-northeast-2) |
 
 prod AMI 이름은 `jachwi-sunbae-prod-vault-base-20261007`이다. 작업용 EC2에서 환경변수·인증 nonce·배포 캐시·앱 로그·명령 이력을 제외하고 앱 자동 시작을 해제한 뒤, 중지 상태에서 생성했다. prod의 CloudWatch 로그 그룹 설정은 유지했다. 새 서버 `i-0aaba75457ce1e3be`가 Vault 설정으로 버전 `1.1.0`을 실행하고 ALB `healthy`가 되는 것을 확인했다.
