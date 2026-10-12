@@ -15,6 +15,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
@@ -135,7 +137,54 @@ class RentalImportAcceptanceTest {
             """, Long.class)).isZero();
     }
 
-    private int runImport(final boolean apply) throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {"--unknown=true", "--apply=true", "unexpected"})
+    void rejectsInvalidOptionsBeforeWritingReports(final String option) throws Exception {
+        assertThat(runImport(false, option)).isNotZero();
+        assertThat(output()).contains("알 수 없는 옵션 또는 옵션 값입니다");
+        assertThat(work.resolve("report")).doesNotExist();
+    }
+
+    @Test
+    void rejectsUnexpectedRowCountBeforeWritingReports() throws Exception {
+        Path csvPath = work.resolve("거래 자료.csv");
+        String csv = Files.readString(csvPath);
+        String additionalRow = csv.lines().skip(1).findFirst().orElseThrow()
+            .replace("source.csv,1", "source.csv,2");
+        Files.writeString(csvPath, csv + additionalRow + "\n");
+
+        assertThat(runImport(true)).isNotZero();
+        assertThat(output()).contains("거래 CSV의 건수가 예상 건수와 일치하지 않습니다");
+        assertThat(work.resolve("report")).doesNotExist();
+        assertThat(admin.queryForObject("SELECT COUNT(*) FROM rental_datasets", Long.class)).isZero();
+    }
+
+    @Test
+    void rejectsContractDateOutsideRequestedPeriodBeforeWritingReports() throws Exception {
+        Path csvPath = work.resolve("거래 자료.csv");
+        Files.writeString(csvPath, Files.readString(csvPath).replace("2026-10-09", "2026-04-08"));
+
+        assertThat(runImport(true)).isNotZero();
+        assertThat(output()).contains("거래 계약일이 요청 기간을 벗어났습니다");
+        assertThat(work.resolve("report")).doesNotExist();
+        assertThat(admin.queryForObject("SELECT COUNT(*) FROM rental_datasets", Long.class)).isZero();
+    }
+
+    @Test
+    void writesUnmatchedReportsAndRejectsImportWithoutChangingDatabase() throws Exception {
+        Path csvPath = work.resolve("거래 자료.csv");
+        Files.writeString(csvPath, Files.readString(csvPath).replace("관악구 신림동", "관악구 미등록동"));
+
+        assertThat(runImport(true)).isNotZero();
+        assertThat(reportStatus()).isEqualTo("UNMATCHED");
+        assertThat(Files.readString(work.resolve("report/unmatched-legal-dongs.csv")))
+            .contains("서울특별시 관악구 미등록동,1");
+        assertThat(output()).contains("미매핑 법정동이 있어 적재하지 않았습니다");
+        assertThat(admin.queryForObject("SELECT COUNT(*) FROM rental_datasets", Long.class)).isZero();
+        assertThat(admin.queryForObject("SELECT COUNT(*) FROM rental_transactions", Long.class)).isZero();
+    }
+
+    private int runImport(final boolean apply, final String... additionalOptions) throws Exception {
         List<String> command = new ArrayList<>(List.of(
             Path.of(System.getProperty("java.home"), "bin", "java").toString(),
             "-Dloader.main=com.jachwisunbae.rental.importer.RentalImportCommand",
@@ -149,6 +198,7 @@ class RentalImportAcceptanceTest {
         if (apply) {
             command.add("--apply");
         }
+        command.addAll(List.of(additionalOptions));
         ProcessBuilder builder = new ProcessBuilder(command).redirectErrorStream(true)
             .redirectOutput(work.resolve("command.log").toFile());
         builder.environment().put("DB_HOST", apply ? MYSQL.getHost() : "unreachable.invalid");

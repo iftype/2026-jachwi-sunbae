@@ -2,6 +2,7 @@ package com.jachwisunbae.rental.importer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jachwisunbae.rental.domain.RentalSnapshot;
+import com.jachwisunbae.rental.domain.RentalTransaction;
 import com.jachwisunbae.rental.repository.JdbcRentalTransactionRepository;
 import com.jachwisunbae.rental.service.RentalImportService;
 import java.io.IOException;
@@ -14,6 +15,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.commons.csv.CSVFormat;
@@ -32,43 +34,108 @@ public class RentalImportCommand {
     );
 
     public static void main(final String[] arguments) throws IOException {
+        DefaultApplicationArguments args = parseArguments(arguments);
+        Path transactionsPath = Path.of(required(args, "transactions"));
+        Path codesPath = Path.of(required(args, "legal-dong-codes"));
+        Path reportDir = Path.of(required(args, "report-dir"));
+        RentalSnapshot snapshot = createSnapshot(args, transactionsPath, codesPath);
+        RentalCsvReader.Result result = readTransactions(transactionsPath, codesPath);
+        validateTransactions(args, snapshot, result);
+        writeUnmatchedReport(reportDir, result.unmatched());
+        String status = importIfRequested(args, snapshot, result);
+        writeReport(reportDir, snapshot, result, status);
+        validateNoUnmatched(result);
+    }
+
+    private static DefaultApplicationArguments parseArguments(final String[] arguments) {
         DefaultApplicationArguments args = new DefaultApplicationArguments(arguments);
+        validateOptions(args);
+        return args;
+    }
+
+    private static void validateOptions(final DefaultApplicationArguments args) {
         if (!OPTIONS.containsAll(args.getOptionNames()) || !args.getNonOptionArgs().isEmpty()
             || (args.containsOption("apply") && !args.getOptionValues("apply").isEmpty())) {
             throw new IllegalArgumentException("알 수 없는 옵션 또는 옵션 값입니다.");
         }
-        Path transactionsPath = Path.of(required(args, "transactions"));
-        Path codesPath = Path.of(required(args, "legal-dong-codes"));
-        Path reportDir = Path.of(required(args, "report-dir"));
-        RentalSnapshot snapshot = new RentalSnapshot(DATASET_KEY, sha256(transactionsPath), sha256(codesPath),
+    }
+
+    private static RentalSnapshot createSnapshot(
+        final DefaultApplicationArguments args, final Path transactionsPath, final Path codesPath
+    ) throws IOException {
+        return new RentalSnapshot(DATASET_KEY, sha256(transactionsPath), sha256(codesPath),
             LocalDate.parse(required(args, "from")), LocalDate.parse(required(args, "to")),
             OffsetDateTime.parse(required(args, "collected-at")).toInstant());
-        RentalCsvReader.Result result = new RentalCsvReader().read(transactionsPath, LegalDongCatalog.load(codesPath));
-        int expectedRows = Integer.parseInt(required(args, "expected-rows"));
-        if (expectedRows <= 0 || result.totalRows() != expectedRows) {
+    }
+
+    private static RentalCsvReader.Result readTransactions(final Path transactionsPath, final Path codesPath)
+        throws IOException {
+        LegalDongCatalog catalog = LegalDongCatalog.load(codesPath);
+        return new RentalCsvReader().read(transactionsPath, catalog);
+    }
+
+    private static void validateTransactions(
+        final DefaultApplicationArguments args, final RentalSnapshot snapshot, final RentalCsvReader.Result result
+    ) {
+        validateExpectedRows(Integer.parseInt(required(args, "expected-rows")), result.totalRows());
+        validateContractDateRange(snapshot, result.transactions());
+    }
+
+    private static void validateExpectedRows(final int expectedRows, final int actualRows) {
+        if (expectedRows <= 0 || actualRows != expectedRows) {
             throw new IllegalArgumentException("거래 CSV의 건수가 예상 건수와 일치하지 않습니다.");
         }
-        if (result.transactions().stream().anyMatch(transaction -> transaction.contractDate().isBefore(snapshot.datasetPeriodStart())
+    }
+
+    private static void validateContractDateRange(
+        final RentalSnapshot snapshot, final List<RentalTransaction> transactions
+    ) {
+        if (transactions.stream().anyMatch(transaction -> transaction.contractDate().isBefore(snapshot.datasetPeriodStart())
             || transaction.contractDate().isAfter(snapshot.datasetPeriodEnd()))) {
             throw new IllegalArgumentException("거래 계약일이 요청 기간을 벗어났습니다.");
         }
-        Files.createDirectories(reportDir);
-        writeUnmatched(reportDir, result.unmatched());
-        String status = "VALIDATED";
+    }
+
+    private static String importIfRequested(
+        final DefaultApplicationArguments args, final RentalSnapshot snapshot, final RentalCsvReader.Result result
+    ) {
         if (!result.unmatched().isEmpty()) {
-            status = "UNMATCHED";
-        } else if (args.containsOption("apply")) {
-            DriverManagerDataSource dataSource = new DriverManagerDataSource(databaseUrl(),
-                System.getenv().getOrDefault("DB_USERNAME", "jachwi_sunbae"),
-                System.getenv().getOrDefault("DB_PASSWORD", "local_password"));
-            JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
-            new RentalSchemaValidator().validate(jdbcTemplate);
-            JdbcRentalTransactionRepository repository = new JdbcRentalTransactionRepository(jdbcTemplate);
-            RentalImportService service = new RentalImportService(repository,
-                new TransactionTemplate(new DataSourceTransactionManager(dataSource)));
-            status = service.importSnapshot(snapshot, result.transactions()) ? "IMPORTED" : "UNCHANGED";
+            return "UNMATCHED";
         }
-        Map<String, Object> report = Map.of(
+        if (!args.containsOption("apply")) {
+            return "VALIDATED";
+        }
+        if (importSnapshot(snapshot, result.transactions())) {
+            return "IMPORTED";
+        }
+        return "UNCHANGED";
+    }
+
+    private static boolean importSnapshot(final RentalSnapshot snapshot, final List<RentalTransaction> transactions) {
+        DriverManagerDataSource dataSource = new DriverManagerDataSource(databaseUrl(),
+            System.getenv().getOrDefault("DB_USERNAME", "jachwi_sunbae"),
+            System.getenv().getOrDefault("DB_PASSWORD", "local_password"));
+        JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+        new RentalSchemaValidator().validate(jdbcTemplate);
+        JdbcRentalTransactionRepository repository = new JdbcRentalTransactionRepository(jdbcTemplate);
+        RentalImportService service = new RentalImportService(repository,
+            new TransactionTemplate(new DataSourceTransactionManager(dataSource)));
+        return service.importSnapshot(snapshot, transactions);
+    }
+
+    private static void writeReport(
+        final Path reportDir, final RentalSnapshot snapshot, final RentalCsvReader.Result result, final String status
+    ) throws IOException {
+        Map<String, Object> report = createReport(snapshot, result, status);
+        String json = new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(report);
+        Files.writeString(reportDir.resolve("import-report.json"), json + "\n", StandardCharsets.UTF_8);
+        System.out.println(json);
+    }
+
+    private static Map<String, Object> createReport(
+        final RentalSnapshot snapshot, final RentalCsvReader.Result result, final String status
+    ) {
+        return Map.of(
             "status", status, "datasetKey", DATASET_KEY, "inputRows", result.totalRows(),
             "mappedRows", result.transactions().size(), "unmatchedNames", result.unmatched().size(),
             "legalDongCount", result.transactions().stream().map(transaction -> transaction.legalDong().code()).distinct().count(),
@@ -76,9 +143,9 @@ public class RentalImportCommand {
             "collectedAt", snapshot.collectedAt().toString(),
             "contractPeriod", snapshot.datasetPeriodStart() + "~" + snapshot.datasetPeriodEnd()
         );
-        String json = new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(report);
-        Files.writeString(reportDir.resolve("import-report.json"), json + "\n", StandardCharsets.UTF_8);
-        System.out.println(json);
+    }
+
+    private static void validateNoUnmatched(final RentalCsvReader.Result result) {
         if (!result.unmatched().isEmpty()) {
             throw new IllegalArgumentException("미매핑 법정동이 있어 적재하지 않았습니다. unmatched-legal-dongs.csv를 확인하세요.");
         }
@@ -114,7 +181,9 @@ public class RentalImportCommand {
         }
     }
 
-    private static void writeUnmatched(final Path reportDir, final Map<String, Integer> unmatched) throws IOException {
+    private static void writeUnmatchedReport(final Path reportDir, final Map<String, Integer> unmatched)
+        throws IOException {
+        Files.createDirectories(reportDir);
         try (CSVPrinter printer = CSVFormat.DEFAULT.builder().setHeader("legal_dong", "transaction_count")
             .get().print(reportDir.resolve("unmatched-legal-dongs.csv"), StandardCharsets.UTF_8)) {
             for (var entry : unmatched.entrySet()) {
