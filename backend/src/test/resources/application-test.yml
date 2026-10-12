@@ -4,7 +4,6 @@ spring:
       mode: always
       schema-locations:
         - classpath:db/init/001-schema.sql
-        - classpath:db/init/003-rental-schema.sql
       data-locations: classpath:db/init/002-seed.sql
 
 auth:

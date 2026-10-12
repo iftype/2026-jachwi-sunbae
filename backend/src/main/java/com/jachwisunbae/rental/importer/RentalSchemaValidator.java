@@ -11,7 +11,7 @@ public class RentalSchemaValidator {
         "rental_datasets", "dataset_key, transaction_sha256, legal_dong_sha256, contract_from, contract_to, "
             + "collected_at, imported_at, row_count",
         "rental_transactions", "id, dataset_key, legal_dong_code, housing_type, deposit_amount_krw, "
-            + "monthly_rent_amount_krw, area_m2, area_basis, contract_date, contract_type, building_name, "
+            + "monthly_rent_amount_krw, area_m2, contract_date, contract_type, building_name, "
             + "floor, contract_period, source_file, source_row_number"
     );
 
@@ -28,7 +28,7 @@ public class RentalSchemaValidator {
             """, String.class);
         if (!tables.containsAll(REQUIRED_COLUMNS.keySet())) {
             throw new IllegalStateException("월세 적재용 InnoDB 테이블이 준비되지 않았습니다. "
-                + "관리자 계정으로 003-rental-schema.sql을 별도 적용해 주세요.");
+                + "관리자 계정으로 001-schema.sql의 월세 테이블 정의를 적용해 주세요.");
         }
     }
 

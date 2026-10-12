@@ -156,7 +156,7 @@ class RentalTransactionAcceptanceTest {
     @Test
     void preservesContractAreaForDetachedHomesAndExclusiveAreaForOfficetels() throws Exception {
         jdbc.update("""
-            UPDATE rental_transactions SET housing_type = 'DETACHED', area_basis = 'CONTRACT'
+            UPDATE rental_transactions SET housing_type = 'DETACHED'
             WHERE source_row_number = 4
             """);
         jdbc.update("UPDATE rental_transactions SET housing_type = 'OFFICETEL' WHERE source_row_number = 3");
@@ -226,9 +226,9 @@ class RentalTransactionAcceptanceTest {
     private void insert(final String contractDate, final long rowNumber) {
         jdbc.update("""
             INSERT INTO rental_transactions (dataset_key, legal_dong_code, housing_type, deposit_amount_krw,
-                monthly_rent_amount_krw, area_m2, area_basis, contract_date, contract_type,
+                monthly_rent_amount_krw, area_m2, contract_date, contract_type,
                 building_name, floor, contract_period, source_file, source_row_number)
-            VALUES ('seoul-eastern-gyeonggi', '1162010200', 'ROWHOUSE', 5000000, 450000, 20, 'EXCLUSIVE', ?, 'NEW',
+            VALUES ('seoul-eastern-gyeonggi', '1162010200', 'ROWHOUSE', 5000000, 450000, 20, ?, 'NEW',
                 '신림빌라', '3', '', 'raw/source.csv', ?)
             """, contractDate, rowNumber);
     }

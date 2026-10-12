@@ -18,11 +18,12 @@ public record RentalTransaction(
 ) {
     public RentalTransaction {
         Objects.requireNonNull(legalDong);
+        Objects.requireNonNull(housingType);
         Objects.requireNonNull(price);
         Objects.requireNonNull(area);
         Objects.requireNonNull(source);
         Objects.requireNonNull(contractType);
-        if ((housingType == HousingType.DETACHED) != (area.areaBasis() == AreaBasis.CONTRACT)) {
+        if (housingType.areaBasis() != area.areaBasis()) {
             throw new IllegalArgumentException("주택 유형과 면적 기준이 일치하지 않습니다.");
         }
         if (buildingName.length() > 255

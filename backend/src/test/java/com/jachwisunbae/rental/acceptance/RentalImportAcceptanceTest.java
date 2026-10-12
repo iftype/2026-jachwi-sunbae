@@ -49,7 +49,7 @@ class RentalImportAcceptanceTest {
         admin.execute("DROP TABLE IF EXISTS rental_transactions");
         admin.execute("DROP TABLE IF EXISTS rental_datasets");
         admin.execute("DROP TABLE IF EXISTS legal_dongs");
-        new ResourceDatabasePopulator(new ClassPathResource("db/init/003-rental-schema.sql")).execute(adminSource);
+        new ResourceDatabasePopulator(new ClassPathResource("db/init/001-schema.sql")).execute(adminSource);
         Files.writeString(work.resolve("법정동 코드.txt"),
             "법정동코드\t법정동명\t폐지여부\n1162010200\t서울특별시 관악구 신림동\t존재\n",
             Charset.forName("MS949"));
@@ -133,7 +133,9 @@ class RentalImportAcceptanceTest {
         assertThat(runImport(false)).isZero();
         assertThat(reportStatus()).isEqualTo("VALIDATED");
         assertThat(admin.queryForObject("""
-            SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()
+            SELECT COUNT(*) FROM information_schema.TABLES
+            WHERE TABLE_SCHEMA = DATABASE()
+                AND TABLE_NAME IN ('legal_dongs', 'rental_datasets', 'rental_transactions')
             """, Long.class)).isZero();
     }
 
@@ -167,6 +169,16 @@ class RentalImportAcceptanceTest {
         assertThat(runImport(true)).isNotZero();
         assertThat(output()).contains("거래 계약일이 요청 기간을 벗어났습니다");
         assertThat(work.resolve("report")).doesNotExist();
+        assertThat(admin.queryForObject("SELECT COUNT(*) FROM rental_datasets", Long.class)).isZero();
+    }
+
+    @Test
+    void rejectsAreaBasisThatDoesNotMatchHousingTypeBeforeImport() throws Exception {
+        Path csvPath = work.resolve("거래 자료.csv");
+        Files.writeString(csvPath, Files.readString(csvPath).replace(",exclusive,", ",contract,"));
+
+        assertThat(runImport(true)).isNotZero();
+        assertThat(output()).contains("주택 유형과 면적 기준이 일치하지 않습니다");
         assertThat(admin.queryForObject("SELECT COUNT(*) FROM rental_datasets", Long.class)).isZero();
     }
 

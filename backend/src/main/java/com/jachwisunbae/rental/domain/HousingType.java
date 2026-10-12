@@ -4,14 +4,20 @@ import java.util.Arrays;
 
 // 지원하는 주택 유형을 구분한다.
 public enum HousingType {
-    ROWHOUSE("연립다세대"),
-    DETACHED("단독다가구"),
-    OFFICETEL("오피스텔");
+    ROWHOUSE("연립다세대", AreaBasis.EXCLUSIVE),
+    DETACHED("단독다가구", AreaBasis.CONTRACT),
+    OFFICETEL("오피스텔", AreaBasis.EXCLUSIVE);
 
     private final String sourceValue;
+    private final AreaBasis areaBasis;
 
-    HousingType(final String sourceValue) {
+    HousingType(final String sourceValue, final AreaBasis areaBasis) {
         this.sourceValue = sourceValue;
+        this.areaBasis = areaBasis;
+    }
+
+    public AreaBasis areaBasis() {
+        return areaBasis;
     }
 
     public static HousingType fromSourceValue(final String sourceValue) {

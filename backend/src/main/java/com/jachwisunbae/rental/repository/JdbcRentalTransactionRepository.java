@@ -2,7 +2,6 @@ package com.jachwisunbae.rental.repository;
 
 import com.jachwisunbae.common.exception.errorcode.ErrorCode;
 import com.jachwisunbae.common.exception.server.DataInconsistencyException;
-import com.jachwisunbae.rental.domain.AreaBasis;
 import com.jachwisunbae.rental.domain.ContractType;
 import com.jachwisunbae.rental.domain.HousingType;
 import com.jachwisunbae.rental.domain.LegalDong;
@@ -73,9 +72,9 @@ public class JdbcRentalTransactionRepository {
         jdbcTemplate.batchUpdate("""
             INSERT INTO rental_transactions
                 (dataset_key, legal_dong_code, housing_type, deposit_amount_krw, monthly_rent_amount_krw,
-                 area_m2, area_basis, contract_date, contract_type, building_name, floor,
+                 area_m2, contract_date, contract_type, building_name, floor,
                  contract_period, source_file, source_row_number)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, transactions, 1000, (statement, transaction) -> {
                 statement.setString(1, datasetKey);
                 statement.setString(2, transaction.legalDong().code());
@@ -83,14 +82,13 @@ public class JdbcRentalTransactionRepository {
                 statement.setLong(4, transaction.price().depositAmountKrw());
                 statement.setLong(5, transaction.price().monthlyRentAmountKrw());
                 statement.setBigDecimal(6, transaction.area().areaM2());
-                statement.setString(7, transaction.area().areaBasis().name());
-                statement.setObject(8, transaction.contractDate());
-                statement.setString(9, transaction.contractType().name());
-                statement.setString(10, transaction.buildingName());
-                statement.setString(11, transaction.floor());
-                statement.setString(12, transaction.contractPeriod());
-                statement.setString(13, transaction.source().sourceFile());
-                statement.setLong(14, transaction.source().sourceRowNumber());
+                statement.setObject(7, transaction.contractDate());
+                statement.setString(8, transaction.contractType().name());
+                statement.setString(9, transaction.buildingName());
+                statement.setString(10, transaction.floor());
+                statement.setString(11, transaction.contractPeriod());
+                statement.setString(12, transaction.source().sourceFile());
+                statement.setLong(13, transaction.source().sourceRowNumber());
             });
     }
 
@@ -157,11 +155,12 @@ public class JdbcRentalTransactionRepository {
 
     private RentalTransaction restoreTransaction(final ResultSet rs) throws SQLException {
         try {
+            HousingType housingType = HousingType.valueOf(rs.getString("housing_type"));
             return new RentalTransaction(
                 new LegalDong(rs.getString("legal_dong_code"), rs.getString("legal_dong_name")),
-                HousingType.valueOf(rs.getString("housing_type")),
+                housingType,
                 new RentalPrice(rs.getLong("deposit_amount_krw"), rs.getLong("monthly_rent_amount_krw")),
-                new RentalArea(rs.getBigDecimal("area_m2"), AreaBasis.valueOf(rs.getString("area_basis"))),
+                new RentalArea(rs.getBigDecimal("area_m2"), housingType.areaBasis()),
                 rs.getDate("contract_date").toLocalDate(),
                 ContractType.valueOf(rs.getString("contract_type")), rs.getString("building_name"), rs.getString("floor"),
                 rs.getString("contract_period"), new RentalSource(rs.getString("source_file"), rs.getLong("source_row_number"))
