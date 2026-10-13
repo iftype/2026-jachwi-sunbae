@@ -9,6 +9,7 @@ import com.jachwisunbae.transit.domain.GtfsStop;
 import com.jachwisunbae.transit.domain.GtfsTransfer;
 import com.jachwisunbae.transit.domain.vo.Coordinate;
 import com.jachwisunbae.transit.domain.vo.Seconds;
+import java.util.ArrayList;
 import java.util.List;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeAll;
@@ -103,7 +104,9 @@ class JdbcGtfsNetworkRepositoryTest {
 
         assertThat(repository.findRoutes())
                 .containsExactly(new GtfsRoute("R1", "1호선", "서울 1호선", 1, new Seconds(240)));
-        assertThat(repository.findEdges()).containsExactly(new GtfsEdge("R1", "S1", "S2", new Seconds(120)));
+        List<GtfsEdge> edges = new ArrayList<>();
+        repository.forEachEdge(edges::add);
+        assertThat(edges).containsExactly(new GtfsEdge("R1", "S1", "S2", new Seconds(120)));
         assertThat(repository.findTransfers()).containsExactly(new GtfsTransfer("S2", "S1", new Seconds(180)));
     }
 }

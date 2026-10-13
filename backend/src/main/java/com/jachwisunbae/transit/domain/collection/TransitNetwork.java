@@ -54,42 +54,31 @@ public final class TransitNetwork {
 
     public TransitNetwork(final List<GtfsStop> stops, final List<GtfsRoute> routes,
                           final List<GtfsEdge> edges, final List<GtfsTransfer> transfers) {
-        this.stops = List.copyOf(stops);
-        this.stopIndexes = indexStops(this.stops);
-        this.routes = List.copyOf(routes);
-        Map<String, Integer> routeIndexes = new HashMap<>();
+        this(collect(stops, routes, edges, transfers));
+    }
+
+    private TransitNetwork(final Builder builder) {
+        this.stops = builder.stops;
+        this.stopIndexes = builder.stopIndexes;
+        this.routes = builder.routes;
         this.waitSeconds = new int[routes.size()];
         this.railRoutes = new boolean[routes.size()];
         for (int route = 0; route < routes.size(); route++) {
-            routeIndexes.put(routes.get(route).routeId(), route);
             waitSeconds[route] = routes.get(route).waitTime().value();
             railRoutes[route] = routes.get(route).routeType() == RAIL_ROUTE_TYPE;
         }
 
-        int linkCount = edges.size() + transfers.size();
-        int[] from = new int[linkCount];
-        int[] to = new int[linkCount];
-        int[] route = new int[linkCount];
-        int[] seconds = new int[linkCount];
-        this.railStops = new boolean[this.stops.size()];
-        for (int i = 0; i < edges.size(); i++) {
-            GtfsEdge edge = edges.get(i);
-            from[i] = stopIndex(edge.fromStopId());
-            to[i] = stopIndex(edge.toStopId());
-            route[i] = routeIndex(routeIndexes, edge.routeId());
-            seconds[i] = edge.travelTime().value();
-            if (railRoutes[route[i]]) {
-                railStops[from[i]] = true;
-                railStops[to[i]] = true;
+        int linkCount = builder.size;
+        int[] from = builder.from;
+        int[] to = builder.to;
+        int[] route = builder.route;
+        int[] seconds = builder.seconds;
+        this.railStops = new boolean[stops.size()];
+        for (int link = 0; link < linkCount; link++) {
+            if (route[link] != TRANSFER && railRoutes[route[link]]) {
+                railStops[from[link]] = true;
+                railStops[to[link]] = true;
             }
-        }
-        for (int i = 0; i < transfers.size(); i++) {
-            GtfsTransfer transfer = transfers.get(i);
-            int link = edges.size() + i;
-            from[link] = stopIndex(transfer.fromStopId());
-            to[link] = stopIndex(transfer.toStopId());
-            route[link] = TRANSFER;
-            seconds[link] = transfer.transferTime().value();
         }
 
         this.incomingStart = groupStart(to, linkCount);
@@ -103,6 +92,19 @@ public final class TransitNetwork {
         this.outgoingTo = pick(to, outgoingOrder);
         this.outgoingRoute = pick(route, outgoingOrder);
         this.outgoingSeconds = pick(seconds, outgoingOrder);
+    }
+
+    // 구간을 한 개씩 받아 노선망을 만든다. 117만 개 구간을 목록으로 모으지 않고 DB에서 읽는 대로 번호 배열에 담는다.
+    public static Builder builder(final List<GtfsStop> stops, final List<GtfsRoute> routes) {
+        return new Builder(stops, routes);
+    }
+
+    private static Builder collect(final List<GtfsStop> stops, final List<GtfsRoute> routes,
+                                   final List<GtfsEdge> edges, final List<GtfsTransfer> transfers) {
+        Builder builder = builder(stops, routes);
+        edges.forEach(builder::addEdge);
+        transfers.forEach(builder::addTransfer);
+        return builder;
     }
 
     public boolean hasStop(final String stopId) {
@@ -321,21 +323,7 @@ public final class TransitNetwork {
         return index;
     }
 
-    private static int routeIndex(final Map<String, Integer> routeIndexes, final String routeId) {
-        Integer index = routeIndexes.get(routeId);
-        if (index == null) {
-            throw new IllegalArgumentException("노선망에 없는 노선입니다. routeId=" + routeId);
-        }
-        return index;
-    }
 
-    private static Map<String, Integer> indexStops(final List<GtfsStop> stops) {
-        Map<String, Integer> indexes = new HashMap<>();
-        for (int i = 0; i < stops.size(); i++) {
-            indexes.put(stops.get(i).stopId(), i);
-        }
-        return indexes;
-    }
 
     // keys[0 .. count)를 정류장 번호로 묶었을 때 각 정류장 묶음이 시작하는 위치다.
     private int[] groupStart(final int[] keys, final int count) {
@@ -364,6 +352,71 @@ public final class TransitNetwork {
             picked[i] = values[order[i]];
         }
         return picked;
+    }
+
+    public static final class Builder {
+
+        private static final int INITIAL_CAPACITY = 1 << 16;
+
+        private final List<GtfsStop> stops;
+        private final Map<String, Integer> stopIndexes = new HashMap<>();
+        private final List<GtfsRoute> routes;
+        private final Map<String, Integer> routeIndexes = new HashMap<>();
+        private int[] from = new int[INITIAL_CAPACITY];
+        private int[] to = new int[INITIAL_CAPACITY];
+        private int[] route = new int[INITIAL_CAPACITY];
+        private int[] seconds = new int[INITIAL_CAPACITY];
+        private int size;
+
+        private Builder(final List<GtfsStop> stops, final List<GtfsRoute> routes) {
+            this.stops = List.copyOf(stops);
+            this.routes = List.copyOf(routes);
+            for (int i = 0; i < this.stops.size(); i++) {
+                stopIndexes.put(this.stops.get(i).stopId(), i);
+            }
+            for (int i = 0; i < this.routes.size(); i++) {
+                routeIndexes.put(this.routes.get(i).routeId(), i);
+            }
+        }
+
+        public void addEdge(final GtfsEdge edge) {
+            Integer routeIndex = routeIndexes.get(edge.routeId());
+            if (routeIndex == null) {
+                throw new IllegalArgumentException("노선망에 없는 노선입니다. routeId=" + edge.routeId());
+            }
+            add(stopIndex(edge.fromStopId()), stopIndex(edge.toStopId()), routeIndex, edge.travelTime());
+        }
+
+        public void addTransfer(final GtfsTransfer transfer) {
+            add(stopIndex(transfer.fromStopId()), stopIndex(transfer.toStopId()), TRANSFER,
+                    transfer.transferTime());
+        }
+
+        public TransitNetwork build() {
+            return new TransitNetwork(this);
+        }
+
+        private void add(final int fromStop, final int toStop, final int routeIndex, final Seconds time) {
+            if (size == from.length) {
+                from = Arrays.copyOf(from, size * 2);
+                to = Arrays.copyOf(to, size * 2);
+                route = Arrays.copyOf(route, size * 2);
+                seconds = Arrays.copyOf(seconds, size * 2);
+            }
+            from[size] = fromStop;
+            to[size] = toStop;
+            route[size] = routeIndex;
+            seconds[size] = time.value();
+            size++;
+        }
+
+        private int stopIndex(final String stopId) {
+            Integer index = stopIndexes.get(stopId);
+            if (index == null) {
+                throw new IllegalArgumentException("노선망에 없는 정류장입니다. stopId=" + stopId);
+            }
+            return index;
+        }
     }
 
     // route는 이 정류장에서 목적지 쪽으로 타고 가는 노선이다. 걸어서 이어지면 TRANSFER다.
