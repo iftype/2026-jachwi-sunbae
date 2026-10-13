@@ -63,6 +63,13 @@ const renderRoutes = (path: string) => {
 };
 
 describe('닉네임 인증 흐름', () => {
+  it('비인증 사용자도 동네 찾기 시안과 공통 하단탭을 볼 수 있다', async () => {
+    renderRoutes('/neighborhoods');
+
+    expect(await screen.findByRole('heading', { name: '자취할 동네를 찾아보세요' })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: '주요 메뉴' })).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: '이름 또는 닉네임' })).not.toBeInTheDocument();
+  });
   it('공개 소개 화면에서 핵심 가치와 사용 방법을 확인하고 닉네임 시작 화면으로 이동한다', async () => {
     const user = userEvent.setup();
     renderRoutes('/intro');

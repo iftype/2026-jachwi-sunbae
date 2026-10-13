@@ -167,3 +167,9 @@
   min-height: 100%;
   padding: 1rem;
 }
+.regionBoundary:hover {
+  fill-opacity: 0.34;
+}
+.regionBoundary[fill-opacity='0.5']:hover {
+  fill-opacity: 0.6;
+}

@@ -33,6 +33,8 @@ export const getPublicConfig = (): PublicConfig => {
 
   return {
     apiBaseUrl: requireHttpUrl(typeof __API_BASE_URL__ === 'string' ? __API_BASE_URL__ : '', 'API_BASE_URL'),
+    commuteDataSource: typeof __COMMUTE_DATA_SOURCE__ === 'string' ? __COMMUTE_DATA_SOURCE__ : 'server',
+    boundaryBaseUrl: typeof __ADMIN_BOUNDARY_BASE_URL__ === 'string' ? __ADMIN_BOUNDARY_BASE_URL__ : '/boundaries',
     mapProviderMode,
     naverMapClientId: typeof __NAVER_MAP_CLIENT_ID__ === 'string' ? __NAVER_MAP_CLIENT_ID__.trim() : '',
     posthogProjectToken: typeof __POSTHOG_PROJECT_TOKEN__ === 'string' ? __POSTHOG_PROJECT_TOKEN__.trim() : '',

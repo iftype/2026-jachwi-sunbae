@@ -1,5 +1,7 @@
 export type PublicConfig = {
   apiBaseUrl: string;
+  commuteDataSource?: 'mock' | 'server';
+  boundaryBaseUrl?: string;
   mapProviderMode?: 'demo' | 'naver';
   naverMapClientId?: string;
   posthogProjectToken?: string;

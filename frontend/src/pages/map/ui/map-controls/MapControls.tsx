@@ -1,8 +1,8 @@
 import type { MapLocationFailure } from '@/features/map/lib/mapLocation';
 import type { MapCategory } from '@/features/map/model/Map';
 import MapCategoryRail from '@/features/map/ui/map-category-rail/MapCategoryRail';
+import MapCurrentLocationButton from '@/features/map/ui/map-current-location-button/MapCurrentLocationButton';
 import MapRadiusSelector from '@/features/map/ui/map-radius-selector/MapRadiusSelector';
-import Icon from '@/shared/ui/icon/Icon';
 import PageAction from '@/shared/ui/page-action/PageAction';
 
 import { type MapRadius, RADIUS_OPTIONS, radiusLabel } from '../../lib/mapRadius';
@@ -70,15 +70,7 @@ const MapControls = ({
         permission={locationPermission}
         onRetry={onMoveToCurrentLocation}
       />
-      <button
-        type="button"
-        className={styles.currentLocationButton}
-        aria-label="내 현재 위치로 이동"
-        disabled={locationStatus === 'locating'}
-        onClick={onMoveToCurrentLocation}
-      >
-        <Icon name="target" size={22} />
-      </button>
+      <MapCurrentLocationButton isLocating={locationStatus === 'locating'} onClick={onMoveToCurrentLocation} />
     </div>
     {!isAddMode && (
       <div className={styles.addPropertyAction}>

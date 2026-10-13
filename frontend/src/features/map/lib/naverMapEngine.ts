@@ -39,7 +39,7 @@ const loadNaverSdk = (clientId: string): Promise<void> => {
     const script = document.createElement('script');
     script.dataset.jachwiNaverMap = 'true';
     script.async = true;
-    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${encodeURIComponent(clientId)}`;
+    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${encodeURIComponent(clientId)}&submodules=gl`;
     script.addEventListener('load', ready, { once: true });
     script.addEventListener(
       'error',
@@ -77,12 +77,13 @@ type LiveLatLng = NaverLatLng;
 export type LiveMap = NaverMap;
 export type LiveOverlay = NaverOverlay;
 
-export const naverEngine = (clientId: string): LiveEngine => ({
+export const naverEngine = (clientId: string, customStyleId?: string): LiveEngine => ({
   label: 'Naver 지도',
   load: () => loadNaverSdk(clientId),
   createMap: (container, center, level) => {
     const start = clampToSouthKorea(center);
     return new window.naver!.maps.Map(container, {
+      ...(customStyleId ? { gl: true, customStyleId } : {}),
       center: new window.naver!.maps.LatLng(start.latitude, start.longitude),
       zoom: toNaverZoom(level),
       // 남한 밖으로는 옮기지도 줄이지도 못하게 막는다.
