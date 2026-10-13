@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class CommuteAreaService {
@@ -25,8 +24,7 @@ public class CommuteAreaService {
         this.transitNetworkCache = transitNetworkCache;
     }
 
-    // 처음 요청에서 노선망을 읽을 때 적재와 겹쳐도 한 시점의 노선망을 읽도록 읽기 트랜잭션으로 묶는다.
-    @Transactional(readOnly = true)
+    // 노선망은 메모리에 두고 계산만 하므로 트랜잭션을 열지 않는다. 처음 읽을 때만 TransitNetworkLoader가 연다.
     public CommuteAreaSearchResult search(final Coordinate destination, final int maxMinutes,
                                           final int maxTransfers) {
         TransitNetwork network = transitNetworkCache.get();

@@ -25,7 +25,7 @@ class CommuteRouteServiceTest {
     private static final Coordinate DESTINATION = new Coordinate(37.5000, 127.0000);
 
     private final InMemoryGtfsNetworkRepository networkRepository = new InMemoryGtfsNetworkRepository();
-    private final CommuteRouteService service = new CommuteRouteService(new TransitNetworkCache(networkRepository));
+    private final CommuteRouteService service = new CommuteRouteService(new TransitNetworkCache(new TransitNetworkLoader(networkRepository)));
 
     @BeforeEach
     void setUp() {

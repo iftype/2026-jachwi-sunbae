@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 class TransitNetworkCacheTest {
 
     private final InMemoryGtfsNetworkRepository repository = new InMemoryGtfsNetworkRepository();
-    private final TransitNetworkCache cache = new TransitNetworkCache(repository);
+    private final TransitNetworkCache cache = new TransitNetworkCache(new TransitNetworkLoader(repository));
 
     @Test
     @DisplayName("노선망은 처음 한 번만 DB에서 읽고 이후에는 메모리의 노선망을 쓴다")
