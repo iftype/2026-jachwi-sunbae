@@ -18,12 +18,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.PriorityQueue;
 
 // 전국 노선망에서 목적지까지 제한 시간 안에 갈 수 있는 정류장과, 정류장 하나에서 목적지까지의 경로를 찾는다.
 // 생활권 탐색은 목적지에서 출발해 구간을 거꾸로 따라가며 정류장마다 가장 짧은 통근 시간을 구하고(다익스트라),
 // 경로 안내는 같은 규칙으로 출발 정류장에서 목적지 쪽으로 따라가며 지나온 구간을 기록한다.
-// 정류장 21만 개, 구간 117만 개를 다루므로 정류장과 노선을 번호로 바꿔 배열에 담는다.
+// 정류장 21만 개, 구간 117만 개를 다루므로 정류장과 노선을 번호로 바꿔 배열에 담고,
+// 탐색 상태도 객체 없이 SearchStates·StateHeap의 원시 배열로 다룬다.
 public final class TransitNetwork {
 
     public static final double WALKING_METERS_PER_SECOND = 1.2;
@@ -39,6 +39,7 @@ public final class TransitNetwork {
     private final int[] waitSeconds;
     private final boolean[] railRoutes;
     private final boolean[] railStops;
+    private final StopGrid stopGrid;
 
     // 정류장 i에 도착하는 구간·환승은 incoming[incomingStart[i] .. incomingStart[i + 1]) 이다.
     private final int[] incomingStart;
@@ -92,6 +93,7 @@ public final class TransitNetwork {
         this.outgoingTo = pick(to, outgoingOrder);
         this.outgoingRoute = pick(route, outgoingOrder);
         this.outgoingSeconds = pick(seconds, outgoingOrder);
+        this.stopGrid = new StopGrid(stops);
     }
 
     // 구간을 한 개씩 받아 노선망을 만든다. 117만 개 구간을 목록으로 모으지 않고 DB에서 읽는 대로 번호 배열에 담는다.
@@ -119,39 +121,47 @@ public final class TransitNetwork {
     // 노선에 탈 때마다 그 노선의 대기 시간을 더하고, 환승 횟수(탑승 횟수 - 1)가 maxTransfers를 넘는 경로는 버린다.
     public List<ReachableStop> reachableStops(final Coordinate destination, final Seconds limit,
                                               final int maxTransfers) {
-        Map<State, Integer> stateSeconds = new HashMap<>();
+        validateTransfers(maxTransfers);
+        SearchStates states = new SearchStates();
+        StateHeap heap = new StateHeap();
         int[] bestSeconds = new int[stops.size()];
         Arrays.fill(bestSeconds, Integer.MAX_VALUE);
-        PriorityQueue<QueueEntry> queue = new PriorityQueue<>(Comparator.comparingInt(QueueEntry::seconds));
 
         arrivalWalkSeconds(destination).forEach((stop, seconds) -> {
             if (seconds <= limit.value()) {
-                State state = new State(stop, TRANSFER, 0);
-                stateSeconds.put(state, seconds);
+                int state = states.findOrInsert(SearchStates.key(stop, TRANSFER, 0));
+                states.update(state, seconds, SearchStates.NONE, SearchStates.NONE, 0);
                 bestSeconds[stop] = Math.min(bestSeconds[stop], seconds);
-                queue.add(new QueueEntry(state, seconds));
+                heap.push(state, seconds);
             }
         });
 
-        while (!queue.isEmpty()) {
-            QueueEntry current = queue.poll();
-            State state = current.state();
-            if (current.seconds() != stateSeconds.get(state)) {
+        while (!heap.isEmpty()) {
+            int state = heap.topState();
+            int current = heap.topSeconds();
+            heap.removeTop();
+            if (current != states.seconds(state)) {
                 continue;
             }
-            for (int link = incomingStart[state.stop()]; link < incomingStart[state.stop() + 1]; link++) {
+            int stop = states.stop(state);
+            int currentRoute = states.route(state);
+            int currentBoardings = states.boardings(state);
+            for (int link = incomingStart[stop]; link < incomingStart[stop + 1]; link++) {
                 int route = incomingRoute[link];
-                boolean boarding = route != TRANSFER && route != state.route();
-                int boardings = state.boardings() + (boarding ? 1 : 0);
+                boolean boarding = route != TRANSFER && route != currentRoute;
+                int boardings = currentBoardings + (boarding ? 1 : 0);
                 if (boardings - 1 > maxTransfers) {
                     continue;
                 }
-                int seconds = current.seconds() + incomingSeconds[link] + (boarding ? waitSeconds[route] : 0);
-                State next = new State(incomingFrom[link], route, boardings);
-                if (seconds <= limit.value() && seconds < stateSeconds.getOrDefault(next, Integer.MAX_VALUE)) {
-                    stateSeconds.put(next, seconds);
-                    bestSeconds[next.stop()] = Math.min(bestSeconds[next.stop()], seconds);
-                    queue.add(new QueueEntry(next, seconds));
+                int seconds = current + incomingSeconds[link] + (boarding ? waitSeconds[route] : 0);
+                if (seconds > limit.value()) {
+                    continue;
+                }
+                int next = states.findOrInsert(SearchStates.key(incomingFrom[link], route, boardings));
+                if (seconds < states.seconds(next)) {
+                    states.update(next, seconds, SearchStates.NONE, SearchStates.NONE, 0);
+                    bestSeconds[incomingFrom[link]] = Math.min(bestSeconds[incomingFrom[link]], seconds);
+                    heap.push(next, seconds);
                 }
             }
         }
@@ -162,65 +172,73 @@ public final class TransitNetwork {
     // 걷는 시간까지 더해 가장 빨리 목적지에 닿는 경로를 찾는다. 같은 규칙이므로 생활권 탐색의 통근 시간과 같다.
     public Optional<CommuteRoute> route(final String originStopId, final Coordinate destination, final Seconds limit,
                                         final int maxTransfers) {
+        validateTransfers(maxTransfers);
         Map<Integer, Integer> walkSeconds = arrivalWalkSeconds(destination);
-        Map<State, Integer> stateSeconds = new HashMap<>();
-        Map<State, Step> previousSteps = new HashMap<>();
-        PriorityQueue<QueueEntry> queue = new PriorityQueue<>(Comparator.comparingInt(QueueEntry::seconds));
-        State origin = new State(stopIndex(originStopId), TRANSFER, 0);
-        stateSeconds.put(origin, 0);
-        queue.add(new QueueEntry(origin, 0));
+        SearchStates states = new SearchStates();
+        StateHeap heap = new StateHeap();
+        int origin = states.findOrInsert(SearchStates.key(stopIndex(originStopId), TRANSFER, 0));
+        states.update(origin, 0, SearchStates.NONE, SearchStates.NONE, 0);
+        heap.push(origin, 0);
 
-        State arrival = null;
+        int arrival = SearchStates.NONE;
         int bestSeconds = Integer.MAX_VALUE;
-        while (!queue.isEmpty()) {
-            QueueEntry current = queue.poll();
-            State state = current.state();
-            if (current.seconds() != stateSeconds.get(state)) {
+        while (!heap.isEmpty()) {
+            int state = heap.topState();
+            int current = heap.topSeconds();
+            heap.removeTop();
+            if (current != states.seconds(state)) {
                 continue;
             }
-            if (current.seconds() >= bestSeconds) {
+            if (current >= bestSeconds) {
                 break;
             }
-            Integer walk = walkSeconds.get(state.stop());
-            if (walk != null && current.seconds() + walk <= limit.value() && current.seconds() + walk < bestSeconds) {
+            int stop = states.stop(state);
+            Integer walk = walkSeconds.get(stop);
+            if (walk != null && current + walk <= limit.value() && current + walk < bestSeconds) {
                 arrival = state;
-                bestSeconds = current.seconds() + walk;
+                bestSeconds = current + walk;
             }
-            for (int link = outgoingStart[state.stop()]; link < outgoingStart[state.stop() + 1]; link++) {
+            int currentRoute = states.route(state);
+            int currentBoardings = states.boardings(state);
+            for (int link = outgoingStart[stop]; link < outgoingStart[stop + 1]; link++) {
                 int route = outgoingRoute[link];
-                boolean boarding = route != TRANSFER && route != state.route();
-                int boardings = state.boardings() + (boarding ? 1 : 0);
+                boolean boarding = route != TRANSFER && route != currentRoute;
+                int boardings = currentBoardings + (boarding ? 1 : 0);
                 if (boardings - 1 > maxTransfers) {
                     continue;
                 }
                 int wait = boarding ? waitSeconds[route] : 0;
-                int seconds = current.seconds() + outgoingSeconds[link] + wait;
-                State next = new State(outgoingTo[link], route, boardings);
-                if (seconds <= limit.value() && seconds < stateSeconds.getOrDefault(next, Integer.MAX_VALUE)) {
-                    stateSeconds.put(next, seconds);
-                    previousSteps.put(next, new Step(state, link, wait));
-                    queue.add(new QueueEntry(next, seconds));
+                int seconds = current + outgoingSeconds[link] + wait;
+                if (seconds > limit.value()) {
+                    continue;
+                }
+                int next = states.findOrInsert(SearchStates.key(outgoingTo[link], route, boardings));
+                if (seconds < states.seconds(next)) {
+                    states.update(next, seconds, state, link, wait);
+                    heap.push(next, seconds);
                 }
             }
         }
-        if (arrival == null) {
+        if (arrival == SearchStates.NONE) {
             return Optional.empty();
         }
-        List<RouteLeg> legs = toLegs(arrival, previousSteps);
-        int finalWalkSeconds = walkSeconds.get(arrival.stop());
+        int arrivalStop = states.stop(arrival);
+        List<RouteLeg> legs = toLegs(arrival, states);
+        int finalWalkSeconds = walkSeconds.get(arrivalStop);
         if (finalWalkSeconds > 0) {
             legs.add(new RouteLeg(RouteLeg.Type.WALK, null,
-                    List.of(point(arrival.stop()), RoutePoint.destination(destination)),
+                    List.of(point(arrivalStop), RoutePoint.destination(destination)),
                     new Seconds(finalWalkSeconds), new Seconds(0)));
         }
-        return Optional.of(new CommuteRoute(new Seconds(bestSeconds), Math.max(0, arrival.boardings() - 1), legs));
+        return Optional.of(new CommuteRoute(new Seconds(bestSeconds), Math.max(0, states.boardings(arrival) - 1),
+                legs));
     }
 
     // 도착한 상태에서 지나온 구간을 거꾸로 따라간 뒤, 같은 노선으로 이어진 구간과 이어진 도보 환승을 하나로 묶는다.
-    private List<RouteLeg> toLegs(final State arrival, final Map<State, Step> previousSteps) {
+    private List<RouteLeg> toLegs(final int arrival, final SearchStates states) {
         List<Step> steps = new ArrayList<>();
-        for (State state = arrival; previousSteps.containsKey(state); state = previousSteps.get(state).from()) {
-            steps.add(previousSteps.get(state));
+        for (int state = arrival; states.previous(state) != SearchStates.NONE; state = states.previous(state)) {
+            steps.add(new Step(states.stop(states.previous(state)), states.link(state), states.waitSeconds(state)));
         }
         Collections.reverse(steps);
 
@@ -240,7 +258,7 @@ public final class TransitNetwork {
 
     private RouteLeg toLeg(final List<Step> steps, final int route) {
         List<RoutePoint> points = new ArrayList<>();
-        points.add(point(steps.getFirst().from().stop()));
+        points.add(point(steps.getFirst().fromStop()));
         int rideSeconds = 0;
         int waitSecondsOfLeg = 0;
         for (Step step : steps) {
@@ -262,14 +280,20 @@ public final class TransitNetwork {
 
     private Map<Integer, Integer> arrivalWalkSeconds(final Coordinate destination) {
         Map<Integer, Integer> walkSeconds = new HashMap<>();
-        for (int stop = 0; stop < stops.size(); stop++) {
+        stopGrid.forEachNear(destination, stop -> {
             double meters = destination.metersTo(stops.get(stop).coordinate());
             int seconds = (int) Math.ceil(meters / WALKING_METERS_PER_SECOND);
             if (seconds <= MAX_ARRIVAL_WALK_TIME.value()) {
                 walkSeconds.put(stop, seconds);
             }
-        }
+        });
         return walkSeconds;
+    }
+
+    private static void validateTransfers(final int maxTransfers) {
+        if (maxTransfers < 0 || maxTransfers + 1 > SearchStates.MAX_BOARDINGS) {
+            throw new IllegalArgumentException("최대 환승 횟수가 범위를 벗어났습니다. maxTransfers=" + maxTransfers);
+        }
     }
 
     private List<ReachableStop> toReachableStops(final int[] bestSeconds) {
@@ -369,6 +393,9 @@ public final class TransitNetwork {
         private int size;
 
         private Builder(final List<GtfsStop> stops, final List<GtfsRoute> routes) {
+            if (routes.size() >= SearchStates.MAX_ROUTES) {
+                throw new IllegalArgumentException("노선이 너무 많습니다. routes=" + routes.size());
+            }
             this.stops = List.copyOf(stops);
             this.routes = List.copyOf(routes);
             for (int i = 0; i < this.stops.size(); i++) {
@@ -419,14 +446,7 @@ public final class TransitNetwork {
         }
     }
 
-    // route는 이 정류장에서 목적지 쪽으로 타고 가는 노선이다. 걸어서 이어지면 TRANSFER다.
-    private record State(int stop, int route, int boardings) {
-    }
-
-    private record QueueEntry(State state, int seconds) {
-    }
-
-    // 경로 안내에서 state에 오기 직전 상태와 지나온 구간·환승이다.
-    private record Step(State from, int link, int waitSeconds) {
+    // 경로 안내에서 지나온 구간·환승 하나다. fromStop에서 link를 따라갔고, 탈 때 waitSeconds를 기다렸다.
+    private record Step(int fromStop, int link, int waitSeconds) {
     }
 }
