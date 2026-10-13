@@ -16,6 +16,7 @@ import com.jachwisunbae.common.exception.client.ResourceNotFoundException;
 import com.jachwisunbae.common.exception.errorcode.ErrorCode;
 import com.jachwisunbae.common.exception.server.DataInconsistencyException;
 import com.jachwisunbae.common.exception.server.InternalSystemException;
+import com.jachwisunbae.common.exception.server.ServiceUnavailableException;
 import com.jachwisunbae.common.exception.server.UpstreamServiceException;
 import com.jachwisunbae.common.observability.RequestLoggingFilter;
 import java.lang.reflect.Method;
@@ -56,7 +57,8 @@ class GlobalExceptionHandlerTest {
                 Arguments.of(new ResourceNotFoundException(code, DEBUG_MESSAGE), HttpStatus.NOT_FOUND),
                 Arguments.of(new DataInconsistencyException(code, DEBUG_MESSAGE), HttpStatus.INTERNAL_SERVER_ERROR),
                 Arguments.of(new InternalSystemException(code, DEBUG_MESSAGE), HttpStatus.INTERNAL_SERVER_ERROR),
-                Arguments.of(new UpstreamServiceException(code, DEBUG_MESSAGE), HttpStatus.BAD_GATEWAY));
+                Arguments.of(new UpstreamServiceException(code, DEBUG_MESSAGE), HttpStatus.BAD_GATEWAY),
+                Arguments.of(new ServiceUnavailableException(code, DEBUG_MESSAGE), HttpStatus.SERVICE_UNAVAILABLE));
     }
 
     @ParameterizedTest(name = "{0} → {1}")

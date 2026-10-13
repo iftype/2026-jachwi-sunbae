@@ -10,6 +10,8 @@ import com.jachwisunbae.transit.provider.geojson.GeoJsonBoundaries;
 import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -57,6 +59,20 @@ public class JdbcAdminDongRepository implements AdminDongRepository {
                 FROM admin_dongs
                 ORDER BY code
                 """, (resultSet, rowNumber) -> toAdminDong(resultSet));
+    }
+
+    @Override
+    public List<AdminDong> findByCodes(final Collection<String> codes) {
+        if (codes.isEmpty()) {
+            return List.of();
+        }
+        String placeholders = String.join(", ", Collections.nCopies(codes.size(), "?"));
+        return jdbcTemplate.query("""
+                SELECT code, name, sido_name, sigungu_name, full_name, boundary, base_date
+                FROM admin_dongs
+                WHERE code IN (%s)
+                ORDER BY code
+                """.formatted(placeholders), (resultSet, rowNumber) -> toAdminDong(resultSet), codes.toArray());
     }
 
     private AdminDong toAdminDong(final ResultSet resultSet) throws SQLException {
