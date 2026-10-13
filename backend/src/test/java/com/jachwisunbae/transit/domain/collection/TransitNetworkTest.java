@@ -3,11 +3,14 @@ package com.jachwisunbae.transit.domain.collection;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.jachwisunbae.transit.domain.CommuteRoute;
 import com.jachwisunbae.transit.domain.GtfsEdge;
 import com.jachwisunbae.transit.domain.GtfsRoute;
 import com.jachwisunbae.transit.domain.GtfsStop;
 import com.jachwisunbae.transit.domain.GtfsTransfer;
 import com.jachwisunbae.transit.domain.ReachableStop;
+import com.jachwisunbae.transit.domain.RouteLeg;
+import com.jachwisunbae.transit.domain.RoutePoint;
 import com.jachwisunbae.transit.domain.vo.Coordinate;
 import com.jachwisunbae.transit.domain.vo.Seconds;
 import java.util.List;
@@ -101,6 +104,77 @@ class TransitNetworkTest {
                 List.of(edge("R1", "NONE", "A", 60)), List.of()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("NONE");
+    }
+
+    @Test
+    @DisplayName("출발 정류장에서 목적지까지 노선마다 구간을 묶고 마지막에 걷는 구간을 붙인다")
+    void findsRouteWithTransfer() {
+        CommuteRoute route = network.route("E", DESTINATION, new Seconds(3600), 2).orElseThrow();
+
+        assertThat(route.totalTime().value()).isEqualTo(221 + 120 + 120 + 300 + 60 + 200);
+        assertThat(route.transferCount()).isEqualTo(1);
+        assertThat(route.legs()).extracting(RouteLeg::type)
+                .containsExactly(RouteLeg.Type.BUS, RouteLeg.Type.BUS, RouteLeg.Type.WALK);
+        RouteLeg r3 = route.legs().get(0);
+        assertThat(r3.routeName()).isEqualTo("R3");
+        assertThat(r3.points()).extracting(RoutePoint::stopId).containsExactly("E", "C");
+        assertThat(r3.rideTime().value()).isEqualTo(60);
+        assertThat(r3.waitTime().value()).isEqualTo(200);
+        RouteLeg r1 = route.legs().get(1);
+        assertThat(r1.points()).extracting(RoutePoint::stopId).containsExactly("C", "B", "A");
+        assertThat(r1.rideTime().value()).isEqualTo(240);
+        RouteLeg walk = route.legs().get(2);
+        assertThat(walk.points()).extracting(RoutePoint::name).containsExactly("A 정류장", "목적지");
+        assertThat(walk.rideTime().value()).isEqualTo(221);
+    }
+
+    @Test
+    @DisplayName("경로의 통근 시간은 생활권 탐색에서 구한 정류장 통근 시간과 같다")
+    void matchesReachableStops() {
+        Map<String, Integer> seconds = travelSeconds(network.reachableStops(DESTINATION, new Seconds(3600), 2));
+
+        for (String stopId : seconds.keySet()) {
+            assertThat(network.route(stopId, DESTINATION, new Seconds(3600), 2).orElseThrow().totalTime().value())
+                    .as(stopId)
+                    .isEqualTo(seconds.get(stopId));
+        }
+    }
+
+    @Test
+    @DisplayName("걸어서 환승하는 구간은 도보 구간이 된다")
+    void findsWalkTransfer() {
+        CommuteRoute route = network.route("G", DESTINATION, new Seconds(3600), 2).orElseThrow();
+
+        assertThat(route.legs()).extracting(RouteLeg::type)
+                .containsExactly(RouteLeg.Type.WALK, RouteLeg.Type.BUS, RouteLeg.Type.WALK);
+        assertThat(route.legs().get(0).points()).extracting(RoutePoint::stopId).containsExactly("G", "C");
+        assertThat(route.transferCount()).isZero();
+    }
+
+    @Test
+    @DisplayName("지하철 구간은 SUBWAY로 나타낸다")
+    void marksSubway() {
+        CommuteRoute route = network.route("S", DESTINATION, new Seconds(3600), 2).orElseThrow();
+
+        assertThat(route.legs().getFirst().type()).isEqualTo(RouteLeg.Type.SUBWAY);
+        assertThat(route.legs().getFirst().waitTime().value()).isEqualTo(120);
+    }
+
+    @Test
+    @DisplayName("최대 통근 시간이나 최대 환승 횟수 안에 경로가 없으면 비어 있다")
+    void returnsEmptyWhenNoRoute() {
+        assertThat(network.route("E", DESTINATION, new Seconds(600), 2)).isEmpty();
+        assertThat(network.route("E", DESTINATION, new Seconds(3600), 0)).isEmpty();
+        assertThat(network.route("FAR", DESTINATION, new Seconds(3600), 2)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("도착 정류장에서 출발하면 걷는 구간만 있다")
+    void walksFromArrivalStop() {
+        CommuteRoute route = network.route("A", DESTINATION, new Seconds(3600), 2).orElseThrow();
+
+        assertThat(route.legs()).extracting(RouteLeg::type).containsExactly(RouteLeg.Type.WALK);
+        assertThat(route.totalMinutes()).isEqualTo(4);
     }
 
     private static Map<String, Integer> travelSeconds(final List<ReachableStop> stops) {
