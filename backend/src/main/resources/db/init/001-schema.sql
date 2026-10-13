@@ -267,3 +267,59 @@ CREATE TABLE IF NOT EXISTS good_price_stores (
     CONSTRAINT chk_good_price_stores_latitude CHECK (latitude BETWEEN -90 AND 90),
     CONSTRAINT chk_good_price_stores_longitude CHECK (longitude BETWEEN -180 AND 180)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 공공 CCTV (전국CCTV표준데이터 스냅샷)
+-- 공공데이터 CSV를 정제 스크립트로 적재하는 참조 데이터다. 애플리케이션은 조회만 한다.
+-- 설치목적은 원본 문자열 그대로 저장한다. 화소수와 보관일수는 비어 있거나 애매하면 NULL이다.
+CREATE TABLE IF NOT EXISTS cctvs (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    management_number VARCHAR(30) NOT NULL,
+    address VARCHAR(255) NOT NULL,
+    purpose VARCHAR(20) NOT NULL,
+    camera_count INT NOT NULL,
+    camera_pixels INT NULL,
+    retention_days INT NULL,
+    latitude DECIMAL(10, 7) NOT NULL,
+    longitude DECIMAL(11, 7) NOT NULL,
+    CONSTRAINT uk_cctvs_management_number UNIQUE (management_number),
+    CONSTRAINT chk_cctvs_camera_count CHECK (camera_count > 0),
+    CONSTRAINT chk_cctvs_latitude CHECK (latitude BETWEEN -90 AND 90),
+    CONSTRAINT chk_cctvs_longitude CHECK (longitude BETWEEN -180 AND 180)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS legal_dongs (
+    code CHAR(10) CHARACTER SET ascii COLLATE ascii_bin PRIMARY KEY,
+    name VARCHAR(150) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS rental_datasets (
+    dataset_key VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin PRIMARY KEY,
+    transaction_sha256 CHAR(64) NULL,
+    legal_dong_sha256 CHAR(64) NULL,
+    contract_from DATE NULL,
+    contract_to DATE NULL,
+    collected_at DATETIME(6) NULL,
+    imported_at DATETIME(6) NULL,
+    row_count INT UNSIGNED NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS rental_transactions (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    dataset_key VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    legal_dong_code CHAR(10) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    housing_type VARCHAR(20) NOT NULL,
+    deposit_amount_krw BIGINT UNSIGNED NOT NULL,
+    monthly_rent_amount_krw BIGINT UNSIGNED NOT NULL,
+    area_m2 DECIMAL(12,4) NOT NULL,
+    contract_date DATE NOT NULL,
+    contract_type VARCHAR(10) NOT NULL,
+    building_name VARCHAR(255) NOT NULL,
+    floor VARCHAR(20) NOT NULL,
+    contract_period VARCHAR(40) NOT NULL,
+    source_file VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+    source_row_number BIGINT UNSIGNED NOT NULL,
+    CONSTRAINT fk_rental_dataset FOREIGN KEY (dataset_key) REFERENCES rental_datasets (dataset_key),
+    CONSTRAINT fk_rental_legal_dong FOREIGN KEY (legal_dong_code) REFERENCES legal_dongs (code),
+    CONSTRAINT uk_rental_source_row UNIQUE (dataset_key, source_file, source_row_number),
+    INDEX idx_rental_dong_date (legal_dong_code, contract_date DESC, id DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
