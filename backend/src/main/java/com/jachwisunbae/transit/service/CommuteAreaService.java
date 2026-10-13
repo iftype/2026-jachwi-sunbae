@@ -2,20 +2,16 @@ package com.jachwisunbae.transit.service;
 
 import com.jachwisunbae.common.exception.client.BusinessRuleViolationException;
 import com.jachwisunbae.common.exception.errorcode.ErrorCode;
-import com.jachwisunbae.transit.domain.AdminDong;
 import com.jachwisunbae.transit.domain.CommuteArea;
 import com.jachwisunbae.transit.domain.ReachableStop;
 import com.jachwisunbae.transit.domain.collection.TransitNetwork;
 import com.jachwisunbae.transit.domain.vo.Coordinate;
 import com.jachwisunbae.transit.domain.vo.Seconds;
-import com.jachwisunbae.transit.repository.AdminDongRepository;
 import com.jachwisunbae.transit.service.dto.result.CommuteAreaSearchResult;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,12 +20,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class CommuteAreaService {
 
     private final TransitNetworkCache transitNetworkCache;
-    private final AdminDongRepository adminDongRepository;
 
-    public CommuteAreaService(final TransitNetworkCache transitNetworkCache,
-                              final AdminDongRepository adminDongRepository) {
+    public CommuteAreaService(final TransitNetworkCache transitNetworkCache) {
         this.transitNetworkCache = transitNetworkCache;
-        this.adminDongRepository = adminDongRepository;
     }
 
     // 처음 요청에서 노선망을 읽을 때 적재와 겹쳐도 한 시점의 노선망을 읽도록 읽기 트랜잭션으로 묶는다.
@@ -52,17 +45,10 @@ public class CommuteAreaService {
                 .filter(stop -> stop.adminDongCode() != null)
                 .collect(Collectors.groupingBy(ReachableStop::adminDongCode, LinkedHashMap::new,
                         Collectors.toList()));
-        Map<String, AdminDong> adminDongs = adminDongRepository.findByCodes(stopsByCode.keySet()).stream()
-                .collect(Collectors.toMap(AdminDong::code, Function.identity()));
-        List<CommuteArea> areas = new ArrayList<>();
-        stopsByCode.forEach((code, stations) -> {
-            AdminDong adminDong = adminDongs.get(code);
-            if (adminDong != null) {
-                areas.add(new CommuteArea(adminDong, stations));
-            }
-        });
-        areas.sort(Comparator.comparingInt(CommuteArea::commuteMinutes)
-                .thenComparing(area -> area.adminDong().code()));
-        return areas;
+        return stopsByCode.entrySet().stream()
+                .map(entry -> new CommuteArea(entry.getKey(), entry.getValue()))
+                .sorted(Comparator.comparingInt(CommuteArea::commuteMinutes)
+                        .thenComparing(CommuteArea::adminDongCode))
+                .toList();
     }
 }

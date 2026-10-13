@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.jachwisunbae.common.exception.client.BusinessRuleViolationException;
 import com.jachwisunbae.common.exception.errorcode.ErrorCode;
 import com.jachwisunbae.common.exception.server.ServiceUnavailableException;
-import com.jachwisunbae.transit.domain.AdminDong;
 import com.jachwisunbae.transit.domain.CommuteArea;
 import com.jachwisunbae.transit.domain.GtfsEdge;
 import com.jachwisunbae.transit.domain.GtfsFeed;
@@ -21,18 +20,14 @@ import org.junit.jupiter.api.Test;
 
 class CommuteAreaServiceTest {
 
-    // 목적지 바로 옆 정류장 A(가까운동)로 버스 R1이 C(먼동) → B(먼동) → A 순서로 들어온다. D는 행정동이 없다.
+    // 목적지 바로 옆 정류장 A(가까운동 11000002)로 버스 R1이 C(먼동 11000001) → B(먼동) → A 순서로 들어온다.
+    // D는 행정동이 없다.
     private static final Coordinate DESTINATION = new Coordinate(37.5000, 127.0000);
-    private static final AdminDong NEAR_DONG = AdminDongFixture.adminDong("11000002", "가까운동", 126.99, 127.01,
-            37.49, 37.505);
-    private static final AdminDong FAR_DONG = AdminDongFixture.adminDong("11000001", "먼동", 126.99, 127.01,
-            37.505, 37.53);
+    private static final String NEAR_DONG = "11000002";
+    private static final String FAR_DONG = "11000001";
 
     private final InMemoryGtfsNetworkRepository networkRepository = new InMemoryGtfsNetworkRepository();
-    private final InMemoryAdminDongRepository adminDongRepository =
-            new InMemoryAdminDongRepository(List.of(NEAR_DONG, FAR_DONG));
-    private final CommuteAreaService service =
-            new CommuteAreaService(new TransitNetworkCache(networkRepository), adminDongRepository);
+    private final CommuteAreaService service = new CommuteAreaService(new TransitNetworkCache(networkRepository));
 
     @Test
     @DisplayName("갈 수 있는 정류장을 행정동으로 묶고 통근 시간이 짧은 동네부터 돌려준다")
@@ -42,7 +37,7 @@ class CommuteAreaServiceTest {
         CommuteAreaSearchResult result = service.search(DESTINATION, 60, 2);
 
         assertThat(result.maxMinutes()).isEqualTo(60);
-        assertThat(result.areas()).extracting(area -> area.adminDong().name()).containsExactly("가까운동", "먼동");
+        assertThat(result.areas()).extracting(CommuteArea::adminDongCode).containsExactly(NEAR_DONG, FAR_DONG);
         CommuteArea far = result.areas().get(1);
         assertThat(far.stations()).extracting(station -> station.stop().stopId()).containsExactly("B", "C");
         assertThat(far.commuteMinutes()).isEqualTo(far.stations().getFirst().travelMinutes());
@@ -68,7 +63,7 @@ class CommuteAreaServiceTest {
         List<String> narrow = codes(service.search(DESTINATION, 5, 2));
         List<String> wide = codes(service.search(DESTINATION, 60, 2));
 
-        assertThat(narrow).containsExactly("11000002");
+        assertThat(narrow).containsExactly(NEAR_DONG);
         assertThat(wide).containsAll(narrow).hasSizeGreaterThan(narrow.size());
     }
 
@@ -93,14 +88,14 @@ class CommuteAreaServiceTest {
     }
 
     private static List<String> codes(final CommuteAreaSearchResult result) {
-        return result.areas().stream().map(area -> area.adminDong().code()).toList();
+        return result.areas().stream().map(CommuteArea::adminDongCode).toList();
     }
 
     private static GtfsFeed feed() {
         return new GtfsFeed(
                 List.of(new GtfsRoute("R1", "1", "1번", 3, new Seconds(120))),
-                List.of(stop("A", 37.5000, 127.0010, "11000002"), stop("B", 37.5100, 127.0010, "11000001"),
-                        stop("C", 37.5200, 127.0010, "11000001"), stop("D", 37.5300, 127.0010, null)),
+                List.of(stop("A", 37.5000, 127.0010, NEAR_DONG), stop("B", 37.5100, 127.0010, FAR_DONG),
+                        stop("C", 37.5200, 127.0010, FAR_DONG), stop("D", 37.5300, 127.0010, null)),
                 List.of(edge("D", "C"), edge("C", "B"), edge("B", "A")),
                 List.of());
     }

@@ -61,19 +61,6 @@ class JdbcAdminDongRepositoryTest {
                 .isCloseTo(37.55, within(1e-7));
     }
 
-    @Test
-    @DisplayName("요청한 코드의 행정동만 읽고, 코드가 없으면 조회하지 않는다")
-    void findsByCodes() throws Exception {
-        String geometry = "{\"type\":\"Polygon\",\"coordinates\":[[[0,0],[1,0],[1,1],[0,1],[0,0]]]}";
-        repository.replace(List.of(adminDong("11010530", "사직동", geometry), adminDong("11010540", "삼청동", geometry),
-                adminDong("11010550", "부암동", geometry)));
-
-        assertThat(repository.findByCodes(List.of("11010550", "11010530", "99999999")))
-                .extracting(AdminDong::code)
-                .containsExactly("11010530", "11010550");
-        assertThat(repository.findByCodes(List.of())).isEmpty();
-    }
-
     private static AdminDong adminDong(final String code, final String name, final String geometry)
             throws Exception {
         return new AdminDong(code, name, "서울특별시", "종로구", "서울특별시 종로구 " + name, LocalDate.of(2025, 6, 30),
