@@ -9,7 +9,10 @@ module.exports = (_env, argv) => {
   loadLocalEnv();
   const isProduction = argv.mode === 'production';
   const isMockingEnabled = process.env.ENABLE_MSW === 'true';
-  const proxyTarget = !isProduction && !isMockingEnabled ? process.env.DEV_API_PROXY_TARGET : undefined;
+  const proxyTarget =
+    !isProduction && (!isMockingEnabled || process.env.USE_REAL_COMMUTE_API === 'true')
+      ? process.env.DEV_API_PROXY_TARGET
+      : undefined;
   const buildEnvironment = readBuildEnvironment({ isProduction, proxyTarget });
   const isBrowserTestHarness = process.env.BROWSER_TEST_HARNESS === 'true';
 
