@@ -20,11 +20,11 @@ public record CommuteRouteRequest(
         Double longitude,
         @NotBlank(message = "출발 정류장 ID는 필수입니다.")
         String stopId,
-        @Min(value = 1, message = "최대 통근 시간은 1분 이상 180분 이하여야 합니다.")
-        @Max(value = 180, message = "최대 통근 시간은 1분 이상 180분 이하여야 합니다.")
+        @Min(value = 1, message = "최대 통근 시간은 1분 이상 60분 이하여야 합니다.")
+        @Max(value = 60, message = "최대 통근 시간은 1분 이상 60분 이하여야 합니다.")
         Integer maxMinutes,
-        @Min(value = 0, message = "최대 환승 횟수는 0회 이상 10회 이하여야 합니다.")
-        @Max(value = 10, message = "최대 환승 횟수는 0회 이상 10회 이하여야 합니다.")
+        @Min(value = 0, message = "최대 환승 횟수는 0회 이상 2회 이하여야 합니다.")
+        @Max(value = 2, message = "최대 환승 횟수는 0회 이상 2회 이하여야 합니다.")
         Integer maxTransfers) {
 
     private static final int DEFAULT_MAX_MINUTES = 60;
