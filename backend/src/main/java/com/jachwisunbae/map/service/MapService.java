@@ -5,14 +5,12 @@ import com.jachwisunbae.common.exception.errorcode.ErrorCode;
 import com.jachwisunbae.map.domain.MapAddress;
 import com.jachwisunbae.map.domain.NearbyPlace;
 import com.jachwisunbae.map.provider.AddressProvider;
-import com.jachwisunbae.map.provider.BusStopProvider;
 import com.jachwisunbae.map.provider.NearbyPlaceProvider;
 import com.jachwisunbae.map.service.dto.result.NearbyResult;
 import com.jachwisunbae.map.type.MapCategory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
@@ -27,13 +25,10 @@ public class MapService {
     private static final Set<Integer> SUPPORTED_RADII = Set.of(500, 1000, 2000);
     private final AddressProvider addressProvider;
     private final NearbyPlaceProvider nearbyPlaceProvider;
-    private final BusStopProvider busStopProvider;
 
-    public MapService(AddressProvider addressProvider, NearbyPlaceProvider nearbyPlaceProvider,
-                      BusStopProvider busStopProvider) {
+    public MapService(AddressProvider addressProvider, NearbyPlaceProvider nearbyPlaceProvider) {
         this.addressProvider = addressProvider;
         this.nearbyPlaceProvider = nearbyPlaceProvider;
-        this.busStopProvider = busStopProvider;
     }
 
     public List<MapAddress> geocode(String query) {
@@ -52,7 +47,7 @@ public class MapService {
         validateNearbyQuery(latitude, longitude, radius);
         Set<MapCategory> categories = categories(requestedCategories);
 
-        List<NearbyPlace> places = findPlaces(latitude, longitude, radius, categories);
+        List<NearbyPlace> places = nearbyPlaceProvider.nearby(latitude, longitude, radius, categories);
         Map<MapCategory, Integer> counts = new EnumMap<>(MapCategory.class);
         for (MapCategory category : MapCategory.values()) {
             counts.put(category, 0);
@@ -69,26 +64,6 @@ public class MapService {
                 .forEach(categories::add);
         }
         return categories.isEmpty() ? EnumSet.allOf(MapCategory.class) : categories;
-    }
-
-    // 교통은 버스정류장으로만 구성하고, 나머지 카테고리는 주변 시설 공급자에서 조회한다.
-    private List<NearbyPlace> findPlaces(BigDecimal latitude, BigDecimal longitude, int radius, Set<MapCategory> categories) {
-        List<NearbyPlace> places = new ArrayList<>(findFacilities(latitude, longitude, radius, categories));
-        if (categories.contains(MapCategory.TRANSPORT)) {
-            places.addAll(busStopProvider.nearby(latitude, longitude, radius));
-        }
-        return List.copyOf(places);
-    }
-
-    private List<NearbyPlace> findFacilities(BigDecimal latitude, BigDecimal longitude, int radius,
-                                             Set<MapCategory> categories) {
-        EnumSet<MapCategory> facilityCategories = EnumSet.noneOf(MapCategory.class);
-        facilityCategories.addAll(categories);
-        facilityCategories.remove(MapCategory.TRANSPORT);
-        if (facilityCategories.isEmpty()) {
-            return List.of();
-        }
-        return nearbyPlaceProvider.nearby(latitude, longitude, radius, facilityCategories);
     }
 
     private void validateNearbyQuery(BigDecimal latitude, BigDecimal longitude, int radius) {

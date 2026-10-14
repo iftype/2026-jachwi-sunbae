@@ -24,7 +24,7 @@ public class KakaoNearbyPlaceProvider implements NearbyPlaceProvider {
 
     // 캐시 없이 요청마다 호출하므로 카테고리당 호출 수를 제한한다.
     private static final int MAX_PAGE_COUNT = 3;
-    // 카카오로 조회하는 카테고리와 카카오 카테고리 코드. 교통은 버스정류장 DB에서 조회한다.
+    // 카카오로 조회하는 카테고리와 카카오 카테고리 코드.
     private static final Map<MapCategory, String> CATEGORY_CODES = new EnumMap<>(Map.of(
             MapCategory.HOSPITAL, "HP8",
             MapCategory.SCHOOL, "SC4",

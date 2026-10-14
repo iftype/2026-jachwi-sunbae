@@ -1,10 +1,10 @@
-package com.jachwisunbae.map.repository;
+package com.jachwisunbae.map.repository.busstop;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
-import com.jachwisunbae.map.domain.BusStop;
 import com.jachwisunbae.map.domain.CoordinateBounds;
+import com.jachwisunbae.map.domain.busstop.BusStop;
 import java.math.BigDecimal;
 import java.util.List;
 import javax.sql.DataSource;
