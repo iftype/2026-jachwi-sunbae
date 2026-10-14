@@ -4,16 +4,19 @@ import { usePublicConfig } from '@/shared/config/PublicConfigContext';
 
 import { clampToSouthKorea } from '../lib/mapLocation';
 import { markerScale, markerSignature, markerZIndex } from '../lib/mapMarkerPresentation';
+import { createRegionSummaryElement, regionLabelPosition } from '../lib/mapRegionSummary';
 import { type LiveMap, type LiveOverlay, naverEngine } from '../lib/naverMapEngine';
 import type { MapCanvasProps } from '../model/MapCanvas';
 import { createMapMarkerElement } from '../ui/map-marker/MapMarkerView';
 const EMPTY_MARKERS: NonNullable<MapCanvasProps['markers']> = [];
 const EMPTY_CIRCLES: NonNullable<MapCanvasProps['circles']> = [];
+const EMPTY_REGIONS: NonNullable<MapCanvasProps['regions']> = [];
 
 type LiveMapProps = Pick<
   MapCanvasProps,
   | 'center'
   | 'level'
+  | 'customStyleId'
   | 'markers'
   | 'circles'
   | 'radiusCenter'
@@ -23,12 +26,16 @@ type LiveMapProps = Pick<
   | 'onLevelChange'
   | 'onSelectMarker'
   | 'onBoundsChange'
+  | 'regions'
+  | 'selectedRegionId'
+  | 'onSelectRegion'
 >;
 
 /** SDK의 수명과 동기화는 이 Hook에만 두고 화면은 지도 표현만 조립한다. */
 const useNaverMap = ({
   center,
   level = 5,
+  customStyleId,
   markers = EMPTY_MARKERS,
   circles = EMPTY_CIRCLES,
   radiusCenter = center,
@@ -38,6 +45,9 @@ const useNaverMap = ({
   onLevelChange,
   onSelectMarker,
   onBoundsChange,
+  regions = EMPTY_REGIONS,
+  selectedRegionId = null,
+  onSelectRegion,
 }: LiveMapProps) => {
   const config = usePublicConfig();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -58,9 +68,14 @@ const useNaverMap = ({
     }
   };
   const [sdkError, setSdkError] = useState(false);
+  const regionCallbackRef = useRef(onSelectRegion);
+  regionCallbackRef.current = onSelectRegion;
   // 남한 밖 좌표를 받아도 지도는 남한 안만 비춘다.
   const boundedCenter = useMemo(() => clampToSouthKorea(center), [center.latitude, center.longitude]);
-  const engine = useMemo(() => naverEngine(config.naverMapClientId ?? ''), [config.naverMapClientId]);
+  const engine = useMemo(
+    () => naverEngine(config.naverMapClientId ?? '', customStyleId),
+    [config.naverMapClientId, customStyleId],
+  );
   const liveMode = config.mapProviderMode === 'naver' && (config.naverMapClientId ?? '') !== '';
   const initialViewRef = useRef({ center: boundedCenter, level });
   initialViewRef.current = { center: boundedCenter, level };
@@ -219,6 +234,81 @@ const useNaverMap = ({
       engine.createCircle(map, engine.latLng(radiusCenter.latitude, radiusCenter.longitude), radius),
     );
   }, [circleRadii, engine, liveMode, mapReady, radiusCenter.latitude, radiusCenter.longitude, settledVersion]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    const sdk = window.naver?.maps;
+    if (!liveMode || !mapReady || map === null || sdk === undefined || regions.length === 0) return;
+    const overlays = regions.map((region) => {
+      const isSelected = region.id === selectedRegionId;
+      const baseOpacity = region.appearance
+        ? isSelected
+          ? 0.3
+          : 0.17
+        : isSelected
+          ? 0.5
+          : region.isRecommended
+            ? 0.24
+            : 0.08;
+      const polygons = (region.polygons ?? [region.paths])
+        .filter((paths) => paths.length > 0)
+        .map((paths) => {
+          const coordinates = paths.map((path) => path.map((point) => engine.latLng(point.latitude, point.longitude)));
+          const glow = region.appearance?.glowColor
+            ? new sdk.Polygon({
+                map,
+                paths: coordinates,
+                strokeColor: region.appearance.glowColor,
+                strokeWeight: isSelected ? 9 : 7,
+                strokeOpacity: 0.22,
+                fillColor: region.appearance.fillColor,
+                fillOpacity: 0,
+                clickable: false,
+                zIndex: 0,
+              })
+            : null;
+          const polygon = new sdk.Polygon({
+            map,
+            paths: coordinates,
+            strokeColor: region.appearance?.strokeColor ?? (isSelected ? '#787b80' : '#a4a7ab'),
+            strokeWeight: region.appearance ? (isSelected ? 3 : 2) : isSelected ? 2 : 1,
+            fillColor:
+              region.appearance?.fillColor ?? (region.isRecommended === false && !isSelected ? '#888888' : '#f5c344'),
+            fillOpacity: baseOpacity,
+            clickable: true,
+            zIndex: isSelected ? 2 : 1,
+          });
+          return { polygon, glow };
+        });
+      const summary = createRegionSummaryElement(region, isSelected, () => regionCallbackRef.current?.(region.id));
+      const setHovered = (hovered: boolean) => {
+        polygons.forEach(({ polygon }) => polygon.setOptions({ fillOpacity: baseOpacity + (hovered ? 0.1 : 0) }));
+        summary.dataset.hovered = String(hovered);
+      };
+      const listeners = polygons.flatMap(({ polygon }) => [
+        sdk.Event.addListener(polygon, 'click', () => regionCallbackRef.current?.(region.id)),
+        sdk.Event.addListener(polygon, 'mouseover', () => setHovered(true)),
+        sdk.Event.addListener(polygon, 'mouseout', () => setHovered(false)),
+      ]);
+      summary.addEventListener('mouseenter', () => setHovered(true));
+      summary.addEventListener('mouseleave', () => setHovered(false));
+      summary.addEventListener('focus', () => setHovered(true));
+      summary.addEventListener('blur', () => setHovered(false));
+      const label = region.summary
+        ? engine.createOverlay(map, { id: region.id, label: region.name, ...regionLabelPosition(region) }, summary, 5)
+        : null;
+      return { polygons, label, listeners };
+    });
+    return () =>
+      overlays.forEach(({ polygons, label, listeners }) => {
+        listeners.forEach((listener) => engine.removeListener(listener));
+        polygons.forEach(({ polygon, glow }) => {
+          polygon.setMap(null);
+          glow?.setMap(null);
+        });
+        label?.setMap(null);
+      });
+  }, [engine, liveMode, mapReady, regions, selectedRegionId]);
 
   return { containerRef, canvasRef, liveMode, sdkError };
 };

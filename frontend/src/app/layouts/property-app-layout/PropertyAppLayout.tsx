@@ -27,7 +27,7 @@ const PropertyAppLayout = () => {
       data-full-screen={fullScreen || undefined}
       data-native-tab-bar={hasNativeTabBar || undefined}
       data-native-tab-overlay={hasNativeTabBar && hasNativeAppFeature('tab-bar-overlay') ? true : undefined}
-      data-map-page={location.pathname === '/map' || undefined}
+      data-map-page={location.pathname === '/map' || location.pathname.startsWith('/neighborhoods/map') || undefined}
     >
       <div className={styles.content}>
         <Outlet context={member} />

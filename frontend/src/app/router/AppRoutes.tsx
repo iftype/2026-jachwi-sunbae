@@ -11,6 +11,9 @@ import LazyRouteBoundary from './LazyRouteBoundary';
 import ProtectedRoute from './ProtectedRoute';
 
 const IntroPage = lazy(() => import('@/pages/intro/IntroPage'));
+const NeighborhoodPreviewPage = lazy(() => import('@/pages/neighborhood-preview/NeighborhoodPreviewPage'));
+const NeighborhoodEntryPage = lazy(() => import('@/pages/neighborhood-entry/NeighborhoodEntryPage'));
+const NeighborhoodRoutePage = lazy(() => import('@/pages/neighborhood-preview/NeighborhoodRoutePage'));
 const LandingPage = lazy(() => import('@/pages/landing/LandingPage'));
 const PrivacyPage = lazy(() => import('@/pages/privacy/PrivacyPage'));
 const NotFoundPage = lazy(() => import('@/pages/not-found/NotFoundPage'));
@@ -55,6 +58,12 @@ const LoginRoute = () => {
 
 const AppRoutes = () => (
   <Routes>
+    <Route element={<PropertyAppLayout />}>
+      <Route path="/neighborhoods" element={lazyPage(<NeighborhoodEntryPage />)} />
+      <Route path="/neighborhoods/map" element={lazyPage(<NeighborhoodPreviewPage />)}>
+        <Route path="areas/:adminDongCode" element={lazyPage(<NeighborhoodRoutePage />)} />
+      </Route>
+    </Route>
     <Route path="/intro" element={lazyPage(<IntroPage />)} />
     <Route path="/landing" element={lazyPage(<LandingPage />)} />
     <Route path="/privacy" element={lazyPage(<PrivacyPage />)} />
