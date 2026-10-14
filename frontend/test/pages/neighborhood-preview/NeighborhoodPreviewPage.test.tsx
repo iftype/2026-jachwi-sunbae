@@ -80,12 +80,19 @@ beforeEach(() => {
     ),
   );
 });
-const show = (mode = 'commute') => {
+const show = (mode = 'commute', isPublic = false, path?: string) => {
   const result = render(
     <PublicConfigProvider config={{ apiBaseUrl: 'http://localhost:8080', commuteDataSource: 'mock' }}>
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })}>
-        <MemoryRouter initialEntries={[`/neighborhoods/map?mode=${mode}`]}>
+        <MemoryRouter initialEntries={[path ?? (isPublic ? `/explore/${mode}` : `/neighborhoods/map?mode=${mode}`)]}>
           <Routes>
+            <Route path="/explore" element={<NeighborhoodEntryPage />} />
+            <Route path={`/explore/${mode}`} element={<NeighborhoodPreviewPage />}>
+              <Route path="areas/:adminDongCode" element={<NeighborhoodRoutePage />} />
+              <Route path="areas/:adminDongCode/details" element={<NeighborhoodRoutePage />} />
+              <Route path="prices/:legalDongCode" element={<NeighborhoodPricePage />} />
+            </Route>
+            <Route path="/login" element={<h1>로그인 후 방 기록</h1>} />
             <Route path="/neighborhoods" element={<NeighborhoodEntryPage />} />
             <Route path="/neighborhoods/map" element={<NeighborhoodPreviewPage />}>
               <Route path="areas/:adminDongCode" element={<NeighborhoodRoutePage />} />
@@ -104,6 +111,47 @@ const choosePoint = async () => {
   await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
   return user;
 };
+it('기록 화면으로 나갔다 상세 주소로 돌아와도 선택한 동네와 검색 결과를 복원한다', async () => {
+  const view = show('commute', true);
+  const user = await choosePoint();
+  await user.click(screen.getByRole('button', { name: '선택한 조건으로 찾기' }));
+  const card = await screen.findByRole('button', { name: /1위 역삼1동/ });
+  await user.click(card);
+  expect(await screen.findByRole('button', { name: /역삼1동 · 약 3분/ })).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: '이 동네에서 본 방 기록하기' }));
+  expect(screen.getByRole('heading', { name: '로그인 후 방 기록' })).toBeInTheDocument();
+  view.unmount();
+  show('commute', true, '/explore/commute/areas/11230640?mode=commute');
+  expect(await screen.findByRole('button', { name: /역삼1동 · 약 3분/ })).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: '동네를 먼저 선택해주세요' })).not.toBeInTheDocument();
+  expect(screen.getByLabelText('선택한 탐색 조건')).toHaveTextContent('통근 60분 이내');
+});
+it('이전 검색 정보가 없는 상세 주소도 오류 안내 대신 위치 선택 지도로 돌아간다', async () => {
+  show('commute', true, '/explore/commute/areas/11230640?mode=commute');
+  expect(await screen.findByRole('region', { name: '지도에서 목적지 선택' })).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: '동네를 먼저 선택해주세요' })).not.toBeInTheDocument();
+});
+it('공개 통근 탐색은 로그인 없이 결과를 보고 기록 CTA로 로그인에 이어진다', async () => {
+  show('commute', true);
+  expect(screen.getByText('먼저 위치를 골라주세요')).toBeInTheDocument();
+  const user = await choosePoint();
+  expect(screen.getByText('원하는 조건을 정해주세요')).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: '통근 60분 이내' }));
+  expect(screen.queryByLabelText('동네 탐색 사용 안내')).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: '적용' }));
+  expect(screen.getByText('이제 동네를 찾아볼까요?')).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: '선택한 조건으로 찾기' }));
+  expect(screen.queryByLabelText('동네 탐색 사용 안내')).not.toBeInTheDocument();
+  await user.click(await screen.findByRole('button', { name: '이 동네에서 본 방 기록하기' }));
+  expect(await screen.findByRole('heading', { name: '로그인 후 방 기록' })).toBeInTheDocument();
+  expect(sessionStorage.getItem('jachwi.exploration-journey')).toContain('selectedLocation');
+});
+it('공개 탐색의 뒤로 가기는 서비스 탭 대신 공개 탐색 선택으로 돌아간다', async () => {
+  show('price', true);
+  await userEvent.click(screen.getByRole('button', { name: '뒤로 가기' }));
+  expect(await screen.findByRole('heading', { name: '자취할 동네를 찾아보세요' })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: /월세 평균가 보기/ })).toHaveAttribute('href', '/explore/price');
+});
 it('검색창 뒤로가기로 탐색 기준 선택 화면에 돌아간다', async () => {
   show();
   const user = await choosePoint();

@@ -24,10 +24,12 @@ const NeighborhoodFilters = ({
   preview,
   field,
   onClose,
+  onApply,
 }: {
   preview: FilterValues;
   field: NeighborhoodFilterField;
   onClose: () => void;
+  onApply?: () => void;
 }) => {
   const [draft, setDraft] = useState(
     field === 'minutes' ? preview.maxMinutes : field === 'rent' ? preview.maxRent : preview.maxTransfers,
@@ -63,6 +65,7 @@ const NeighborhoodFilters = ({
           if (field === 'minutes') preview.changeMaxMinutes(draft);
           else if (field === 'rent') preview.changeMaxRent(draft);
           else preview.changeMaxTransfers(draft);
+          onApply?.();
           onClose();
         }}
       >

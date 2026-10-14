@@ -5,6 +5,19 @@
   background: white;
   color: var(--color-ink);
 }
+.recordAction {
+  position: absolute;
+  bottom: calc(env(safe-area-inset-bottom) + 0.75rem);
+  left: 1rem;
+  right: 1rem;
+  z-index: 2;
+}
+.page[data-public-explore='true'] .topAreaRail {
+  bottom: calc(env(safe-area-inset-bottom) + 4.5rem);
+}
+.page[data-public-explore='true'] .locationControls[data-result='true'] {
+  bottom: calc(env(safe-area-inset-bottom) + 15rem);
+}
 .mapSearch {
   width: 100%;
   min-width: 0;
@@ -533,6 +546,14 @@
   min-width: 0;
   background: white;
   box-shadow: 0 0.2rem 0.6rem rgb(0 0 0 / 8%);
+}
+.searchHeader[data-tutorial-step='location'] .activeSearchField {
+  outline: 2px solid var(--color-brand-yellow);
+  outline-offset: 2px;
+}
+.searchHeader[data-tutorial-step='filter'] .filterChips button {
+  outline: 2px solid var(--color-brand-yellow);
+  outline-offset: 2px;
 }
 .activeSearchField:focus-within {
   border-color: var(--color-border);

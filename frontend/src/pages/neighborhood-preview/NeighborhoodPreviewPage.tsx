@@ -1,8 +1,9 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Outlet, useMatch } from 'react-router-dom';
+import { Navigate, Outlet, useMatch } from 'react-router-dom';
 
 import MapCanvas from '@/features/map/ui/map-canvas/MapCanvas';
 import MapCurrentLocationButton from '@/features/map/ui/map-current-location-button/MapCurrentLocationButton';
+import ExplorationRecordAction from '@/features/onboarding/ui/exploration-record-action/ExplorationRecordAction';
 import BottomSheet from '@/shared/ui/bottom-sheet/BottomSheet';
 import { Button } from '@/shared/ui/button/Button';
 import Icon from '@/shared/ui/icon/Icon';
@@ -10,12 +11,14 @@ import RankedCard from '@/shared/ui/ranked-card/RankedCard';
 import SearchField from '@/shared/ui/search-field/SearchField';
 import Toast from '@/shared/ui/toast/Toast';
 
+import useExplorationTutorial from './hooks/useExplorationTutorial';
 import useHorizontalDrag from './hooks/useHorizontalDrag';
 import useNeighborhoodPreview from './hooks/useNeighborhoodPreview';
 import { COMMUTE_COLORS } from './model/commuteColors';
 import { PREVIEW_DESTINATION } from './model/preview';
 import type { NeighborhoodFilterField } from './NeighborhoodFilters';
 import NeighborhoodFilters from './NeighborhoodFilters';
+import ExplorationTip from './ui/exploration-tip/ExplorationTip';
 
 import styles from './NeighborhoodPreviewPage.module.css';
 
@@ -24,13 +27,20 @@ const NEIGHBORHOOD_MAP_STYLE_ID = '631c1c09-380e-427f-b7d8-e600956dac10';
 
 const NeighborhoodPreviewPage = () => {
   const preview = useNeighborhoodPreview();
+  const tutorial = useExplorationTutorial({
+    enabled: preview.isPublicExplore,
+    mode: preview.mode,
+    hasLocation: preview.hasChosenMapPoint,
+    mock: preview.isMockData,
+  });
   const [filterField, setFilterField] = useState<NeighborhoodFilterField | null>(null);
   const [isEntryToastOpen, setEntryToastOpen] = useState(true);
   const closeEntryToast = useCallback(() => setEntryToastOpen(false), []);
   const cardDrag = useHorizontalDrag();
-  const isRoutePage = useMatch('/neighborhoods/map/areas/:adminDongCode/*');
-  const isDetailPage = useMatch('/neighborhoods/map/areas/:adminDongCode/details');
-  const isPriceDetailPage = useMatch('/neighborhoods/map/prices/:legalDongCode');
+  const isRoutePage = useMatch(`${preview.mapPath}/areas/:adminDongCode/*`);
+  const isDetailPage = useMatch(`${preview.mapPath}/areas/:adminDongCode/details`);
+  const isPriceDetailPage = useMatch(`${preview.mapPath}/prices/:legalDongCode`);
+  const recordArea = preview.selected ?? preview.selectedPrice ?? preview.topAreas[0] ?? preview.priceAreas[0];
   const currentMarkers = useMemo(
     () =>
       preview.currentPosition
@@ -74,15 +84,21 @@ const NeighborhoodPreviewPage = () => {
       <MapCurrentLocationButton isLocating={preview.isLocating} onClick={preview.moveToCurrentLocation} />
     </div>
   );
-  if (isRoutePage && !preview.selected) return <Outlet context={preview} />;
-  if (isDetailPage || isPriceDetailPage)
+  if (
+    ((isRoutePage && !preview.selected) || (isPriceDetailPage && !preview.selectedPrice)) &&
+    !preview.isAnalyzing &&
+    !preview.error
+  ) {
+    return <Navigate to={`${preview.mapPath}?mode=${preview.mode}`} replace />;
+  }
+  if ((isDetailPage || isPriceDetailPage) && !preview.isAnalyzing && !preview.error)
     return (
       <div className={styles.page}>
         <Outlet context={preview} />
       </div>
     );
   return (
-    <main className={styles.page}>
+    <main className={styles.page} data-public-explore={preview.isPublicExplore || undefined}>
       {preview.isAnalyzing ? (
         <section className={styles.analysis}>
           <div className={styles.spinner} aria-hidden="true" />
@@ -129,17 +145,20 @@ const NeighborhoodPreviewPage = () => {
                     ...preview.mapCandidate,
                     label: '선택한 조건으로 찾기',
                     disabled: preview.showCommute && !preview.isValidCommuteTime,
-                    onClick: preview.startAnalysis,
+                    onClick: () => {
+                      tutorial.complete();
+                      preview.startAnalysis();
+                    },
                   }
                 : undefined
             }
           />
-          <header className={styles.searchHeader}>
+          <header className={styles.searchHeader} data-tutorial-step={tutorial.isOpen ? tutorial.step : undefined}>
             <div className={styles.mapSearch}>
               <SearchField
                 className={styles.activeSearchField}
                 shape="pill"
-                showSubmitButton={false}
+                showSubmitButton={preview.isPublicExplore}
                 label={preview.mode === 'commute' ? '출퇴근 장소' : '관심 지역'}
                 placeholder={preview.mode === 'commute' ? '출퇴근하는 장소 검색' : '관심 지역 검색'}
                 value={preview.query}
@@ -151,7 +170,30 @@ const NeighborhoodPreviewPage = () => {
                 autoFocus={preview.shouldFocusMapSearch}
               />
             </div>
-            {preview.query.trim() !== '' && !preview.hasChosenMapPoint && (
+            {preview.isPublicExplore && !preview.hasChosenMapPoint && (
+              <>
+                {preview.isSearching && (
+                  <p className={styles.mapSearchResult} role="status">
+                    주소를 찾고 있어요.
+                  </p>
+                )}
+                {preview.searchError && (
+                  <p className={styles.mapSearchResult} role="alert">
+                    {preview.searchError}
+                  </p>
+                )}
+                {preview.addressResults.map((address) => (
+                  <button
+                    className={styles.mapSearchResult}
+                    key={`${address.latitude}-${address.longitude}`}
+                    onClick={() => preview.selectAddress(address)}
+                  >
+                    {address.roadAddress ?? address.jibunAddress ?? address.address}
+                  </button>
+                ))}
+              </>
+            )}
+            {!preview.isPublicExplore && preview.query.trim() !== '' && !preview.hasChosenMapPoint && (
               <button
                 className={styles.mapSearchResult}
                 onClick={() => {
@@ -161,6 +203,14 @@ const NeighborhoodPreviewPage = () => {
               >
                 {preview.matchesDestination ? PREVIEW_DESTINATION.name : '시안에서는 판교사옥을 검색할 수 있어요.'}
               </button>
+            )}
+            {tutorial.isOpen && filterField === null && (tutorial.step !== 'location' || !preview.query.trim()) && (
+              <ExplorationTip
+                step={tutorial.step}
+                mode={preview.mode}
+                onSkip={tutorial.skip}
+                onKeepDefaults={tutorial.applyFilter}
+              />
             )}
             {preview.showCommute && (
               <div className={styles.filterChips} aria-label="탐색 조건">
@@ -200,7 +250,7 @@ const NeighborhoodPreviewPage = () => {
             className={styles.entryToast}
             title={preview.showPrice ? '어느 동네의 월세가 궁금하세요?' : '어디로 출퇴근·통학하세요?'}
             description={'학교·회사 등 자주 가는 곳을 검색하거나\n지도에서 선택해주세요.'}
-            isOpen={isEntryToastOpen && !preview.hasChosenMapPoint && filterField === null}
+            isOpen={!preview.isPublicExplore && isEntryToastOpen && !preview.hasChosenMapPoint && filterField === null}
             onClose={closeEntryToast}
           />
           {filterField !== null && (
@@ -215,6 +265,7 @@ const NeighborhoodPreviewPage = () => {
                 preview={preview}
                 field={filterField}
                 onClose={() => setFilterField(null)}
+                onApply={tutorial.applyFilter}
               />
             </BottomSheet>
           )}
@@ -289,6 +340,18 @@ const NeighborhoodPreviewPage = () => {
             </div>
           </header>
           {locationControls}
+          {preview.isPublicExplore && recordArea && (
+            <div className={styles.recordAction}>
+              <ExplorationRecordAction
+                location={{
+                  ...recordArea.center,
+                  address: recordArea.fullName,
+                  roadAddress: null,
+                  jibunAddress: recordArea.fullName,
+                }}
+              />
+            </div>
+          )}
           {preview.regions.length === 0 && (
             <div className={styles.resultControls}>
               <p className={styles.selectedInfo}>
