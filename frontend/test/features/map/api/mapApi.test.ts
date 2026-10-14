@@ -51,12 +51,12 @@ describe('MVP2 지도 API', () => {
       http.get(`${config.apiBaseUrl}/api/maps/nearby`, ({ request }) => {
         const params = new URL(request.url).searchParams;
         expect(params.get('radius')).toBe('1000');
-        expect(params.get('categories')).toBe('HOSPITAL,TRANSPORT');
+        expect(params.get('categories')).toBe('HOSPITAL,SCHOOL');
         return HttpResponse.json(
           successEnvelope({
             center: { latitude: 37.5665, longitude: 126.978 },
             radius: 1000,
-            counts: { HOSPITAL: 1, TRANSPORT: 1, SCHOOL: 0, CONVENIENCE: 0, AGENCY: 0 },
+            counts: { HOSPITAL: 1, SCHOOL: 0, CONVENIENCE: 0, AGENCY: 0 },
             places: [
               {
                 providerPlaceId: 'demo-hospital-1',
@@ -73,9 +73,9 @@ describe('MVP2 지도 API', () => {
       }),
     );
 
-    await expect(fetchNearby(config, 37.5665, 126.978, 1000, ['HOSPITAL', 'TRANSPORT'])).resolves.toMatchObject({
+    await expect(fetchNearby(config, 37.5665, 126.978, 1000, ['HOSPITAL', 'SCHOOL'])).resolves.toMatchObject({
       radius: 1000,
-      counts: { HOSPITAL: 1, TRANSPORT: 1 },
+      counts: { HOSPITAL: 1, SCHOOL: 0 },
       places: [{ name: '서울시립병원', distanceMeters: 320 }],
     });
   });

@@ -1,4 +1,4 @@
-import { http } from 'msw';
+import { http, HttpResponse } from 'msw';
 
 import { getMockProperties, success } from '../mockStore';
 
@@ -133,15 +133,54 @@ export const mapHandlers = [
     const latitude = Number(url.searchParams.get('latitude') ?? address.latitude);
     const longitude = Number(url.searchParams.get('longitude') ?? address.longitude);
     const categories = (url.searchParams.get('categories') ?? '').split(',').filter(Boolean);
+    if (categories.includes('TRANSPORT'))
+      return HttpResponse.json(
+        { code: 'INVALID_REQUEST', message: '교통은 버스정류장 API로 조회해주세요.', errors: [] },
+        { status: 400 },
+      );
     const places = demoPlaces
       .filter(
-        (place) => place.distanceMeters <= radius && (categories.length === 0 || categories.includes(place.category)),
+        (place) =>
+          place.category !== 'TRANSPORT' &&
+          place.distanceMeters <= radius &&
+          (categories.length === 0 || categories.includes(place.category)),
       )
       .map(({ direction, ...place }) => ({ ...place, ...at(latitude, longitude, place.distanceMeters, direction) }));
-    const counts = { HOSPITAL: 0, TRANSPORT: 0, SCHOOL: 0, CONVENIENCE: 0, AGENCY: 0 };
+    const counts = { HOSPITAL: 0, SCHOOL: 0, CONVENIENCE: 0, AGENCY: 0 };
     places.forEach((place) => {
-      counts[place.category] += 1;
+      if (place.category !== 'TRANSPORT') counts[place.category] += 1;
     });
     return success({ center: { latitude, longitude }, radius, counts, places });
+  }),
+  http.get('*/api/maps/bus-stops', ({ request }) => {
+    const params = new URL(request.url).searchParams;
+    const latitude = Number(params.get('latitude'));
+    const longitude = Number(params.get('longitude'));
+    const radius = Number(params.get('radius'));
+    if (
+      !params.has('latitude') ||
+      !params.has('longitude') ||
+      !Number.isFinite(latitude) ||
+      latitude < -90 ||
+      latitude > 90 ||
+      !Number.isFinite(longitude) ||
+      longitude < -180 ||
+      longitude > 180 ||
+      ![500, 1000, 2000].includes(radius)
+    )
+      return HttpResponse.json(
+        { code: 'INVALID_REQUEST', message: '요청 값을 확인해주세요.', errors: [] },
+        { status: 400 },
+      );
+    const busStops = demoPlaces
+      .filter((place) => place.category === 'TRANSPORT' && place.distanceMeters <= radius)
+      .sort((a, b) => a.distanceMeters - b.distanceMeters)
+      .map((place) => ({
+        nodeId: place.providerPlaceId.replace(/^tago:/, ''),
+        name: place.name,
+        ...at(latitude, longitude, place.distanceMeters, place.direction),
+        distanceMeters: place.distanceMeters,
+      }));
+    return success({ center: { latitude, longitude }, radius, count: busStops.length, busStops });
   }),
 ];

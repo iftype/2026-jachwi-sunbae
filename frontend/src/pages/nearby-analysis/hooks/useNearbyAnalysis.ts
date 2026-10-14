@@ -1,7 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 
-import { fetchNearby } from '@/features/map/api/mapApi';
+import { useNearbyFacilities } from '@/features/map/api/useNearbyFacilities';
 import { clusterNearbyPlaces } from '@/features/map/lib/mapClustering';
 import type { MapCoordinate } from '@/features/map/lib/mapLocation';
 import { coordinatesAreClose, SEOUL_MAP_CENTER } from '@/features/map/lib/mapLocation';
@@ -9,7 +8,6 @@ import { ALL_MAP_CATEGORIES } from '@/features/map/lib/mapPresentation';
 import type { MapCategory } from '@/features/map/model/Map';
 import type { MapMarker } from '@/features/map/model/Map';
 import type { MapRadiusCircle } from '@/features/map/model/MapCanvas';
-import { usePublicConfig } from '@/shared/config/PublicConfigContext';
 
 export const NEARBY_RADII = [500, 1000, 2000] as const;
 export type NearbyRadius = (typeof NEARBY_RADII)[number];
@@ -22,7 +20,6 @@ const toggleCategory = (categories: MapCategory[], category: MapCategory) =>
 
 /** 매물 좌표를 중심으로 반경·카테고리별 주변 시설을 조회하고, 지도 탐색 상태를 관리한다. */
 const useNearbyAnalysis = (propertyId: number, propertyLocation: MapCoordinate | null) => {
-  const config = usePublicConfig();
   const latitude = propertyLocation?.latitude ?? null;
   const longitude = propertyLocation?.longitude ?? null;
   const center = useMemo(
@@ -37,11 +34,7 @@ const useNearbyAnalysis = (propertyId: number, propertyLocation: MapCoordinate |
   const [isAllMode, setIsAllMode] = useState(false);
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
 
-  const nearby = useQuery({
-    queryKey: ['nearby', propertyId, latitude, longitude, radius, ALL_MAP_CATEGORIES.join(',')],
-    queryFn: ({ signal }) => fetchNearby(config, latitude ?? 0, longitude ?? 0, radius, ALL_MAP_CATEGORIES, signal),
-    enabled: latitude !== null && longitude !== null,
-  });
+  const nearby = useNearbyFacilities(center, radius, selectedCategories, latitude !== null && longitude !== null);
 
   useEffect(() => {
     setViewportCenter(center);

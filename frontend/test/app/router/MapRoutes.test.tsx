@@ -62,7 +62,7 @@ const mapAddress = {
 const nearbyResult = (radius: number) => ({
   center: { latitude: property.latitude, longitude: property.longitude },
   radius,
-  counts: { HOSPITAL: 1, TRANSPORT: 0, SCHOOL: 0, CONVENIENCE: 1, AGENCY: 0 },
+  counts: { HOSPITAL: 1, SCHOOL: 0, CONVENIENCE: 1, AGENCY: 0 },
   places: [
     {
       providerPlaceId: 'demo-hospital-1',
