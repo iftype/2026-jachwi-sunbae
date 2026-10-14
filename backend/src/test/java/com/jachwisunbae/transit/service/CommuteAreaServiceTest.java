@@ -26,6 +26,8 @@ class CommuteAreaServiceTest {
     private static final Coordinate DESTINATION = new Coordinate(37.5000, 127.0000);
     private static final String NEAR_DONG = "11000002";
     private static final String FAR_DONG = "11000001";
+    private static final String INCHEON_DONG = "23000001";
+    private static final String GYEONGGI_DONG = "31000001";
 
     private final InMemoryGtfsNetworkRepository networkRepository = new InMemoryGtfsNetworkRepository();
     private final CommuteAreaService service = new CommuteAreaService(
@@ -55,6 +57,21 @@ class CommuteAreaServiceTest {
         assertThat(result.areas()).flatExtracting(CommuteArea::stations)
                 .extracting(station -> station.stop().stopId())
                 .doesNotContain("D");
+    }
+
+    @Test
+    @DisplayName("인천 정류장은 노선망에서 지나갈 수 있지만 결과 동네에서는 뺀다")
+    void excludesIncheonAreas() {
+        networkRepository.replace(new GtfsFeed(
+                List.of(new GtfsRoute("R1", "1", "1번", 3, new Seconds(120))),
+                List.of(stop("A", 37.5000, 127.0010, NEAR_DONG), stop("I", 37.5100, 127.0010, INCHEON_DONG),
+                        stop("G", 37.5200, 127.0010, GYEONGGI_DONG)),
+                List.of(edge("G", "I"), edge("I", "A")),
+                List.of()));
+
+        CommuteAreaSearchResult result = service.search(DESTINATION, 60, 2);
+
+        assertThat(codes(result)).containsExactly(NEAR_DONG, GYEONGGI_DONG);
     }
 
     @Test
