@@ -19,6 +19,7 @@ import { commuteColor } from '../model/commuteColors';
 import { readNeighborhoodSearch, writeNeighborhoodSearch } from '../model/neighborhoodSearchSession';
 import { PREVIEW_DESTINATION } from '../model/preview';
 import { resultMapCenter } from '../model/resultMapView';
+import useNeighborhoodAnalytics from './useNeighborhoodAnalytics';
 
 const describeError = (error: unknown) => {
   if (error instanceof ApiError) {
@@ -184,6 +185,16 @@ const useNeighborhoodPreview = () => {
   );
   const selectedPrice = allPriceAreas.find((area) => area.legalDongCode === (routeAreaId ?? selectedId));
   const areas = mode === 'commute' ? commute.data?.areas : undefined;
+  const analytics = useNeighborhoodAnalytics({
+    mode,
+    mock: isMockData,
+    analyzing: phase === 'analyzing',
+    fetching: mode === 'price' ? price.isFetching : commute.isFetching,
+    success: mode === 'price' ? price.isSuccess : commute.isSuccess,
+    error: mode === 'price' ? price.isError : commute.isError,
+    resultCount: mode === 'price' ? priceAreas.length : (areas?.length ?? 0),
+    transactionCount: priceAreas.reduce((count, area) => count + area.items.length, 0),
+  });
   useEffect(() => {
     const result = mode === 'price' ? price : commute;
     if (isPublicExplore && phase === 'analyzing' && result.isSuccess && !result.isFetching) {
@@ -315,6 +326,7 @@ const useNeighborhoodPreview = () => {
     },
     startAnalysis: () => {
       if (phase !== 'conditions' || (mode === 'commute' && !isValidCommuteTime)) return;
+      analytics.startSearch({ maxMinutes, maxTransfers, maxRent });
       resultView.current = null;
       setSelectedId(null);
       setSelectedStopId(null);
@@ -454,7 +466,10 @@ const useNeighborhoodPreview = () => {
       phase === 'analyzing' && (mode === 'price' ? price.isError : commute.isError)
         ? describeError(mode === 'price' ? price.error : commute.error)
         : null,
-    retry: () => (mode === 'price' ? price.refetch() : commute.refetch()),
+    retry: () => {
+      analytics.startSearch({ maxMinutes, maxTransfers, maxRent }, 'retry');
+      return mode === 'price' ? price.refetch() : commute.refetch();
+    },
     maxMinutes,
     isValidCommuteTime,
     changeMaxMinutes: setMaxMinutes,
@@ -479,6 +494,7 @@ const useNeighborhoodPreview = () => {
         mode === 'price' ? 8 : 10,
       ),
     reset: () => {
+      analytics.cancelSearch();
       if (location.pathname.includes('/areas/') || location.pathname.includes('/prices/'))
         navigate(`${mapPath}?mode=${mode}`, { replace: true });
       void client.cancelQueries({ queryKey: ['commute-areas'] });
@@ -501,13 +517,18 @@ const useNeighborhoodPreview = () => {
         mode === 'commute'
           ? areas?.find((area) => area.adminDongCode === id)
           : priceAreas.find((area) => area.legalDongCode === id);
+      if (area) analytics.selectArea();
       if (area) resultView.current = { ...resultMapCenter(area.center, 7), level: 7 };
       setSelectedId(id);
       setSelectedStopId(areas?.find((area) => area.adminDongCode === id)?.stations[0]?.stopId ?? null);
       if (id && mode === 'commute') navigate(`${mapPath}/areas/${id}?mode=${mode}`);
       if (id && mode === 'price') navigate(`${mapPath}/prices/${id}?mode=price`);
     },
-    selectStation: setSelectedStopId,
+    selectStation: (id: string) => {
+      if (!selected?.stations.some((station) => station.stopId === id) || id === selectedStopId) return;
+      analytics.changeStation();
+      setSelectedStopId(id);
+    },
     openAreaDetails: () => {
       if (selected) navigate(`${mapPath}/areas/${selected.adminDongCode}/details?mode=commute`);
     },

@@ -1,0 +1,78 @@
+--- a/frontend/src/pages/landing/LandingPage.tsx
++++ b/frontend/src/pages/landing/LandingPage.tsx
+@@ -1,21 +1,17 @@
+-import { useEffect } from 'react';
+-import { Link, useLocation } from 'react-router-dom';
++import { Link } from 'react-router-dom';
+
+ import mascotImage from '@/shared/assets/empty-property.jpg';
+-import { trackPostHogEvent } from '@/shared/lib/analytics/posthog';
+
+ import { trackLandingCta } from './lib/landingAnalytics';
++import useLandingAnalytics from './lib/useLandingAnalytics';
+ import { getLandingMobilePlatform, LANDING_APP_URLS } from './lib/landingPlatform';
+ import LandingDemo from './ui/landing-demo/LandingDemo';
+
+ import styles from './LandingPage.module.css';
+
+ const LandingPage = () => {
+-  const isAbout = useLocation().pathname === '/about';
++  useLandingAnalytics('exploration_v1');
+   const appPlatform = getLandingMobilePlatform(navigator.userAgent, navigator.maxTouchPoints);
+-  useEffect(() => {
+-    trackPostHogEvent(isAbout ? 'service_introduction_viewed' : 'landing_page_viewed');
+-  }, [isAbout]);
+   return (
+     <main className={styles.page}>
+       <section className={styles.card} aria-labelledby="landing-heading">
+--- a/frontend/src/pages/landing/ui/landing-demo/LandingDemo.tsx
++++ b/frontend/src/pages/landing/ui/landing-demo/LandingDemo.tsx
+@@ -2,6 +2,8 @@
+
+ import mascotImage from '@/shared/assets/empty-property.jpg';
+
++import { trackLandingDemoInteraction } from '../../lib/landingAnalytics';
++
+ import styles from './LandingDemo.module.css';
+
+ const STEPS = ['동네 찾기', '방 등록', '정보 저장', '체크리스트'];
+@@ -62,7 +64,10 @@
+       <h2 id="usage-heading">이렇게 사용해요</h2>
+       <div className={styles.steps} aria-label="사용 예시 단계">
+         {STEPS.map((step, index) => (
+-          <button key={step} type="button" aria-pressed={stage === index} onClick={() => selectStep(index)}>
++          <button key={step} type="button" aria-pressed={stage === index} onClick={() => {
++            trackLandingDemoInteraction('step', String(index + 1));
++            selectStep(index);
++          }}>
+             <span>{index + 1}</span>
+             {step}
+           </button>
+@@ -84,6 +89,7 @@
+                   type="button"
+                   aria-pressed={mode === 'commute'}
+                   onClick={() => {
++                    trackLandingDemoInteraction('mode', 'commute');
+                     setMode('commute');
+                     selectStep(0);
+                   }}
+@@ -94,6 +100,7 @@
+                   type="button"
+                   aria-pressed={mode === 'price'}
+                   onClick={() => {
++                    trackLandingDemoInteraction('mode', 'price');
+                     setMode('price');
+                     selectStep(0);
+                   }}
+@@ -191,7 +198,10 @@
+         </span>
+       </div>
+       <p className={styles.caption}>{CAPTIONS[stage]}</p>
+-      <button className={styles.playbackControl} type="button" onClick={() => setIsPaused((value) => !value)}>
++      <button className={styles.playbackControl} type="button" onClick={() => {
++        trackLandingDemoInteraction('playback', isPaused ? 'play' : 'pause');
++        setIsPaused((value) => !value);
++      }}>
+         {isPaused ? '시연 재생' : '일시정지'}
+       </button>
+     </section>
