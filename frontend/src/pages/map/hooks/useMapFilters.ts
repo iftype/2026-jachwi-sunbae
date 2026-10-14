@@ -7,7 +7,7 @@ import type { MapRadius } from '../lib/mapRadius';
 
 const useMapFilters = (initial?: { categories: MapCategory[]; radius: MapRadius | null }) => {
   const [selectedCategories, setSelectedCategories] = useState<MapCategory[]>(initial?.categories ?? []);
-  // 반경은 사용자가 직접 선택했을 때만 표시한다. 초기 화면에 현재 위치 기준 원을 자동으로 띄우지 않는다.
+  // 위치나 매물을 선택하기 전에는 반경을 표시하지 않는다.
   const [selectedRadius, setSelectedRadius] = useState<MapRadius | null>(initial?.radius ?? null);
 
   const toggleCategory = (category: MapCategory) =>

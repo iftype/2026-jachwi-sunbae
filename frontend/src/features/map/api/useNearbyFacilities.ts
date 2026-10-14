@@ -14,11 +14,14 @@ export const useNearbyFacilities = (
   radius: 500 | 1000 | 2000,
   selectedCategories: MapCategory[],
   enabled = true,
+  options: { loadAllCategories?: boolean } = {},
 ) => {
   const config = usePublicConfig();
-  const needsTransport = selectedCategories.includes('TRANSPORT');
+  const needsTransport = options.loadAllCategories === true || selectedCategories.includes('TRANSPORT');
   const needsNearby =
-    selectedCategories.length === 0 || selectedCategories.some((category) => category !== 'TRANSPORT');
+    options.loadAllCategories === true ||
+    selectedCategories.length === 0 ||
+    selectedCategories.some((category) => category !== 'TRANSPORT');
   const nearby = useQuery({
     queryKey: ['nearby-facilities', config.apiBaseUrl, center.latitude, center.longitude, radius],
     queryFn: ({ signal }) => fetchNearby(config, center.latitude, center.longitude, radius, CATEGORIES, signal),

@@ -114,6 +114,24 @@ describe('MVP2 지도 화면', () => {
   beforeEach(() => {
     queryClient.clear();
     server.use(
+      http.get(`${config.apiBaseUrl}/api/maps/bus-stops`, ({ request }) =>
+        HttpResponse.json(
+          successEnvelope({
+            center: { latitude: property.latitude, longitude: property.longitude },
+            radius: Number(new URL(request.url).searchParams.get('radius') ?? 500),
+            count: 1,
+            busStops: [
+              {
+                nodeId: 'stop-1',
+                name: '신림역 정류장',
+                latitude: property.latitude,
+                longitude: property.longitude,
+                distanceMeters: 100,
+              },
+            ],
+          }),
+        ),
+      ),
       http.get(`${config.apiBaseUrl}/api/maps/nearby`, ({ request }) =>
         HttpResponse.json(
           successEnvelope(nearbyResult(Number(new URL(request.url).searchParams.get('radius') ?? 500))),
@@ -365,6 +383,7 @@ describe('MVP2 지도 화면', () => {
     expect(screen.queryByText('신림역 원룸', { selector: 'span' })).not.toBeInTheDocument();
     expect(screen.queryByRole('list', { name: '주변 시설 목록' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '병원 표시하기, 1개' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: '교통 1개 표시하기' })).toHaveAttribute('aria-pressed', 'false');
     await waitFor(() => expect(requestedRadii).toContain('2000'));
 
     await user.click(screen.getByRole('button', { name: '시설 목록 보기' }));

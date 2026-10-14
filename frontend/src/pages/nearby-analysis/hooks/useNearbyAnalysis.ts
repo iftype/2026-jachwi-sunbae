@@ -34,7 +34,9 @@ const useNearbyAnalysis = (propertyId: number, propertyLocation: MapCoordinate |
   const [isAllMode, setIsAllMode] = useState(false);
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
 
-  const nearby = useNearbyFacilities(center, radius, selectedCategories, latitude !== null && longitude !== null);
+  const nearby = useNearbyFacilities(center, radius, selectedCategories, latitude !== null && longitude !== null, {
+    loadAllCategories: true,
+  });
 
   useEffect(() => {
     setViewportCenter(center);

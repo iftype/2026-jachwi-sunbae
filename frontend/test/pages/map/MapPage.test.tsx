@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { Link, MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
@@ -8,12 +8,63 @@ import { expect, it, vi } from 'vitest';
 import { propertySummaryFixture } from '@/app/mocks/fixtures/propertyFixtures';
 import MapPage from '@/pages/map/MapPage';
 import { setAuthentication } from '@/features/auth/model/authStore';
+import * as mapLocation from '@/features/map/lib/mapLocation';
 import { getMapFocusCenter } from '@/features/map/lib/mapViewportFocus';
 import type MapCanvas from '@/features/map/ui/map-canvas/MapCanvas';
 import { getPropertyReturnState } from '@/features/property/lib/propertyNavigation';
 import { PublicConfigProvider } from '@/shared/config/PublicConfigContext';
 
 import { server } from '../../server';
+
+it.each([true, false])('첫 진입 현재 위치 수신 성공 여부 %s에 따라 반경을 활성화한다', async (succeeds) => {
+  const permission = vi.spyOn(mapLocation, 'readGeolocationPermission').mockResolvedValue('granted');
+  const position = vi.spyOn(mapLocation, 'requestCurrentMapLocation');
+  if (succeeds) position.mockResolvedValue({ latitude: 37.5, longitude: 127.1 });
+  else position.mockRejectedValue(new Error('위치 조회 실패'));
+  server.use(
+    http.get('*/api/properties', () => HttpResponse.json({ code: 'SUCCESS', data: { totalCount: 0, items: [] } })),
+    http.get('*/api/maps/nearby', () =>
+      HttpResponse.json({
+        code: 'SUCCESS',
+        data: {
+          center: { latitude: 37.5, longitude: 127.1 },
+          radius: 500,
+          counts: { HOSPITAL: 0, SCHOOL: 0, CONVENIENCE: 0, AGENCY: 0 },
+          places: [],
+        },
+      }),
+    ),
+  );
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const view = render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={[{ pathname: '/map', key: `gps-${succeeds}` }]}>
+        <PublicConfigProvider config={{ apiBaseUrl: 'http://localhost:8080', mapProviderMode: 'demo' }}>
+          <MapPage />
+        </PublicConfigProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+  try {
+    await waitFor(() => expect(position).toHaveBeenCalledTimes(1));
+    if (succeeds) {
+      await waitFor(() => expect(screen.getByRole('button', { name: '500m' })).toHaveAttribute('aria-pressed', 'true'));
+      expect(screen.getByRole('button', { name: '1km' })).toBeEnabled();
+      expect(screen.getByLabelText('조회 기준')).toHaveTextContent(
+        JSON.stringify({ latitude: 37.5, longitude: 127.1 }),
+      );
+    } else {
+      expect(screen.getByRole('button', { name: '500m' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: '500m' })).toHaveAttribute('aria-pressed', 'false');
+    }
+    expect(screen.getByLabelText('지도 확대 수준')).toHaveTextContent('5');
+  } finally {
+    view.unmount();
+    client.clear();
+    permission.mockRestore();
+    position.mockRestore();
+  }
+});
 
 vi.mock('@/features/map/ui/map-canvas/MapCanvas', () => ({
   default: (props: React.ComponentProps<typeof MapCanvas>) => (

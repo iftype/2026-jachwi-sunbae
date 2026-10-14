@@ -23,8 +23,8 @@ import MapPropertySheet from './ui/map-property-sheet/MapPropertySheet';
 
 import styles from './MapPage.module.css';
 
-/** 지도 탭은 사용자가 반경을 선택했을 때만 주변 시설 반경을 표시한다. */
-const INITIAL_MAP_LEVEL = 4;
+/** 현재 위치 또는 선택한 매물 좌표에서 반경별 주변 시설을 탐색한다. */
+const INITIAL_MAP_LEVEL = levelForRadius(500);
 const PROPERTY_MARKER_PREFIX = 'property-';
 
 const MapPage = () => {
@@ -90,6 +90,12 @@ const MapPage = () => {
   );
 
   const { currentPosition } = mapLocation;
+  useEffect(() => {
+    if (initialView !== undefined || currentPosition === null || hasNearbyAnchor || addMode.isAddMode) return;
+    setNearbyAnchor(currentPosition);
+    setHasNearbyAnchor(true);
+    filters.ensureRadius();
+  }, [initialView, currentPosition, hasNearbyAnchor, addMode.isAddMode, filters.ensureRadius]);
   const markers = useMemo<MapMarker[]>(() => {
     // 매물 추가 중에도 내가 어디에 있는지는 계속 보여 준다. 중앙 선택 핀과 역할이 다르다.
     return [
