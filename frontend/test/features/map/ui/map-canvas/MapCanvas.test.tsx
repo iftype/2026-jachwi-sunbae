@@ -60,6 +60,20 @@ const renderWithConfig = (ui: ReactElement) =>
   render(ui, { wrapper: ({ children }) => <PublicConfigProvider config={config}>{children}</PublicConfigProvider> });
 
 describe('Naver 지도 상태 동기화', () => {
+  it('지도 좌표에 조회 버튼을 붙이고 제거 시 오버레이를 정리한다', async () => {
+    const center = { latitude: 37.5, longitude: 127 };
+    const onClick = vi.fn();
+    const { rerender } = renderWithConfig(
+      <MapCanvas center={center} coordinateAction={{ ...center, label: '조회', onClick }} />,
+    );
+    await waitFor(() => expect(overlayInstances).toHaveLength(1));
+    const button = overlayInstances[0].pane.querySelector('button');
+    expect(button?.textContent).toBe('조회');
+    act(() => button?.click());
+    expect(onClick).toHaveBeenCalledOnce();
+    rerender(<MapCanvas center={center} />);
+    expect(overlayInstances[0].setMap).toHaveBeenCalledWith(null);
+  });
   type FakeMapInstance = {
     center: FakeLatLng;
     zoom: number;
@@ -209,6 +223,7 @@ describe('Naver 지도 상태 동기화', () => {
     Object.defineProperty(window, 'naver', { configurable: true, value: sdk });
     await act(async () => {
       script.dispatchEvent(new Event('load'));
+      window.jachwiNaverSdkReady?.();
     });
     expect(maps).toHaveLength(1);
     expect(maps[0].center.lat()).toBe(37.6);

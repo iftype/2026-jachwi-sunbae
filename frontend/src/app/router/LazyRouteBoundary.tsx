@@ -4,6 +4,8 @@ import { Component, Suspense } from 'react';
 import { capturePostHogException, trackPostHogEvent } from '@/shared/lib/analytics/posthog';
 import ContentState from '@/shared/ui/content-state/ContentState';
 
+import RouteLoading from './RouteLoading';
+
 class RouteErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   state = { hasError: false };
 
@@ -41,9 +43,15 @@ class RouteErrorBoundary extends Component<{ children: ReactNode }, { hasError: 
   }
 }
 
-const LazyRouteBoundary = ({ children }: { children: ReactNode }) => (
+const LazyRouteBoundary = ({
+  children,
+  fallback = <RouteLoading />,
+}: {
+  children: ReactNode;
+  fallback?: ReactNode;
+}) => (
   <RouteErrorBoundary>
-    <Suspense fallback={<ContentState loading title="화면을 불러오는 중이에요." />}>{children}</Suspense>
+    <Suspense fallback={fallback}>{children}</Suspense>
   </RouteErrorBoundary>
 );
 

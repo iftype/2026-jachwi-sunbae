@@ -15,6 +15,7 @@ import { usePublicConfig } from '@/shared/config/PublicConfigContext';
 
 import { commuteColor } from '../model/commuteColors';
 import { PREVIEW_DESTINATION } from '../model/preview';
+import { resultMapCenter } from '../model/resultMapView';
 
 const describeError = (error: unknown) => {
   if (error instanceof ApiError) {
@@ -60,8 +61,9 @@ const useNeighborhoodPreview = () => {
   const [locationError, setLocationError] = useState<string | null>(null);
   const [maxMinutes, setMaxMinutes] = useState(60);
   const [maxTransfers, setMaxTransfers] = useState(2);
+  const [maxRent, setMaxRent] = useState(0);
   const isValidCommuteTime =
-    Number.isInteger(maxMinutes) && maxMinutes >= 5 && maxMinutes <= 180 && maxMinutes % 5 === 0;
+    Number.isInteger(maxMinutes) && maxMinutes >= 10 && maxMinutes <= 60 && maxMinutes % 10 === 0;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedStopId, setSelectedStopId] = useState<string | null>(null);
   useEffect(() => {
@@ -76,11 +78,8 @@ const useNeighborhoodPreview = () => {
         if (cancelled || intent !== locationIntent.current) return;
         const current = { ...coordinate, name: '현재 위치', address: '현재 위치 기준' };
         setCurrentPosition(coordinate);
-        setDestination(current);
         setMapCandidate(current);
         setSelectionCenter(current);
-        setHasChosenMapPoint(true);
-        setPhase('conditions');
       } catch {
         // 위치를 못 받으면 기본 지도에서 직접 찍도록 유지한다.
       }
@@ -149,8 +148,15 @@ const useNeighborhoodPreview = () => {
     enabled: phase === 'analyzing' && mode === 'price',
     retry: false,
   });
-  const priceAreas = mode === 'price' ? (price.data ?? []) : [];
-  const selectedPrice = priceAreas.find((area) => area.legalDongCode === selectedId);
+  const allPriceAreas = mode === 'price' ? (price.data ?? []) : [];
+  const priceAreas = useMemo(
+    () =>
+      (mode === 'price' ? (price.data ?? []) : []).filter(
+        (area) => maxRent === 0 || (area.average !== null && area.average <= maxRent * 10000),
+      ),
+    [price.data, mode, maxRent],
+  );
+  const selectedPrice = allPriceAreas.find((area) => area.legalDongCode === selectedId);
   const areas = mode === 'commute' ? commute.data?.areas : undefined;
   const selected = areas?.find((area) => area.adminDongCode === selectedId);
   const selectedStation = selected?.stations.find((station) => station.stopId === selectedStopId);
@@ -180,17 +186,24 @@ const useNeighborhoodPreview = () => {
             center: area.center,
             paths: area.polygons.map((polygon) => polygon[0]),
             polygons: area.polygons,
-            summary: { price: area.average === null ? '정보 없음' : `${Math.round(area.average / 10000)}만원` },
+            appearance:
+              area.legalDongCode === selectedId
+                ? { fillColor: '#168BFF', strokeColor: '#0875E1' }
+                : { fillColor: '#94A3B8', strokeColor: '#8492A6' },
+            summary: { price: area.average === null ? '거래 정보 없음' : `${Math.round(area.average / 10000)}만원` },
           }))
         : (areas ?? []).map((area) => ({
             ...commuteAreaToRegion(area),
+            summary: undefined,
             appearance: commuteColor(area.commuteMinutes, maxMinutes),
           })),
-    [areas, maxMinutes, mode, priceAreas],
+    [areas, maxMinutes, mode, priceAreas, selectedId],
   );
   const matchesDestination = `${PREVIEW_DESTINATION.name} ${PREVIEW_DESTINATION.address}`.includes(query.trim());
   return {
     priceAreas,
+    maxRent,
+    changeMaxRent: setMaxRent,
     selectedPrice,
     closePrice: () => setSelectedId(null),
     currentPosition,
@@ -211,7 +224,7 @@ const useNeighborhoodPreview = () => {
         } else {
           const current = { ...coordinate, name: '현재 위치', address: '현재 위치 기준' };
           setSelectionCenter(current);
-          setSelectionLevel(6);
+          setSelectionLevel(4);
           setDestination(current);
           setMapCandidate(current);
           setHasChosenMapPoint(true);
@@ -281,6 +294,7 @@ const useNeighborhoodPreview = () => {
       locationIntent.current += 1;
       setMapCandidate(PREVIEW_DESTINATION);
       setSelectionCenter(PREVIEW_DESTINATION);
+      setSelectionLevel(4);
       setDestination(PREVIEW_DESTINATION);
       setHasChosenMapPoint(true);
       setShouldFocusMapSearch(false);
@@ -320,6 +334,8 @@ const useNeighborhoodPreview = () => {
       };
       setMapCandidate(point);
       setDestination(point);
+      setSelectionCenter(point);
+      setSelectionLevel(4);
       setHasChosenMapPoint(true);
       setPhase('conditions');
       const intent = locationIntent.current;
@@ -360,18 +376,21 @@ const useNeighborhoodPreview = () => {
     resultLevel: resultView.current?.level ?? (mode === 'price' ? 8 : 10),
     center:
       resultView.current ??
-      (areas?.length
-        ? {
-            latitude:
-              (Math.min(...areas.map((area) => area.center.latitude)) +
-                Math.max(...areas.map((area) => area.center.latitude))) /
-              2,
-            longitude:
-              (Math.min(...areas.map((area) => area.center.longitude)) +
-                Math.max(...areas.map((area) => area.center.longitude))) /
-              2,
-          }
-        : (priceAreas[0]?.center ?? destination)),
+      resultMapCenter(
+        areas?.length
+          ? {
+              latitude:
+                (Math.min(...areas.map((area) => area.center.latitude)) +
+                  Math.max(...areas.map((area) => area.center.latitude))) /
+                2,
+              longitude:
+                (Math.min(...areas.map((area) => area.center.longitude)) +
+                  Math.max(...areas.map((area) => area.center.longitude))) /
+                2,
+            }
+          : (priceAreas[0]?.center ?? destination),
+        mode === 'price' ? 8 : 10,
+      ),
     reset: () => {
       if (location.pathname.includes('/areas/')) navigate(`/neighborhoods/map?mode=${mode}`, { replace: true });
       void client.cancelQueries({ queryKey: ['commute-areas'] });
@@ -390,11 +409,20 @@ const useNeighborhoodPreview = () => {
     regions,
     selected,
     selectRegion: (id: string | null) => {
+      const area =
+        mode === 'commute'
+          ? areas?.find((area) => area.adminDongCode === id)
+          : priceAreas.find((area) => area.legalDongCode === id);
+      if (area) resultView.current = { ...resultMapCenter(area.center, 7), level: 7 };
       setSelectedId(id);
       setSelectedStopId(areas?.find((area) => area.adminDongCode === id)?.stations[0]?.stopId ?? null);
       if (id && mode === 'commute') navigate(`/neighborhoods/map/areas/${id}?mode=${mode}`);
+      if (id && mode === 'price') navigate(`/neighborhoods/map/prices/${id}?mode=price`);
     },
     selectStation: setSelectedStopId,
+    openAreaDetails: () => {
+      if (selected) navigate(`/neighborhoods/map/areas/${selected.adminDongCode}/details?mode=commute`);
+    },
   };
 };
 export default useNeighborhoodPreview;

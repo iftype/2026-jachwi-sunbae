@@ -4,6 +4,7 @@ import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 
 import PropertyAppLayout from '@/app/layouts/property-app-layout/PropertyAppLayout';
 import LoginPage from '@/pages/login/LoginPage';
+import PropertyListSkeleton from '@/pages/property-list/ui/property-list-skeleton/PropertyListSkeleton';
 import { useAuthentication } from '@/features/auth/model/useAuthentication';
 import { isChecklistStage } from '@/features/checklist/model/checklist';
 
@@ -14,6 +15,7 @@ const IntroPage = lazy(() => import('@/pages/intro/IntroPage'));
 const NeighborhoodPreviewPage = lazy(() => import('@/pages/neighborhood-preview/NeighborhoodPreviewPage'));
 const NeighborhoodEntryPage = lazy(() => import('@/pages/neighborhood-entry/NeighborhoodEntryPage'));
 const NeighborhoodRoutePage = lazy(() => import('@/pages/neighborhood-preview/NeighborhoodRoutePage'));
+const NeighborhoodPricePage = lazy(() => import('@/pages/neighborhood-preview/NeighborhoodPricePage'));
 const LandingPage = lazy(() => import('@/pages/landing/LandingPage'));
 const PrivacyPage = lazy(() => import('@/pages/privacy/PrivacyPage'));
 const NotFoundPage = lazy(() => import('@/pages/not-found/NotFoundPage'));
@@ -62,6 +64,8 @@ const AppRoutes = () => (
       <Route path="/neighborhoods" element={lazyPage(<NeighborhoodEntryPage />)} />
       <Route path="/neighborhoods/map" element={lazyPage(<NeighborhoodPreviewPage />)}>
         <Route path="areas/:adminDongCode" element={lazyPage(<NeighborhoodRoutePage />)} />
+        <Route path="areas/:adminDongCode/details" element={lazyPage(<NeighborhoodRoutePage />)} />
+        <Route path="prices/:legalDongCode" element={lazyPage(<NeighborhoodPricePage />)} />
       </Route>
     </Route>
     <Route path="/intro" element={lazyPage(<IntroPage />)} />
@@ -71,7 +75,14 @@ const AppRoutes = () => (
     <Route element={<ProtectedRoute />}>
       <Route element={<PropertyAppLayout />}>
         <Route index element={<Navigate to="/properties" replace />} />
-        <Route path="/properties" element={lazyPage(<PropertyListPage />)} />
+        <Route
+          path="/properties"
+          element={
+            <LazyRouteBoundary fallback={<PropertyListSkeleton showHeader />}>
+              <PropertyListPage />
+            </LazyRouteBoundary>
+          }
+        />
         <Route path="/properties/new" element={lazyPage(<CreatePropertyPage />)} />
         <Route path="/properties/:propertyId" element={lazyPage(<PropertyDetailPage />)} />
 

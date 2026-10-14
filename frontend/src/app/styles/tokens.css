@@ -58,9 +58,9 @@
   --color-error-surface: #f1f1f1;
   --color-success: #333;
   --color-success-surface: #f1f1f1;
-  --color-check-good: #333;
+  --color-check-good: #9bcbb0;
   --color-check-good-ink: #222;
-  --color-check-caution: #777;
+  --color-check-caution: #e3a5a5;
   --color-check-caution-ink: #444;
   --color-check-unconfirmed: #c6c6c6;
   --color-check-unconfirmed-ink: #666;
@@ -80,5 +80,5 @@
   --page-inline-padding: 1rem;
   --app-max-width: 24.375rem;
   --app-bar-height: 2.9rem;
-  --bottom-navigation-height: 4.25rem;
+  --bottom-navigation-height: 2.47rem;
 }
