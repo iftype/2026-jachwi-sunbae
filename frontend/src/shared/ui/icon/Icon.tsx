@@ -20,6 +20,7 @@ import {
   MapIcon,
   MoreVerticalIcon,
   PlusIcon,
+  RefreshIcon,
   SearchIcon,
   TargetIcon,
   TrashIcon,
@@ -46,6 +47,7 @@ export type IconName =
   | 'map'
   | 'more-vertical'
   | 'plus'
+  | 'refresh'
   | 'search'
   | 'target'
   | 'trash'
@@ -79,6 +81,7 @@ const iconComponents: Record<IconName, ComponentType<IconComponentProps>> = {
   map: MapIcon,
   'more-vertical': MoreVerticalIcon,
   plus: PlusIcon,
+  refresh: RefreshIcon,
   search: SearchIcon,
   target: TargetIcon,
   trash: TrashIcon,

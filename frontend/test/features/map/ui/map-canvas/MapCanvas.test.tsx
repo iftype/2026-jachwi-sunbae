@@ -35,6 +35,7 @@ class FakeLatLngBounds {
 const overlayInstances: FakeOverlay[] = [];
 
 class FakeOverlay {
+  setOptions = vi.fn();
   readonly pane = document.createElement('div');
   onAdd?: () => void;
   draw?: () => void;
@@ -71,9 +72,11 @@ describe('Naver 지도 상태 동기화', () => {
     destroy: ReturnType<typeof vi.fn>;
   };
   let maps: FakeMapInstance[];
+  let mapOptions: unknown[];
 
   beforeEach(() => {
     maps = [];
+    mapOptions = [];
     overlayInstances.length = 0;
     class FakeMap {
       center: FakeLatLng;
@@ -92,6 +95,7 @@ describe('Naver 지도 상태 동기화', () => {
       destroy = vi.fn();
 
       constructor(_: HTMLElement, options: { center: FakeLatLng; zoom: number }) {
+        mapOptions.push(options);
         this.center = options.center;
         this.zoom = options.zoom;
         maps.push(this);
@@ -107,6 +111,7 @@ describe('Naver 지도 상태 동기화', () => {
           Map: FakeMap,
           OverlayView: FakeOverlay,
           Circle: FakeOverlay,
+          Polygon: FakeOverlay,
           Event: { addListener: vi.fn(() => ({})), removeListener: vi.fn() },
         },
       },
@@ -119,6 +124,46 @@ describe('Naver 지도 상태 동기화', () => {
     Object.defineProperty(window, 'naver', { configurable: true, value: undefined });
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+  });
+
+  it('동네에 마우스를 올리면 채움이 진해지고 벗어나면 복원한다', async () => {
+    const { unmount } = renderWithConfig(
+      <MapCanvas
+        center={{ latitude: 37.5, longitude: 127 }}
+        interactive
+        regions={[
+          {
+            id: '11230640',
+            name: '역삼1동',
+            isRecommended: true,
+            paths: [
+              [
+                { latitude: 37.5, longitude: 127 },
+                { latitude: 37.6, longitude: 127 },
+                { latitude: 37.5, longitude: 127.1 },
+                { latitude: 37.5, longitude: 127 },
+              ],
+            ],
+          },
+        ]}
+      />,
+    );
+    await waitFor(() =>
+      expect(window.naver!.maps.Event.addListener).toHaveBeenCalledWith(
+        expect.anything(),
+        'mouseover',
+        expect.any(Function),
+      ),
+    );
+    const calls = vi.mocked(window.naver!.maps.Event.addListener).mock.calls;
+    const enter = calls.find((call) => call[1] === 'mouseover')!;
+    const leave = calls.find((call) => call[1] === 'mouseout')!;
+    act(() => enter[2]());
+    expect((enter[0] as FakeOverlay).setOptions.mock.lastCall?.[0].fillOpacity).toBeCloseTo(0.34);
+    act(() => leave[2]());
+    expect((leave[0] as FakeOverlay).setOptions).toHaveBeenLastCalledWith({ fillOpacity: 0.24 });
+    unmount();
+    expect(window.naver!.maps.Event.removeListener).toHaveBeenCalled();
   });
 
   it('크기가 달라질 때만 autoResize를 호출하고 타일 새로고침은 하지 않는다', async () => {
@@ -150,6 +195,8 @@ describe('Naver 지도 상태 동기화', () => {
 
     await waitFor(() => expect(maps).toHaveLength(1));
     expect(maps[0].zoom).toBe(15);
+    expect(mapOptions[0]).not.toHaveProperty('customStyleId');
+    expect(mapOptions[0]).not.toHaveProperty('gl');
   });
 
   it('SDK 로딩 중 좌표가 바뀌면 최신 좌표와 확대 수준으로 생성한다', async () => {

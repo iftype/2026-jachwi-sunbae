@@ -46,6 +46,8 @@ const readBuildEnvironment = ({ isProduction, proxyTarget }) => {
     appVersion: process.env.APP_VERSION ?? packageVersion,
     devServerPort,
     isMockingEnabled,
+    commuteDataSource: isMockingEnabled && process.env.USE_REAL_COMMUTE_API !== 'true' ? 'mock' : 'server',
+    boundaryBaseUrl: process.env.ADMIN_BOUNDARY_BASE_URL ?? '/boundaries',
     mapProviderMode: isProduction
       ? 'naver'
       : (process.env.MAP_PROVIDER_MODE ?? (naverMapClientId === '' ? 'demo' : 'naver')),
