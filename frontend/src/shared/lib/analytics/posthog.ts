@@ -9,6 +9,7 @@ export {
   resetPostHogClientForTests as resetPostHogForTests,
   resetPostHogIdentity,
   setPostHogSessionContext,
+  setPostHogAuthenticationReader,
   trackPostHogEvent,
   trackPostHogOutboundEvent,
   trackPostHogPageView,

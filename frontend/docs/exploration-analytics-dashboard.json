@@ -5,7 +5,7 @@
   "defaultEnvironment": "production",
   "internalCohortExcluded": 520731,
   "status": "prepared_not_deployed",
-  "queryExecutionVerifiedOn": "2026-10-14",
+  "queryExecutionVerifiedOn": "2026-10-15",
   "commonProperties": [
     "environment",
     "platform",
@@ -13,9 +13,11 @@
     "device_category",
     "operating_system",
     "native_app_version",
-    "traffic_type"
+    "traffic_type",
+    "auth_status"
   ],
-  "testTrafficFilterStatus": "not_applied_remotely",
+  "testTrafficFilterStatus": "applied_2026-10-15",
+  "testTrafficFilter": "coalesce(properties.traffic_type, 'external') NOT IN ('test', 'development')",
   "featureValues": ["rental", "commute"],
   "mockExcludedOnFeatureSeries": true,
   "notes": [

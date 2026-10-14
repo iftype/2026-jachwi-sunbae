@@ -1,5 +1,6 @@
+import { getAnalyticsTrafficContext } from '../trafficContext';
 import { getPostHogOptions, isValidPostHogConfiguration } from './configuration';
-import type { PostHogAction, PostHogClient, PostHogSessionContext } from './types';
+import type { PostHogAction, PostHogAuthStatus, PostHogClient, PostHogSessionContext } from './types';
 type Configuration = { key: string; projectToken: string; host: string };
 let requestedConfiguration: Configuration | null = null;
 let initializedConfiguration: string | null = null;
@@ -9,6 +10,20 @@ let pendingActions: PostHogAction[] = [];
 const MAX_PENDING_ACTIONS = 100;
 let generation = 0;
 let sessionContext: PostHogSessionContext | null = null;
+let authenticationReader: (() => PostHogAuthStatus) | null = null;
+export const setPostHogAuthenticationReader = (reader: () => PostHogAuthStatus): void => {
+  authenticationReader = reader;
+};
+export const getPostHogEventProperties = (properties?: Record<string, unknown>): Record<string, unknown> => ({
+  ...properties,
+  ...sessionContext,
+  ...(authenticationReader
+    ? {
+        auth_status: authenticationReader(),
+        ...getAnalyticsTrafficContext(sessionContext?.environment),
+      }
+    : {}),
+});
 let identifiedMember: string | null = null;
 let lastTrackedPath: string | null = null;
 let status: 'disabled' | 'loading' | 'ready' | 'failed' = 'disabled';
@@ -48,6 +63,7 @@ const initializeClient = (loadedClient: PostHogClient): void => {
       configuration.host,
       () => sessionContext,
       () => requestedConfiguration !== null,
+      () => authenticationReader?.(),
     ),
   );
   initializedConfiguration = configuration.key;
@@ -135,6 +151,7 @@ export const resetPostHogClientForTests = (): void => {
   failedActions = 0;
   droppedActions = 0;
   resetTrackingState();
+  authenticationReader = null;
 };
 
 export const setPostHogSessionContext = (context: PostHogSessionContext): boolean => {
@@ -160,17 +177,17 @@ export const resetPostHogIdentity = (): void => {
     if (sessionContext !== null) loadedClient.register(sessionContext);
   });
 };
-export const trackPostHogEvent = (eventName: string, properties?: Record<string, unknown>): boolean =>
-  runPostHogAction((loadedClient) => loadedClient.capture(eventName, { ...properties, ...sessionContext }));
+export const trackPostHogEvent = (eventName: string, properties?: Record<string, unknown>): boolean => {
+  const eventProperties = getPostHogEventProperties(properties);
+  return runPostHogAction((loadedClient) => loadedClient.capture(eventName, eventProperties));
+};
 /** 외부 이동 직전에는 SDK 배치 전송 대기 대신 Beacon으로 클릭 전송을 시도한다. */
-export const trackPostHogOutboundEvent = (eventName: string, properties?: Record<string, unknown>): boolean =>
-  runPostHogAction((loadedClient) =>
-    loadedClient.capture(
-      eventName,
-      { ...properties, ...sessionContext },
-      { send_instantly: true, transport: 'sendBeacon' },
-    ),
+export const trackPostHogOutboundEvent = (eventName: string, properties?: Record<string, unknown>): boolean => {
+  const eventProperties = getPostHogEventProperties(properties);
+  return runPostHogAction((loadedClient) =>
+    loadedClient.capture(eventName, eventProperties, { send_instantly: true, transport: 'sendBeacon' }),
   );
+};
 export const trackPostHogPageView = (path: string): boolean => {
   if (lastTrackedPath === path) return false;
   const accepted = trackPostHogEvent('$pageview', { path });

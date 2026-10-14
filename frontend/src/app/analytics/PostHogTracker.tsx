@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { useCurrentMember } from '@/features/auth/api/useCurrentMember';
+import { getAuthenticationSnapshot } from '@/features/auth/model/authStore';
 import { useAuthentication } from '@/features/auth/model/useAuthentication';
 import { usePublicConfig } from '@/shared/config/PublicConfigContext';
 import { getAnalyticsDeviceContext } from '@/shared/lib/analytics/deviceContext';
@@ -9,6 +10,7 @@ import {
   identifyPostHogMember,
   initPostHog,
   resetPostHogIdentity,
+  setPostHogAuthenticationReader,
   setPostHogSessionContext,
   trackPostHogPageView,
 } from '@/shared/lib/analytics/posthog';
@@ -20,6 +22,9 @@ const PostHogTracker = () => {
   const currentMember = useCurrentMember(session !== null);
 
   useLayoutEffect(() => {
+    setPostHogAuthenticationReader(() =>
+      getAuthenticationSnapshot().session === null ? 'anonymous' : 'authenticated',
+    );
     initPostHog(config.posthogProjectToken ?? '', config.posthogHost ?? '');
   }, [config.posthogProjectToken, config.posthogHost]);
 
