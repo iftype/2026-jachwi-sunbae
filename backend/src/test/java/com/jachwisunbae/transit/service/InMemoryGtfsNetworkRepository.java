@@ -8,6 +8,7 @@ import com.jachwisunbae.transit.domain.GtfsTransfer;
 import com.jachwisunbae.transit.repository.GtfsNetworkRepository;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 class InMemoryGtfsNetworkRepository implements GtfsNetworkRepository {
 
@@ -44,8 +45,8 @@ class InMemoryGtfsNetworkRepository implements GtfsNetworkRepository {
     }
 
     @Override
-    public List<GtfsEdge> findEdges() {
-        return edges;
+    public void forEachEdge(final Consumer<GtfsEdge> consumer) {
+        edges.forEach(consumer);
     }
 
     @Override

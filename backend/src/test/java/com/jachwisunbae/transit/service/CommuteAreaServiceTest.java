@@ -14,6 +14,7 @@ import com.jachwisunbae.transit.domain.GtfsStop;
 import com.jachwisunbae.transit.domain.vo.Coordinate;
 import com.jachwisunbae.transit.domain.vo.Seconds;
 import com.jachwisunbae.transit.service.dto.result.CommuteAreaSearchResult;
+import java.time.Clock;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,7 +28,8 @@ class CommuteAreaServiceTest {
     private static final String FAR_DONG = "11000001";
 
     private final InMemoryGtfsNetworkRepository networkRepository = new InMemoryGtfsNetworkRepository();
-    private final CommuteAreaService service = new CommuteAreaService(new TransitNetworkCache(networkRepository));
+    private final CommuteAreaService service = new CommuteAreaService(
+            new TransitNetworkCache(new TransitNetworkLoader(networkRepository), Clock.systemUTC()));
 
     @Test
     @DisplayName("갈 수 있는 정류장을 행정동으로 묶고 통근 시간이 짧은 동네부터 돌려준다")

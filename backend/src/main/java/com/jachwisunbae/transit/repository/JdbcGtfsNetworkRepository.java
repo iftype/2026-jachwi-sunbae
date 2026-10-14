@@ -7,8 +7,12 @@ import com.jachwisunbae.transit.domain.GtfsStop;
 import com.jachwisunbae.transit.domain.GtfsTransfer;
 import com.jachwisunbae.transit.domain.vo.Coordinate;
 import com.jachwisunbae.transit.domain.vo.Seconds;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.util.List;
+import java.util.function.Consumer;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -56,14 +60,20 @@ public class JdbcGtfsNetworkRepository implements GtfsNetworkRepository {
                 resultSet.getInt("route_type"), new Seconds(resultSet.getInt("wait_seconds"))));
     }
 
+    // MySQL 드라이버는 기본으로 결과 전체를 메모리에 받아 두므로,
+    // fetch size를 Integer.MIN_VALUE로 줘 한 행씩 스트리밍한다.
     @Override
-    public List<GtfsEdge> findEdges() {
-        return jdbcTemplate.query("""
-                SELECT route_id, from_stop_id, to_stop_id, travel_seconds
-                FROM gtfs_edges
-                """, (resultSet, rowNumber) -> new GtfsEdge(resultSet.getString("route_id"),
-                resultSet.getString("from_stop_id"), resultSet.getString("to_stop_id"),
-                new Seconds(resultSet.getInt("travel_seconds"))));
+    public void forEachEdge(final Consumer<GtfsEdge> consumer) {
+        String sql = "SELECT route_id, from_stop_id, to_stop_id, travel_seconds FROM gtfs_edges";
+        jdbcTemplate.query(connection -> {
+            PreparedStatement statement = connection.prepareStatement(sql, ResultSet.TYPE_FORWARD_ONLY,
+                    ResultSet.CONCUR_READ_ONLY);
+            statement.setFetchSize(Integer.MIN_VALUE);
+            return statement;
+        }, (RowCallbackHandler) resultSet -> {
+            consumer.accept(new GtfsEdge(resultSet.getString("route_id"), resultSet.getString("from_stop_id"),
+                    resultSet.getString("to_stop_id"), new Seconds(resultSet.getInt("travel_seconds"))));
+        });
     }
 
     @Override

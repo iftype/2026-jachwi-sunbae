@@ -6,6 +6,7 @@ import com.jachwisunbae.transit.domain.GtfsRoute;
 import com.jachwisunbae.transit.domain.GtfsStop;
 import com.jachwisunbae.transit.domain.GtfsTransfer;
 import java.util.List;
+import java.util.function.Consumer;
 
 public interface GtfsNetworkRepository {
 
@@ -15,7 +16,8 @@ public interface GtfsNetworkRepository {
 
     List<GtfsRoute> findRoutes();
 
-    List<GtfsEdge> findEdges();
+    // 구간은 117만 개라 목록으로 모으지 않고 읽는 대로 하나씩 넘긴다.
+    void forEachEdge(Consumer<GtfsEdge> consumer);
 
     List<GtfsTransfer> findTransfers();
 

@@ -14,6 +14,7 @@ import com.jachwisunbae.transit.domain.GtfsStop;
 import com.jachwisunbae.transit.domain.RouteLeg;
 import com.jachwisunbae.transit.domain.vo.Coordinate;
 import com.jachwisunbae.transit.domain.vo.Seconds;
+import java.time.Clock;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -25,7 +26,8 @@ class CommuteRouteServiceTest {
     private static final Coordinate DESTINATION = new Coordinate(37.5000, 127.0000);
 
     private final InMemoryGtfsNetworkRepository networkRepository = new InMemoryGtfsNetworkRepository();
-    private final CommuteRouteService service = new CommuteRouteService(new TransitNetworkCache(networkRepository));
+    private final CommuteRouteService service = new CommuteRouteService(
+            new TransitNetworkCache(new TransitNetworkLoader(networkRepository), Clock.systemUTC()));
 
     @BeforeEach
     void setUp() {
