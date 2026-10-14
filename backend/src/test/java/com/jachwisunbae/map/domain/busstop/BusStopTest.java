@@ -1,4 +1,4 @@
-package com.jachwisunbae.map.domain;
+package com.jachwisunbae.map.domain.busstop;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

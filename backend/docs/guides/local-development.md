@@ -47,7 +47,7 @@ docker compose up -d mysql
 
 ### 버스정류장 데이터
 
-주변 분석의 교통은 `bus_stops` 테이블의 버스정류장으로 조회한다.
+버스정류장 조회 (`GET /api/maps/bus-stops`)는 `bus_stops` 테이블에서 조회한다.
 빈 볼륨에는 `docker/mysql/init/003-bus-stops-sample.sql`이 판교, 서울 시청, 신림 주변 2.5km의 정류장 샘플을 자동으로 넣는다.
 샘플은 로컬 Docker 초기화 전용이며 애플리케이션 JAR에 포함하지 않는다.
 다른 지역을 확인하려면 아래의 전체 데이터를 적재한다.

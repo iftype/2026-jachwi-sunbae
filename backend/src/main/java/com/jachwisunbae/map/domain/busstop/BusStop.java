@@ -1,5 +1,6 @@
-package com.jachwisunbae.map.domain;
+package com.jachwisunbae.map.domain.busstop;
 
+import com.jachwisunbae.map.domain.GeoDistance;
 import java.math.BigDecimal;
 import lombok.Getter;
 

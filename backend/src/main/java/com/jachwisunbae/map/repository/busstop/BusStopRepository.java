@@ -1,7 +1,7 @@
-package com.jachwisunbae.map.repository;
+package com.jachwisunbae.map.repository.busstop;
 
-import com.jachwisunbae.map.domain.BusStop;
 import com.jachwisunbae.map.domain.CoordinateBounds;
+import com.jachwisunbae.map.domain.busstop.BusStop;
 import java.util.List;
 
 public interface BusStopRepository {
