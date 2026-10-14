@@ -5,6 +5,8 @@
   "defaultEnvironment": "production",
   "internalCohortExcluded": 520731,
   "status": "prepared_not_deployed",
+  "pullRequest": "https://github.com/woowacourse-teams/2026-jachwi-sunbae/pull/373",
+  "sections": ["유입과 랜딩", "월세 정보 확인", "통근 동네와 경로 탐색", "검색 품질과 실패"],
   "queryExecutionVerifiedOn": "2026-10-15",
   "commonProperties": [
     "environment",
