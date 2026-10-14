@@ -156,3 +156,17 @@ export const resetAuthenticationForTests = () => {
   queryClient.clear();
   emitChange();
 };
+
+// 다른 탭에서 로그아웃해 저장된 토큰이 사라지면 이 탭의 메모리·캐시도 비운다.
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (event) => {
+    if (event.storageArea !== window.localStorage) return;
+    if (
+      (event.key === AUTHENTICATION_STORAGE_KEY || event.key === null) &&
+      event.newValue === null &&
+      state.session !== null
+    ) {
+      clearAuthentication('logout');
+    }
+  });
+}

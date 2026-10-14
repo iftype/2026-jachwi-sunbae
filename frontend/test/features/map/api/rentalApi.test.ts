@@ -2,7 +2,7 @@ import { http, HttpResponse } from 'msw';
 import { beforeEach, expect, it } from 'vitest';
 
 import { rentalHandlers } from '@/app/mocks/handlers/rentalHandlers';
-import { setAuthentication } from '@/features/auth/model/authStore';
+import { resetAuthenticationForTests, setAuthentication } from '@/features/auth/model/authStore';
 import { legalApiCode, nearbyLegalBoundaries } from '@/features/map/api/legalBoundaryApi';
 import { fetchRentalAverage } from '@/features/map/api/rentalApi';
 
@@ -21,6 +21,11 @@ it('100건을 넘는 거래도 다음 페이지까지 모두 평균에 포함한
   const result = await fetchRentalAverage({ apiBaseUrl: 'http://localhost:8080' }, '4121010400');
   expect(result.items).toHaveLength(105);
   expect(result.average).toBe(result.items.reduce((sum, item) => sum + item.monthlyRentAmountKrw, 0) / 105);
+});
+it('월세 평균 조회는 토큰 없이도 호출한다', async () => {
+  resetAuthenticationForTests();
+  const result = await fetchRentalAverage({ apiBaseUrl: 'http://localhost:8080' }, '4121010400');
+  expect(result.items).toHaveLength(105);
 });
 it('빈 거래는 0원이 아닌 null이다', async () => {
   const result = await fetchRentalAverage({ apiBaseUrl: 'http://localhost:8080' }, '1100000000');
