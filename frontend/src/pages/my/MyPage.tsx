@@ -17,6 +17,7 @@ const myMenuItems: Array<{ to: string; icon: IconName; label: string }> = [
   { to: '/checklists', icon: 'checklist', label: '내 체크리스트 관리' },
   { to: '/map', icon: 'map', label: '지도와 주변 시설' },
   { to: '/compare', icon: 'external-link', label: '매물 비교 PDF' },
+  { to: '/about', icon: 'info', label: '자취선배 소개' },
 ];
 
 const myNoticeItems = [

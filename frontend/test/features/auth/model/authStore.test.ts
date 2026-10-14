@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   calculateExpiresAt,
+  clearAuthentication,
   getAccessToken,
   getAuthenticationSnapshot,
   setAuthentication,
@@ -10,6 +11,26 @@ import { propertyQueryKeys } from '@/features/property/api/propertyQueryKeys';
 import { currentMemberQueryKey, queryClient } from '@/shared/api/queryClient';
 
 describe('인증 저장소', () => {
+  it('로그아웃은 메모리와 저장된 토큰을 모두 지운다', () => {
+    setAuthentication({ accessToken: 'test-login', tokenType: 'Bearer', expiresIn: 60 });
+    clearAuthentication('logout');
+    expect(getAccessToken()).toBeNull();
+    expect(localStorage.getItem('jachwi-sunbae.authentication.session')).toBeNull();
+  });
+  it('다른 탭에서 로그아웃해도 이 탭의 세션과 회원 캐시를 지운다', () => {
+    setAuthentication({ accessToken: 'test-login', tokenType: 'Bearer', expiresIn: 60 });
+    queryClient.setQueryData(currentMemberQueryKey, { memberId: 1 });
+    localStorage.removeItem('jachwi-sunbae.authentication.session');
+    window.dispatchEvent(
+      new StorageEvent('storage', {
+        key: 'jachwi-sunbae.authentication.session',
+        newValue: null,
+        storageArea: localStorage,
+      }),
+    );
+    expect(getAccessToken()).toBeNull();
+    expect(queryClient.getQueryData(currentMemberQueryKey)).toBeUndefined();
+  });
   it('expiresIn을 기준으로 만료 시각을 계산한다', () => {
     expect(calculateExpiresAt(43_200, 1_000)).toBe(43_201_000);
   });

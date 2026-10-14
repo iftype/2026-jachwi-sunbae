@@ -66,6 +66,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return true;
         }
         if (("/api/check-items".equals(path)
+                || "/api/rental-transactions".equals(path)
                 || "/api/commute-areas".equals(path)
                 || "/api/commute-areas/route".equals(path)
                 || path.startsWith("/api/maps/")

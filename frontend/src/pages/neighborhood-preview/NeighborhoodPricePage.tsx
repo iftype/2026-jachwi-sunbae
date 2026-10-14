@@ -1,5 +1,6 @@
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 
+import ExplorationRecordAction from '@/features/onboarding/ui/exploration-record-action/ExplorationRecordAction';
 import { Button } from '@/shared/ui/button/Button';
 import Icon from '@/shared/ui/icon/Icon';
 
@@ -13,7 +14,7 @@ const NeighborhoodPricePage = () => {
   const { legalDongCode } = useParams();
   const navigate = useNavigate();
   const area = preview.selectedPrice?.legalDongCode === legalDongCode ? preview.selectedPrice : undefined;
-  const close = () => navigate('/neighborhoods/map?mode=price', { replace: true });
+  const close = () => navigate(`${preview.mapPath}?mode=price`, { replace: true });
   return (
     <main className={styles.page} aria-label="동네 월세 상세">
       <header className={styles.header}>
@@ -35,6 +36,11 @@ const NeighborhoodPricePage = () => {
             <br />
             보증금 차이를 조정한 가격은 아닙니다.
           </p>
+          {preview.isPublicExplore && (
+            <ExplorationRecordAction
+              location={{ ...area.center, address: area.fullName, roadAddress: null, jibunAddress: area.fullName }}
+            />
+          )}
           <h2>주변 월세 거래 기록</h2>
           <p className={styles.period}>{area.period}</p>
           {!area.items.length && <p>조회된 거래가 없어요.</p>}

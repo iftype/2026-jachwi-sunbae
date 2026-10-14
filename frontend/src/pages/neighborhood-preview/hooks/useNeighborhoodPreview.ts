@@ -7,13 +7,16 @@ import { fetchAdminBoundaries, fetchBoundaryManifest } from '@/features/map/api/
 import { commuteAreaToRegion, fetchCommuteAreas } from '@/features/map/api/commuteApi';
 import { fetchCommuteRoute } from '@/features/map/api/commuteRouteApi';
 import { fetchLegalBoundaries, nearbyLegalBoundaries } from '@/features/map/api/legalBoundaryApi';
-import { reverseGeocode } from '@/features/map/api/mapApi';
+import { reverseGeocode, searchAddress } from '@/features/map/api/mapApi';
 import { fetchRentalAverage } from '@/features/map/api/rentalApi';
 import { readGeolocationPermission, requestCurrentMapLocation } from '@/features/map/lib/mapLocation';
 import { type MapCoordinate, MapLocationError } from '@/features/map/lib/mapLocation';
+import type { MapAddress } from '@/features/map/model/Map';
+import { completeExploration, startExploration } from '@/features/onboarding/lib/explorationJourney';
 import { usePublicConfig } from '@/shared/config/PublicConfigContext';
 
 import { commuteColor } from '../model/commuteColors';
+import { readNeighborhoodSearch, writeNeighborhoodSearch } from '../model/neighborhoodSearchSession';
 import { PREVIEW_DESTINATION } from '../model/preview';
 import { resultMapCenter } from '../model/resultMapView';
 
@@ -46,11 +49,23 @@ const useNeighborhoodPreview = () => {
   const client = useQueryClient();
   const isMockData = config.commuteDataSource === 'mock';
   const [query, setQuery] = useState('');
-  const mode = searchParams.get('mode') === 'price' ? 'price' : 'commute';
-  const [phase, setPhase] = useState<'map' | 'conditions' | 'analyzing'>('map');
-  const [destination, setDestination] = useState(PREVIEW_DESTINATION);
-  const [mapCandidate, setMapCandidate] = useState(PREVIEW_DESTINATION);
-  const [selectionCenter, setSelectionCenter] = useState(PREVIEW_DESTINATION);
+  const isPublicExplore = location.pathname.startsWith('/explore/');
+  const mode: 'commute' | 'price' = (
+    isPublicExplore ? location.pathname.startsWith('/explore/price') : searchParams.get('mode') === 'price'
+  )
+    ? 'price'
+    : 'commute';
+  const searchSessionKey = `jachwi.neighborhood-search.v1.${JSON.stringify([mode, isPublicExplore, config.apiBaseUrl, config.boundaryBaseUrl, isMockData])}`;
+  const [restoredSearch] = useState(() => readNeighborhoodSearch(searchSessionKey));
+  const routeAreaId = location.pathname.match(/\/(?:areas|prices)\/([^/]+)/)?.[1] ?? null;
+  const [addressResults, setAddressResults] = useState<MapAddress[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const mapPath = isPublicExplore ? `/explore/${mode}` : '/neighborhoods/map';
+  const [phase, setPhase] = useState<'map' | 'conditions' | 'analyzing'>(restoredSearch ? 'analyzing' : 'map');
+  const [destination, setDestination] = useState(restoredSearch?.destination ?? PREVIEW_DESTINATION);
+  const [mapCandidate, setMapCandidate] = useState(restoredSearch?.destination ?? PREVIEW_DESTINATION);
+  const [selectionCenter, setSelectionCenter] = useState(restoredSearch?.destination ?? PREVIEW_DESTINATION);
   const [selectionLevel, setSelectionLevel] = useState(6);
   const resultView = useRef<{ latitude: number; longitude: number; level: number } | null>(null);
   const [hasChosenMapPoint, setHasChosenMapPoint] = useState(false);
@@ -59,13 +74,22 @@ const useNeighborhoodPreview = () => {
   const [currentPosition, setCurrentPosition] = useState<MapCoordinate | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
-  const [maxMinutes, setMaxMinutes] = useState(60);
-  const [maxTransfers, setMaxTransfers] = useState(2);
-  const [maxRent, setMaxRent] = useState(0);
+  const [maxMinutes, setMaxMinutes] = useState(restoredSearch?.maxMinutes ?? 60);
+  const [maxTransfers, setMaxTransfers] = useState(restoredSearch?.maxTransfers ?? 2);
+  const [maxRent, setMaxRent] = useState(restoredSearch?.maxRent ?? 0);
   const isValidCommuteTime =
     Number.isInteger(maxMinutes) && maxMinutes >= 10 && maxMinutes <= 60 && maxMinutes % 10 === 0;
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [selectedStopId, setSelectedStopId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(routeAreaId ?? restoredSearch?.selectedId ?? null);
+  const [selectedStopId, setSelectedStopId] = useState<string | null>(restoredSearch?.selectedStopId ?? null);
+  useEffect(() => {
+    writeNeighborhoodSearch(
+      searchSessionKey,
+      phase === 'analyzing' ? { destination, maxMinutes, maxTransfers, maxRent, selectedId, selectedStopId } : null,
+    );
+  }, [searchSessionKey, phase, destination, maxMinutes, maxTransfers, maxRent, selectedId, selectedStopId]);
+  useEffect(() => {
+    if (routeAreaId) setSelectedId(routeAreaId);
+  }, [routeAreaId]);
   useEffect(() => {
     let cancelled = false;
     const intent = locationIntent.current;
@@ -122,6 +146,7 @@ const useNeighborhoodPreview = () => {
       };
     },
     enabled: phase === 'analyzing' && mode === 'commute',
+    refetchOnMount: false,
     retry: false,
   });
   const price = useQuery({
@@ -146,6 +171,7 @@ const useNeighborhoodPreview = () => {
       return results.sort((a, b) => (a.average ?? Infinity) - (b.average ?? Infinity));
     },
     enabled: phase === 'analyzing' && mode === 'price',
+    refetchOnMount: false,
     retry: false,
   });
   const allPriceAreas = mode === 'price' ? (price.data ?? []) : [];
@@ -156,10 +182,29 @@ const useNeighborhoodPreview = () => {
       ),
     [price.data, mode, maxRent],
   );
-  const selectedPrice = allPriceAreas.find((area) => area.legalDongCode === selectedId);
+  const selectedPrice = allPriceAreas.find((area) => area.legalDongCode === (routeAreaId ?? selectedId));
   const areas = mode === 'commute' ? commute.data?.areas : undefined;
-  const selected = areas?.find((area) => area.adminDongCode === selectedId);
+  useEffect(() => {
+    const result = mode === 'price' ? price : commute;
+    if (isPublicExplore && phase === 'analyzing' && result.isSuccess && !result.isFetching) {
+      completeExploration(mode === 'price' ? priceAreas.length : (areas?.length ?? 0));
+    }
+  }, [
+    isPublicExplore,
+    phase,
+    mode,
+    price.isSuccess,
+    price.isFetching,
+    commute.isSuccess,
+    commute.isFetching,
+    priceAreas.length,
+    areas?.length,
+  ]);
+  const selected = areas?.find((area) => area.adminDongCode === (routeAreaId ?? selectedId));
   const selectedStation = selected?.stations.find((station) => station.stopId === selectedStopId);
+  useEffect(() => {
+    if (selected && !selectedStation) setSelectedStopId(selected.stations[0]?.stopId ?? null);
+  }, [selected, selectedStation]);
   const route = useQuery({
     queryKey: [
       'commute-route',
@@ -201,6 +246,8 @@ const useNeighborhoodPreview = () => {
   );
   const matchesDestination = `${PREVIEW_DESTINATION.name} ${PREVIEW_DESTINATION.address}`.includes(query.trim());
   return {
+    isPublicExplore,
+    mapPath,
     priceAreas,
     maxRent,
     changeMaxRent: setMaxRent,
@@ -257,7 +304,7 @@ const useNeighborhoodPreview = () => {
     showPrice: mode === 'price',
     openModeSelection: () => {
       void client.cancelQueries({ queryKey: ['commute-areas'] });
-      navigate('/neighborhoods');
+      navigate(isPublicExplore ? '/explore' : '/neighborhoods');
     },
     isChoosingConditions: phase === 'conditions',
     editLocation: () => {
@@ -271,6 +318,7 @@ const useNeighborhoodPreview = () => {
       resultView.current = null;
       setSelectedId(null);
       setSelectedStopId(null);
+      if (isPublicExplore) startExploration(mode, isMockData);
       setPhase('analyzing');
     },
     selectionCenter,
@@ -282,14 +330,53 @@ const useNeighborhoodPreview = () => {
       if (resultView.current) resultView.current.level = level;
     },
     query,
+    addressResults,
+    isSearching,
+    searchError,
+    selectAddress: (address: MapAddress) => {
+      locationIntent.current += 1;
+      const point = {
+        ...address,
+        name: address.roadAddress ?? address.jibunAddress ?? address.address ?? '선택한 위치',
+        address: address.address ?? '',
+      };
+      setAddressResults([]);
+      setMapCandidate(point);
+      setDestination(point);
+      setSelectionCenter(point);
+      setSelectionLevel(4);
+      setHasChosenMapPoint(true);
+      setPhase('conditions');
+    },
     changeQuery: (value: string) => {
       locationIntent.current += 1;
       setQuery(value);
+      setAddressResults([]);
+      setSearchError(null);
+      setIsSearching(false);
       setHasChosenMapPoint(false);
       setPhase('map');
     },
     matchesDestination,
-    searchDestination: () => {
+    searchDestination: async () => {
+      if (isPublicExplore) {
+        if (!query.trim()) return;
+        const intent = ++locationIntent.current;
+        setIsSearching(true);
+        setSearchError(null);
+        try {
+          const results = await searchAddress(config, query.trim());
+          if (intent !== locationIntent.current) return;
+          setAddressResults(results);
+          if (!results.length) setSearchError('검색 결과가 없어요. 주소를 더 자세히 입력해주세요.');
+        } catch {
+          if (intent === locationIntent.current)
+            setSearchError('주소를 찾지 못했어요. 지도에서 위치를 선택하거나 다시 검색해주세요.');
+        } finally {
+          if (intent === locationIntent.current) setIsSearching(false);
+        }
+        return;
+      }
       if (!query.trim() || !matchesDestination) return;
       locationIntent.current += 1;
       setMapCandidate(PREVIEW_DESTINATION);
@@ -392,7 +479,8 @@ const useNeighborhoodPreview = () => {
         mode === 'price' ? 8 : 10,
       ),
     reset: () => {
-      if (location.pathname.includes('/areas/')) navigate(`/neighborhoods/map?mode=${mode}`, { replace: true });
+      if (location.pathname.includes('/areas/') || location.pathname.includes('/prices/'))
+        navigate(`${mapPath}?mode=${mode}`, { replace: true });
       void client.cancelQueries({ queryKey: ['commute-areas'] });
       locationIntent.current += 1;
       if (resultView.current) {
@@ -416,12 +504,12 @@ const useNeighborhoodPreview = () => {
       if (area) resultView.current = { ...resultMapCenter(area.center, 7), level: 7 };
       setSelectedId(id);
       setSelectedStopId(areas?.find((area) => area.adminDongCode === id)?.stations[0]?.stopId ?? null);
-      if (id && mode === 'commute') navigate(`/neighborhoods/map/areas/${id}?mode=${mode}`);
-      if (id && mode === 'price') navigate(`/neighborhoods/map/prices/${id}?mode=price`);
+      if (id && mode === 'commute') navigate(`${mapPath}/areas/${id}?mode=${mode}`);
+      if (id && mode === 'price') navigate(`${mapPath}/prices/${id}?mode=price`);
     },
     selectStation: setSelectedStopId,
     openAreaDetails: () => {
-      if (selected) navigate(`/neighborhoods/map/areas/${selected.adminDongCode}/details?mode=commute`);
+      if (selected) navigate(`${mapPath}/areas/${selected.adminDongCode}/details?mode=commute`);
     },
   };
 };
