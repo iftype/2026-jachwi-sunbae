@@ -5,3 +5,8 @@ coverage/
 package-lock.json
 public/mockServiceWorker.js
 **/*.md
+
+# 원본 GIS 데이터와 스크립트로 생성한 정적 경계 파일은 바이트·해시를 유지한다.
+data/admin-dongs.geojson
+data/legal-*.geojson
+public/boundaries/

@@ -56,8 +56,12 @@ public enum ErrorCode {
     // 대중교통
     TRANSIT_FEED_READ_FAILURE("대중교통 데이터를 불러오지 못했습니다."),
     ADMIN_DONG_READ_FAILURE("행정동 경계 데이터를 불러오지 못했습니다."),
-
+    TRANSIT_NETWORK_UNAVAILABLE("대중교통 정보를 준비하고 있습니다. 잠시 후 다시 시도해 주세요."),
+    COMMUTE_DESTINATION_UNREACHABLE("목적지에서 걸어서 10분 안에 이용할 수 있는 정류장·역이 없습니다."),
+    TRANSIT_STOP_NOT_FOUND("정류장을 찾을 수 없습니다."),
+    COMMUTE_ROUTE_NOT_FOUND("최대 통근 시간 안에 목적지까지 가는 경로가 없습니다."),
     RENTAL_QUERY_INVALID("지역 코드와 페이지 정보를 확인해 주세요.");
+
 
     private final String publicMessage;
 

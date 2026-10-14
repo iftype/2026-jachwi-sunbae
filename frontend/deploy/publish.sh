@@ -45,7 +45,26 @@ aws s3 sync "${DIST_DIR}/" "${S3_URI}" \
     --exclude '*.map' \
     --exclude 'index.html' \
     --exclude 'version.json' \
+    --exclude 'boundaries/*' \
     --cache-control 'public,max-age=31536000,immutable'
+
+# 이전 해시 객체는 유지한다. 경계 파일을 먼저 올리고 manifest를 마지막에 교체한다.
+for BOUNDARY_GZIP in "${DIST_DIR}"/boundaries/*.geojson.gz; do
+    [[ -f "${BOUNDARY_GZIP}" ]] || continue
+    BOUNDARY_FILENAME="$(basename "${BOUNDARY_GZIP}" .gz)"
+    aws s3 cp "${BOUNDARY_GZIP}" "${S3_URI}boundaries/${BOUNDARY_FILENAME}" \
+        --content-type 'application/geo+json' \
+        --content-encoding 'gzip' \
+        --cache-control 'public,max-age=31536000,immutable'
+done
+
+for BOUNDARY_MANIFEST in manifest.json legal-manifest.json; do
+  if [[ -f "${DIST_DIR}/boundaries/${BOUNDARY_MANIFEST}" ]]; then
+    aws s3 cp "${DIST_DIR}/boundaries/${BOUNDARY_MANIFEST}" "${S3_URI}boundaries/${BOUNDARY_MANIFEST}" \
+        --content-type 'application/json; charset=utf-8' \
+        --cache-control 'no-cache,max-age=0,must-revalidate'
+  fi
+done
 
 aws s3 cp "${LOCAL_INDEX}" "${S3_URI}index.html" \
     --cache-control 'no-cache,max-age=0,must-revalidate' \
@@ -57,7 +76,7 @@ aws s3 cp "${DIST_DIR}/version.json" "${S3_URI}version.json" \
 
 INVALIDATION_ID="$(aws cloudfront create-invalidation \
     --distribution-id "${DISTRIBUTION_ID}" \
-    --paths '/index.html' '/version.json' \
+    --paths '/index.html' '/version.json' '/boundaries/manifest.json' '/boundaries/legal-manifest.json' \
     --query 'Invalidation.Id' \
     --output text)"
 

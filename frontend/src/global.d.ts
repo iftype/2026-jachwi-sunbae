@@ -6,8 +6,11 @@ declare const __POSTHOG_HOST__: string;
 declare const __APP_VERSION__: string;
 declare const __APP_ENVIRONMENT__: 'production' | 'development';
 declare const __ENABLE_MSW__: boolean;
+declare const __COMMUTE_DATA_SOURCE__: 'mock' | 'server';
+declare const __ADMIN_BOUNDARY_BASE_URL__: string;
 
 interface Window {
+  jachwiNaverSdkReady?: () => void;
   naver?: { maps: NaverMapsNamespace };
 }
 
@@ -19,6 +22,7 @@ type NaverMap = {
   getZoom: () => number;
   setCenter: (center: NaverLatLng) => void;
   setZoom: (zoom: number) => void;
+  morph?: (center: NaverLatLng, zoom: number, options: { duration: number; easing: string }) => void;
   refresh: () => void;
   autoResize: () => void;
   destroy: () => void;
@@ -40,11 +44,24 @@ type NaverMapsNamespace = {
     options: {
       center: NaverLatLng;
       zoom: number;
+      gl?: boolean;
+      customStyleId?: string;
       minZoom?: number;
       maxBounds?: NaverLatLngBounds;
     },
   ) => NaverMap;
   OverlayView: new (...args: never[]) => NaverOverlay;
+  Polygon: new (options: {
+    map: NaverMap;
+    paths: NaverLatLng[][];
+    strokeWeight: number;
+    strokeColor: string;
+    strokeOpacity?: number;
+    fillColor: string;
+    fillOpacity: number;
+    clickable: boolean;
+    zIndex: number;
+  }) => NaverOverlay & { setOptions: (options: { fillOpacity?: number }) => void };
   Circle: new (options: {
     map: NaverMap;
     center: NaverLatLng;

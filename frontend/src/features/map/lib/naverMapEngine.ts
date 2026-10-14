@@ -8,8 +8,8 @@ const toMapLevel = (zoom: number): number => clamp(NAVER_ZOOM_BASE - zoom, 1, 14
 let naverSdkPromise: Promise<void> | null = null;
 
 const loadNaverSdk = (clientId: string): Promise<void> => {
-  if (window.naver?.maps !== undefined) return Promise.resolve();
   if (naverSdkPromise !== null) return naverSdkPromise;
+  if (window.naver?.maps !== undefined) return Promise.resolve();
   naverSdkPromise = new Promise((resolve, reject) => {
     const existing = document.querySelector<HTMLScriptElement>('script[data-jachwi-naver-map]');
     const ready = () => {
@@ -21,8 +21,9 @@ const loadNaverSdk = (clientId: string): Promise<void> => {
       }
       resolve();
     };
+    // 기본 스크립트의 load가 아니라 GL을 포함한 전체 SDK 완료 콜백을 기다린다.
+    window.jachwiNaverSdkReady = ready;
     if (existing !== null) {
-      existing.addEventListener('load', ready, { once: true });
       existing.addEventListener(
         'error',
         () => {
@@ -39,8 +40,7 @@ const loadNaverSdk = (clientId: string): Promise<void> => {
     const script = document.createElement('script');
     script.dataset.jachwiNaverMap = 'true';
     script.async = true;
-    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${encodeURIComponent(clientId)}`;
-    script.addEventListener('load', ready, { once: true });
+    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${encodeURIComponent(clientId)}&submodules=gl&callback=jachwiNaverSdkReady`;
     script.addEventListener(
       'error',
       () => {
@@ -65,6 +65,7 @@ export type LiveEngine = {
   getBounds: (map: LiveMap) => MapBounds;
   setCenter: (map: LiveMap, center: LiveLatLng) => void;
   setZoom: (map: LiveMap, level: number) => void;
+  animateView: (map: LiveMap, center: LiveLatLng, level: number) => void;
   relayout: (map: LiveMap) => void;
   destroy: (map: LiveMap) => void;
   addListener: (map: LiveMap, event: string, callback: (latitude?: number, longitude?: number) => void) => unknown;
@@ -77,12 +78,13 @@ type LiveLatLng = NaverLatLng;
 export type LiveMap = NaverMap;
 export type LiveOverlay = NaverOverlay;
 
-export const naverEngine = (clientId: string): LiveEngine => ({
+export const naverEngine = (clientId: string, customStyleId?: string): LiveEngine => ({
   label: 'Naver 지도',
   load: () => loadNaverSdk(clientId),
   createMap: (container, center, level) => {
     const start = clampToSouthKorea(center);
     return new window.naver!.maps.Map(container, {
+      ...(customStyleId ? { gl: true, customStyleId } : {}),
       center: new window.naver!.maps.LatLng(start.latitude, start.longitude),
       zoom: toNaverZoom(level),
       // 남한 밖으로는 옮기지도 줄이지도 못하게 막는다.
@@ -107,6 +109,14 @@ export const naverEngine = (clientId: string): LiveEngine => ({
   },
   setCenter: (map, center) => (map as NaverMap).setCenter(center as NaverLatLng),
   setZoom: (map, level) => (map as NaverMap).setZoom(toNaverZoom(level)),
+  animateView: (map, center, level) => {
+    if (map.morph && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
+      map.morph(center, toNaverZoom(level), { duration: 320, easing: 'easeOutCubic' });
+    else {
+      map.setCenter(center);
+      map.setZoom(toNaverZoom(level));
+    }
+  },
   relayout: (map) => map.autoResize(),
   destroy: (map) => map.destroy(),
   addListener: (map, event, callback) =>

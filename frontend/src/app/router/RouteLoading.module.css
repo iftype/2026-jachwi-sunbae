@@ -1,0 +1,6 @@
+.loading {
+  height: 100%;
+  min-height: 12rem;
+  display: grid;
+  place-items: center;
+}

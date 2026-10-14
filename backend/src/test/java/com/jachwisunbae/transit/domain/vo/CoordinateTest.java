@@ -1,7 +1,9 @@
 package com.jachwisunbae.transit.domain.vo;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.within;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,5 +25,15 @@ class CoordinateTest {
     void rejectsOutOfRange(final double latitude, final double longitude) {
         assertThatThrownBy(() -> new Coordinate(latitude, longitude))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("두 좌표 사이의 지표면 거리를 미터로 구한다")
+    void measuresMeters() {
+        Coordinate seoulStation = new Coordinate(37.5547, 126.9707);
+        Coordinate cityHall = new Coordinate(37.5663, 126.9779);
+
+        assertThat(seoulStation.metersTo(cityHall)).isCloseTo(1437.5, within(1.0));
+        assertThat(seoulStation.metersTo(seoulStation)).isZero();
     }
 }
