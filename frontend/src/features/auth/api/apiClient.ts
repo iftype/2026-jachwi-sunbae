@@ -36,6 +36,10 @@ export class ApiError extends Error {
   }
 }
 
+// DOMException은 실행 환경에 따라 Error의 instanceof 검사에 걸리지 않을 수 있다.
+const isAbortError = (error: unknown): boolean =>
+  typeof error === 'object' && error !== null && 'name' in error && error.name === 'AbortError';
+
 type ApiRequestOptions<T> = {
   config: PublicConfig;
   path: string;
@@ -58,13 +62,22 @@ const captureUnexpectedApiError = ({
   method: string;
   status?: number;
 }) => {
+  if (isAbortError(error) || (error instanceof ApiError && error.kind === 'authentication-ended')) return;
   const trackingContext = getApiErrorTrackingContext(error, status);
-  capturePostHogException(error, {
+  const requestPath = path.split(/[?#]/)[0].replace(/\/\d+(?=\/|$)/g, '/:id');
+  const responseStatus = status ?? (error instanceof ApiError ? error.status : null);
+  const errorCode =
+    error instanceof ApiError && error.code !== null && /^[A-Z][A-Z0-9_]{0,99}$/.test(error.code) ? error.code : null;
+  // 원문 예외·쿼리·요청 본문에는 위치, 닉네임, 비밀번호 등이 들어갈 수 있다.
+  const trackingError = new Error(`${method} ${requestPath}: ${errorCode ?? trackingContext.error_category}`);
+  trackingError.name = 'ApiRequestError';
+  capturePostHogException(trackingError, {
     source: 'api_request',
     ...trackingContext,
-    request_path: path,
+    request_path: requestPath,
     request_method: method,
-    ...(status === undefined ? {} : { response_status: status }),
+    ...(responseStatus === null ? {} : { response_status: responseStatus }),
+    ...(errorCode === null ? {} : { error_code: errorCode }),
   });
 };
 
@@ -81,6 +94,10 @@ export const getApiErrorTrackingContext = (
     (error instanceof ApiError && error.status !== null && error.status >= 500)
   ) {
     return { error_category: 'api_server', severity: 'P1' };
+  }
+
+  if (error instanceof ApiError && error.kind === 'server' && error.status !== null && error.status < 500) {
+    return { error_category: 'api_client', severity: 'P2' };
   }
 
   return { error_category: 'api_contract', severity: 'P1' };
@@ -116,7 +133,8 @@ const readJson = async (response: Response): Promise<unknown | undefined> => {
   try {
     const text = await response.text();
     return text.length === 0 ? undefined : JSON.parse(text);
-  } catch {
+  } catch (error) {
+    if (isAbortError(error)) throw error;
     throw new ApiError({ kind: 'invalid-response', status: response.status });
   }
 };
@@ -170,7 +188,7 @@ const executeRequest = async ({
   try {
     response = await fetch(createApiUrl(config, path), { method, headers, body, signal });
   } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
+    if (isAbortError(error)) {
       throw error;
     }
 
@@ -193,19 +211,22 @@ const throwResponseError = async (response: Response): Promise<never> => {
 
   try {
     payload = await response.json();
-  } catch {
-    throw new ApiError({ kind: 'server', status: response.status });
+  } catch (error) {
+    if (isAbortError(error)) throw error;
+    throw new ApiError({ kind: 'invalid-response', status: response.status });
   }
+
+  if (!isErrorDto(payload)) throw new ApiError({ kind: 'invalid-response', status: response.status });
 
   throw new ApiError({
     kind: 'server',
     status: response.status,
-    code: isErrorDto(payload) ? payload.code : null,
+    code: payload.code,
     invalidFields: getInvalidFields(payload),
   });
 };
 
-export const apiRequest = async <T>({
+const apiRequestInternal = async <T>({
   config,
   path,
   method = 'GET',
@@ -225,53 +246,34 @@ export const apiRequest = async <T>({
     headers.set('Content-Type', 'application/json');
   }
 
-  let response: Response;
-  try {
-    response = await executeRequest({
-      config,
-      path,
-      method,
-      headers,
-      body: formData ?? (body === undefined ? undefined : JSON.stringify(body)),
-      signal,
-      requiresAuthentication,
-    });
-  } catch (error) {
-    if (error instanceof ApiError && error.kind === 'network') {
-      captureUnexpectedApiError({ error, path, method });
-    }
-    throw error;
-  }
+  const response = await executeRequest({
+    config,
+    path,
+    method,
+    headers,
+    body: formData ?? (body === undefined ? undefined : JSON.stringify(body)),
+    signal,
+    requiresAuthentication,
+  });
 
   if (response.status === 204 && response.ok) {
-    return parseData(undefined);
+    try {
+      return parseData(undefined);
+    } catch {
+      throw new ApiError({ kind: 'invalid-response', status: response.status });
+    }
   }
 
   if (!response.ok) {
-    if (response.status >= 500) {
-      captureUnexpectedApiError({
-        error: new Error('서버 오류가 발생했습니다.'),
-        path,
-        method,
-        status: response.status,
-      });
-    }
     return throwResponseError(response);
   }
 
-  let payload: unknown | undefined;
-  try {
-    payload = await readJson(response);
-  } catch (error) {
-    captureUnexpectedApiError({ error, path, method, status: response.status });
-    throw error;
-  }
+  const payload = await readJson(response);
 
   if (payload === undefined) {
     try {
       return parseData(undefined);
-    } catch (error) {
-      captureUnexpectedApiError({ error, path, method, status: response.status });
+    } catch {
       throw new ApiError({ kind: 'invalid-response', status: response.status });
     }
   }
@@ -282,13 +284,21 @@ export const apiRequest = async <T>({
 
   try {
     return parseData(payload.data);
-  } catch (error) {
-    captureUnexpectedApiError({ error, path, method, status: response.status });
+  } catch {
     throw new ApiError({ kind: 'invalid-response', status: response.status });
   }
 };
 
-export const apiBlobRequest = async ({
+export const apiRequest = async <T>(options: ApiRequestOptions<T>): Promise<T> => {
+  try {
+    return await apiRequestInternal(options);
+  } catch (error) {
+    captureUnexpectedApiError({ error, path: options.path, method: options.method ?? 'GET' });
+    throw error;
+  }
+};
+
+const apiBlobRequestInternal = async ({
   config,
   path,
   method = 'GET',
@@ -325,8 +335,23 @@ export const apiBlobRequest = async ({
     throw new ApiError({ kind: 'invalid-response', status: response.status });
   }
 
-  const blob = await response.blob();
+  let blob: Blob;
+  try {
+    blob = await response.blob();
+  } catch (error) {
+    if (isAbortError(error)) throw error;
+    throw new ApiError({ kind: 'invalid-response', status: response.status });
+  }
   return blob.type === contentType ? blob : blob.slice(0, blob.size, contentType);
+};
+
+export const apiBlobRequest = async (options: Parameters<typeof apiBlobRequestInternal>[0]): Promise<Blob> => {
+  try {
+    return await apiBlobRequestInternal(options);
+  } catch (error) {
+    captureUnexpectedApiError({ error, path: options.path, method: options.method ?? 'GET' });
+    throw error;
+  }
 };
 
 export const getSafeApiErrorMessage = (error: unknown): string => {

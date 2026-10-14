@@ -44,7 +44,11 @@ const initializeClient = (loadedClient: PostHogClient): void => {
   if (configuration === null || initializedConfiguration === configuration.key) return;
   loadedClient.init(
     configuration.projectToken,
-    getPostHogOptions(configuration.host, () => sessionContext),
+    getPostHogOptions(
+      configuration.host,
+      () => sessionContext,
+      () => requestedConfiguration !== null,
+    ),
   );
   initializedConfiguration = configuration.key;
 };
@@ -158,6 +162,15 @@ export const resetPostHogIdentity = (): void => {
 };
 export const trackPostHogEvent = (eventName: string, properties?: Record<string, unknown>): boolean =>
   runPostHogAction((loadedClient) => loadedClient.capture(eventName, { ...properties, ...sessionContext }));
+/** 외부 이동 직전에는 SDK 배치 전송 대기 대신 Beacon으로 클릭 전송을 시도한다. */
+export const trackPostHogOutboundEvent = (eventName: string, properties?: Record<string, unknown>): boolean =>
+  runPostHogAction((loadedClient) =>
+    loadedClient.capture(
+      eventName,
+      { ...properties, ...sessionContext },
+      { send_instantly: true, transport: 'sendBeacon' },
+    ),
+  );
 export const trackPostHogPageView = (path: string): boolean => {
   if (lastTrackedPath === path) return false;
   const accepted = trackPostHogEvent('$pageview', { path });

@@ -6,7 +6,16 @@
   "internalCohortExcluded": 520731,
   "status": "prepared_not_deployed",
   "queryExecutionVerifiedOn": "2026-10-14",
-  "commonProperties": ["environment", "platform", "app_version"],
+  "commonProperties": [
+    "environment",
+    "platform",
+    "app_version",
+    "device_category",
+    "operating_system",
+    "native_app_version",
+    "traffic_type"
+  ],
+  "testTrafficFilterStatus": "not_applied_remotely",
   "featureValues": ["rental", "commute"],
   "mockExcludedOnFeatureSeries": true,
   "notes": [

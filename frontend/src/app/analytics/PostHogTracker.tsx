@@ -4,8 +4,8 @@ import { useLocation } from 'react-router-dom';
 import { useCurrentMember } from '@/features/auth/api/useCurrentMember';
 import { useAuthentication } from '@/features/auth/model/useAuthentication';
 import { usePublicConfig } from '@/shared/config/PublicConfigContext';
+import { getAnalyticsDeviceContext } from '@/shared/lib/analytics/deviceContext';
 import {
-  getPostHogPlatform,
   identifyPostHogMember,
   initPostHog,
   resetPostHogIdentity,
@@ -24,11 +24,15 @@ const PostHogTracker = () => {
   }, [config.posthogProjectToken, config.posthogHost]);
 
   useLayoutEffect(() => {
-    setPostHogSessionContext({
-      environment: config.appEnvironment ?? 'production',
-      app_version: config.appVersion ?? 'unknown',
-      platform: getPostHogPlatform(),
-    });
+    const updateContext = () =>
+      setPostHogSessionContext({
+        environment: config.appEnvironment ?? 'production',
+        app_version: config.appVersion ?? 'unknown',
+        ...getAnalyticsDeviceContext(),
+      });
+    updateContext();
+    window.addEventListener('jachwi-native-ready', updateContext);
+    return () => window.removeEventListener('jachwi-native-ready', updateContext);
   }, [config.appEnvironment, config.appVersion, config.posthogProjectToken, config.posthogHost]);
 
   useEffect(() => {

@@ -1,9 +1,13 @@
 export type PostHogClient = (typeof import('posthog-js'))['default'];
 export type PostHogAction = (client: PostHogClient) => void;
 export type PostHogErrorSeverity = 'P0' | 'P1' | 'P2';
-export type PostHogErrorCategory = 'uncaught' | 'render' | 'api_server' | 'api_contract' | 'network' | 'chunk_load';
+export type PostHogErrorCategory =
+  'uncaught' | 'render' | 'api_server' | 'api_client' | 'api_contract' | 'network' | 'chunk_load';
 export type PostHogSessionContext = {
   environment: 'production' | 'development';
   app_version: string;
   platform: 'web' | 'ios_webview' | 'android_webview';
+  device_category?: string;
+  operating_system?: string;
+  native_app_version?: string | null;
 };

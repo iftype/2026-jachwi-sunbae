@@ -4,7 +4,7 @@ import mascotImage from '@/shared/assets/empty-property.jpg';
 
 import { trackLandingCta } from './lib/landingAnalytics';
 import { getLandingMobilePlatform, LANDING_APP_URLS } from './lib/landingPlatform';
-import { useLandingAnalytics } from './lib/useLandingAnalytics';
+import useLandingAnalytics from './lib/useLandingAnalytics';
 import LandingDemo from './ui/landing-demo/LandingDemo';
 
 import styles from './LandingPage.module.css';

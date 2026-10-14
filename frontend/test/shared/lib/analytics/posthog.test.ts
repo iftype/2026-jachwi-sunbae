@@ -103,6 +103,13 @@ describe('PostHog 제품 분석', () => {
     initPostHog('phc_test', 'https://us.i.posthog.com');
     await vi.waitFor(() => expect(mockPostHog.init).toHaveBeenCalledOnce());
     const beforeSend = mockPostHog.init.mock.calls[0][1].before_send;
+    const deviceContext = {
+      platform: 'web',
+      device_category: 'desktop',
+      operating_system: 'other',
+      native_app_version: null,
+      traffic_type: 'external',
+    };
     for (const exception of [
       { type: 'ChunkLoadError', value: 'Loading chunk 961 failed.' },
       { type: 'Error', value: 'Loading chunk 961 failed. (error: https://example.com/961.js)' },
@@ -111,18 +118,22 @@ describe('PostHog 제품 분석', () => {
       expect(beforeSend({ event: '$exception', properties: { $exception_list: [exception], severity: 'P0' } })).toEqual(
         {
           event: '$exception',
-          properties: { $exception_list: [exception], error_category: 'chunk_load', severity: 'P2' },
+          properties: { ...deviceContext, $exception_list: [exception], error_category: 'chunk_load', severity: 'P2' },
         },
       );
     }
     expect(beforeSend({ event: '$exception', properties: {} }).properties).toEqual({
+      ...deviceContext,
       error_category: 'uncaught',
       severity: 'P0',
     });
     const serverError = { event: '$exception', properties: { error_category: 'api_server', severity: 'P1' } };
-    expect(beforeSend(serverError)).toEqual(serverError);
+    expect(beforeSend(serverError)).toEqual({
+      ...serverError,
+      properties: { ...deviceContext, ...serverError.properties },
+    });
     const pageview = { event: '$pageview', properties: {} };
-    expect(beforeSend(pageview)).toEqual(pageview);
+    expect(beforeSend(pageview)).toEqual({ ...pageview, properties: deviceContext });
     expect(beforeSend(null)).toBeNull();
   });
 
