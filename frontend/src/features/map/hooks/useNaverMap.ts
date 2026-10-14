@@ -8,6 +8,8 @@ import { createRegionSummaryElement, regionLabelPosition } from '../lib/mapRegio
 import { type LiveMap, type LiveOverlay, naverEngine } from '../lib/naverMapEngine';
 import type { MapCanvasProps } from '../model/MapCanvas';
 import { createMapMarkerElement } from '../ui/map-marker/MapMarkerView';
+
+import actionStyles from '../ui/map-canvas/MapCanvas.module.css';
 const EMPTY_MARKERS: NonNullable<MapCanvasProps['markers']> = [];
 const EMPTY_CIRCLES: NonNullable<MapCanvasProps['circles']> = [];
 const EMPTY_REGIONS: NonNullable<MapCanvasProps['regions']> = [];
@@ -15,6 +17,8 @@ const EMPTY_REGIONS: NonNullable<MapCanvasProps['regions']> = [];
 type LiveMapProps = Pick<
   MapCanvasProps,
   | 'center'
+  | 'animateView'
+  | 'coordinateAction'
   | 'level'
   | 'customStyleId'
   | 'markers'
@@ -34,6 +38,8 @@ type LiveMapProps = Pick<
 /** SDK의 수명과 동기화는 이 Hook에만 두고 화면은 지도 표현만 조립한다. */
 const useNaverMap = ({
   center,
+  animateView = false,
+  coordinateAction,
   level = 5,
   customStyleId,
   markers = EMPTY_MARKERS,
@@ -140,7 +146,7 @@ const useNaverMap = ({
   }, [engine, liveMode]);
 
   useEffect(() => {
-    if (!liveMode || !mapReady || mapRef.current === null) return;
+    if (animateView || !liveMode || !mapReady || mapRef.current === null) return;
     const current = engine.getCenter(mapRef.current);
     if (
       Math.abs(current.latitude - boundedCenter.latitude) < 0.0000001 &&
@@ -148,7 +154,20 @@ const useNaverMap = ({
     )
       return;
     engine.setCenter(mapRef.current, engine.latLng(boundedCenter.latitude, boundedCenter.longitude));
-  }, [boundedCenter, engine, liveMode, mapReady]);
+  }, [boundedCenter, engine, liveMode, mapReady, animateView]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!animateView || !liveMode || !mapReady || map === null) return;
+    const current = engine.getCenter(map);
+    if (
+      Math.abs(current.latitude - boundedCenter.latitude) < 0.0000001 &&
+      Math.abs(current.longitude - boundedCenter.longitude) < 0.0000001 &&
+      engine.getZoom(map) === level
+    )
+      return;
+    engine.animateView(map, engine.latLng(boundedCenter.latitude, boundedCenter.longitude), level);
+  }, [boundedCenter, engine, liveMode, mapReady, animateView, level]);
 
   useEffect(() => {
     if (
@@ -184,9 +203,9 @@ const useNaverMap = ({
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!liveMode || !mapReady || map === null || engine.getZoom(map) === level) return;
+    if (animateView || !liveMode || !mapReady || map === null || engine.getZoom(map) === level) return;
     engine.setZoom(map, level);
-  }, [engine, level, liveMode, mapReady]);
+  }, [engine, level, liveMode, mapReady, animateView]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -237,14 +256,43 @@ const useNaverMap = ({
 
   useEffect(() => {
     const map = mapRef.current;
+    if (!liveMode || !mapReady || map === null || !coordinateAction) return;
+    const content = document.createElement('div');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = coordinateAction.label;
+    button.disabled = coordinateAction.disabled ?? false;
+    button.className = actionStyles.coordinateAction;
+    if (coordinateAction.placement) button.dataset.placement = coordinateAction.placement;
+    button.addEventListener('click', (event) => {
+      event.stopPropagation();
+      coordinateAction.onClick();
+    });
+    content.append(button);
+    const overlay = engine.createOverlay(
+      map,
+      {
+        id: 'coordinate-action',
+        label: coordinateAction.label,
+        latitude: coordinateAction.latitude,
+        longitude: coordinateAction.longitude,
+      },
+      content,
+      30,
+    );
+    return () => overlay.setMap(null);
+  }, [coordinateAction, engine, liveMode, mapReady]);
+
+  useEffect(() => {
+    const map = mapRef.current;
     const sdk = window.naver?.maps;
     if (!liveMode || !mapReady || map === null || sdk === undefined || regions.length === 0) return;
     const overlays = regions.map((region) => {
       const isSelected = region.id === selectedRegionId;
       const baseOpacity = region.appearance
         ? isSelected
-          ? 0.3
-          : 0.17
+          ? 0.38
+          : 0.28
         : isSelected
           ? 0.5
           : region.isRecommended
@@ -259,8 +307,8 @@ const useNaverMap = ({
                 map,
                 paths: coordinates,
                 strokeColor: region.appearance.glowColor,
-                strokeWeight: isSelected ? 9 : 7,
-                strokeOpacity: 0.22,
+                strokeWeight: isSelected ? 4 : 3,
+                strokeOpacity: 0.12,
                 fillColor: region.appearance.fillColor,
                 fillOpacity: 0,
                 clickable: false,
@@ -271,7 +319,7 @@ const useNaverMap = ({
             map,
             paths: coordinates,
             strokeColor: region.appearance?.strokeColor ?? (isSelected ? '#787b80' : '#a4a7ab'),
-            strokeWeight: region.appearance ? (isSelected ? 3 : 2) : isSelected ? 2 : 1,
+            strokeWeight: region.appearance ? (isSelected ? 2 : 1.25) : isSelected ? 2 : 1,
             fillColor:
               region.appearance?.fillColor ?? (region.isRecommended === false && !isSelected ? '#888888' : '#f5c344'),
             fillOpacity: baseOpacity,

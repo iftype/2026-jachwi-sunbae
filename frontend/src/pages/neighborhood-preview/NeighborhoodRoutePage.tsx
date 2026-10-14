@@ -1,7 +1,7 @@
-import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import { useMatch, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 
-import BottomSheet from '@/shared/ui/bottom-sheet/BottomSheet';
 import { Button } from '@/shared/ui/button/Button';
+import Icon from '@/shared/ui/icon/Icon';
 
 import useHorizontalDrag from './hooks/useHorizontalDrag';
 import type { NeighborhoodPreviewContext } from './hooks/useNeighborhoodPreview';
@@ -13,6 +13,7 @@ const NeighborhoodRoutePage = () => {
   const stationDrag = useHorizontalDrag();
   const navigate = useNavigate();
   const { adminDongCode } = useParams();
+  const isDetailPage = useMatch('/neighborhoods/map/areas/:adminDongCode/details');
   const area = preview.selected?.adminDongCode === adminDongCode ? preview.selected : undefined;
 
   if (!area)
@@ -23,12 +24,20 @@ const NeighborhoodRoutePage = () => {
       </main>
     );
 
+  if (!isDetailPage) return null;
+
   return (
-    <BottomSheet
-      title={area.name}
-      showCloseButton={false}
-      onClose={() => navigate(`/neighborhoods/map?mode=${preview.mode}`, { replace: true })}
-    >
+    <main className={styles.detailPage} aria-label={`${area.name} 대중교통 상세`}>
+      <header className={styles.header}>
+        <Button
+          variant="text"
+          aria-label="대중교통 상세 닫기"
+          onClick={() => navigate(`/neighborhoods/map/areas/${area.adminDongCode}?mode=commute`, { replace: true })}
+        >
+          <Icon name="close" size={24} />
+        </Button>
+        <h1>{area.name} 대중교통</h1>
+      </header>
       {preview.isRouteLoading && <p role="status">대중교통 경로를 불러오고 있어요.</p>}
       {preview.routeError && (
         <div>
@@ -95,7 +104,7 @@ const NeighborhoodRoutePage = () => {
       <p className={styles.notice}>
         시간표 기반 예상 정보예요. 실시간 버스 도착 정보는 제공하지 않아요. 집에서 출발 정류장까지 도보는 별도입니다.
       </p>
-    </BottomSheet>
+    </main>
   );
 };
 

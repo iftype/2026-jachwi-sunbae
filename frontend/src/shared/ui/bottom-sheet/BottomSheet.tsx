@@ -11,6 +11,8 @@ type BottomSheetProps = {
   onClose: () => void;
   closeLabel?: string;
   showCloseButton?: boolean;
+  initialHeightPercent?: number;
+  resizable?: boolean;
 };
 
 const BottomSheet = ({
@@ -19,6 +21,8 @@ const BottomSheet = ({
   onClose,
   closeLabel = '상세 닫기',
   showCloseButton = true,
+  initialHeightPercent = 58,
+  resizable = true,
 }: BottomSheetProps) => {
   const [height, setHeight] = useState<number | null>(null);
   const [expanded, setExpanded] = useState(false);
@@ -28,8 +32,10 @@ const BottomSheet = ({
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const handleRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    (showCloseButton ? closeButtonRef.current : handleRef.current)?.focus({ preventScroll: true });
-  }, [showCloseButton]);
+    (showCloseButton ? closeButtonRef.current : resizable ? handleRef.current : sheetRef.current)?.focus({
+      preventScroll: true,
+    });
+  }, [showCloseButton, resizable]);
   const finish = (event: PointerEvent<HTMLButtonElement>) => {
     const start = gesture.current;
     gesture.current = null;
@@ -45,8 +51,15 @@ const BottomSheet = ({
       ref={sheetRef}
       className={styles.sheet}
       aria-label={title}
+      tabIndex={-1}
+      data-resizable={resizable}
       data-expanded={expanded || undefined}
-      style={height === null ? undefined : ({ '--sheet-height': `${height}px` } as CSSProperties)}
+      style={
+        {
+          '--sheet-default-height': `${Math.max(25, Math.min(88, initialHeightPercent))}%`,
+          ...(height === null ? {} : { '--sheet-height': `${height}px` }),
+        } as CSSProperties
+      }
       onKeyDown={(event) => {
         if (event.key === 'Escape') {
           event.stopPropagation();
@@ -54,46 +67,48 @@ const BottomSheet = ({
         }
       }}
     >
-      <button
-        ref={handleRef}
-        className={styles.grabber}
-        type="button"
-        aria-label="상세 패널 높이 조절"
-        aria-expanded={expanded}
-        onPointerDown={(event) => {
-          if (event.button !== 0) return;
-          dragged.current = false;
-          const sheet = sheetRef.current;
-          if (!sheet) return;
-          gesture.current = {
-            startY: event.clientY,
-            height: sheet.getBoundingClientRect().height,
-            limit: sheet.parentElement?.getBoundingClientRect().height ?? window.innerHeight,
-          };
-          event.currentTarget.setPointerCapture?.(event.pointerId);
-        }}
-        onPointerMove={(event) => {
-          const start = gesture.current;
-          if (!start || Math.abs(event.clientY - start.startY) < 6) return;
-          dragged.current = true;
-          setHeight(Math.max(80, Math.min(start.limit * 0.9, start.height + start.startY - event.clientY)));
-        }}
-        onPointerUp={finish}
-        onPointerCancel={(event) => {
-          gesture.current = null;
-          setHeight(null);
-          event.currentTarget.releasePointerCapture?.(event.pointerId);
-        }}
-        onClick={() => {
-          if (dragged.current) {
+      {resizable && (
+        <button
+          ref={handleRef}
+          className={styles.grabber}
+          type="button"
+          aria-label="상세 패널 높이 조절"
+          aria-expanded={expanded}
+          onPointerDown={(event) => {
+            if (event.button !== 0) return;
             dragged.current = false;
-            return;
-          }
-          setExpanded((value) => !value);
-        }}
-      >
-        <span />
-      </button>
+            const sheet = sheetRef.current;
+            if (!sheet) return;
+            gesture.current = {
+              startY: event.clientY,
+              height: sheet.getBoundingClientRect().height,
+              limit: sheet.parentElement?.getBoundingClientRect().height ?? window.innerHeight,
+            };
+            event.currentTarget.setPointerCapture?.(event.pointerId);
+          }}
+          onPointerMove={(event) => {
+            const start = gesture.current;
+            if (!start || Math.abs(event.clientY - start.startY) < 6) return;
+            dragged.current = true;
+            setHeight(Math.max(80, Math.min(start.limit * 0.9, start.height + start.startY - event.clientY)));
+          }}
+          onPointerUp={finish}
+          onPointerCancel={(event) => {
+            gesture.current = null;
+            setHeight(null);
+            event.currentTarget.releasePointerCapture?.(event.pointerId);
+          }}
+          onClick={() => {
+            if (dragged.current) {
+              dragged.current = false;
+              return;
+            }
+            setExpanded((value) => !value);
+          }}
+        >
+          <span />
+        </button>
+      )}
       <header className={styles.header}>
         <h2>{title}</h2>
         {showCloseButton && (

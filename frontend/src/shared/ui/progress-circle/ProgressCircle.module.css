@@ -1,0 +1,45 @@
+.progress {
+  display: inline-flex;
+  flex: none;
+}
+.progress svg {
+  width: 100%;
+  height: 100%;
+  animation: rotate 1.2s cubic-bezier(0.35, 0.25, 0.65, 0.75) infinite;
+}
+.track,
+.indicator {
+  fill: none;
+  stroke-width: 5;
+}
+.track {
+  stroke: var(--color-border, #e5e5e5);
+}
+.indicator {
+  stroke: var(--color-muted, #909090);
+  stroke-linecap: round;
+  stroke-dasharray: 30 110;
+  animation: length 1.2s cubic-bezier(0.35, 0, 0.65, 1) infinite;
+}
+@keyframes rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes length {
+  0%,
+  100% {
+    stroke-dasharray: 12 110;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 75 110;
+    stroke-dashoffset: -20;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .progress svg,
+  .indicator {
+    animation: none;
+  }
+}

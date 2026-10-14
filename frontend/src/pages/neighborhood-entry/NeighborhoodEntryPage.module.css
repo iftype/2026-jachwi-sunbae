@@ -33,7 +33,7 @@
   text-decoration: none;
 }
 .options a:hover {
-  background: #fff7df;
+  background: var(--color-surface-muted);
 }
 .options span {
   color: var(--color-muted);

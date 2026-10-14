@@ -10,6 +10,7 @@ declare const __COMMUTE_DATA_SOURCE__: 'mock' | 'server';
 declare const __ADMIN_BOUNDARY_BASE_URL__: string;
 
 interface Window {
+  jachwiNaverSdkReady?: () => void;
   naver?: { maps: NaverMapsNamespace };
 }
 
@@ -21,6 +22,7 @@ type NaverMap = {
   getZoom: () => number;
   setCenter: (center: NaverLatLng) => void;
   setZoom: (zoom: number) => void;
+  morph?: (center: NaverLatLng, zoom: number, options: { duration: number; easing: string }) => void;
   refresh: () => void;
   autoResize: () => void;
   destroy: () => void;
