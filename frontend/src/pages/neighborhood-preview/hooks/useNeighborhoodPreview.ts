@@ -75,8 +75,8 @@ const useNeighborhoodPreview = () => {
   const [currentPosition, setCurrentPosition] = useState<MapCoordinate | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
-  const [maxMinutes, setMaxMinutes] = useState(restoredSearch?.maxMinutes ?? 60);
-  const [maxTransfers, setMaxTransfers] = useState(restoredSearch?.maxTransfers ?? 2);
+  const [maxMinutes, setMaxMinutes] = useState(restoredSearch?.maxMinutes ?? 40);
+  const [maxTransfers, setMaxTransfers] = useState(restoredSearch?.maxTransfers ?? 1);
   const [maxRent, setMaxRent] = useState(restoredSearch?.maxRent ?? 0);
   const isValidCommuteTime =
     Number.isInteger(maxMinutes) && maxMinutes >= 10 && maxMinutes <= 60 && maxMinutes % 10 === 0;
