@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 
+import { useAuthentication } from '@/features/auth/model/useAuthentication';
 import mascotImage from '@/shared/assets/empty-property.jpg';
 
 import { trackLandingCta } from './lib/landingAnalytics';
@@ -11,6 +12,7 @@ import styles from './LandingPage.module.css';
 
 const LandingPage = () => {
   useLandingAnalytics('exploration_v1');
+  const { session } = useAuthentication();
   const appPlatform = getLandingMobilePlatform(navigator.userAgent, navigator.maxTouchPoints);
   return (
     <main className={styles.page}>
@@ -41,6 +43,11 @@ const LandingPage = () => {
         <Link className={styles.webButton} to="/explore" onClick={() => trackLandingCta('web', 'actions')}>
           동네 찾아보기
         </Link>
+        {session === null && (
+          <Link className={styles.loginLink} to="/login" onClick={() => trackLandingCta('login', 'actions')}>
+            이미 기록 중이라면 로그인하기
+          </Link>
+        )}
       </section>
     </main>
   );

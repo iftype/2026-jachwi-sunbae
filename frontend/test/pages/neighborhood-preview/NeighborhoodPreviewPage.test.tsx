@@ -315,6 +315,10 @@ it('상위 동네 카드를 선택하면 첫 정류장의 상세 경로를 받�
   await screen.findByRole('region', { name: '행정동 프리셋 지도' });
   expect(screen.getByLabelText('통근 시간 상위 동네').querySelectorAll('button')).toHaveLength(3);
   await user.click(screen.getByRole('button', { name: /1위 역삼1동/ }));
+  // 출발 정류장은 지도 마커가 아니라 상세의 선택지로만 보여준다.
+  expect(JSON.parse(screen.getByLabelText('목적지 좌표').textContent ?? '[]')).toEqual([
+    expect.objectContaining({ id: 'destination' }),
+  ]);
   expect(trackPostHogEvent).toHaveBeenCalledWith(
     'neighborhood_area_selected',
     expect.objectContaining({ feature: 'commute' }),

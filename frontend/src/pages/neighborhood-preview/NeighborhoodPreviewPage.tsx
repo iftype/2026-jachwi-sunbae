@@ -52,14 +52,8 @@ const NeighborhoodPreviewPage = () => {
     () => [
       ...currentMarkers,
       { ...preview.destination, id: 'destination', label: preview.destination.name, tone: 'selected' as const },
-      ...(preview.selected?.stations ?? []).map((station) => ({
-        latitude: station.latitude,
-        longitude: station.longitude,
-        id: station.stopId,
-        label: `${station.stopName}${station.direction ? ` (${station.direction})` : ''} · ${station.travelMinutes}분`,
-      })),
     ],
-    [preview.destination, preview.selected, currentMarkers],
+    [preview.destination, currentMarkers],
   );
   const candidateMarkers = useMemo(
     () => [

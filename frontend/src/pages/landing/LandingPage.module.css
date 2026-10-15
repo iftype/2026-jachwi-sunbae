@@ -84,7 +84,17 @@
     box-shadow: 0 3px 8px rgb(0 0 0 / 8%);
   }
 }
+.loginLink {
+  align-self: center;
+  margin-top: 0.75rem;
+  padding: 0.5rem;
+  color: var(--color-ink-soft);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-underline-offset: 3px;
+}
 .webButton:focus-visible,
+.loginLink:focus-visible,
 .appRecommendation a:focus-visible {
   outline: 2px solid var(--color-ink);
   outline-offset: 3px;
