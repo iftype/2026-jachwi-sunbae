@@ -29,30 +29,39 @@ vi.mock('@/features/map/lib/mapLocation', async (importOriginal) => ({
   readGeolocationPermission: vi.fn(),
   requestCurrentMapLocation: vi.fn(),
 }));
-vi.mock('@/features/map/ui/map-canvas/MapCanvas', () => ({
-  default: (props: MapCanvasProps) => (
-    <div>
-      <button onClick={() => props.onSelectLocation?.(37.4, 127.12)}>지도에서 위치 찍기</button>
-      {props.onSelectLocation && (
-        <button onClick={() => props.onSelectLocation?.(37.45, 127.15)}>다른 위치 찍기</button>
-      )}
-      <output aria-label="지도 시점">{JSON.stringify({ center: props.center, level: props.level })}</output>
-      <output aria-label="목적지 좌표">{JSON.stringify(props.markers)}</output>
-      <output aria-label="지도 스타일">{props.customStyleId}</output>
-      {props.coordinateAction && (
-        <button onClick={props.coordinateAction.onClick} disabled={props.coordinateAction.disabled}>
-          {props.coordinateAction.label}
-        </button>
-      )}
-      {props.regions?.map((region) => (
-        <button key={region.id} onClick={() => props.onSelectRegion?.(region.id)}>
-          {region.name}
-        </button>
-      ))}
-    </div>
-  ),
-}));
+const mapMounts = vi.hoisted(() => ({ count: 0 }));
+vi.mock('@/features/map/ui/map-canvas/MapCanvas', async () => {
+  const { useEffect } = await import('react');
+  const MockMapCanvas = (props: MapCanvasProps) => {
+    useEffect(() => {
+      mapMounts.count += 1;
+    }, []);
+    return (
+      <div>
+        <button onClick={() => props.onSelectLocation?.(37.4, 127.12)}>지도에서 위치 찍기</button>
+        {props.onSelectLocation && (
+          <button onClick={() => props.onSelectLocation?.(37.45, 127.15)}>다른 위치 찍기</button>
+        )}
+        <output aria-label="지도 시점">{JSON.stringify({ center: props.center, level: props.level })}</output>
+        <output aria-label="목적지 좌표">{JSON.stringify(props.markers)}</output>
+        <output aria-label="지도 스타일">{props.customStyleId}</output>
+        {props.coordinateAction && (
+          <button onClick={props.coordinateAction.onClick} disabled={props.coordinateAction.disabled}>
+            {props.coordinateAction.label}
+          </button>
+        )}
+        {props.regions?.map((region) => (
+          <button key={region.id} onClick={() => props.onSelectRegion?.(region.id)}>
+            {region.name}
+          </button>
+        ))}
+      </div>
+    );
+  };
+  return { default: MockMapCanvas };
+});
 beforeEach(() => {
+  mapMounts.count = 0;
   vi.mocked(trackPostHogEvent).mockClear();
   vi.mocked(readGeolocationPermission).mockResolvedValue('prompt');
   vi.mocked(requestCurrentMapLocation).mockReset();
@@ -595,4 +604,19 @@ it('결과 지도 클릭은 목적지·결과를 유지하고 다시 선택하�
   expect(screen.queryByRole('complementary', { name: '선택한 동네 정보' })).not.toBeInTheDocument();
   expect(screen.getByLabelText('목적지 좌표')).toHaveTextContent('37.4');
   expect(screen.getByRole('button', { name: '선택한 조건으로 찾기' })).toBeEnabled();
+});
+
+it('위치 선택·분석·결과·다시 선택하기 내내 지도를 새로 만들지 않는다', async () => {
+  server.use(...createCommuteAreaHandlers({ delayMs: 50 }));
+  show();
+  const user = await choosePoint();
+  await user.click(screen.getByRole('button', { name: '선택한 조건으로 찾기' }));
+  expect(await screen.findByRole('heading', { name: '주변 동네를 분석하고 있어요' })).toBeInTheDocument();
+  // 분석 화면이 덮고 있는 동안에도 지도는 남아 있고, 찾기 버튼은 꺼진다.
+  expect(screen.getByRole('region', { name: '지도에서 목적지 선택' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: '선택한 조건으로 찾기' })).not.toBeInTheDocument();
+  await screen.findByRole('region', { name: '행정동 프리셋 지도' });
+  await user.click(screen.getByRole('button', { name: '다시 선택하기' }));
+  expect(await screen.findByRole('region', { name: '지도에서 목적지 선택' })).toBeInTheDocument();
+  expect(mapMounts.count).toBe(1);
 });
