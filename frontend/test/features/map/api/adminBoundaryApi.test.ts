@@ -141,3 +141,114 @@ it.each(['../other.json', 'https://other.example/file.geojson', 'admin-dongs.202
     await expect(fetchBoundaryManifest('https://cdn.example.com')).rejects.toThrow('목록 형식');
   },
 );
+
+const square = [
+  [127, 37],
+  [127.02, 37],
+  [127.02, 37.04],
+  [127, 37.04],
+  [127, 37],
+];
+const featureCollection = (features: unknown[]) => ({ type: 'FeatureCollection', features });
+const dong = (code: string, extra: Record<string, unknown> = {}) => ({
+  type: 'Feature',
+  properties: { code, name: '동', fullName: '시 동', baseDate: '20250630' },
+  geometry: { type: 'Polygon', coordinates: [square] },
+  ...extra,
+});
+const serve = (body: Parameters<typeof HttpResponse.json>[0]) =>
+  server.use(http.get('https://cdn.example.com/:filename', () => HttpResponse.json(body)));
+
+it('바깥 링의 최소·최대 좌표 가운데를 동 중심으로 쓴다', async () => {
+  // 처음 점이 최소·최대가 아니도록 시작점을 돌린다.
+  const rotated = [square[2], square[3], square[0], square[1], square[2]];
+  serve(featureCollection([dong('11230640', { geometry: { type: 'Polygon', coordinates: [rotated] } })]));
+  const boundaries = await fetchAdminBoundaries(manifest, 'https://cdn.example.com');
+  expect(boundaries['11230640'].center.latitude).toBeCloseTo(37.02, 10);
+  expect(boundaries['11230640'].center.longitude).toBeCloseTo(127.01, 10);
+});
+
+it('정점 네 개로 닫힌 단순화 링과 마지막 정점 인덱스는 받아들인다', async () => {
+  const indices = [[[0, 1, 2, 4]]];
+  serve(featureCollection([dong('11230640', { lod: { overview: indices, medium: [[[0, 2, 3, 0]]] } })]));
+  const boundaries = await fetchAdminBoundaries(manifest, 'https://cdn.example.com');
+  expect(boundaries['11230640'].simplifiedPolygons?.overview[0][0]).toHaveLength(4);
+});
+
+it.each([
+  ['면 개수가 다름', { overview: [[[0, 1, 2, 0]], [[0, 1, 2, 0]]], medium: [[[0, 1, 2, 0]]] }],
+  ['면이 배열이 아님', { overview: 'x', medium: [[[0, 1, 2, 0]]] }],
+  [
+    '링 개수가 다름',
+    {
+      overview: [
+        [
+          [0, 1, 2, 0],
+          [0, 1, 2, 0],
+        ],
+      ],
+      medium: [[[0, 1, 2, 0]]],
+    },
+  ],
+  ['링이 배열이 아님', { overview: ['x'], medium: [[[0, 1, 2, 0]]] }],
+  ['정점이 셋뿐임', { overview: [[[0, 1, 0]]], medium: [[[0, 1, 2, 0]]] }],
+  ['정점이 배열이 아님', { overview: [['x']], medium: [[[0, 1, 2, 0]]] }],
+  ['정수가 아닌 인덱스', { overview: [[[0, 1.5, 2, 0]]], medium: [[[0, 1, 2, 0]]] }],
+  ['숫자가 아닌 인덱스', { overview: [[[0, '1', 2, 0]]], medium: [[[0, 1, 2, 0]]] }],
+  ['음수 인덱스', { overview: [[[0, -1, 2, 0]]], medium: [[[0, 1, 2, 0]]] }],
+  ['링 길이와 같은 인덱스', { overview: [[[0, 1, 5, 0]]], medium: [[[0, 1, 2, 0]]] }],
+  ['위도가 닫히지 않음', { overview: [[[0, 1, 2, 3]]], medium: [[[0, 1, 2, 0]]] }],
+  ['경도만 닫히지 않음', { overview: [[[0, 1, 2, 1]]], medium: [[[0, 1, 2, 0]]] }],
+  ['서로 다른 점이 셋 미만', { overview: [[[0, 1, 1, 0]]], medium: [[[0, 1, 2, 0]]] }],
+  ['medium만 잘못됨', { overview: [[[0, 1, 2, 0]]], medium: [[[0, 1, 0]]] }],
+])('단순화 경계가 잘못되면 거절한다: %s', async (_case, lod) => {
+  serve(featureCollection([dong('11230640', { lod })]));
+  await expect(fetchAdminBoundaries(manifest, 'https://cdn.example.com')).rejects.toThrow('단순화 경계');
+});
+
+it('경도만 다른 점은 위도가 같아도 닫히지 않은 링으로 본다', async () => {
+  // [127,37] → [127.02,37]: 위도는 같고 경도만 다르다.
+  serve(featureCollection([dong('11230640', { lod: { overview: [[[0, 2, 3, 1]]], medium: [[[0, 1, 2, 0]]] } })]));
+  await expect(fetchAdminBoundaries(manifest, 'https://cdn.example.com')).rejects.toThrow('닫히지');
+});
+
+it.each([
+  ['FeatureCollection이 아님', { type: 'Feature', features: [] }],
+  ['행정동 코드가 8자리가 아님', featureCollection([dong('1123064')])],
+  ['행정동 코드 앞에 다른 문자', featureCollection([dong('x11230640')])],
+  ['행정동 코드 뒤에 다른 문자', featureCollection([dong('11230640x')])],
+  ['같은 행정동 코드가 두 번', featureCollection([dong('11230640'), dong('11230640')])],
+])('경계 파일 형식이 잘못되면 거절한다: %s', async (_case, body) => {
+  serve(body);
+  await expect(fetchAdminBoundaries(manifest, 'https://cdn.example.com')).rejects.toThrow();
+});
+
+it('기본 주소 끝의 슬래시를 하나로 합쳐 manifest와 경계 파일을 요청한다', async () => {
+  const urls: string[] = [];
+  server.use(
+    http.get('https://cdn.example.com/:filename', ({ request }) => {
+      urls.push(new URL(request.url).pathname);
+      return HttpResponse.json(
+        request.url.endsWith('manifest.json') ? manifest : featureCollection([dong('11230640')]),
+      );
+    }),
+  );
+  const parsed = await fetchBoundaryManifest('https://cdn.example.com/');
+  await fetchAdminBoundaries(parsed, 'https://cdn.example.com/');
+  expect(urls).toEqual(['/manifest.json', `/${manifest.file}`]);
+});
+
+it('manifest를 받지 못하면 거절한다', async () => {
+  server.use(http.get('https://cdn.example.com/manifest.json', () => new HttpResponse(null, { status: 503 })));
+  await expect(fetchBoundaryManifest('https://cdn.example.com')).rejects.toThrow('경계 파일 목록');
+});
+
+it.each([
+  ['기준일 앞에 다른 숫자', { ...manifest, version: '120250630' }],
+  ['기준일 뒤에 다른 숫자', { ...manifest, version: '202506301' }],
+  ['시도 코드 앞에 다른 문자', { ...splitManifest, files: { x11: 'admin-dongs.x11.20250630.111111111111.geojson' } }],
+  ['시도 코드가 세 자리', { ...splitManifest, files: { '111': 'admin-dongs.111.20250630.111111111111.geojson' } }],
+])('manifest 형식이 어긋나면 거절한다: %s', async (_case, body) => {
+  server.use(http.get('https://cdn.example.com/manifest.json', () => HttpResponse.json(body)));
+  await expect(fetchBoundaryManifest('https://cdn.example.com')).rejects.toThrow('목록 형식');
+});

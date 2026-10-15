@@ -82,3 +82,40 @@ it('결과 행정동의 시도 경계 파일만 받아 이름·중심·경계를
   unmount();
   client.clear();
 });
+
+it('경계 파일에 없는 동은 코드 이름과 안내 문구, 원래 중심, 빈 경계로 남긴다', async () => {
+  vi.mocked(fetchCommuteAreas).mockResolvedValue({
+    maxMinutes: 60,
+    areaCount: 1,
+    areas: [{ ...area('11999999'), center: { latitude: 37.1, longitude: 127.1 } }],
+  });
+  vi.mocked(fetchAdminBoundaries).mockResolvedValue({});
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={client}>
+      <PublicConfigProvider config={{ apiBaseUrl: 'http://localhost', commuteDataSource: 'mock' }}>
+        {children}
+      </PublicConfigProvider>
+    </QueryClientProvider>
+  );
+  const { result, unmount } = renderHook(
+    () =>
+      useCommuteAreas({
+        destination: { latitude: 37, longitude: 127 },
+        maxMinutes: 60,
+        maxTransfers: 2,
+        enabled: true,
+      }),
+    { wrapper },
+  );
+  await waitFor(() => expect(result.current.isSuccess).toBe(true));
+  expect(result.current.data?.areas[0]).toMatchObject({
+    name: '11999999',
+    fullName: '경계 정보가 없는 동네',
+    center: { latitude: 37.1, longitude: 127.1 },
+    polygons: [],
+    simplifiedPolygons: undefined,
+  });
+  unmount();
+  client.clear();
+});

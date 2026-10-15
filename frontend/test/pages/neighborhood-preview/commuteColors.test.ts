@@ -14,6 +14,22 @@ it.each([
 });
 it.each([
   [10, [['fast', '10분 이하']]],
+  [15, [['fast', '15분 이하']]],
+  [
+    16,
+    [
+      ['fast', '15분 이하'],
+      ['medium', '16~16분'],
+    ],
+  ],
+  [
+    31,
+    [
+      ['fast', '15분 이하'],
+      ['medium', '16~30분'],
+      ['slow', '31~31분'],
+    ],
+  ],
   [
     20,
     [
@@ -38,4 +54,11 @@ it.each([
   ],
 ] as const)('최대 %i분이면 들어오는 구간만 범례에 보인다', (maxMinutes, rows) => {
   expect(commuteLegend(maxMinutes)).toEqual(rows);
+});
+it('세 구간은 서로 다른 채움색과 선색을 쓴다', () => {
+  const fills = Object.values(COMMUTE_COLORS).map((color) => color.fillColor);
+  const strokes = Object.values(COMMUTE_COLORS).map((color) => color.strokeColor);
+  for (const color of [...fills, ...strokes]) expect(color).toMatch(/^#[0-9A-F]{6}$/i);
+  expect(new Set(fills).size).toBe(3);
+  expect(new Set(strokes).size).toBe(3);
 });
