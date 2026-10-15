@@ -8,7 +8,6 @@ import LoginPage from '@/pages/login/LoginPage';
 import PropertyListSkeleton from '@/pages/property-list/ui/property-list-skeleton/PropertyListSkeleton';
 import { useAuthentication } from '@/features/auth/model/useAuthentication';
 import { isChecklistStage } from '@/features/checklist/model/checklist';
-import { getExplorationRecordLocation } from '@/features/onboarding/lib/explorationJourney';
 
 import LazyRouteBoundary from './LazyRouteBoundary';
 import ProtectedRoute from './ProtectedRoute';
@@ -53,18 +52,7 @@ const ChecklistResourceRoute = () => {
 const LoginRoute = () => {
   const { session } = useAuthentication();
 
-  if (session !== null) {
-    const selectedLocation = getExplorationRecordLocation();
-    return (
-      <Navigate
-        to={selectedLocation ? '/properties/new' : '/properties'}
-        state={selectedLocation ? { selectedLocation, fromExploration: true } : undefined}
-        replace
-      />
-    );
-  }
-
-  return <LoginPage />;
+  return session !== null ? <Navigate to="/properties" replace /> : <LoginPage />;
 };
 
 const LandingRoute = () => {
