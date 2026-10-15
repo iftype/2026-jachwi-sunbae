@@ -14,7 +14,7 @@ import Toast from '@/shared/ui/toast/Toast';
 import useExplorationTutorial from './hooks/useExplorationTutorial';
 import useHorizontalDrag from './hooks/useHorizontalDrag';
 import useNeighborhoodPreview from './hooks/useNeighborhoodPreview';
-import { COMMUTE_COLORS } from './model/commuteColors';
+import { COMMUTE_COLORS, commuteLegend } from './model/commuteColors';
 import { PREVIEW_DESTINATION } from './model/preview';
 import type { NeighborhoodFilterField } from './NeighborhoodFilters';
 import NeighborhoodFilters from './NeighborhoodFilters';
@@ -314,16 +314,7 @@ const NeighborhoodPreviewPage = () => {
               </div>
               {preview.showCommute && (
                 <div className={styles.colorLegend} aria-label="통근 시간 색상 기준">
-                  {(
-                    [
-                      ['fast', `${Math.floor(preview.maxMinutes / 3)}분 이하`],
-                      [
-                        'medium',
-                        `${Math.floor(preview.maxMinutes / 3) + 1}~${Math.floor((preview.maxMinutes * 2) / 3)}분`,
-                      ],
-                      ['slow', `${Math.floor((preview.maxMinutes * 2) / 3) + 1}~${preview.maxMinutes}분`],
-                    ] as const
-                  ).map(([group, label]) => (
+                  {commuteLegend(preview.maxMinutes).map(([group, label]) => (
                     <span key={group}>
                       <i style={{ background: COMMUTE_COLORS[group].fillColor }} />
                       {label}

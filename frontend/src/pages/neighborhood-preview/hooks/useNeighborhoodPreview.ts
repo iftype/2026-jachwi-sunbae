@@ -15,7 +15,7 @@ import type { MapAddress } from '@/features/map/model/Map';
 import { completeExploration, startExploration } from '@/features/onboarding/lib/explorationJourney';
 import { usePublicConfig } from '@/shared/config/PublicConfigContext';
 
-import { commuteColor } from '../model/commuteColors';
+import { commuteBand, commuteColor } from '../model/commuteColors';
 import { readNeighborhoodSearch, writeNeighborhoodSearch } from '../model/neighborhoodSearchSession';
 import { PREVIEW_DESTINATION } from '../model/preview';
 import { resultMapCenter } from '../model/resultMapView';
@@ -220,7 +220,8 @@ const useNeighborhoodPreview = () => {
         : (areas ?? []).map((area) => ({
             ...commuteAreaToRegion(area),
             summary: undefined,
-            appearance: commuteColor(area.commuteMinutes, maxMinutes),
+            appearance: commuteColor(area.commuteMinutes),
+            drawStage: commuteBand(area.commuteMinutes),
           })),
     [areas, maxMinutes, mode, priceAreas, selectedId],
   );
