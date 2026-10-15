@@ -39,12 +39,18 @@ export type MapCanvasProps = {
 export type MapRegion = {
   id: string;
   name: string;
-  appearance?: { fillColor: string; strokeColor: string; glowColor?: string };
+  appearance?: { fillColor: string; strokeColor: string };
   isRecommended?: boolean;
+  /** 처음 그릴 때의 순서. 낮은 단계부터 한 프레임씩 나눠 지도에 등록한다. 없으면 0이다. */
+  drawStage?: number;
   /** 구역 위 두 칸으로 표시할 요약. 화면이 아니라 지도 좌표에 고정한다. */
   summary?: { travel?: string; price?: string };
   center?: { latitude: number; longitude: number };
   /** MultiPolygon의 분리된 면과 각 면의 내부 링을 유지한다. */
   polygons?: { latitude: number; longitude: number }[][][];
+  simplifiedPolygons?: {
+    overview: { latitude: number; longitude: number }[][][];
+    medium: { latitude: number; longitude: number }[][][];
+  };
   paths: { latitude: number; longitude: number }[][];
 };

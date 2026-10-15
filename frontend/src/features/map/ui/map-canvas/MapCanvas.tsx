@@ -153,13 +153,6 @@ const MapCanvas = ({
                   fillRule="evenodd"
                   className={styles.regionBoundary}
                   stroke={region.appearance?.strokeColor ?? (region.id === selectedRegionId ? '#787b80' : '#a4a7ab')}
-                  style={
-                    region.appearance?.glowColor
-                      ? {
-                          filter: `drop-shadow(0 0 0.5px color-mix(in srgb, ${region.appearance.glowColor} 20%, transparent))`,
-                        }
-                      : undefined
-                  }
                   strokeWidth={
                     region.appearance
                       ? region.id === selectedRegionId

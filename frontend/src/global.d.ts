@@ -17,6 +17,8 @@ interface Window {
 type NaverLatLng = { lat: () => number; lng: () => number };
 type NaverLatLngBounds = { getSW: () => NaverLatLng; getNE: () => NaverLatLng };
 type NaverMap = {
+  /** GL 모드의 내부 준비 상태. 공개 API가 아니므로 없을 수 있다. */
+  _glReady?: boolean;
   getBounds: () => NaverLatLngBounds;
   getCenter: () => NaverLatLng;
   getZoom: () => number;
@@ -61,7 +63,16 @@ type NaverMapsNamespace = {
     fillOpacity: number;
     clickable: boolean;
     zIndex: number;
-  }) => NaverOverlay & { setOptions: (options: { fillOpacity?: number }) => void };
+  }) => NaverOverlay & {
+    setPaths: (paths: NaverLatLng[][]) => void;
+    setOptions: (options: {
+      fillOpacity?: number;
+      fillColor?: string;
+      strokeColor?: string;
+      strokeWeight?: number;
+      zIndex?: number;
+    }) => void;
+  };
   Circle: new (options: {
     map: NaverMap;
     center: NaverLatLng;

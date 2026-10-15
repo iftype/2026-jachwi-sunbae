@@ -502,6 +502,52 @@ it('경계는 조회 버튼 이후에만 원본을 받고 다시 조회하면 �
     server.events.removeListener('request:start', track);
   }
 });
+it('분할 manifest에서는 결과에 나온 시도 파일만 받아 합치고 재조회 시 각 파일의 캐시를 재사용한다', async () => {
+  const files = {
+    '11': 'admin-dongs.11.20250630.111111111111.geojson',
+    '23': 'admin-dongs.23.20250630.333333333333.geojson',
+    '31': 'admin-dongs.31.20250630.222222222222.geojson',
+  };
+  const requested: string[] = [];
+  server.use(
+    http.get('*/boundaries/manifest.json', () =>
+      HttpResponse.json({ version: '20250630', file: 'admin-dongs.20250630.123456abcdef.geojson', files }),
+    ),
+    http.get('*/boundaries/:filename', ({ params }) => {
+      const filename = String(params.filename);
+      requested.push(filename);
+      const prefix = filename.split('.')[1];
+      return HttpResponse.json({
+        type: 'FeatureCollection',
+        features: commuteBoundaryFixtures
+          .filter((fixture) => fixture.sourceCode.startsWith(prefix))
+          .map((fixture) => ({
+            type: 'Feature',
+            properties: {
+              code: fixture.sourceCode,
+              name: fixture.fullName.split(' ').at(-1),
+              fullName: fixture.fullName,
+              baseDate: '20250630',
+            },
+            geometry: fixture.boundary,
+          })),
+      });
+    }),
+  );
+  show();
+  const user = await choosePoint();
+  await user.click(screen.getByRole('button', { name: '선택한 조건으로 찾기' }));
+  await screen.findByRole('region', { name: '행정동 프리셋 지도' });
+  expect(requested.sort()).toEqual([files['11'], files['31']]);
+  expect(screen.getByRole('button', { name: '역삼1동' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '정자동' })).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: '다시 선택하기' }));
+  await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
+  await user.click(screen.getByRole('button', { name: '선택한 조건으로 찾기' }));
+  await screen.findByRole('region', { name: '행정동 프리셋 지도' });
+  expect(requested).toHaveLength(2);
+});
+
 it('manifest의 해시가 바뀌면 이전 경계 캐시 대신 새 파일을 받는다', async () => {
   let file = 'admin-dongs.20250630.123456abcdef.geojson';
   server.use(http.get('*/boundaries/manifest.json', () => HttpResponse.json({ version: '20250630', file })));

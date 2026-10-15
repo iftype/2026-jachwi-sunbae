@@ -77,7 +77,7 @@ JWT secret, 지도 Client Secret, S3 자격증명은 프론트에 넣지 않습�
 
 ### 동네 추천 로컬 시안
 
-머지된 생활권 탐색·코드 응답·상세 경로 API 계약과 실제 서버/MSW 전환 방법은 [생활권 탐색 MSW 안내](docs/commute-area-mocks.md)를 참고합니다.
+머지된 생활권 탐색·코드 응답·상세 경로 API 계약과 실제 서버/MSW 전환 방법은 [생활권 탐색 MSW 안내](docs/commute-area-mocks.md)를 참고합니다. 행정동 경계의 시도별 분할·줌별 단순화·나눠 그리기 정책은 [통근 지도 행정동 경계](docs/commute-boundaries.md)를 참고합니다.
 
 `npm run dev:mock` 실행 후 `/neighborhoods`에서 탐색 기준을 선택합니다. 검색은 판교 샘플만 제공하며 지도에서 직접 위치를 고를 수도 있습니다.
 
