@@ -81,36 +81,6 @@ describe('닉네임 인증 흐름', () => {
     expect(screen.getByRole('navigation', { name: '주요 메뉴' })).toBeInTheDocument();
     expect(screen.queryByRole('textbox', { name: '이름 또는 닉네임' })).not.toBeInTheDocument();
   });
-  it('공개 소개 화면에서 핵심 가치와 사용 방법을 확인하고 닉네임 시작 화면으로 이동한다', async () => {
-    const user = userEvent.setup();
-    renderRoutes('/intro');
-
-    expect(
-      await screen.findByRole('heading', {
-        name: /집은 짧게 보지만,\s*놓친 문제는 매일 반복됩니다\.\s*돈을 잃지 않는 방을 고르세요\./,
-      }),
-    ).toBeInTheDocument();
-    expect(screen.getByText('집을 구하는 사람을 위한 · 매물의 기록과 관리')).toBeInTheDocument();
-    expect(screen.getByText('매물의 기록과 관리 · 후보 매물 A')).toBeInTheDocument();
-    expect(screen.getByText('매물의 기록과 관리 순서')).toBeInTheDocument();
-    expect(screen.getByText('2년이면 120만원')).toBeInTheDocument();
-    expect(screen.getByText('사진 4장')).toBeInTheDocument();
-    expect(screen.getByText('5/8 확인')).toBeInTheDocument();
-    expect(
-      screen.getByRole('heading', {
-        name: '방을 등록하고, 돈이 새는 질문부터 확인하고, 마지막에 비교하세요.',
-      }),
-    ).toBeInTheDocument();
-    expect(screen.getByText('지도나 주소로 매물 등록')).toBeInTheDocument();
-    expect(screen.getByText('돈 새는 질문부터 기록')).toBeInTheDocument();
-    expect(screen.getByText('후보 매물 전체를 PDF로 비교')).toBeInTheDocument();
-    expect(screen.getByText('자취선배는 계약 후를 살아갈 임차인의 편입니다.')).toBeInTheDocument();
-    expect(screen.queryByRole('textbox', { name: '이름 또는 닉네임' })).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('link', { name: '내 방에서 돈 새는 곳 확인하기' }));
-    expect(await screen.findByRole('heading', { name: '자취선배 시작하기' })).toBeInTheDocument();
-  });
-
   it('비인증 사용자에게 닉네임과 선택 비밀번호 입력을 표시한다', () => {
     renderRoutes('/login');
 

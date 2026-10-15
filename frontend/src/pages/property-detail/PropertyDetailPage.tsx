@@ -15,7 +15,7 @@ import PropertyPhotoViewer from '@/features/property/ui/property-photo-viewer/Pr
 import { trackPostHogEvent } from '@/shared/lib/analytics/posthog';
 import ConfirmDialog from '@/shared/ui/confirm-dialog/ConfirmDialog';
 import ContentState from '@/shared/ui/content-state/ContentState';
-import PageHeading from '@/shared/ui/page-heading/PageHeading';
+import Icon from '@/shared/ui/icon/Icon';
 import QueryState from '@/shared/ui/query-state/QueryState';
 import TopNavigationMenu from '@/shared/ui/top-navigation-menu/TopNavigationMenu';
 
@@ -38,7 +38,13 @@ const PropertyDetailPage = () => {
   if (propertyId === null) {
     return (
       <ContentState title="올바른 매물 주소가 아니에요.">
-        <Link to={backTo}>{backTo === '/map' ? '매물 지도로 돌아가기' : '매물 목록으로 돌아가기'}</Link>
+        <Link to={backTo}>
+          {backTo === '/map'
+            ? '매물 지도로 돌아가기'
+            : backTo === '/design-preview/records'
+              ? '기록 화면으로 돌아가기'
+              : '매물 목록으로 돌아가기'}
+        </Link>
       </ContentState>
     );
   }
@@ -53,7 +59,15 @@ const ResolvedPropertyDetailPage = ({ propertyId, backTo }: { propertyId: number
       query={property}
       loadingTitle="매물 상세를 불러오는 중이에요."
       describeError={describeError}
-      errorAction={<Link to={backTo}>{backTo === '/map' ? '매물 지도로 돌아가기' : '매물 목록으로 돌아가기'}</Link>}
+      errorAction={
+        <Link to={backTo}>
+          {backTo === '/map'
+            ? '매물 지도로 돌아가기'
+            : backTo === '/design-preview/records'
+              ? '기록 화면으로 돌아가기'
+              : '매물 목록으로 돌아가기'}
+        </Link>
+      }
     >
       {(detail) => <PropertyDetailView propertyId={propertyId} detail={detail} backTo={backTo} />}
     </QueryState>
@@ -66,6 +80,7 @@ const PropertyDetailView = ({ propertyId, detail, backTo }: PropertyDetailViewPr
   const removeMutation = useRemoveProperty(propertyId);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<'details' | 'checklist'>('details');
   const deleteButtonRef = useRef<HTMLButtonElement>(null);
   const photoTriggerRef = useRef<HTMLButtonElement | null>(null);
 
@@ -86,54 +101,101 @@ const PropertyDetailView = ({ propertyId, detail, backTo }: PropertyDetailViewPr
   return (
     <main className={styles.page}>
       <div className={styles.container}>
-        <PropertyHeroPhoto
-          propertyId={propertyId}
-          propertyName={detail.name}
-          photos={detail.photoPreview.photos}
-          backTo={backTo}
-          backState={returnState}
-          onOpen={() => {
-            photoTriggerRef.current = null;
-            setSelectedPhotoIndex(0);
-          }}
-        />
+        <header className={styles.header}>
+          <Link
+            className={styles.backButton}
+            to={backTo}
+            state={returnState}
+            aria-label={
+              backTo === '/map'
+                ? '매물 지도로 돌아가기'
+                : backTo === '/design-preview/records'
+                  ? '기록 화면으로 돌아가기'
+                  : '매물 목록으로 돌아가기'
+            }
+          >
+            <Icon name="chevron-left" size={24} />
+          </Link>
+          <h1 className={styles.headerTitle}>{detail.name}</h1>
+        </header>
 
-        <div className={styles.infoPanel}>
-          <div className={styles.titleRow}>
-            <PageHeading title={detail.name} />
-            <TopNavigationMenu label="매물 정보 메뉴 열기">
-              <button
-                ref={deleteButtonRef}
-                type="button"
-                data-tone="danger"
-                onClick={() => {
-                  removeMutation.reset();
-                  setIsDeleteDialogOpen(true);
+        <nav className={styles.tabs} role="tablist" aria-label="매물 상세 메뉴">
+          <button
+            id="property-details-tab"
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'details'}
+            aria-controls="property-details-panel"
+            onClick={() => setActiveTab('details')}
+          >
+            정보
+          </button>
+          <button
+            id="property-checklist-tab"
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'checklist'}
+            aria-controls="property-checklist-panel"
+            onClick={() => setActiveTab('checklist')}
+          >
+            체크리스트
+          </button>
+        </nav>
+
+        {activeTab === 'details' ? (
+          <section id="property-details-panel" role="tabpanel" aria-labelledby="property-details-tab">
+            <PropertyHeroPhoto
+              propertyId={propertyId}
+              propertyName={detail.name}
+              photos={detail.photoPreview.photos}
+              backTo={backTo}
+              backState={returnState}
+              showBackButton={false}
+              onOpen={() => {
+                photoTriggerRef.current = null;
+                setSelectedPhotoIndex(0);
+              }}
+            />
+            <div className={styles.infoPanel}>
+              <div className={styles.titleRow}>
+                {/* 화면 제목(h1)은 헤더가 맡고, 정보 탭의 이름은 같은 내용을 크게 다시 보여준다. */}
+                <p className={styles.infoTitle}>{detail.name}</p>
+                <TopNavigationMenu label="매물 정보 메뉴 열기">
+                  <button
+                    ref={deleteButtonRef}
+                    type="button"
+                    data-tone="danger"
+                    onClick={() => {
+                      removeMutation.reset();
+                      setIsDeleteDialogOpen(true);
+                    }}
+                  >
+                    삭제
+                  </button>
+                </TopNavigationMenu>
+              </div>
+              <PropertyBasicInfoSection property={detail} />
+
+              <PropertyAdditionalInfoSection property={detail} />
+
+              <PropertyMemoSection propertyId={propertyId} />
+
+              <PropertyPhotoSection
+                propertyId={propertyId}
+                propertyName={detail.name}
+                photoPreview={detail.photoPreview}
+                onSelect={(index, trigger) => {
+                  photoTriggerRef.current = trigger;
+                  setSelectedPhotoIndex(index);
                 }}
-              >
-                삭제
-              </button>
-            </TopNavigationMenu>
-          </div>
-
-          <PropertyBasicInfoSection property={detail} />
-
-          <PropertyAdditionalInfoSection property={detail} />
-
-          <PropertyMemoSection propertyId={propertyId} />
-
-          <PropertyPhotoSection
-            propertyId={propertyId}
-            propertyName={detail.name}
-            photoPreview={detail.photoPreview}
-            onSelect={(index, trigger) => {
-              photoTriggerRef.current = trigger;
-              setSelectedPhotoIndex(index);
-            }}
-          />
-
-          <PropertyChecklistSection propertyId={propertyId} />
-        </div>
+              />
+            </div>
+          </section>
+        ) : (
+          <section id="property-checklist-panel" role="tabpanel" aria-labelledby="property-checklist-tab">
+            <PropertyChecklistSection propertyId={propertyId} />
+          </section>
+        )}
 
         {selectedPhotoIndex !== null && (
           <PropertyPhotoViewer

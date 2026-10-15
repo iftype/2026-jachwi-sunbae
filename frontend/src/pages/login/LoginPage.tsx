@@ -111,48 +111,53 @@ const LoginPage = () => {
         <form className={styles.actions} aria-label="닉네임으로 시작하기" onSubmit={handleLogin}>
           {authenticationNotice !== null && <InlineNotice>{authenticationNotice}</InlineNotice>}
           {startError !== null && <InlineNotice tone="error">{startError}</InlineNotice>}
-          <TextField
-            label="이름 또는 닉네임"
-            requirement="필수"
-            fieldClassName={styles.inlineField}
-            autoComplete="username"
-            maxLength={30}
-            value={nickname}
-            onChange={(event) => setNickname(event.target.value)}
-            placeholder="예: 자취초보"
-            disabled={isStarting}
-          />
-          <TextField
-            label="비밀번호"
-            requirement="선택"
-            fieldClassName={styles.inlineField}
-            helpText="기록을 보호하려면 4자 이상 입력해 주세요."
-            type="password"
-            autoComplete="current-password"
-            maxLength={64}
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="비밀번호 입력"
-            disabled={isStarting}
-          />
-          <p className={styles.sharedWarning}>
-            비밀번호를 비우면 같은 닉네임을 입력한 사람이 기록을 함께 조회하고 수정할 수 있어요.
-          </p>
-          <Button
-            className={styles.loginButton}
-            variant="primary"
-            type="submit"
-            fullWidth
-            isLoading={isStarting}
-            loadingLabel="시작하는 중…"
-          >
-            <Icon name="arrow-right" size={16} />
-            이름으로 시작하기
-          </Button>
-
-          <p className={styles.agreement}>
-            처음 쓰는 닉네임이면 새 기록 공간을 만들어요. <Link to="/privacy">개인정보·광고 측정 안내</Link>
-          </p>
+          <div className={styles.fields}>
+            <TextField
+              label="이름 또는 닉네임"
+              requirement="필수"
+              fieldSize="large"
+              floatingLabel
+              autoComplete="username"
+              maxLength={30}
+              value={nickname}
+              onChange={(event) => setNickname(event.target.value)}
+              placeholder="이름 또는 닉네임"
+              disabled={isStarting}
+            />
+            <TextField
+              label="비밀번호"
+              requirement="선택"
+              fieldSize="large"
+              floatingLabel
+              helpText="기록을 보호하려면 4자 이상 입력해 주세요."
+              type="password"
+              autoComplete="current-password"
+              maxLength={64}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="비밀번호 (선택)"
+              disabled={isStarting}
+            />
+            <p className={styles.sharedWarning}>
+              비밀번호를 비우면 같은 닉네임을 입력한 사람이 기록을 함께 조회하고 수정할 수 있어요.
+            </p>
+          </div>
+          <div className={styles.footer}>
+            <Button
+              className={styles.loginButton}
+              variant="primary"
+              type="submit"
+              fullWidth
+              isLoading={isStarting}
+              loadingLabel="시작하는 중…"
+            >
+              <Icon name="arrow-right" size={16} />
+              이름으로 시작하기
+            </Button>
+            <p className={styles.agreement}>
+              처음 쓰는 닉네임이면 새 기록 공간을 만들어요. <Link to="/privacy">개인정보·광고 측정 안내</Link>
+            </p>
+          </div>
         </form>
       </section>
     </main>

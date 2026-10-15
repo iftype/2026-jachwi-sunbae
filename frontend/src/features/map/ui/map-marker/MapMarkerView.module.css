@@ -42,6 +42,61 @@ button.clusterMarker::before {
   z-index: 1;
 }
 
+.markerSummaryCard {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  bottom: calc(100% + 0.45rem);
+  display: grid;
+  box-sizing: border-box;
+  width: 6.5rem;
+  height: 2.8rem;
+  padding: 0.3rem 0.25rem;
+  overflow: hidden;
+  border: 1px solid #d8dbe0;
+  border-radius: 1.05rem;
+  background: #fff;
+  box-shadow: 0 0.3rem 0.85rem rgb(25 30 40 / 24%);
+  color: #25282d;
+  text-align: center;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.markerSummaryCard::after {
+  position: absolute;
+  bottom: -0.6rem;
+  left: calc(50% - 0.3rem);
+  width: 0.55rem;
+  height: 0.55rem;
+  border-right: 1px solid #d8dbe0;
+  border-bottom: 1px solid #d8dbe0;
+  background: #fff;
+  content: '';
+  transform: rotate(45deg);
+}
+
+.markerSummaryCard strong,
+.markerSummaryCard small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.markerSummaryCard strong {
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.markerSummaryCard small {
+  color: #626975;
+  font-size: 0.66rem;
+  line-height: 1.3;
+}
+
 .propertyMarker::before,
 .selectedMarker::before {
   position: absolute;

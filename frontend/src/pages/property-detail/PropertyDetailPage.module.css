@@ -1,5 +1,5 @@
 .page {
-  min-height: calc(100dvh - var(--bottom-navigation-height));
+  min-height: 100dvh;
   background: var(--color-canvas);
 }
 
@@ -7,6 +7,67 @@
   --page-inline-padding: 1rem;
 
   padding: 0 var(--page-inline-padding) 1.5rem;
+}
+
+.header {
+  position: relative;
+  display: flex;
+  min-height: 3.5rem;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.backButton {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+/* 헤더 제목은 뒤로가기 화살표 바로 오른쪽에 왼쪽 정렬로 둔다. */
+.headerTitle {
+  min-width: 0;
+  flex: 1;
+  margin: 0;
+  overflow: hidden;
+  color: var(--color-ink);
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header > details > summary {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+.tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin: 0 -1rem;
+  padding: 0 1rem;
+  background: var(--color-surface);
+}
+
+.tabs button {
+  min-height: 3rem;
+  border: 0;
+  background: transparent;
+  color: #a2a4a9;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tabs button[aria-selected='true'] {
+  color: var(--color-ink);
 }
 
 .infoPanel {
@@ -26,13 +87,14 @@
   padding: 1.25rem 0 0.8rem;
 }
 
-.titleRow > h1 {
+.infoTitle {
   min-width: 0;
   flex: 1;
   margin: 0;
-  padding: 0;
-  border-radius: 0;
-  background: transparent;
+  color: var(--color-ink);
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
   line-height: 1.3;
 }
 

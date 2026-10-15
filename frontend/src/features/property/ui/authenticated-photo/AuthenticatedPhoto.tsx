@@ -9,21 +9,35 @@ type AuthenticatedPhotoProps = {
   contentUrl: string;
   alt: string;
   className?: string;
+  errorMode?: 'message' | 'retry-only';
 };
 
-const AuthenticatedPhoto = ({ propertyId, photoId, contentUrl, alt, className = '' }: AuthenticatedPhotoProps) => {
+const AuthenticatedPhoto = ({
+  propertyId,
+  photoId,
+  contentUrl,
+  alt,
+  className = '',
+  errorMode = 'message',
+}: AuthenticatedPhotoProps) => {
   const photo = useAuthenticatedPhoto(propertyId, photoId, contentUrl);
 
   if (photo.isError) {
     return (
       <div
-        className={`authenticated-photo authenticated-photo--error ${className}`}
+        className={`authenticated-photo authenticated-photo--error ${errorMode === 'retry-only' ? 'authenticated-photo--retry-only' : ''} ${className}`}
         role="group"
         aria-label={`${alt} 불러오기 실패`}
       >
-        <span>{getPropertyErrorMessage(photo.error)}</span>
-        <button type="button" className="inline-button" onClick={() => void photo.refetch()}>
-          다시 시도
+        {errorMode === 'message' && <span>{getPropertyErrorMessage(photo.error)}</span>}
+        <button
+          type="button"
+          className="inline-button"
+          // 아이콘만 보이는 재시도 버튼에만 읽을 이름을 붙인다.
+          aria-label={errorMode === 'retry-only' ? `${alt} 새로고침` : undefined}
+          onClick={() => void photo.refetch()}
+        >
+          {errorMode === 'retry-only' ? '🔄' : '다시 시도'}
         </button>
       </div>
     );

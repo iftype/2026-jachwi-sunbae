@@ -73,8 +73,18 @@
 }
 
 .results[data-compact='true'] ul {
+  display: flex;
+  min-width: 0;
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
   gap: 0.25rem 0.55rem;
   font-size: 0.64rem;
+  flex-wrap: nowrap;
+}
+
+.results[data-compact='true'] li {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .results li {

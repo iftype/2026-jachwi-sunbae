@@ -114,6 +114,8 @@ assets/jachwi-sunbae-logo.2e4dac46707736dbc407.png
 
 `publish.sh`는 해시가 붙은 JS·CSS·이미지에 `Cache-Control: public,max-age=31536000,immutable`을 설정한다. 내용이 바뀌면 URL도 바뀌므로 1년 동안 다시 검증하지 않아도 이전 버전과 충돌하지 않는다. 반면 `index.html`은 `Cache-Control: no-cache,max-age=0,must-revalidate`로 올려 매번 최신 해시 파일명을 재검증한다.
 
+파비콘처럼 `index.html`이 직접 가리키는 이미지도 `public/`에 두지 않고 템플릿에서 `require`로 불러와 해시 파일명으로 내보낸다. `public/`은 개발 서버에서만 제공되고 운영 `dist`로 복사되지 않으며, 해시 없는 파일은 위 1년 캐시 때문에 바꿔도 반영되지 않는다.
+
 개발 빌드에는 해시를 붙이지 않는다. 파일명이 매번 바뀌면 dev-server의 HMR이 불편하다.
 
 ## 배포 성공 판정
@@ -136,9 +138,9 @@ assets/jachwi-sunbae-logo.2e4dac46707736dbc407.png
 
 ## SPA 폴백
 
-react-router의 클라이언트 라우팅을 쓴다. `/intro`, `/properties/1`, `/map` 같은 경로는 S3에 실제 객체가 없으므로, CloudFront에서 403·404 응답을 `/index.html`(상태 200)로 매핑해야 한다.
+react-router의 클라이언트 라우팅을 쓴다. `/landing`, `/properties/1`, `/map` 같은 경로는 S3에 실제 객체가 없으므로, CloudFront에서 403·404 응답을 `/index.html`(상태 200)로 매핑해야 한다.
 
-이게 없으면 소개 QR의 `/intro` 직접 진입과 매물·지도 화면 새로고침이 깨진다.
+이게 없으면 광고 링크의 `/landing` 직접 진입과 매물·지도 화면 새로고침이 깨진다.
 
 ## 행정동 경계 자산
 

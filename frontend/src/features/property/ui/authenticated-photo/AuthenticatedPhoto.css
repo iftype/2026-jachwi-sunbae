@@ -27,3 +27,15 @@
   background: var(--color-error-surface);
   color: var(--color-error);
 }
+
+.authenticated-photo--retry-only {
+  border: 0;
+  background: var(--color-surface-muted);
+  color: var(--color-ink-soft);
+}
+
+.authenticated-photo--retry-only .inline-button {
+  min-height: 2rem;
+  padding: 0.25rem 0.5rem;
+  text-decoration: none;
+}

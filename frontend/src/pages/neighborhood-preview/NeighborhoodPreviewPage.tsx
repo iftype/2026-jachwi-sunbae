@@ -6,13 +6,13 @@ import MapCurrentLocationButton from '@/features/map/ui/map-current-location-but
 import ExplorationRecordAction from '@/features/onboarding/ui/exploration-record-action/ExplorationRecordAction';
 import BottomSheet from '@/shared/ui/bottom-sheet/BottomSheet';
 import { Button } from '@/shared/ui/button/Button';
+import HorizontalRail from '@/shared/ui/horizontal-rail/HorizontalRail';
 import Icon from '@/shared/ui/icon/Icon';
 import RankedCard from '@/shared/ui/ranked-card/RankedCard';
 import SearchField from '@/shared/ui/search-field/SearchField';
 import Toast from '@/shared/ui/toast/Toast';
 
 import useExplorationTutorial from './hooks/useExplorationTutorial';
-import useHorizontalDrag from './hooks/useHorizontalDrag';
 import useNeighborhoodPreview from './hooks/useNeighborhoodPreview';
 import { COMMUTE_COLORS, commuteLegend } from './model/commuteColors';
 import { PREVIEW_DESTINATION } from './model/preview';
@@ -36,7 +36,6 @@ const NeighborhoodPreviewPage = () => {
   const [filterField, setFilterField] = useState<NeighborhoodFilterField | null>(null);
   const [isEntryToastOpen, setEntryToastOpen] = useState(true);
   const closeEntryToast = useCallback(() => setEntryToastOpen(false), []);
-  const cardDrag = useHorizontalDrag();
   const isRoutePage = useMatch(`${preview.mapPath}/areas/:adminDongCode/*`);
   const isDetailPage = useMatch(`${preview.mapPath}/areas/:adminDongCode/details`);
   const isPriceDetailPage = useMatch(`${preview.mapPath}/prices/:legalDongCode`);
@@ -348,7 +347,7 @@ const NeighborhoodPreviewPage = () => {
           )}
           {!isRoutePage && preview.showCommute && preview.topAreas.length > 0 && (
             <div className={styles.topAreaRail} aria-label="통근 시간 상위 동네">
-              <div className={styles.areaCards} {...cardDrag}>
+              <HorizontalRail className={styles.areaCards}>
                 {preview.topAreas.map((area, index) => (
                   <RankedCard
                     key={area.adminDongCode}
@@ -362,13 +361,13 @@ const NeighborhoodPreviewPage = () => {
                     onSelect={() => preview.selectRegion(area.adminDongCode)}
                   />
                 ))}
-              </div>
+              </HorizontalRail>
             </div>
           )}
           {isRoutePage && <Outlet context={preview} />}
           {preview.showPrice && preview.priceAreas.length > 0 && (
             <div className={styles.topAreaRail} aria-label="주변 월세 평균가">
-              <div className={styles.areaCards} {...cardDrag}>
+              <HorizontalRail className={styles.areaCards}>
                 {preview.priceAreas.map((area, index) => (
                   <RankedCard
                     key={area.legalDongCode}
@@ -381,7 +380,7 @@ const NeighborhoodPreviewPage = () => {
                     onSelect={() => preview.selectRegion(area.legalDongCode)}
                   />
                 ))}
-              </div>
+              </HorizontalRail>
             </div>
           )}
           {preview.showPrice && preview.priceAreas.length === 0 && (
