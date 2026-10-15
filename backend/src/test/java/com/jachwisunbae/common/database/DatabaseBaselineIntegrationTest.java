@@ -2,12 +2,13 @@ package com.jachwisunbae.common.database;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.jachwisunbae.member.entity.Member;
-import com.jachwisunbae.member.repository.JdbcMemberRepository;
-import java.time.LocalDateTime;
+import com.jachwisunbae.common.config.LocalDatabaseSampleConfig;
+import java.util.UUID;
 import javax.sql.DataSource;
-import org.junit.jupiter.api.BeforeAll;
+import org.flywaydb.core.Flyway;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.autoconfigure.flyway.FlywayMigrationStrategy;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
@@ -22,65 +23,112 @@ class DatabaseBaselineIntegrationTest {
     @Container
     private static final MySQLContainer<?> MYSQL = new MySQLContainer<>("mysql:8.4.10");
 
-    private static DataSource dataSource;
-    private static JdbcTemplate jdbcTemplate;
+    private DataSource dataSource;
+    private JdbcTemplate jdbcTemplate;
 
-    @BeforeAll
-    static void setUp() {
+    @BeforeEach
+    void setUpDatabase() {
+        String databaseName = "flyway_test_" + UUID.randomUUID().toString().replace("-", "");
+        DataSource admin = new DriverManagerDataSource(
+                MYSQL.getJdbcUrl(), "root", MYSQL.getPassword());
+        new JdbcTemplate(admin).execute("CREATE DATABASE `" + databaseName + "`");
         dataSource = new DriverManagerDataSource(
-                MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword());
+                "jdbc:mysql://" + MYSQL.getHost() + ":" + MYSQL.getMappedPort(3306) + "/" + databaseName,
+                "root", MYSQL.getPassword());
         jdbcTemplate = new JdbcTemplate(dataSource);
     }
 
     @Test
-    void initScriptsCreateTheCompleteRuntimeSchemaWithoutDeletingUserData() throws Exception {
-        execute("db/init/001-schema.sql");
-        execute("db/init/002-seed.sql");
+    void migratesAnEmptyDatabaseWithSystemItems() {
+        flyway().migrate();
 
-        assertThat(tableExists("property_comparison_view_events")).isFalse();
-        assertThat(tableExists("nickname_credentials")).isFalse();
-        assertThat(tableExists("schema_upgrade_history")).isFalse();
-        assertThat(columnExists("members", "first_property_created_at")).isFalse();
-        assertThat(count("SELECT COUNT(*) FROM members")).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM system_check_items", Integer.class)).isEqualTo(14);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM rental_transactions", Integer.class)).isZero();
+    }
 
-        JdbcMemberRepository memberRepository = new JdbcMemberRepository(jdbcTemplate);
-        LocalDateTime now = LocalDateTime.parse("2026-09-22T00:00:00");
-        Member savedMember = memberRepository.save(Member.create("새회원", null, now));
-        assertThat(memberRepository.findByNicknameAndPasswordProtected("새회원", false))
-                .get()
-                .extracting(Member::getId)
-                .isEqualTo(savedMember.getId());
-
+    @Test
+    void oneTimeBaselinePreservesExistingMembersChecklistsAndSystemItems() {
+        new ResourceDatabasePopulator(
+                new ClassPathResource("db/migration/V1__initial_schema.sql")).execute(dataSource);
         jdbcTemplate.update("""
-                INSERT INTO members (id, nickname, password_hash, created_at, updated_at)
-                VALUES (999, '기준선 사용자', NULL, NOW(6), NOW(6))
+                INSERT INTO members (id, nickname, created_at, updated_at)
+                VALUES (999, '기준선 사용자', NOW(6), NOW(6))
                 """);
         jdbcTemplate.update("""
                 INSERT INTO user_checklists (id, member_id, name, stage, created_at)
                 VALUES (999, 999, '보존할 체크리스트', 'ON_SITE', NOW(6))
                 """);
+        jdbcTemplate.update("""
+                UPDATE system_check_items SET question = '기존 운영 질문', deleted_at = NOW(6)
+                WHERE id = 101
+                """);
+        var membersBefore = jdbcTemplate.queryForList("SELECT * FROM members ORDER BY id");
+        var checklistsBefore = jdbcTemplate.queryForList("SELECT * FROM user_checklists ORDER BY id");
+        var systemItemsBefore = jdbcTemplate.queryForList("SELECT * FROM system_check_items ORDER BY id");
+        Flyway flyway = Flyway.configure()
+                .dataSource(dataSource)
+                .baselineVersion("1")
+                .baselineOnMigrate(true)
+                .load();
 
-        execute("db/init/002-seed.sql");
-
-        assertThat(count("SELECT COUNT(*) FROM user_checklists WHERE id = 999")).isOne();
+        assertThat(flyway.migrate().migrationsExecuted).isZero();
+        assertThat(jdbcTemplate.queryForList("SELECT * FROM members ORDER BY id")).isEqualTo(membersBefore);
+        assertThat(jdbcTemplate.queryForList("SELECT * FROM user_checklists ORDER BY id")).isEqualTo(checklistsBefore);
+        assertThat(jdbcTemplate.queryForList("SELECT * FROM system_check_items ORDER BY id")).isEqualTo(systemItemsBefore);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT type FROM flyway_schema_history WHERE version = '1'", String.class)).isEqualTo("BASELINE");
     }
 
-    private void execute(String path) {
-        new ResourceDatabasePopulator(new ClassPathResource(path)).execute(dataSource);
+    @Test
+    void localStartupLoadsSamplesAfterMigrationsAndPreservesThemOnRestart() {
+        FlywayMigrationStrategy strategy = new LocalDatabaseSampleConfig().localSampleMigrationStrategy();
+
+        strategy.migrate(flyway());
+
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM bus_stops", Integer.class)).isEqualTo(2247);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM good_price_stores", Integer.class)).isEqualTo(369);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM cctvs", Integer.class)).isEqualTo(6706);
+        jdbcTemplate.update("UPDATE bus_stops SET name = '보존할 정류장' WHERE node_id = 'GGB204000060'");
+        jdbcTemplate.update("UPDATE good_price_stores SET name = '보존할 업소' WHERE name = '돈까스보라'");
+        jdbcTemplate.update("UPDATE cctvs SET address = '보존할 주소' WHERE management_number = '202630000000800327'");
+
+        strategy.migrate(flyway());
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT name FROM bus_stops WHERE node_id = 'GGB204000060'", String.class)).isEqualTo("보존할 정류장");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM good_price_stores WHERE name = '보존할 업소'", Integer.class)).isOne();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT address FROM cctvs WHERE management_number = '202630000000800327'", String.class))
+                .isEqualTo("보존할 주소");
     }
 
-    private boolean tableExists(String tableName) {
-        return count("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() "
-                + "AND table_name = '" + tableName + "'") == 1;
+    @Test
+    void localStartupKeepsExistingDataAndFillsOnlyEmptySampleTables() {
+        Flyway flyway = flyway();
+        flyway.migrate();
+        jdbcTemplate.update("""
+                INSERT INTO bus_stops (node_id, name, latitude, longitude, city_code, city_name)
+                VALUES ('existing', '기존 전국 정류장', 37.5, 127.0, '11', '서울특별시')
+                """);
+
+        new LocalDatabaseSampleConfig().localSampleMigrationStrategy().migrate(flyway);
+
+        assertThat(jdbcTemplate.queryForList("SELECT node_id FROM bus_stops", String.class))
+                .containsExactly("existing");
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM good_price_stores", Integer.class)).isEqualTo(369);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM cctvs", Integer.class)).isEqualTo(6706);
     }
 
-    private boolean columnExists(String tableName, String columnName) {
-        return count("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() "
-                + "AND table_name = '" + tableName + "' AND column_name = '" + columnName + "'") == 1;
-    }
-
-    private int count(String sql) {
-        Integer result = jdbcTemplate.queryForObject(sql, Integer.class);
-        return result == null ? 0 : result;
+    private Flyway flyway() {
+        return Flyway.configure()
+                .dataSource(dataSource)
+                .baselineVersion("1")
+                .baselineOnMigrate(false)
+                .cleanDisabled(true)
+                .validateMigrationNaming(true)
+                .load();
     }
 }

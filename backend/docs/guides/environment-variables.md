@@ -86,11 +86,16 @@ AWS S3는 EC2 `ec2-project` instance role로 접근하므로 `PHOTO_STORAGE_ENDP
 `PHOTO_STORAGE_SECRET_KEY`를 EC2에 두지 않는다. 이 세 값은 로컬 MinIO에만 사용한다. 프론트엔드에는 지도 화면용 공개 Naver Maps Client ID만 빌드 타임에 주입한다.
 백엔드는 네이버 API를 사용하지 않는다.
 
-`src/main/resources/db/init/001-schema.sql`과 `002-seed.sql`은 로컬 Docker 초기화와 통합 테스트에서 공유하는 기준 스키마와 시스템 체크 항목이다.
-`docker/mysql/init/003-bus-stops-sample.sql`, `004-good-price-stores-sample.sql`, `005-cctvs-sample.sql`은 로컬 Docker 초기화 전용 샘플이며 애플리케이션 JAR에 포함하지 않는다.
-월세 거래 테이블은 `001-schema.sql` 끝에 정의한다. 기존 DB에 월세 테이블이 필요하면 관리자가 해당 테이블 정의만 순서대로 적용한다.
-애플리케이션은 기동 중 스키마를 변경하지 않는다.
-dev·prod RDS를 이 기준선으로 전환할 때는 자동 백업의 최신 복구 지점을 먼저 확인하고, 별도의 데이터 이관 절차로 기존 회원·매물 데이터를 보존해야 한다.
+`src/main/resources/db/migration/V1__initial_schema.sql`은 기존 스키마와 시스템 체크 항목을 고정한 최초 마이그레이션이다.
+백엔드 기동 시 Flyway가 아직 적용하지 않은 버전을 실행한다. 새 변경은 `V2__설명.sql`부터 추가한다.
+`docker/mysql/init/003-bus-stops-sample.sql`, `004-good-price-stores-sample.sql`, `005-cctvs-sample.sql`은 로컬 샘플이며 애플리케이션 JAR에 포함하지 않는다.
+`local` 프로필에서는 Flyway 실행 후 각 테이블이 비어 있을 때만 자동 적재한다. 작업 디렉터리는 `backend`여야 한다.
+`prod` 프로필에서는 이 샘플 적재를 실행하지 않는다.
+
+`spring.flyway.baseline-on-migrate`의 기본값은 `false`다. 기존 DB를 처음 연결할 때는 백업과 기준 스키마 일치를 확인한 뒤
+`SPRING_FLYWAY_BASELINE_ON_MIGRATE=true`를 해당 최초 기동에만 지정한다. 기준선 등록 후에는 반드시 제거한다.
+평상시 `.env`나 Vault의 `app_env`에 이 값을 상시 등록하지 않는다.
+로컬과 dev·prod의 전환 명령은 [DB 마이그레이션](../operations/database-migrations.md)을 따른다.
 
 새 환경변수를 도입하면 서버의 환경변수 파일도 함께 갱신한다.
 
