@@ -259,6 +259,58 @@ describe('Naver 지도 상태 동기화', () => {
     expect(overlayInstances).toHaveLength(1);
   });
 
+  it('새 결과는 drawStage 순서로 나눠 등록하고 이후 선택 변경은 바로 반영한다', async () => {
+    const ring = [
+      { latitude: 37.5, longitude: 127 },
+      { latitude: 37.6, longitude: 127.1 },
+    ];
+    const region = (id: string, drawStage: number): MapRegion => ({ id, name: id, paths: [ring], drawStage });
+    const regions = [region('slow', 2), region('fast', 0), region('medium', 1)];
+    const queued: FrameRequestCallback[] = [];
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => queued.push(callback));
+    const frames = () =>
+      act(() => {
+        for (let i = 0; i < 2; i++) queued.splice(0).forEach((callback) => callback(performance.now()));
+      });
+    const { rerender } = renderWithConfig(<MapCanvas center={ring[0]} regions={regions} />);
+    await waitFor(() => expect(overlayInstances).toHaveLength(1));
+    frames();
+    expect(overlayInstances).toHaveLength(2);
+    frames();
+    expect(overlayInstances).toHaveLength(3);
+    frames();
+    expect(overlayInstances).toHaveLength(3);
+    rerender(<MapCanvas center={ring[0]} regions={regions} selectedRegionId="slow" />);
+    expect(overlayInstances).toHaveLength(3);
+    expect(overlayInstances[2].setOptions).toHaveBeenLastCalledWith(expect.objectContaining({ strokeWeight: 2 }));
+  });
+
+  it('같은 단계에서는 지도 중심에 가까운 동부터 한 묶음씩 등록한다', async () => {
+    const center = { latitude: 37.5, longitude: 127 };
+    const ring = (latitude: number) => [
+      { latitude, longitude: 127 },
+      { latitude: latitude + 0.001, longitude: 127.001 },
+    ];
+    // 먼 동을 배열 맨 앞에 두어 입력 순서가 아니라 거리로 고르는지 확인한다.
+    const far: MapRegion = { id: 'far', name: 'far', paths: [ring(38.5)], center: { latitude: 38.5, longitude: 127 } };
+    const near = Array.from({ length: 40 }, (_, index): MapRegion => ({
+      id: `near-${index}`,
+      name: `near-${index}`,
+      paths: [ring(37.5 + index * 0.001)],
+      center: { latitude: 37.5 + index * 0.001, longitude: 127 },
+    }));
+    const queued: FrameRequestCallback[] = [];
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => queued.push(callback));
+    renderWithConfig(<MapCanvas center={center} regions={[far, ...near]} />);
+    await waitFor(() => expect(overlayInstances).toHaveLength(40));
+    expect(overlayInstances.some((polygon) => polygon.options?.paths?.[0][0].lat() === 38.5)).toBe(false);
+    act(() => {
+      for (let i = 0; i < 2; i++) queued.splice(0).forEach((callback) => callback(performance.now()));
+    });
+    expect(overlayInstances).toHaveLength(41);
+    expect(overlayInstances[40].options?.paths?.[0][0].lat()).toBe(38.5);
+  });
+
   it('분리된 면과 내부 링을 그대로 전달하고 중복 광택 경계를 만들지 않는다', async () => {
     const ring = [
       { latitude: 37.5, longitude: 127 },

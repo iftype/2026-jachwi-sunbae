@@ -17,6 +17,8 @@ interface Window {
 type NaverLatLng = { lat: () => number; lng: () => number };
 type NaverLatLngBounds = { getSW: () => NaverLatLng; getNE: () => NaverLatLng };
 type NaverMap = {
+  /** GL 모드의 내부 준비 상태. 공개 API가 아니므로 없을 수 있다. */
+  _glReady?: boolean;
   getBounds: () => NaverLatLngBounds;
   getCenter: () => NaverLatLng;
   getZoom: () => number;

@@ -67,6 +67,8 @@ export type LiveEngine = {
   setZoom: (map: LiveMap, level: number) => void;
   animateView: (map: LiveMap, center: LiveLatLng, level: number) => void;
   relayout: (map: LiveMap) => void;
+  /** 오버레이를 넣으면 바로 그려지는 상태인지. GL 지도는 준비 전에 넣은 도형을 로드 순간 한꺼번에 등록한다. */
+  isRenderReady: (map: LiveMap) => boolean;
   destroy: (map: LiveMap) => void;
   addListener: (map: LiveMap, event: string, callback: (latitude?: number, longitude?: number) => void) => unknown;
   removeListener: (listener: unknown) => void;
@@ -118,6 +120,8 @@ export const naverEngine = (clientId: string, customStyleId?: string): LiveEngin
     }
   },
   relayout: (map) => map.autoResize(),
+  // 공개 idle은 GL 준비보다 먼저 온다. 내부 플래그는 이름이 바뀔 수 있어 호출하는 쪽이 시간 제한을 둔다.
+  isRenderReady: (map) => !customStyleId || map._glReady === true,
   destroy: (map) => map.destroy(),
   addListener: (map, event, callback) =>
     window.naver!.maps.Event.addListener(map, event, (value) => callback(value?.coord?.lat(), value?.coord?.lng())),

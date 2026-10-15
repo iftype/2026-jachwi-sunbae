@@ -41,6 +41,8 @@ export type MapRegion = {
   name: string;
   appearance?: { fillColor: string; strokeColor: string };
   isRecommended?: boolean;
+  /** 처음 그릴 때의 순서. 낮은 단계부터 한 프레임씩 나눠 지도에 등록한다. 없으면 0이다. */
+  drawStage?: number;
   /** 구역 위 두 칸으로 표시할 요약. 화면이 아니라 지도 좌표에 고정한다. */
   summary?: { travel?: string; price?: string };
   center?: { latitude: number; longitude: number };
