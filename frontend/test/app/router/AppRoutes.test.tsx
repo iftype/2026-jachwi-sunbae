@@ -155,6 +155,7 @@ describe('닉네임 인증 흐름', () => {
     expect(screen.queryByRole('link', { name: '앱으로 써보기' })).not.toBeInTheDocument();
     expect(screen.queryByText(/이미 본 방을 기록하고 싶어요/)).not.toBeInTheDocument();
     expect(screen.queryByText('살 동네부터, 본 방의 기록까지.')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '이미 기록 중이라면 로그인하기' })).toHaveAttribute('href', '/login');
     await user.click(screen.getByRole('link', { name: '동네 찾아보기' }));
     expect(await screen.findByRole('heading', { name: '자취할 동네를 찾아보세요' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /거리로 찾기/ })).toHaveAttribute('href', '/explore/commute');
@@ -177,7 +178,14 @@ describe('닉네임 인증 흐름', () => {
     expect(screen.getByRole('heading', { name: '이렇게 사용해요' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '동네 찾아보기' })).toHaveAttribute('href', '/explore');
   });
-  it('공개 탐색 후 로그인하면 동네 위치를 유지한 등록 폼으로 이동한다', async () => {
+  it('랜딩에서 바로 로그인 화면으로 이동한다', async () => {
+    const user = userEvent.setup();
+    renderRoutes('/landing');
+    await user.click(await screen.findByRole('link', { name: '이미 기록 중이라면 로그인하기' }));
+    expect(await screen.findByRole('button', { name: '이름으로 시작하기' })).toBeInTheDocument();
+    expect(screen.getByTestId('route-path')).toHaveTextContent('/login');
+  });
+  it('공개 탐색 후 로그인해도 등록 폼이 아닌 매물 목록으로 이동한다', async () => {
     const user = userEvent.setup();
     startExploration('commute', true);
     completeExploration(3);
@@ -201,25 +209,13 @@ describe('닉네임 인증 흐름', () => {
         ),
       ),
       http.get(`${config.apiBaseUrl}/api/members/me`, () => HttpResponse.json(successEnvelope(member))),
-      http.get(`${config.apiBaseUrl}/api/maps/reverse-geocode`, () =>
-        HttpResponse.json(
-          successEnvelope({
-            latitude: 37.4,
-            longitude: 127.1,
-            address: '테스트 동네',
-            roadAddress: '테스트 도로명',
-            jibunAddress: null,
-          }),
-        ),
-      ),
     );
     renderRoutes('/login');
     await user.type(screen.getByRole('textbox', { name: '이름 또는 닉네임' }), '로컬시안');
     await user.click(screen.getByRole('button', { name: '이름으로 시작하기' }));
-    expect(
-      await screen.findByText('찾아본 동네에서 기록을 시작해요. 실제 방문한 방의 위치는 주소 단계에서 확인해주세요.'),
-    ).toBeInTheDocument();
-    expect(screen.getByLabelText(/보증금 입력/)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '내 매물' })).toBeInTheDocument();
+    expect(screen.getByTestId('route-path')).toHaveTextContent('/properties');
+    expect(screen.queryByLabelText(/보증금 입력/)).not.toBeInTheDocument();
   });
 
   it('비밀번호 없이 닉네임으로 시작해 토큰을 저장하고 매물 목록으로 이동한다', async () => {
