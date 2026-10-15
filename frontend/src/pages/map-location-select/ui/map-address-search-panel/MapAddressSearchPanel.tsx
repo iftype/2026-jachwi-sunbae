@@ -1,10 +1,9 @@
-import { useState } from 'react';
+import { useEffect } from 'react';
 
-import { searchAddress } from '@/features/map/api/mapApi';
+import useAddressSearch from '@/features/map/api/useAddressSearch';
 import type { MapAddress } from '@/features/map/model/Map';
-import { usePublicConfig } from '@/shared/config/PublicConfigContext';
+import AddressSearchResults from '@/features/map/ui/address-search-results/AddressSearchResults';
 import Icon from '@/shared/ui/icon/Icon';
-import InlineNotice from '@/shared/ui/inline-notice/InlineNotice';
 import SearchField from '@/shared/ui/search-field/SearchField';
 
 import styles from './MapAddressSearchPanel.module.css';
@@ -16,24 +15,11 @@ type MapAddressSearchPanelProps = {
 };
 
 const MapAddressSearchPanel = ({ isOpen, onClose, onSelect }: MapAddressSearchPanelProps) => {
-  const config = usePublicConfig();
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<MapAddress[]>([]);
-  const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
-
+  const { query, results, status, changeQuery, submit, clear } = useAddressSearch();
+  useEffect(() => {
+    if (!isOpen) clear();
+  }, [isOpen, clear]);
   if (!isOpen) return null;
-
-  const submitSearch = async () => {
-    if (query.trim() === '') return;
-    setStatus('loading');
-    try {
-      setResults(await searchAddress(config, query.trim()));
-      setStatus('idle');
-    } catch {
-      setStatus('error');
-    }
-  };
-
   return (
     <section className={styles.panel} aria-label="주소로 지도 위치 찾기">
       <div className={styles.heading}>
@@ -46,36 +32,18 @@ const MapAddressSearchPanel = ({ isOpen, onClose, onSelect }: MapAddressSearchPa
         label="주소 검색"
         value={query}
         placeholder="도로명 또는 지번 주소"
-        onValueChange={setQuery}
-        onSubmit={() => void submitSearch()}
-        onClear={() => {
-          setResults([]);
-          setStatus('idle');
+        onValueChange={changeQuery}
+        onSubmit={() => void submit()}
+      />
+      <AddressSearchResults
+        results={results}
+        status={status}
+        onSelect={(address) => {
+          onSelect(address);
+          onClose();
         }}
       />
-      {status === 'loading' && <p role="status">주소를 찾는 중이에요.</p>}
-      {status === 'error' && <InlineNotice tone="error">주소를 찾지 못했어요. 다시 시도해 주세요.</InlineNotice>}
-      {status === 'idle' && query.trim() !== '' && results.length === 0 && <p>검색 결과가 없어요.</p>}
-      {results.length > 0 && (
-        <ul aria-label="주소 검색 결과">
-          {results.map((result) => (
-            <li key={`${result.latitude}-${result.longitude}`}>
-              <button
-                type="button"
-                onClick={() => {
-                  onSelect(result);
-                  onClose();
-                }}
-              >
-                <strong>{result.roadAddress ?? result.jibunAddress}</strong>
-                {result.roadAddress !== null && result.jibunAddress !== null && <span>{result.jibunAddress}</span>}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
     </section>
   );
 };
-
 export default MapAddressSearchPanel;

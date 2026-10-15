@@ -6,6 +6,38 @@
 
 아직 릴리스하지 않은 변경을 기록한다.
 
+## [2.0.0] - 2026-10-15
+
+### Breaking Changes
+
+- `GET /api/maps/nearby`에서 요청 카테고리 `TRANSPORT`와 응답 집계 `counts.TRANSPORT`를 제거한다.
+- 교통 정보를 조회하는 클라이언트는 `GET /api/maps/bus-stops`를 별도로 호출하고 `count`·`busStops` 응답을 사용하도록 변경해야 한다.
+
+### Added
+
+- 목적지와 통근 시간·환승 조건으로 동네를 찾고, 후보 동네의 가격과 통근 경로를 확인하는 탐색 흐름을 추가한다.
+- 수도권 GTFS 노선망과 행정동 경계를 적재하고 통근 생활권·경로를 조회하는 API를 추가한다.
+- 월세 실거래가 적재와 공개 조회 API, 버스정류장·CCTV·착한가격업소 주변 시설 정보를 추가한다.
+- 비회원 매물 조회 API와 동네 탐색·랜딩 페이지의 사용자 행동 분석 이벤트를 추가한다.
+- Prometheus 메트릭과 매물 등록·접근 권한·체크리스트 진행률 QA 시나리오를 추가한다.
+
+### Changed
+
+- 랜딩 페이지에서 동네 탐색으로 진입하고 로그인으로 이어지는 흐름을 개선한다.
+- 버스정류장 조회를 주변 시설 API에서 분리하고 지도에서 전용 API를 사용한다.
+- GTFS 적재 전에 행정동 경계를 준비하도록 하고, 수도권 노선망에서 서울·경기 동네를 탐색 결과로 제공한다.
+- 운영 AMI·Vault 배포 절차와 모니터링 문서를 보강한다.
+- 기존 주변 시설 API의 하위 호환성 변경에 따라 백엔드·프론트엔드·iOS·Android 제품 버전을 `2.0.0`으로 맞춘다.
+
+### Fixed
+
+- 지도 주변 시설 마커, 상세 시트와 뒤로 가기 동작을 수정한다.
+- 동네 탐색 필터·지도 상세 흐름과 PostHog 추적을 개선한다.
+
+### Performance
+
+- 통근 노선망의 메모리 사용과 탐색 성능을 개선하고, 노선망 로딩 실패 시 30초 동안 재시도를 제한한다.
+
 ## [1.1.0] - 2026-10-07
 
 ### Added
@@ -72,7 +104,8 @@
 - WebView 지도 마커 위치 갱신을 `transform` 기반으로 최적화한다.
 - 매물 사진 Object URL을 재사용해 지도 확대·이동 중 불필요한 재생성을 줄인다.
 
-[Unreleased]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/releases/tag/v2.0.0
 [1.1.0]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/releases/tag/v1.1.0
 [1.0.0]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/releases/tag/v1.0.0
 [0.0.1]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/releases/tag/v0.0.1

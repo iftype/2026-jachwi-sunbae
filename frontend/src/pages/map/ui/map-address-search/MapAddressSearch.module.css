@@ -52,6 +52,7 @@
 }
 
 .searchPageView {
+  grid-area: 1 / 1;
   position: relative;
   z-index: 10;
   width: 100%;
@@ -60,78 +61,4 @@
   overflow-y: auto;
   background: var(--color-canvas, #f8f9fa);
   box-sizing: border-box;
-}
-
-.searchStateText,
-.searchErrorText {
-  padding: 2rem 1rem;
-  font-size: 0.85rem;
-  text-align: center;
-}
-
-.searchStateText {
-  color: var(--color-muted, #868b94);
-}
-
-.searchErrorText {
-  color: var(--color-error, #e53e3e);
-}
-
-.searchResultsList {
-  display: grid;
-  gap: 0;
-  margin: 0;
-  padding: 0;
-  border-top: 1px solid var(--color-border, #eaebed);
-  border-bottom: 1px solid var(--color-border, #eaebed);
-  background: var(--color-surface, #fff);
-  list-style: none;
-}
-
-.searchResultItem {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.85rem 1rem;
-  border: 0;
-  border-bottom: 1px solid var(--color-border, #eaebed);
-  background: transparent;
-  color: var(--color-ink, #212124);
-  text-align: left;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-
-.searchResultItem:last-child {
-  border-bottom: 0;
-}
-
-.searchResultItem:hover {
-  background: var(--color-surface-muted, #f2f3f5);
-}
-
-.searchResultText {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  flex-direction: column;
-  gap: 0.15rem;
-}
-
-.searchResultText strong,
-.searchResultText small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.searchResultText strong {
-  font-size: 0.85rem;
-  font-weight: 700;
-}
-
-.searchResultText small {
-  color: var(--color-muted, #868b94);
-  font-size: 0.72rem;
 }

@@ -1,8 +1,9 @@
 import { writeFileSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
 
-import type { Page, Response, TestInfo } from '@playwright/test';
+import type { Locator, Page, Response, TestInfo } from '@playwright/test';
 
+import type { ApiCall, RequestWatch, WatchedRequest } from './api';
 import { qaConfig } from './config';
 import { EvidenceCollector, type EvidenceRecord, RUNS_DIR } from './evidence';
 import { type ActiveFault, activeFault } from './faults';
@@ -98,14 +99,35 @@ export class ScenarioRun {
     return `${this.scenario.id}-${this.member.runId}`;
   }
 
-  /** Scenario의 Required Evidence로 현재 화면을 저장한다. 설명은 Scenario 문서에서 가져온다. */
-  async captureScreen(evidenceId: string): Promise<void> {
+  /**
+   * Scenario의 Required Evidence로 현재 화면을 저장한다. 설명은 Scenario 문서에서 가져온다.
+   * 확인 대상이 안쪽 스크롤 영역에 있으면 전체 페이지 스크린샷에 찍히지 않으므로 focus로 그 요소까지 스크롤한다.
+   */
+  async captureScreen(evidenceId: string, focus?: Locator): Promise<void> {
+    if (focus !== undefined) await focus.scrollIntoViewIfNeeded().catch(() => undefined);
     await this.evidence.screen(evidenceId, this.requiredEvidence(evidenceId).text);
   }
 
   /** Scenario의 Required Evidence로 API 요청과 응답을 저장한다. 설명은 Scenario 문서에서 가져온다. */
   async captureApi(evidenceId: string, response: Response): Promise<void> {
     await this.evidence.api(evidenceId, response, this.requiredEvidence(evidenceId).text);
+  }
+
+  /** Scenario의 Required Evidence로 감시한 요청 기록을 저장한다. 요청이 "없었음"도 Evidence로 남는다. */
+  async captureRequests(evidenceId: string, watch: RequestWatch): Promise<WatchedRequest[]> {
+    const requests = await watch.stop();
+    this.evidence.requests(evidenceId, watch.label, requests, this.requiredEvidence(evidenceId).text);
+    return requests;
+  }
+
+  /** Scenario의 Required Evidence로 직접 호출한 API 요청과 응답을 저장한다. 설명은 Scenario 문서에서 가져온다. */
+  captureApiCall(evidenceId: string, call: ApiCall): void {
+    this.evidence.apiCall(evidenceId, call, this.requiredEvidence(evidenceId).text);
+  }
+
+  /** Scenario의 Required Evidence로 브라우저 안에서 모은 기록(예: 위치 권한 요청 호출)을 저장한다. */
+  captureLog(evidenceId: string, name: string, entries: unknown[]): void {
+    this.evidence.log(evidenceId, name, entries, this.requiredEvidence(evidenceId).text);
   }
 
   /** Expected 하나를 판정한다. 판정 중 예외가 나면 실패로 기록한다. */

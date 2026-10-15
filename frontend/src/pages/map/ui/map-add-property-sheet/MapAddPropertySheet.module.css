@@ -6,7 +6,7 @@
   z-index: 30;
   display: grid;
   gap: 0.55rem;
-  padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
+  padding: 1rem 1rem calc(1rem + var(--map-sheet-bottom, 0px));
   border-radius: 1.2rem 1.2rem 0 0;
   background: rgb(255 255 255 / 97%);
   box-shadow: 0 -0.5rem 1.5rem rgb(44 50 39 / 14%);

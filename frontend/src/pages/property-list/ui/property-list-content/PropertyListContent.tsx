@@ -9,6 +9,8 @@ import Icon from '@/shared/ui/icon/Icon';
 import InlineNotice from '@/shared/ui/inline-notice/InlineNotice';
 import PageAction from '@/shared/ui/page-action/PageAction';
 
+import PropertyListSkeleton from '../property-list-skeleton/PropertyListSkeleton';
+
 import styles from './PropertyListContent.module.css';
 
 type PropertyListQuery = ReturnType<typeof usePropertyList>;
@@ -25,12 +27,7 @@ const PropertyListContent = ({ properties, items, filteredItems, query }: Proper
   const totalElements = properties.data?.pages[0]?.totalElements ?? 0;
 
   if (properties.isPending) {
-    return (
-      <div className={styles.loading} role="status">
-        <span className={styles.spinner} aria-hidden="true" />
-        매물 목록을 불러오는 중이에요.
-      </div>
-    );
+    return <PropertyListSkeleton />;
   }
 
   if (hasInitialError) {

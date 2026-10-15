@@ -167,3 +167,42 @@
   min-height: 100%;
   padding: 1rem;
 }
+.regionBoundary:hover {
+  fill-opacity: 0.38;
+}
+.regionBoundary[fill-opacity='0.38']:hover {
+  fill-opacity: 0.48;
+}
+.regionBoundary[fill-opacity='0.5']:hover {
+  fill-opacity: 0.6;
+}
+.coordinateAction {
+  position: absolute;
+  left: 1.5rem;
+  bottom: 1.5rem;
+  white-space: nowrap;
+  padding: 0.65rem 0.8rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: var(--color-ink, #333);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 650;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
+  z-index: 30;
+}
+.coordinateAction:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.coordinateAction[data-placement='above'] {
+  left: 0;
+  width: 13rem;
+  white-space: pre-line;
+  line-height: 1.6;
+  transform: translateX(-50%);
+  background: white;
+  color: var(--color-ink);
+  border: 1px solid var(--color-border);
+}

@@ -1,11 +1,13 @@
 import type { ChangeEvent, FormEvent } from 'react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { requestCurrentMapLocation } from '@/features/map/lib/mapLocation';
 import type { MapAddress } from '@/features/map/model/Map';
+import { trackExplorationSaved } from '@/features/onboarding/lib/explorationJourney';
 import type { PropertyInputDto } from '@/features/property/api/dtos/PropertyDto';
 import { useCreateProperty } from '@/features/property/api/usePropertyMutations';
+import { trackPropertyEvent } from '@/features/property/lib/propertyAnalytics';
 import type { PropertyFormErrors, PropertyFormValues } from '@/features/property/lib/propertyForm';
 import { formatAmountForInput, toPropertyInputDto, validatePropertyForm } from '@/features/property/lib/propertyForm';
 import { trackPostHogEvent } from '@/shared/lib/analytics/posthog';
@@ -13,7 +15,11 @@ import { trackPostHogEvent } from '@/shared/lib/analytics/posthog';
 import useAddressSearch from './useAddressSearch';
 import usePropertyLocation from './usePropertyLocation';
 
-export type PropertyCreationRouteState = { registrationDraft?: PropertyInputDto; selectedLocation?: MapAddress };
+export type PropertyCreationRouteState = {
+  registrationDraft?: PropertyInputDto;
+  selectedLocation?: MapAddress;
+  fromExploration?: boolean;
+};
 export const DEFAULT_PROPERTY_NAME = '새 매물';
 const stepEvents = {
   deposit: 'property_creation_deposit_completed',
@@ -45,7 +51,9 @@ const draftToValues = (draft: PropertyInputDto | undefined): PropertyFormValues 
  */
 export const usePropertyCreationForm = (routeState: PropertyCreationRouteState) => {
   const navigate = useNavigate();
-  const hasPresetLocation = routeState.selectedLocation !== undefined;
+  const hasPresetLocation = routeState.selectedLocation !== undefined && !routeState.fromExploration;
+  const entrypoint = hasPresetLocation ? 'map' : 'form';
+  const hasTrackedStart = useRef(false);
   const nameStep = hasPresetLocation ? 2 : 3;
   const [values, setValues] = useState<PropertyFormValues>(() => {
     const draft = draftToValues(routeState.registrationDraft);
@@ -62,14 +70,16 @@ export const usePropertyCreationForm = (routeState: PropertyCreationRouteState) 
   const [errors, setErrors] = useState<PropertyFormErrors>({});
   const [revealedStep, setRevealedStep] = useState(0);
   const [createError, setCreateError] = useState<string | null>(null);
-  const createProperty = useCreateProperty();
+  const createProperty = useCreateProperty(entrypoint);
   const clearCreateError = useCallback(() => setCreateError(null), []);
   const location = usePropertyLocation(routeState.selectedLocation, clearCreateError);
   const search = useAddressSearch();
 
   useEffect(() => {
-    trackPostHogEvent('property_creation_started');
-  }, []);
+    if (hasTrackedStart.current) return;
+    hasTrackedStart.current = true;
+    trackPropertyEvent('property_creation_started', { entrypoint });
+  }, [entrypoint]);
 
   useEffect(() => {
     if (location.locationStatus !== 'ready') return;
@@ -122,7 +132,6 @@ export const usePropertyCreationForm = (routeState: PropertyCreationRouteState) 
     if (input === null) return;
     setCreateError(null);
     trackPostHogEvent(stepEvents.name);
-    trackPostHogEvent('property_creation_submitted');
     const { selectedLocation } = location;
     try {
       const created = await createProperty.mutateAsync({
@@ -131,9 +140,9 @@ export const usePropertyCreationForm = (routeState: PropertyCreationRouteState) 
         latitude: selectedLocation.latitude,
         longitude: selectedLocation.longitude,
       });
+      if (routeState.fromExploration) trackExplorationSaved();
       navigate(`/properties/${created.propertyId}`, { replace: true });
     } catch {
-      trackPostHogEvent('property_creation_failed', { error_kind: 'server' });
       setCreateError('매물을 등록하지 못했어요. 입력한 정보는 유지되니 다시 시도해 주세요.');
     }
   };

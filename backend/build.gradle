@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'com.jachwisunbae'
-version = '1.1.0'
+version = '2.0.0'
 description = 'Jachwi Sunbae MVP2 backend application'
 
 def sourceCommitId = providers.environmentVariable('SOURCE_COMMIT_ID')
@@ -39,6 +39,8 @@ dependencies {
 	testAnnotationProcessor 'org.projectlombok:lombok'
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+	implementation 'org.flywaydb:flyway-core'
+	implementation 'org.apache.commons:commons-csv:1.14.1'
 	implementation 'com.nimbusds:nimbus-jose-jwt:10.9'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
@@ -49,7 +51,10 @@ dependencies {
 	implementation 'com.twelvemonkeys.imageio:imageio-webp:3.13.1'
 	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
 	implementation 'com.openhtmltopdf:openhtmltopdf-pdfbox:1.0.10'
+	implementation 'org.apache.commons:commons-csv:1.14.1'
 	runtimeOnly 'com.mysql:mysql-connector-j'
+	runtimeOnly 'org.flywaydb:flyway-mysql'
+	runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.testcontainers:junit-jupiter'
@@ -69,4 +74,13 @@ tasks.register('testAll', Test) {
 	testClassesDirs = sourceSets.test.output.classesDirs
 	classpath = sourceSets.test.runtimeClasspath
 	useJUnitPlatform()
+	dependsOn tasks.named('bootJar')
+	systemProperty 'rental.import.jar', tasks.named('bootJar').get().archiveFile.get().asFile.absolutePath
+}
+
+tasks.register('importRentalTransactions', JavaExec) {
+	group = 'application'
+	description = '소형 주택 월세 CSV를 법정동 코드에 매핑하고 검증 또는 적재한다.'
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'com.jachwisunbae.rental.importer.RentalImportCommand'
 }

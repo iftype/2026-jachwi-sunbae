@@ -1,5 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 
+import mascotImage from '@/shared/assets/empty-property.jpg';
+
 import type { MapMarker } from '../../model/Map';
 import MapCategoryIcon from '../map-category-icon/MapCategoryIcon';
 
@@ -23,15 +25,9 @@ const isCurrentLocationDot = (marker: MapMarker): boolean => marker.tone === 'cu
 const usesCategoryIcon = (marker: MapMarker): boolean =>
   (marker.tone === 'place' || marker.tone === 'cluster') && marker.category !== undefined;
 
-/** 매물·매물 군집 마커는 대표 사진을 받았을 때 그 사진을 마커 안에 넣는다. */
-const usesPhoto = (marker: MapMarker): boolean =>
-  (marker.tone === 'property' || marker.tone === 'selected' || marker.tone === 'propertyCluster') &&
-  marker.photoUrl !== undefined;
-
-/** 묶음 숫자 배지. 사진이 없는 매물 군집은 숫자를 마커 본문에 그대로 쓰므로 배지를 겹치지 않는다. */
+/** 매물 군집은 로고 위 숫자 배지로 개별 매물과 구분한다. */
 const usesCountBadge = (marker: MapMarker): boolean =>
-  marker.count !== undefined &&
-  (marker.category !== undefined || (marker.tone === 'propertyCluster' && marker.photoUrl !== undefined));
+  marker.count !== undefined && (marker.category !== undefined || marker.tone === 'propertyCluster');
 
 const markerClassName = (marker: MapMarker, selectedMarkerId: string | null | undefined): string =>
   [
@@ -54,17 +50,20 @@ const MapMarkerView = ({ marker, selectedMarkerId = null, onSelectMarker }: MapM
     <>
       {isCurrentLocationDot(marker) ? null : usesCategoryIcon(marker) && marker.category !== undefined ? (
         <MapCategoryIcon category={marker.category} className={styles.categoryIcon} />
-      ) : usesPhoto(marker) && marker.photoUrl !== undefined ? (
-        <img className={styles.markerPhoto} src={marker.photoUrl} alt="" draggable={false} decoding="async" />
+      ) : marker.tone === 'property' || marker.tone === 'selected' || marker.tone === 'propertyCluster' ? (
+        <img
+          className={styles.markerPhoto}
+          src={marker.photoUrl ?? mascotImage}
+          alt=""
+          draggable={false}
+          decoding="async"
+        />
       ) : (
         <span className={styles.markerIcon} aria-hidden="true">
           {markerSymbol(marker)}
         </span>
       )}
       {usesCountBadge(marker) && <strong className={styles.markerCount}>{marker.count}</strong>}
-      {(marker.tone === 'selected' || marker.tone === 'property') && (
-        <span className={styles.markerCaption}>{marker.caption ?? marker.label}</span>
-      )}
     </>
   );
   const commonProps = {
@@ -105,7 +104,8 @@ export const createMapMarkerElement = (
   template.innerHTML = renderToStaticMarkup(
     <MapMarkerView marker={marker} selectedMarkerId={selectedMarkerId} onSelectMarker={onSelectMarker} />,
   );
-  const element = template.content.firstElementChild;
+  // React의 이미지 preload 링크가 마커 앞에 생성될 수 있으므로 첫 요소를 사용하지 않는다.
+  const element = template.content.querySelector('[data-tone]');
   if (!(element instanceof HTMLElement)) throw new Error('지도 마커를 만들지 못했습니다.');
 
   if (marker.actionable === true && onSelectMarker !== undefined) {

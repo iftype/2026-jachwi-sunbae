@@ -3,12 +3,14 @@ import { resolve } from 'node:path';
 
 import type { Page, Response } from '@playwright/test';
 
+import type { ApiCall, WatchedRequest } from './api';
+
 // qa/docs/report-schema.md 3. Evidence: 항상 수집, Scenario 지정, 실패 시 추가 수집의 세 계층으로 모은다.
 // Run마다 `qa/runs/{Run ID}/evidence/`에 파일로 남기고, 인증 정보는 가린다.
 
 export const RUNS_DIR = resolve(__dirname, '../runs');
 
-export type EvidenceKind = '스크린샷' | 'API' | '콘솔' | '네트워크' | '트레이스';
+export type EvidenceKind = '스크린샷' | 'API' | '콘솔' | '네트워크' | '기록' | '트레이스';
 
 export type EvidenceRecord = {
   id: string;
@@ -103,6 +105,46 @@ export class EvidenceCollector {
     const file = this.reserve(`${id}-screen`, 'png');
     await this.page.screenshot({ path: resolve(this.runDir, file), fullPage: true });
     this.records.push({ id, kind: '스크린샷', file, description: `${description} (${new URL(this.page.url()).pathname})` });
+  }
+
+  /** Scenario의 Required Evidence로 감시한 요청 기록을 저장한다. 요청이 없었으면 0건으로 남는다. */
+  requests(id: string, label: string, requests: WatchedRequest[], description: string): void {
+    const file = this.reserve(`${id}-requests`, 'json');
+    const masked = requests.map((request) => ({ ...request, body: parseBody(request.body) }));
+    writeFileSync(
+      resolve(this.runDir, file),
+      JSON.stringify({ watched: label, count: requests.length, requests: masked }, null, 2),
+    );
+    this.records.push({ id, kind: '네트워크', file, description: `${description}: ${label} ${requests.length}건` });
+  }
+
+  /** Scenario의 Required Evidence로 브라우저 안에서 모은 기록을 저장한다. 기록이 없었으면 0건으로 남는다. */
+  log(id: string, name: string, entries: unknown[], description: string): void {
+    const file = this.reserve(`${id}-${name}`, 'json');
+    writeFileSync(resolve(this.runDir, file), JSON.stringify({ count: entries.length, entries }, null, 2));
+    this.records.push({ id, kind: '기록', file, description: `${description}: ${entries.length}건` });
+  }
+
+  /** Scenario의 Required Evidence로 직접 호출한 API 요청과 응답을 저장한다. 인증 토큰은 남기지 않는다. */
+  apiCall(id: string, call: ApiCall, description: string): void {
+    const content = {
+      request: {
+        method: call.method,
+        url: call.url,
+        authorization: call.authenticated ? 'Bearer ***' : null,
+        body: maskSecrets(call.requestBody),
+      },
+      response: { status: call.status, requestId: call.requestId, body: parseBody(call.responseText) },
+    };
+    const file = this.reserve(`${id}-api`, 'json');
+    writeFileSync(resolve(this.runDir, file), JSON.stringify(content, null, 2));
+    const requestId = call.requestId === null ? '' : `, 요청 ID ${call.requestId}`;
+    this.records.push({
+      id,
+      kind: 'API',
+      file,
+      description: `${description}: ${call.method} ${new URL(call.url).pathname} ${call.status}${call.authenticated ? '' : ', 인증 없음'}${requestId}`,
+    });
   }
 
   /** Scenario의 Required Evidence로 API 요청과 응답을 저장한다. */

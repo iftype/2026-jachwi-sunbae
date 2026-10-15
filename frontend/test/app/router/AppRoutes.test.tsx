@@ -3,11 +3,16 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { StrictMode } from 'react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
 import AppRoutes from '@/app/router/AppRoutes';
 import { getAccessToken, setAuthentication } from '@/features/auth/model/authStore';
+import {
+  completeExploration,
+  prepareExplorationRecord,
+  startExploration,
+} from '@/features/onboarding/lib/explorationJourney';
 import { queryClient } from '@/shared/api/queryClient';
 import { PublicConfigProvider } from '@/shared/config/PublicConfigContext';
 import type { PublicConfig } from '@/shared/config/publicConfigTypes';
@@ -33,6 +38,11 @@ const successEnvelope = (data: unknown) => ({
 
 const errorEnvelope = (code: string, message: string) => ({ code, message, errors: [] });
 
+const RoutePath = () => (
+  <span hidden data-testid="route-path">
+    {useLocation().pathname}
+  </span>
+);
 const renderRoutes = (path: string) => {
   server.use(
     http.get(`${config.apiBaseUrl}/api/properties`, () =>
@@ -53,6 +63,7 @@ const renderRoutes = (path: string) => {
     <StrictMode>
       <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={[path]}>
+          <RoutePath />
           <PublicConfigProvider config={config}>
             <AppRoutes />
           </PublicConfigProvider>
@@ -63,6 +74,13 @@ const renderRoutes = (path: string) => {
 };
 
 describe('닉네임 인증 흐름', () => {
+  it('비인증 사용자도 동네 찾기 시안과 공통 하단탭을 볼 수 있다', async () => {
+    renderRoutes('/neighborhoods');
+
+    expect(await screen.findByRole('heading', { name: '자취할 동네를 찾아보세요' })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: '주요 메뉴' })).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: '이름 또는 닉네임' })).not.toBeInTheDocument();
+  });
   it('공개 소개 화면에서 핵심 가치와 사용 방법을 확인하고 닉네임 시작 화면으로 이동한다', async () => {
     const user = userEvent.setup();
     renderRoutes('/intro');
@@ -118,9 +136,90 @@ describe('닉네임 인증 흐름', () => {
   });
 
   it('보호 경로에 비인증으로 접근하면 닉네임 시작 화면으로 이동한다', async () => {
-    renderRoutes('/');
+    renderRoutes('/properties');
 
     expect(await screen.findByRole('button', { name: '이름으로 시작하기' })).toBeInTheDocument();
+  });
+  it.each(['/', '/landing'])('비로그인 첫 방문 %s는 시연이 바로 보이는 랜딩에서 탐색으로 이어진다', async (path) => {
+    const user = userEvent.setup();
+    renderRoutes(path);
+    expect(await screen.findByRole('heading', { name: '자취선배' })).toBeInTheDocument();
+    expect(screen.getByTestId('route-path')).toHaveTextContent('/landing');
+    expect(screen.getByText('자취할 동네를 찾고, 직접 본 방을 기록해요.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '이렇게 사용해요' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '자취할 동네 찾기' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: '본 방 기록하기' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: '개인정보 처리방침' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: '앱과 웹으로 시작하기' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: '서비스 바로가기' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: '앱으로 써보기' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/이미 본 방을 기록하고 싶어요/)).not.toBeInTheDocument();
+    expect(screen.queryByText('살 동네부터, 본 방의 기록까지.')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('link', { name: '동네 찾아보기' }));
+    expect(await screen.findByRole('heading', { name: '자취할 동네를 찾아보세요' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /거리로 찾기/ })).toHaveAttribute('href', '/explore/commute');
+    expect(screen.getByRole('link', { name: /월세 평균가 보기/ })).toHaveAttribute('href', '/explore/price');
+    expect(screen.queryByRole('navigation', { name: '주요 메뉴' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('complementary', { name: '자취선배 첫 사용 안내' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: '자취선배 소개' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '사용 안내 다시 보기' })).not.toBeInTheDocument();
+  });
+  it('로그인한 사용자는 랜딩에 들어와도 매물 목록으로 이동한다', async () => {
+    setAuthentication({ accessToken: 'valid-token', tokenType: 'Bearer', expiresIn: 60 });
+    server.use(http.get(`${config.apiBaseUrl}/api/members/me`, () => HttpResponse.json(successEnvelope(member))));
+    renderRoutes('/landing');
+    expect(await screen.findByRole('heading', { name: '내 매물' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: '이렇게 사용해요' })).not.toBeInTheDocument();
+  });
+  it('소개는 로그인 없이 별도 주소에서 볼 수 있다', async () => {
+    renderRoutes('/about');
+    expect(await screen.findByRole('heading', { name: '자취선배' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '이렇게 사용해요' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '동네 찾아보기' })).toHaveAttribute('href', '/explore');
+  });
+  it('공개 탐색 후 로그인하면 동네 위치를 유지한 등록 폼으로 이동한다', async () => {
+    const user = userEvent.setup();
+    startExploration('commute', true);
+    completeExploration(3);
+    prepareExplorationRecord({
+      latitude: 37.4,
+      longitude: 127.1,
+      address: '테스트 동네',
+      roadAddress: null,
+      jibunAddress: null,
+    });
+    server.use(
+      http.post(`${config.apiBaseUrl}/api/auth/nickname`, () =>
+        HttpResponse.json(
+          successEnvelope({
+            accessToken: 'test-explore',
+            tokenType: 'Bearer',
+            expiresIn: 3600,
+            newMember: true,
+            member: { memberId: 1, name: '로컬시안', passwordProtected: false },
+          }),
+        ),
+      ),
+      http.get(`${config.apiBaseUrl}/api/members/me`, () => HttpResponse.json(successEnvelope(member))),
+      http.get(`${config.apiBaseUrl}/api/maps/reverse-geocode`, () =>
+        HttpResponse.json(
+          successEnvelope({
+            latitude: 37.4,
+            longitude: 127.1,
+            address: '테스트 동네',
+            roadAddress: '테스트 도로명',
+            jibunAddress: null,
+          }),
+        ),
+      ),
+    );
+    renderRoutes('/login');
+    await user.type(screen.getByRole('textbox', { name: '이름 또는 닉네임' }), '로컬시안');
+    await user.click(screen.getByRole('button', { name: '이름으로 시작하기' }));
+    expect(
+      await screen.findByText('찾아본 동네에서 기록을 시작해요. 실제 방문한 방의 위치는 주소 단계에서 확인해주세요.'),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/보증금 입력/)).toBeInTheDocument();
   });
 
   it('비밀번호 없이 닉네임으로 시작해 토큰을 저장하고 매물 목록으로 이동한다', async () => {

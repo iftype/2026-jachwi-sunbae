@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:jachwi_sunbae}?allowPublicKeyRetrieval=true&useSSL=false&connectionTimeZone=%2B00:00&forceConnectionTimeZoneToSession=true&preserveInstants=true
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:jachwi_sunbae}?allowPublicKeyRetrieval=true&useSSL=false&connectionTimeZone=%2B00:00&forceConnectionTimeZoneToSession=true&preserveInstants=true&rewriteBatchedStatements=true
     username: ${DB_USERNAME:jachwi_sunbae}
     password: ${DB_PASSWORD:local_password}
     driver-class-name: com.mysql.cj.jdbc.Driver

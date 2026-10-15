@@ -5,6 +5,7 @@ import { ApiError, getSafeApiErrorMessage } from '@/features/auth/api/apiClient'
 import { submitNicknameLogin } from '@/features/auth/api/authApi';
 import { setAuthentication } from '@/features/auth/model/authStore';
 import { useAuthentication } from '@/features/auth/model/useAuthentication';
+import { getExplorationRecordLocation, trackExplorationLogin } from '@/features/onboarding/lib/explorationJourney';
 import logo from '@/shared/assets/jachwi-sunbae-logo-lockup-v3.svg';
 import { usePublicConfig } from '@/shared/config/PublicConfigContext';
 import { trackPostHogEvent } from '@/shared/lib/analytics/posthog';
@@ -76,7 +77,12 @@ const LoginPage = () => {
       });
       setAuthentication(response);
       trackPostHogEvent('login_succeeded', { new_member: response.newMember });
-      navigate('/properties', { replace: true });
+      trackExplorationLogin(response.newMember);
+      const selectedLocation = getExplorationRecordLocation();
+      navigate(selectedLocation ? '/properties/new' : '/properties', {
+        replace: true,
+        state: selectedLocation ? { selectedLocation, fromExploration: true } : undefined,
+      });
     } catch (error) {
       isStartingRef.current = false;
       setIsStarting(false);

@@ -1,12 +1,16 @@
+.radiusSelector {
+  top: 4.25rem;
+}
+
 .categoryRail {
-  top: 4.2rem !important;
+  top: 7rem !important;
   right: 0.85rem !important;
   z-index: 25 !important;
 }
 
 .locationControls {
   position: absolute;
-  top: 19.65rem;
+  top: 22.45rem;
   right: 0.85rem;
   z-index: 15;
   display: grid;
@@ -14,23 +18,13 @@
   justify-items: center;
 }
 
-.currentLocationButton {
-  display: grid;
-  width: 2.5rem;
-  height: 2.5rem;
-  padding: 0;
-  border: 1px solid rgb(221 220 212 / 88%);
-  border-radius: 50%;
-  background: rgb(255 255 255 / 96%);
-  box-shadow: 0 0.35rem 1rem rgb(42 48 35 / 18%);
-  color: #30342e;
-  cursor: pointer;
-  place-items: center;
-}
-
-.currentLocationButton:disabled {
-  cursor: wait;
-  opacity: 0.62;
+.locationControls .locationToast {
+  top: 50%;
+  right: calc(100% + 0.4rem);
+  left: auto;
+  width: max-content;
+  max-width: min(16rem, calc(100vw - 6rem));
+  transform: translateY(-50%);
 }
 
 .addPropertyAction {
@@ -39,23 +33,11 @@
   z-index: 15;
   display: grid;
   justify-items: end;
-  --sheet-height: var(--map-sheet-drag-height, 4rem);
-
-  bottom: min(calc(min(var(--sheet-height), min(34%, 18rem)) + 0.75rem), calc(100% - 25.9rem));
-  transition: bottom 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.addPropertyAction[data-sheet='mid'],
-.addPropertyAction[data-sheet='full'] {
-  --sheet-height: var(--map-sheet-drag-height, min(34%, 18rem));
-}
-
-.addPropertyAction[data-dragging='true'] {
-  transition: none;
+  bottom: calc(3rem + var(--map-sheet-bottom, 0px));
 }
 
 @media (max-width: 340px) {
   .locationControls {
-    top: 16.95rem;
+    top: 19.75rem;
   }
 }

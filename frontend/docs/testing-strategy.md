@@ -11,26 +11,26 @@
 
 ## 2. 테스트 계층
 
-| 계층 | 대상 | 도구와 위치 | 작성 기준 |
-| --- | --- | --- | --- |
-| 단위 | 포맷팅, 폼 검증, 인증 저장소, 지도 계산 등 순수 로직 | Vitest, `*.test.ts` | 입력과 출력만으로 검증할 수 있을 때 |
-| 컴포넌트 | 공통 UI, 포커스 이동, 다이얼로그, 이미지 로딩 | React Testing Library, `test/**/ui/**/*.test.tsx` | 독립된 상호작용이나 접근성 계약이 있을 때 |
-| 화면 통합 | 라우팅, React Query, API 성공·실패·재시도, 주요 사용자 흐름 | React Testing Library + MSW, `test/app/router/*Routes.test.tsx` | 여러 컴포넌트와 서버 상태가 함께 동작할 때 |
-| 계약 | API 파서와 MSW fixture가 실제 응답 형식을 넘지 않는지 확인 | Vitest, `test/features/**/api`, `test/app/mocks` | API 응답 필드나 DTO가 바뀔 때 |
-| E2E·시각 | 실제 브라우저, 지도 SDK, WebView, 반응형 레이아웃 | 현재 수동 점검 | 브라우저 엔진·외부 SDK·레이아웃 확인이 필요할 때 |
+| 계층      | 대상                                                        | 도구와 위치                                                     | 작성 기준                                        |
+| --------- | ----------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------ |
+| 단위      | 포맷팅, 폼 검증, 인증 저장소, 지도 계산 등 순수 로직        | Vitest, `*.test.ts`                                             | 입력과 출력만으로 검증할 수 있을 때              |
+| 컴포넌트  | 공통 UI, 포커스 이동, 다이얼로그, 이미지 로딩               | React Testing Library, `test/**/ui/**/*.test.tsx`               | 독립된 상호작용이나 접근성 계약이 있을 때        |
+| 화면 통합 | 라우팅, React Query, API 성공·실패·재시도, 주요 사용자 흐름 | React Testing Library + MSW, `test/app/router/*Routes.test.tsx` | 여러 컴포넌트와 서버 상태가 함께 동작할 때       |
+| 계약      | API 파서와 MSW fixture가 실제 응답 형식을 넘지 않는지 확인  | Vitest, `test/features/**/api`, `test/app/mocks`                | API 응답 필드나 DTO가 바뀔 때                    |
+| E2E·시각  | 실제 브라우저, 지도 SDK, WebView, 반응형 레이아웃           | 현재 수동 점검                                                  | 브라우저 엔진·외부 SDK·레이아웃 확인이 필요할 때 |
 
 컴포넌트 내부 함수나 CSS 클래스 이름은 직접 테스트하지 않습니다. 사용자가 접근하는 버튼, 링크, 입력 필드, 메시지와 이동 결과를 검증합니다.
 
 ## 3. 주요 기능 보호 범위
 
-| 기능 | 자동화 테스트 | 핵심 검증 내용 |
-| --- | --- | --- |
-| 인증과 보호 라우트 | `AppRoutes.test.tsx`, `authStore.test.ts` | 로그인, 만료, 401, 로그아웃, 잘못된 경로 |
-| 매물 CRUD·메모·사진·비교 | `PropertyRoutes.test.tsx` | 등록·수정·삭제, 빠른 메모, 사진 관리, PDF 비교 |
-| 체크리스트 | `ChecklistRoutes.test.tsx` | 생성·수정·적용, 상태와 메모 저장, 실패 복구 |
-| 지도와 위치 | `MapRoutes.test.tsx`, `MapCanvas.test.tsx`, `mapApi.test.ts` | 주소 검색, 위치 선택, 핀·주변 시설, SDK 오류 |
-| API 계약 | `apis/*.test.ts`, `contractShape.test.ts`, `handlers.test.ts` | 응답 파싱, 오류 코드, 목과 실제 계약의 필드 일치 |
-| 분석·네이티브 분기 | `PostHogTracker.test.tsx`, `nativeApp.test.ts` | 페이지 이벤트, 사용자 식별, WebView 분기 |
+| 기능                     | 자동화 테스트                                                 | 핵심 검증 내용                                   |
+| ------------------------ | ------------------------------------------------------------- | ------------------------------------------------ |
+| 인증과 보호 라우트       | `AppRoutes.test.tsx`, `authStore.test.ts`                     | 로그인, 만료, 401, 로그아웃, 잘못된 경로         |
+| 매물 CRUD·메모·사진·비교 | `PropertyRoutes.test.tsx`                                     | 등록·수정·삭제, 빠른 메모, 사진 관리, PDF 비교   |
+| 체크리스트               | `ChecklistRoutes.test.tsx`                                    | 생성·수정·적용, 상태와 메모 저장, 실패 복구      |
+| 지도와 위치              | `MapRoutes.test.tsx`, `MapCanvas.test.tsx`, `mapApi.test.ts`  | 주소 검색, 위치 선택, 핀·주변 시설, SDK 오류     |
+| API 계약                 | `apis/*.test.ts`, `contractShape.test.ts`, `handlers.test.ts` | 응답 파싱, 오류 코드, 목과 실제 계약의 필드 일치 |
+| 분석·네이티브 분기       | `PostHogTracker.test.tsx`, `nativeApp.test.ts`                | 페이지 이벤트, 사용자 식별, WebView 분기         |
 
 ## 4. 변경 유형별 기준
 

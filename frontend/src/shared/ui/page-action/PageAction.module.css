@@ -20,7 +20,7 @@
   position: fixed;
   z-index: 35;
   right: max(1rem, calc((100vw - var(--app-max-width)) / 2 + 1rem));
-  bottom: calc(var(--bottom-navigation-height) + 1.3rem + env(safe-area-inset-bottom));
+  bottom: calc(var(--bottom-navigation-height) + 2.1rem + env(safe-area-inset-bottom));
 }
 
 .inline {

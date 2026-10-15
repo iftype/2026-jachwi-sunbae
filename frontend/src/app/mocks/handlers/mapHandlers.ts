@@ -1,6 +1,6 @@
-import { http } from 'msw';
+import { http, HttpResponse } from 'msw';
 
-import { success } from '../mockStore';
+import { getMockProperties, success } from '../mockStore';
 
 const address = {
   roadAddress: '서울 중구 세종대로 110',
@@ -109,10 +109,21 @@ export const mapHandlers = [
   http.get('*/api/maps/geocode', () => success([address])),
   http.get('*/api/maps/reverse-geocode', ({ request }) => {
     const url = new URL(request.url);
+    const latitude = Number(url.searchParams.get('latitude') ?? address.latitude);
+    const longitude = Number(url.searchParams.get('longitude') ?? address.longitude);
+    const matched = getMockProperties().find(
+      (property) =>
+        property.latitude !== null &&
+        property.longitude !== null &&
+        Math.abs(property.latitude - latitude) < 0.001 &&
+        Math.abs(property.longitude - longitude) < 0.001,
+    );
+    const label = matched?.address ?? `MSW 테스트 위치 (${latitude.toFixed(5)}, ${longitude.toFixed(5)})`;
     return success({
-      ...address,
-      latitude: Number(url.searchParams.get('latitude') ?? address.latitude),
-      longitude: Number(url.searchParams.get('longitude') ?? address.longitude),
+      roadAddress: label,
+      jibunAddress: label,
+      latitude,
+      longitude,
     });
   }),
   http.get('*/api/maps/nearby', ({ request }) => {
@@ -121,13 +132,55 @@ export const mapHandlers = [
     // 실제 백엔드처럼 조회 중심을 기준으로 돌려준다. 고정 좌표를 쓰면 지도를 옮겼을 때 핀이 화면 밖에 남는다.
     const latitude = Number(url.searchParams.get('latitude') ?? address.latitude);
     const longitude = Number(url.searchParams.get('longitude') ?? address.longitude);
+    const categories = (url.searchParams.get('categories') ?? '').split(',').filter(Boolean);
+    if (categories.includes('TRANSPORT'))
+      return HttpResponse.json(
+        { code: 'INVALID_REQUEST', message: '교통은 버스정류장 API로 조회해주세요.', errors: [] },
+        { status: 400 },
+      );
     const places = demoPlaces
-      .filter((place) => place.distanceMeters <= radius)
+      .filter(
+        (place) =>
+          place.category !== 'TRANSPORT' &&
+          place.distanceMeters <= radius &&
+          (categories.length === 0 || categories.includes(place.category)),
+      )
       .map(({ direction, ...place }) => ({ ...place, ...at(latitude, longitude, place.distanceMeters, direction) }));
-    const counts = { HOSPITAL: 0, TRANSPORT: 0, SCHOOL: 0, CONVENIENCE: 0, AGENCY: 0 };
+    const counts = { HOSPITAL: 0, SCHOOL: 0, CONVENIENCE: 0, AGENCY: 0 };
     places.forEach((place) => {
-      counts[place.category] += 1;
+      if (place.category !== 'TRANSPORT') counts[place.category] += 1;
     });
     return success({ center: { latitude, longitude }, radius, counts, places });
+  }),
+  http.get('*/api/maps/bus-stops', ({ request }) => {
+    const params = new URL(request.url).searchParams;
+    const latitude = Number(params.get('latitude'));
+    const longitude = Number(params.get('longitude'));
+    const radius = Number(params.get('radius'));
+    if (
+      !params.has('latitude') ||
+      !params.has('longitude') ||
+      !Number.isFinite(latitude) ||
+      latitude < -90 ||
+      latitude > 90 ||
+      !Number.isFinite(longitude) ||
+      longitude < -180 ||
+      longitude > 180 ||
+      ![500, 1000, 2000].includes(radius)
+    )
+      return HttpResponse.json(
+        { code: 'INVALID_REQUEST', message: '요청 값을 확인해주세요.', errors: [] },
+        { status: 400 },
+      );
+    const busStops = demoPlaces
+      .filter((place) => place.category === 'TRANSPORT' && place.distanceMeters <= radius)
+      .sort((a, b) => a.distanceMeters - b.distanceMeters)
+      .map((place) => ({
+        nodeId: place.providerPlaceId.replace(/^tago:/, ''),
+        name: place.name,
+        ...at(latitude, longitude, place.distanceMeters, place.direction),
+        distanceMeters: place.distanceMeters,
+      }));
+    return success({ center: { latitude, longitude }, radius, count: busStops.length, busStops });
   }),
 ];

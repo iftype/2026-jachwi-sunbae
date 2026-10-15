@@ -63,9 +63,9 @@ prod → /main.8a49163cbe52bf996d07.js
 | `API_BASE_URL`          | `https://api.jachwi-sunbae.kr` | `https://dev-api.jachwi-sunbae.kr` |
 | `MAP_PROVIDER_MODE`     | `naver`                        | `naver`                            |
 | `NAVER_MAP_CLIENT_ID`   | Naver Maps Client ID           | 같은 Naver Maps Application의 ID   |
-| `POSTHOG_PROJECT_TOKEN` | PostHog 프로젝트 토큰          | 같은 PostHog 프로젝트 토큰          |
-| `POSTHOG_HOST`          | `https://us.i.posthog.com`     | `https://us.i.posthog.com`          |
-| `APP_VERSION`           | `package.json` 버전            | `package.json` 버전                 |
+| `POSTHOG_PROJECT_TOKEN` | PostHog 프로젝트 토큰          | 같은 PostHog 프로젝트 토큰         |
+| `POSTHOG_HOST`          | `https://us.i.posthog.com`     | `https://us.i.posthog.com`         |
+| `APP_VERSION`           | `package.json` 버전            | `package.json` 버전                |
 
 값은 CodePipeline Commands 빌드 액션의 환경변수로 전달한다. Naver Maps Client ID와 PostHog 프로젝트 토큰은 브라우저 번들에 포함되는 공개 식별자이며 REST API 키나 Client Secret 등 비밀값을 넣지 않는다. Naver Maps Application에 `https://www.jachwi-sunbae.kr`과 `https://dev.jachwi-sunbae.kr`을 Web 서비스 URL로 등록한다.
 
@@ -139,6 +139,12 @@ assets/jachwi-sunbae-logo.2e4dac46707736dbc407.png
 react-router의 클라이언트 라우팅을 쓴다. `/intro`, `/properties/1`, `/map` 같은 경로는 S3에 실제 객체가 없으므로, CloudFront에서 403·404 응답을 `/index.html`(상태 200)로 매핑해야 한다.
 
 이게 없으면 소개 QR의 `/intro` 직접 진입과 매물·지도 화면 새로고침이 깨진다.
+
+## 행정동 경계 자산
+
+원본은 `frontend/data/admin-dongs.geojson`입니다. Webpack 빌드가 내용 해시 파일명, gzip 파일, `dist/boundaries/manifest.json`을 자동 생성합니다. 프론트는 고정 manifest URL만 사용합니다. 경계는 초기 JS 번들에 포함되지 않으며 조회 시 다운로드합니다.
+
+`publish.sh`는 일반 sync에서 `boundaries/*`를 제외하고 gzip 데이터를 동일한 `.geojson` 키에 `Content-Encoding: gzip`, `Content-Type: application/geo+json`, 1년 immutable 캐시로 먼저 업로드합니다. 원본이 약 28.65MB여서 CloudFront 자동 압축 크기 제한에 의존하지 않습니다. manifest는 경계 업로드 후 `no-cache,max-age=0,must-revalidate`로 교체하고 `/boundaries/manifest.json`을 무효화합니다. 이전 해시 경계 파일은 자동 삭제하지 않으며 사용 여부를 확인한 뒤 별도 정리합니다. 이 스크립트 변경만으로 AWS 배포가 실행되는 것은 아닙니다.
 
 ## CloudFront origin path
 

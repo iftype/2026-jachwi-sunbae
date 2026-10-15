@@ -5,6 +5,7 @@ import ChecklistProgressBar from '@/features/checklist/ui/checklist-progress-bar
 import mascotImage from '@/shared/assets/empty-property.jpg';
 
 import { formatManwon } from '../../lib/propertyFormat';
+import type { PropertyReturnPath } from '../../lib/propertyNavigation';
 import type { PropertySummary } from '../../model/Property';
 import AuthenticatedPhoto from '../authenticated-photo/AuthenticatedPhoto';
 
@@ -23,7 +24,7 @@ const PropertyPhotoThumbnail = ({ property, thumbnailUrl, onActivate }: Property
   const contentUrl = thumbnailUrl ?? photo?.contentUrl ?? property.photoUrls?.[0];
 
   return (
-    <div className={styles.photo} onClick={() => onActivate?.()}>
+    <button type="button" className={styles.photo} aria-label={`${property.name} 상세 보기`} onClick={onActivate}>
       {contentUrl === undefined || failed ? (
         <div className={styles.emptyPhoto} role="img" aria-label="등록된 사진 없음">
           <img src={mascotImage} alt="" />
@@ -38,7 +39,7 @@ const PropertyPhotoThumbnail = ({ property, thumbnailUrl, onActivate }: Property
       ) : (
         <img src={contentUrl} alt={`${property.name} 대표 사진`} draggable={false} onError={() => setFailed(true)} />
       )}
-    </div>
+    </button>
   );
 };
 
@@ -46,9 +47,11 @@ type PropertyCardProps = {
   property: PropertySummary;
   thumbnailUrl?: string;
   onClick?: MouseEventHandler<HTMLAnchorElement>;
+  returnTo?: PropertyReturnPath;
+  returnState?: unknown;
 };
 
-const PropertyCard = ({ property, thumbnailUrl, onClick }: PropertyCardProps) => {
+const PropertyCard = ({ property, thumbnailUrl, onClick, returnTo, returnState }: PropertyCardProps) => {
   const navigate = useNavigate();
   const onSiteStage = property.stages.find((stage) => stage.stage === 'ON_SITE');
 
@@ -58,13 +61,14 @@ const PropertyCard = ({ property, thumbnailUrl, onClick }: PropertyCardProps) =>
         <PropertyPhotoThumbnail
           property={property}
           thumbnailUrl={thumbnailUrl}
-          onActivate={() => navigate(`/properties/${property.propertyId}`)}
+          onActivate={() => navigate(`/properties/${property.propertyId}`, { state: { returnTo, returnState } })}
         />
       </div>
 
       <Link
         className={styles.mainLink}
         to={`/properties/${property.propertyId}`}
+        state={{ returnTo, returnState }}
         aria-label={property.name}
         onClick={onClick}
       >

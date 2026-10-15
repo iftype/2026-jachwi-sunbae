@@ -21,12 +21,19 @@ const useAddPropertyMode = () => {
     timerRef.current = null;
   };
 
-  useEffect(() => clearTimer, []);
+  useEffect(
+    () => () => {
+      clearTimer();
+      requestRef.current += 1;
+    },
+    [],
+  );
 
   const resolveAddress = useCallback(
     async (coordinate: MapCoordinate) => {
       const requestId = requestRef.current + 1;
       requestRef.current = requestId;
+      setAddress(null);
       setAddressStatus('loading');
       try {
         const resolved = await reverseGeocode(config, coordinate.latitude, coordinate.longitude);
@@ -43,18 +50,26 @@ const useAddPropertyMode = () => {
   );
 
   const enter = (center: MapCoordinate) => {
+    clearTimer();
     setIsAddMode(true);
     void resolveAddress(center);
   };
 
   const cancel = () => {
     clearTimer();
+    requestRef.current += 1;
+    setAddress(null);
+    setAddressStatus('idle');
     setIsAddMode(false);
   };
 
   const handleCenterChange = (coordinate: MapCoordinate) => {
     if (!isAddMode) return;
     clearTimer();
+    // 새 좌표의 조회를 기다리는 동안 이전 주소를 저장하지 못하도록 즉시 무효화한다.
+    requestRef.current += 1;
+    setAddress(null);
+    setAddressStatus('loading');
     timerRef.current = window.setTimeout(() => void resolveAddress(coordinate), ADDRESS_RESOLVE_DELAY_MS);
   };
 

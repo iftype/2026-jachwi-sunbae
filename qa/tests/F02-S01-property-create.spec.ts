@@ -2,6 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 
 import { isApiResponse, readJson } from '../src/api';
 import { expect, test } from '../src/fixtures';
+import { registerProperty } from '../src/property-form';
 import { type ExpectedOutcome, fail, needsReview, pass, ScenarioRun } from '../src/scenario-run';
 
 // qa/docs/scenarios/F02-S01-property-create.md
@@ -48,38 +49,10 @@ test('F02-S01 정상 매물 등록 후 재조회', async ({ page, member }, test
   const propertyName = `F02-S01 ${member.runId}`;
 
   await run.execute(async () => {
-    // 주소를 고르지 않으면 등록 화면이 기본 위치의 주소를 조회한다. 조회가 끝난 뒤 다음 단계로 넘어간다.
-    const defaultLocationLoaded = page
-      .waitForResponse(isApiResponse('GET', '/api/maps/reverse-geocode'), { timeout: 15_000 })
-      .catch(() => null);
-
-    await test.step('매물 등록 화면으로 이동', async () => {
-      await page.getByRole('link', { name: '첫 매물 등록하기' }).click();
-      await expect(page).toHaveURL(/\/properties\/new$/);
-    });
-
-    await test.step('보증금과 월세 입력', async () => {
-      await page.getByLabel('보증금 입력').fill(String(DEPOSIT_MANWON));
-      await page.getByLabel('보증금 입력').press('Enter');
-      await page.getByLabel('월세 입력').fill(String(MONTHLY_RENT_MANWON));
-      await page.getByLabel('월세 입력').press('Enter');
-    });
-
-    await test.step('주소는 고르지 않고 다음으로 진행', async () => {
-      await defaultLocationLoaded;
-      await page.getByRole('button', { name: '다음' }).click();
-    });
-
-    await test.step('이름 입력란을 선택해 매물 이름 입력', async () => {
-      const nameField = page.getByLabel('매물 이름 입력');
-      await nameField.click();
-      await nameField.fill(propertyName);
-    });
-
-    const createResponse = await test.step('등록', async () => {
-      const responsePromise = page.waitForResponse(isApiResponse('POST', '/api/properties'));
-      await page.getByRole('button', { name: '매물 등록' }).click();
-      return responsePromise;
+    const createResponse = await registerProperty(page, {
+      name: propertyName,
+      depositManwon: DEPOSIT_MANWON,
+      monthlyRentManwon: MONTHLY_RENT_MANWON,
     });
     await run.captureApi('EV1', createResponse);
     const propertyId = (await readJson<PropertyBody>(createResponse))?.data?.id ?? null;

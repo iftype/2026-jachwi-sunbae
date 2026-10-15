@@ -5,9 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.jachwisunbae.common.exception.client.InvalidInputException;
 import com.jachwisunbae.common.exception.errorcode.ErrorCode;
-import com.jachwisunbae.common.exception.server.UpstreamServiceException;
 import com.jachwisunbae.map.domain.NearbyPlace;
-import com.jachwisunbae.map.provider.BusStopProvider;
 import com.jachwisunbae.map.provider.NearbyPlaceProvider;
 import com.jachwisunbae.map.provider.demo.DemoAddressProvider;
 import com.jachwisunbae.map.service.dto.result.NearbyResult;
@@ -17,7 +15,6 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
@@ -29,71 +26,33 @@ class MapServiceTest {
     private static final BigDecimal LATITUDE = new BigDecimal("37.406");
     private static final BigDecimal LONGITUDE = new BigDecimal("127.088");
 
-    private final NearbyPlace subway = place("kakao:1", "판교역", MapCategory.TRANSPORT);
     private final NearbyPlace hospital = place("kakao:2", "판교병원", MapCategory.HOSPITAL);
-    private final NearbyPlace busStop = place("tago:31:1", "판교역 정류장", MapCategory.TRANSPORT);
+    private final NearbyPlace school = place("kakao:3", "판교초등학교", MapCategory.SCHOOL);
 
     @Test
-    @DisplayName("주변 시설과 버스정류장 결과를 합치고 중복을 제거한다")
-    void transportSearchCombinesNearbyPlacesAndBusStops() {
-        MapService service = service(Optional.of((latitude, longitude, radius) -> List.of(busStop, subway)));
+    @DisplayName("주변 시설 공급자의 결과를 그대로 반환하고 모든 카테고리의 개수를 집계한다")
+    void countsEveryCategory() {
+        MapService service = service((latitude, longitude, radius, categories) -> List.of(hospital, school));
 
         NearbyResult response = service.nearby(LATITUDE, LONGITUDE, 500, EnumSet.allOf(MapCategory.class));
 
-        assertThat(response.places()).containsExactly(subway, hospital, busStop);
+        assertThat(response.places()).containsExactly(hospital, school);
         assertThat(response.counts())
-                .containsEntry(MapCategory.TRANSPORT, 2)
+                .containsOnlyKeys(EnumSet.allOf(MapCategory.class))
                 .containsEntry(MapCategory.HOSPITAL, 1)
-                .containsEntry(MapCategory.SCHOOL, 0);
-    }
-
-    @Test
-    @DisplayName("교통 카테고리가 없으면 버스정류장을 조회하지 않는다")
-    void busStopsAreNotRequestedWithoutTransportCategory() {
-        AtomicInteger busStopCalls = new AtomicInteger();
-        MapService service = service(Optional.of((latitude, longitude, radius) -> {
-            busStopCalls.incrementAndGet();
-            return List.of(busStop);
-        }));
-
-        NearbyResult response = service.nearby(LATITUDE, LONGITUDE, 500, EnumSet.of(MapCategory.HOSPITAL));
-
-        assertThat(busStopCalls).hasValue(0);
-        assertThat(response.places()).doesNotContain(busStop);
-    }
-
-    @Test
-    @DisplayName("버스정류장 외부 API가 실패해도 기존 시설 결과를 반환한다")
-    void busStopFailureKeepsNearbyPlaces() {
-        MapService service = service(Optional.of((latitude, longitude, radius) -> {
-            throw new UpstreamServiceException(ErrorCode.MAP_PROVIDER_UNAVAILABLE, "TAGO 장애");
-        }));
-
-        NearbyResult response = service.nearby(LATITUDE, LONGITUDE, 500, EnumSet.allOf(MapCategory.class));
-
-        assertThat(response.places()).containsExactly(subway, hospital);
-    }
-
-    @Test
-    @DisplayName("외부 장애가 아닌 오류는 대체 처리로 숨기지 않는다")
-    void busStopBugIsNotHiddenByFallback() {
-        MapService service = service(Optional.of((latitude, longitude, radius) -> {
-            throw new IllegalStateException("우리 코드의 버그");
-        }));
-
-        assertThatThrownBy(() -> service.nearby(LATITUDE, LONGITUDE, 500, EnumSet.allOf(MapCategory.class)))
-                .isInstanceOf(IllegalStateException.class);
+                .containsEntry(MapCategory.SCHOOL, 1)
+                .containsEntry(MapCategory.CONVENIENCE, 0)
+                .containsEntry(MapCategory.AGENCY, 0);
     }
 
     @Test
     @DisplayName("같은 조건으로 다시 조회해도 저장된 결과 없이 공급자를 매번 호출한다")
     void requestsNearbyProviderEveryTime() {
         AtomicInteger nearbyCalls = new AtomicInteger();
-        NearbyPlaceProvider nearbyPlaceProvider = (latitude, longitude, radius, categories) -> {
+        MapService service = service((latitude, longitude, radius, categories) -> {
             nearbyCalls.incrementAndGet();
             return List.of(hospital);
-        };
-        MapService service = new MapService(new DemoAddressProvider(), nearbyPlaceProvider, Optional.empty());
+        });
 
         service.nearby(LATITUDE, LONGITUDE, 500, EnumSet.allOf(MapCategory.class));
         service.nearby(LATITUDE, LONGITUDE, 500, EnumSet.allOf(MapCategory.class));
@@ -102,28 +61,29 @@ class MapServiceTest {
     }
 
     @Test
-    @DisplayName("요청 카테고리가 없으면 전체 카테고리로 조회한다")
+    @DisplayName("요청 카테고리가 없으면 전체 카테고리를 주변 시설 공급자에 요청한다")
     void requestsAllCategoriesWhenCategoriesAreMissing() {
         List<Set<MapCategory>> requested = new ArrayList<>();
-        MapService service = new MapService(new DemoAddressProvider(), (latitude, longitude, radius, categories) -> {
+        MapService service = service((latitude, longitude, radius, categories) -> {
             requested.add(categories);
             return List.of();
-        }, Optional.empty());
+        });
 
         service.nearby(LATITUDE, LONGITUDE, 500, null);
         service.nearby(LATITUDE, LONGITUDE, 500, Set.of());
 
-        assertThat(requested).containsExactly(EnumSet.allOf(MapCategory.class), EnumSet.allOf(MapCategory.class));
+        EnumSet<MapCategory> all = EnumSet.allOf(MapCategory.class);
+        assertThat(requested).containsExactly(all, all);
     }
 
     @Test
     @DisplayName("요청 카테고리의 빈 값은 무시한다")
     void ignoresNullCategories() {
         List<Set<MapCategory>> requested = new ArrayList<>();
-        MapService service = new MapService(new DemoAddressProvider(), (latitude, longitude, radius, categories) -> {
+        MapService service = service((latitude, longitude, radius, categories) -> {
             requested.add(categories);
             return List.of();
-        }, Optional.empty());
+        });
         Set<MapCategory> categoriesWithNull = new HashSet<>();
         categoriesWithNull.add(MapCategory.HOSPITAL);
         categoriesWithNull.add(null);
@@ -136,7 +96,7 @@ class MapServiceTest {
     @Test
     @DisplayName("검색어, 좌표, 반경이 허용 범위를 벗어나면 사용자 입력 오류로 본다")
     void rejectsInvalidQueryAsInvalidInput() {
-        MapService service = service(Optional.empty());
+        MapService service = service((latitude, longitude, radius, categories) -> List.of(hospital));
 
         assertInvalidQuery(() -> service.geocode(" "));
         assertInvalidQuery(() -> service.reverseGeocode(new BigDecimal("91"), LONGITUDE));
@@ -149,9 +109,8 @@ class MapServiceTest {
                         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.MAP_QUERY_INVALID));
     }
 
-    private MapService service(Optional<BusStopProvider> busStopProvider) {
-        NearbyPlaceProvider nearbyPlaceProvider = (latitude, longitude, radius, categories) -> List.of(subway, hospital);
-        return new MapService(new DemoAddressProvider(), nearbyPlaceProvider, busStopProvider);
+    private MapService service(NearbyPlaceProvider nearbyPlaceProvider) {
+        return new MapService(new DemoAddressProvider(), nearbyPlaceProvider);
     }
 
     private static NearbyPlace place(String id, String name, MapCategory category) {

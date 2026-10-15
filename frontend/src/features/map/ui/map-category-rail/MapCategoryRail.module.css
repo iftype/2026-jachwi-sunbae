@@ -7,9 +7,8 @@
   overflow: hidden;
   padding: 0.2rem;
   border-radius: 1.05rem;
-  background: rgb(255 255 255 / 94%);
+  background: var(--color-surface, #fff);
   box-shadow: 0 0.35rem 1.2rem rgb(42 48 35 / 18%);
-  backdrop-filter: blur(8px);
 }
 
 .categoryButton {
@@ -29,8 +28,8 @@
 }
 
 .categoryButton[aria-pressed='true'] {
-  background: #edf4ff;
-  color: #2878ef;
+  background: var(--color-primary, #303030);
+  color: var(--color-on-primary, #fff);
 }
 
 .icon {

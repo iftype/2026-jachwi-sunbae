@@ -23,19 +23,19 @@ const cell = (value: Cell): string =>
     .replace(/\r?\n/g, '<br>')
     .trim();
 
-const table = (headers: string[], rows: Cell[][]): string =>
+export const table = (headers: string[], rows: Cell[][]): string =>
   [
     `| ${headers.join(' | ')} |`,
     `| ${headers.map(() => '---').join(' | ')} |`,
     ...rows.map((row) => `| ${row.map(cell).join(' | ')} |`),
   ].join('\n');
 
-const kst = (iso: string): string =>
+export const kst = (iso: string): string =>
   new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul', dateStyle: 'short', timeStyle: 'medium' }).format(
     new Date(iso),
   );
 
-const environmentLabel = (baseUrl: string): string => {
+export const environmentLabel = (baseUrl: string): string => {
   const host = new URL(baseUrl).hostname;
   if (host === 'dev.jachwi-sunbae.kr') return 'DEV';
   if (host === 'localhost' || host === '127.0.0.1') return '로컬';
@@ -246,7 +246,12 @@ const judgmentItems = (analysis: AnalysisRecord | null): { key: string; proposal
 const canCarryItems = (preserved: HumanJudgment, analysis: AnalysisRecord | null): boolean =>
   preserved.analyzedAt === null || preserved.analyzedAt === analysis?.analyzedAt;
 
-const humanJudgment = (preserved: HumanJudgment, analysis: AnalysisRecord | null, runDir: string): string => {
+const humanJudgment = (
+  preserved: HumanJudgment,
+  result: ScenarioResult,
+  analysis: AnalysisRecord | null,
+  runDir: string,
+): string => {
   const decisionLog = relative(runDir, resolve(REPOSITORY_ROOT, 'qa/docs/decision-log/README.md'));
   const lines = [
     `판정은 \`CONFIRMED_BUG\`, \`NOT_A_BUG\`, \`SPEC_GAP\`, \`TEST_ISSUE\`, \`ENV_ISSUE\` 중 하나다. AI 판단은 \`수용\`, \`수정\`, \`기각\` 중 하나다. 수정하거나 기각하면 [판단 기록](${decisionLog})을 남긴다.`,
@@ -255,6 +260,12 @@ const humanJudgment = (preserved: HumanJudgment, analysis: AnalysisRecord | null
     '',
     'Run 전체의 결함 여부다. AI 판단은 판정 제안과 원인 가설에 대한 판단이다.',
     '',
+    ...(result.verdict === 'PASS'
+      ? [
+          '> 최종 판정이 `PASS`인 Run이다. 판정, 최종 심각도, AI 판단은 비우고, 조치에 `코드 판정 PASS 확인`을, 판정자·일시를 적는다.',
+          '',
+        ]
+      : []),
     ...(analysis?.analysis
       ? [
           `> **AI 제안** ${analysis.analysis.suggestedHumanVerdict.value}, 심각도 ${analysis.analysis.proposedSeverity.level}, 확신도 ${analysis.analysis.confidence}. ${analysis.analysis.suggestedHumanVerdict.reason}`,
@@ -334,7 +345,7 @@ ${aiAnalysis(analysis, runDir)}
 
 ## 사람 판정
 
-${humanJudgment(preserved, analysis, runDir)}
+${humanJudgment(preserved, result, analysis, runDir)}
 `;
   writeFileSync(reportPath, markdown);
   return reportPath;

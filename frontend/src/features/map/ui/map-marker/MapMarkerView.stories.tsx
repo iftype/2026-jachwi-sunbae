@@ -1,4 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-webpack5';
+import type { CSSProperties } from 'react';
+
+import propertyPhoto from '@/shared/assets/landing/property-detail.jpg';
 
 import type { MapMarker } from '../../model/Map';
 import MapMarkerView from './MapMarkerView';
@@ -114,4 +117,26 @@ export const Active: Story = {
     marker: sampleMarkers[0].marker,
     selectedMarkerId: 'property',
   },
+};
+
+export const PhotoPin: Story = {
+  args: {
+    marker: { ...sampleMarkers[0].marker, photoUrl: propertyPhoto },
+  },
+};
+
+export const ZoomSizes: Story = {
+  args: { marker: sampleMarkers[0].marker },
+  render: (args) => (
+    <div className={styles.stage}>
+      <div className={styles.grid}>
+        {[0.7, 1, 1.36].map((scale) => (
+          <div key={scale} className={styles.item} style={{ '--map-marker-scale': scale } as CSSProperties}>
+            <MapMarkerView {...args} />
+            <span>{scale}배</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  ),
 };

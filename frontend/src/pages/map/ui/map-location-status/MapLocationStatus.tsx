@@ -16,13 +16,25 @@ type MapLocationStatusProps = {
   canRetry: boolean;
   permission: PermissionState | 'unknown';
   onRetry: () => void;
+  className?: string;
 };
 
-const MapLocationStatus = ({ status, failure, canRetry, permission, onRetry }: MapLocationStatusProps) => {
+const MapLocationStatus = ({
+  status,
+  failure,
+  canRetry,
+  permission,
+  onRetry,
+  className = '',
+}: MapLocationStatusProps) => {
   if (status === 'ready') return null;
 
   return (
-    <div className={styles.status} role={status === 'fallback' ? 'alert' : 'status'} aria-live="polite">
+    <div
+      className={`${styles.status} ${className}`}
+      role={status === 'fallback' ? 'alert' : 'status'}
+      aria-live="polite"
+    >
       <span>{status === 'locating' ? '현재 위치를 확인하는 중이에요.' : LOCATION_FAILURE_TEXT[failure]}</span>
       {status === 'fallback' && canRetry && (
         <button type="button" onClick={onRetry}>
