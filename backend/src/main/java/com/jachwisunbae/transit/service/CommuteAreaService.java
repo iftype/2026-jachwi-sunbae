@@ -2,6 +2,7 @@ package com.jachwisunbae.transit.service;
 
 import com.jachwisunbae.common.exception.client.BusinessRuleViolationException;
 import com.jachwisunbae.common.exception.errorcode.ErrorCode;
+import com.jachwisunbae.transit.domain.CapitalRegion;
 import com.jachwisunbae.transit.domain.CommuteArea;
 import com.jachwisunbae.transit.domain.ReachableStop;
 import com.jachwisunbae.transit.domain.collection.TransitNetwork;
@@ -37,10 +38,11 @@ public class CommuteAreaService {
         return new CommuteAreaSearchResult(maxMinutes, toCommuteAreas(reachableStops));
     }
 
-    // 행정동을 찾지 못한 정류장은 뺀다. 정류장이 통근 시간 순서이므로 묶은 뒤에도 동네 안 정류장은 그 순서를 따른다.
+    // 행정동을 찾지 못한 정류장과 서울·경기 밖(인천) 정류장은 뺀다.
+    // 정류장이 통근 시간 순서이므로 묶은 뒤에도 동네 안 정류장은 그 순서를 따른다.
     private List<CommuteArea> toCommuteAreas(final List<ReachableStop> reachableStops) {
         Map<String, List<ReachableStop>> stopsByCode = reachableStops.stream()
-                .filter(stop -> stop.adminDongCode() != null)
+                .filter(stop -> CapitalRegion.includesInResult(stop.adminDongCode()))
                 .collect(Collectors.groupingBy(ReachableStop::adminDongCode, LinkedHashMap::new,
                         Collectors.toList()));
         return stopsByCode.entrySet().stream()

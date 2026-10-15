@@ -3,7 +3,6 @@ package com.jachwisunbae.transit.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jachwisunbae.transit.domain.GtfsEdge;
 import com.jachwisunbae.transit.domain.GtfsFeed;
 import com.jachwisunbae.transit.domain.GtfsRoute;
@@ -11,7 +10,6 @@ import com.jachwisunbae.transit.domain.GtfsStop;
 import com.jachwisunbae.transit.domain.vo.Coordinate;
 import com.jachwisunbae.transit.domain.vo.Seconds;
 import com.jachwisunbae.transit.provider.gtfs.GtfsFeedReader;
-import com.jachwisunbae.transit.repository.JdbcAdminDongRepository;
 import com.jachwisunbae.transit.repository.JdbcGtfsNetworkRepository;
 import java.nio.file.Path;
 import java.util.List;
@@ -41,17 +39,20 @@ class GtfsImportServiceTransactionTest {
     private static final MySQLContainer<?> MYSQL = new MySQLContainer<>("mysql:8.4.10")
             .withUrlParam("rewriteBatchedStatements", "true");
 
+    // 적재는 남은 구간이 있는 노선만 저장하므로, 서울 정류장 두 곳을 잇는 구간을 함께 둔다.
     private static final GtfsFeed EXISTING_FEED = new GtfsFeed(
             List.of(new GtfsRoute("OLD", "구노선", "구노선", 3, new Seconds(300))),
-            List.of(new GtfsStop("X", "옛정류장", new Coordinate(37.0, 127.0))),
-            List.of(),
+            List.of(new GtfsStop("X", "옛정류장", new Coordinate(37.55, 126.98)),
+                    new GtfsStop("Y", "옛정류장2", new Coordinate(37.55, 126.975))),
+            List.of(new GtfsEdge("OLD", "X", "Y", new Seconds(120))),
             List.of());
 
-    // 구간이 적재 대상이 아닌 정류장(NONE)을 가리켜, 기존 데이터를 지우고 노선·정류장을 저장한 뒤 외래 키 위반으로 실패한다.
+    // 같은 정류장 번호가 두 번 나와, 기존 데이터를 지우고 노선을 저장한 뒤 정류장 기본 키 위반으로 실패한다.
     private static final GtfsFeed BROKEN_FEED = new GtfsFeed(
             List.of(new GtfsRoute("NEW", "신노선", "신노선", 1, new Seconds(300))),
-            List.of(new GtfsStop("S1", "서울역", new Coordinate(37.55, 126.97))),
-            List.of(new GtfsEdge("NEW", "S1", "NONE", new Seconds(120))),
+            List.of(new GtfsStop("S1", "서울역", new Coordinate(37.55, 126.97)),
+                    new GtfsStop("S1", "서울역", new Coordinate(37.55, 126.96))),
+            List.of(new GtfsEdge("NEW", "S1", "S1", new Seconds(120))),
             List.of());
 
     private static DataSource dataSource;
@@ -78,14 +79,14 @@ class GtfsImportServiceTransactionTest {
         assertThat(jdbcTemplate.queryForList("SELECT route_id FROM gtfs_routes", String.class))
                 .containsExactly("OLD");
         assertThat(jdbcTemplate.queryForList("SELECT stop_id FROM gtfs_stops", String.class))
-                .containsExactly("X");
+                .containsExactlyInAnyOrder("X", "Y");
     }
 
     // 스프링 컨텍스트 없이 운영과 같은 @Transactional 프록시를 씌운다.
     private GtfsImportService transactionalService(final GtfsFeed feed) {
         GtfsImportService service = new GtfsImportService(directory.toString(), readerReturning(feed),
                 new JdbcGtfsNetworkRepository(jdbcTemplate),
-                new JdbcAdminDongRepository(jdbcTemplate, new ObjectMapper()));
+                new InMemoryAdminDongRepository(List.of(AdminDongFixture.SEOUL_STATION_DONG)));
         ProxyFactory proxyFactory = new ProxyFactory(service);
         proxyFactory.setProxyTargetClass(true);
         proxyFactory.addAdvice(new TransactionInterceptor(new DataSourceTransactionManager(dataSource),
