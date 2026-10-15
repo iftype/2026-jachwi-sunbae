@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 
 import { ALL_MAP_CATEGORIES, getMapCategoryLabel } from '@/features/map/lib/mapPresentation';
-import type { MapCategory, NearbyPlace, NearbyResult } from '@/features/map/model/Map';
+import type { MapCategory, NearbyPlace } from '@/features/map/model/Map';
 import Icon from '@/shared/ui/icon/Icon';
 
 import styles from './MapNearbySheet.module.css';
@@ -9,7 +9,7 @@ import styles from './MapNearbySheet.module.css';
 type MapNearbySheetProps = {
   eyebrow?: string;
   heading: string;
-  counts: NearbyResult['counts'];
+  counts: Record<MapCategory, number>;
   selectedCategories: MapCategory[];
   places: NearbyPlace[];
   expanded: boolean;
