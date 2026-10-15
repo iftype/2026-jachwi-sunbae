@@ -12,6 +12,7 @@ export type CommuteArea = {
   commuteMinutes: number;
   center: Coordinate;
   polygons: Coordinate[][][];
+  simplifiedPolygons?: MapRegion['simplifiedPolygons'];
   stations: CommuteStation[];
 };
 export type CommuteStation = Coordinate & {
@@ -125,6 +126,7 @@ export const commuteAreaToRegion = (area: CommuteArea): MapRegion => ({
   center: area.center,
   paths: [],
   polygons: area.polygons,
+  simplifiedPolygons: area.simplifiedPolygons,
   isRecommended: true,
   summary: { travel: `${area.commuteMinutes}분` },
 });

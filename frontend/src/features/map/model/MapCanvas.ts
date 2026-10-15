@@ -46,5 +46,9 @@ export type MapRegion = {
   center?: { latitude: number; longitude: number };
   /** MultiPolygon의 분리된 면과 각 면의 내부 링을 유지한다. */
   polygons?: { latitude: number; longitude: number }[][][];
+  simplifiedPolygons?: {
+    overview: { latitude: number; longitude: number }[][][];
+    medium: { latitude: number; longitude: number }[][][];
+  };
   paths: { latitude: number; longitude: number }[][];
 };

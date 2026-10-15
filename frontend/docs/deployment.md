@@ -144,6 +144,10 @@ react-router의 클라이언트 라우팅을 쓴다. `/intro`, `/properties/1`, 
 
 원본은 `frontend/data/admin-dongs.geojson`입니다. Webpack 빌드가 내용 해시 파일명, gzip 파일, `dist/boundaries/manifest.json`을 자동 생성합니다. 프론트는 고정 manifest URL만 사용합니다. 경계는 초기 JS 번들에 포함되지 않으며 조회 시 다운로드합니다.
 
+빌드에서 시도 코드(행정동 코드 앞 두 자리)마다 파일을 하나씩 생성하고 `manifest.files`에 시도 코드를 키로 기록합니다. 통근 검색 결과에 나온 시도 파일만 병렬로 받으며 파일별 해시를 캐시 키로 사용합니다. 구 앱/manifest 호환용 `manifest.file`과 전국 파일도 유지합니다. 따라서 배포에는 분할 파일과 전국 파일 모두 포함되어야 합니다. `publish.sh`의 `*.geojson.gz` 업로드가 분할 파일도 포함하므로 별도 AWS 설정 변경은 필요하지 않습니다. 법정동 자산은 이 분할의 대상이 아닙니다.
+
+지역별 파일에는 빌드에서 계산한 줌별 단순화 정점 인덱스(`lod`)도 포함됩니다. 원본 좌표와 함께 같은 해시 파일에 배포되므로 별도 LOD URL이나 무효화 경로는 없습니다. 개발 의존성의 `topojson-server`, `topojson-client`, `topojson-simplify`가 빌드 시 필요하며 브라우저에서 단순화하지 않습니다. 표시 등급과 보호 기준은 [통근 지도 행정동 경계](commute-boundaries.md#줌별-경계-정밀도)를 참고합니다.
+
 `publish.sh`는 일반 sync에서 `boundaries/*`를 제외하고 gzip 데이터를 동일한 `.geojson` 키에 `Content-Encoding: gzip`, `Content-Type: application/geo+json`, 1년 immutable 캐시로 먼저 업로드합니다. 원본이 약 28.65MB여서 CloudFront 자동 압축 크기 제한에 의존하지 않습니다. manifest는 경계 업로드 후 `no-cache,max-age=0,must-revalidate`로 교체하고 `/boundaries/manifest.json`을 무효화합니다. 이전 해시 경계 파일은 자동 삭제하지 않으며 사용 여부를 확인한 뒤 별도 정리합니다. 이 스크립트 변경만으로 AWS 배포가 실행되는 것은 아닙니다.
 
 ## CloudFront origin path

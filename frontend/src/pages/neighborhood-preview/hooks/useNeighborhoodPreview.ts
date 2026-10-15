@@ -3,12 +3,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { ApiError } from '@/features/auth/api/apiClient';
-import { fetchAdminBoundaries, fetchBoundaryManifest } from '@/features/map/api/adminBoundaryApi';
-import { commuteAreaToRegion, fetchCommuteAreas } from '@/features/map/api/commuteApi';
+import { commuteAreaToRegion } from '@/features/map/api/commuteApi';
 import { fetchCommuteRoute } from '@/features/map/api/commuteRouteApi';
 import { fetchLegalBoundaries, nearbyLegalBoundaries } from '@/features/map/api/legalBoundaryApi';
 import { reverseGeocode, searchAddress } from '@/features/map/api/mapApi';
 import { fetchRentalAverage } from '@/features/map/api/rentalApi';
+import { useCommuteAreas } from '@/features/map/api/useCommuteAreas';
 import { readGeolocationPermission, requestCurrentMapLocation } from '@/features/map/lib/mapLocation';
 import { type MapCoordinate, MapLocationError } from '@/features/map/lib/mapLocation';
 import type { MapAddress } from '@/features/map/model/Map';
@@ -113,42 +113,11 @@ const useNeighborhoodPreview = () => {
       cancelled = true;
     };
   }, []);
-  const commute = useQuery({
-    queryKey: [
-      'commute-areas',
-      config.apiBaseUrl,
-      destination.latitude,
-      destination.longitude,
-      maxMinutes,
-      maxTransfers,
-    ],
-    queryFn: async ({ signal }) => {
-      const [result, boundaries] = await Promise.all([
-        fetchCommuteAreas(config, destination, maxMinutes, maxTransfers, signal),
-        fetchBoundaryManifest(config.boundaryBaseUrl, signal).then((manifest) =>
-          client.ensureQueryData({
-            queryKey: ['admin-boundaries', manifest.file, config.boundaryBaseUrl],
-            queryFn: ({ signal }) => fetchAdminBoundaries(manifest, config.boundaryBaseUrl, signal),
-            staleTime: Infinity,
-            gcTime: 30 * 60 * 1000,
-            retry: false,
-          }),
-        ),
-      ]);
-      return {
-        ...result,
-        areas: result.areas.map((area) => ({
-          ...area,
-          name: boundaries[area.adminDongCode]?.name ?? area.adminDongCode,
-          fullName: boundaries[area.adminDongCode]?.fullName ?? '경계 정보가 없는 동네',
-          center: boundaries[area.adminDongCode]?.center ?? area.center,
-          polygons: boundaries[area.adminDongCode]?.polygons ?? [],
-        })),
-      };
-    },
+  const commute = useCommuteAreas({
+    destination,
+    maxMinutes,
+    maxTransfers,
     enabled: phase === 'analyzing' && mode === 'commute',
-    refetchOnMount: false,
-    retry: false,
   });
   const price = useQuery({
     queryKey: ['rental-areas', config.apiBaseUrl, config.boundaryBaseUrl, destination.latitude, destination.longitude],

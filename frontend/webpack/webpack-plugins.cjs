@@ -38,6 +38,10 @@ class AdminBoundaryAssetsPlugin {
             new webpack.sources.RawSource(JSON.stringify({ files })),
           );
           for (const [filename, content] of [
+            ...assets.partitions.flatMap((part) => [
+              [part.filename, part.source],
+              [`${part.filename}.gz`, part.gzip],
+            ]),
             [assets.filename, assets.source],
             [`${assets.filename}.gz`, assets.gzip],
             ['manifest.json', assets.manifest],
