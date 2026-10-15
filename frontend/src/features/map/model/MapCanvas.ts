@@ -5,6 +5,15 @@ export type MapRadiusCircle = {
 };
 
 export type MapCanvasProps = {
+  animateView?: boolean;
+  coordinateAction?: {
+    latitude: number;
+    longitude: number;
+    label: string;
+    disabled?: boolean;
+    placement?: 'above';
+    onClick: () => void;
+  };
   center: { latitude: number; longitude: number };
   markers?: MapMarker[];
   circles?: MapRadiusCircle[];

@@ -40,6 +40,15 @@ it('기존 지도는 GL과 스타일 옵션 없이 생성한다', () => {
   expect(Map.mock.calls[0][1]).not.toHaveProperty('gl');
   expect(Map.mock.calls[0][1]).not.toHaveProperty('customStyleId');
 });
+it('애니메이션 이동은 중심과 확대율을 함께 곡선 전환한다', () => {
+  mockSdk();
+  const engine = naverEngine('test');
+  const map = engine.createMap(document.createElement('div'), { latitude: 37.5, longitude: 127 }, 10);
+  map.morph = vi.fn();
+  const point = engine.latLng(37.4, 127.1);
+  engine.animateView(map, point, 6);
+  expect(map.morph).toHaveBeenCalledWith(point, 14, { duration: 320, easing: 'easeOutCubic' });
+});
 it('SDK 로딩 주소에는 GL 서브모듈이 포함된다', async () => {
   delete window.naver;
   const loading = naverEngine('test').load();
@@ -47,6 +56,12 @@ it('SDK 로딩 주소에는 GL 서브모듈이 포함된다', async () => {
   expect(script).not.toBeNull();
   expect(new URL(script!.src).searchParams.get('submodules')).toBe('gl');
   mockSdk();
+  const finished = vi.fn();
+  void loading.then(finished);
   script!.dispatchEvent(new Event('load'));
+  await Promise.resolve();
+  expect(finished).not.toHaveBeenCalled();
+  expect(new URL(script!.src).searchParams.get('callback')).toBe('jachwiNaverSdkReady');
+  window.jachwiNaverSdkReady?.();
   await loading;
 });

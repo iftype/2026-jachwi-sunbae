@@ -29,7 +29,7 @@
 .summary:is(:hover, :focus-visible, [data-hovered='true']) .cells {
   background: #fff3d2;
 }
-.summary[aria-pressed='true']:is(:hover, :focus-visible, [data-hovered='true']) .cells {
+.summary:not([data-colored='true'])[aria-pressed='true']:is(:hover, :focus-visible, [data-hovered='true']) .cells {
   background: #ffe79a;
 }
 .cells > span {

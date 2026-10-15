@@ -1,0 +1,9 @@
+.layout {
+  position: relative;
+  width: min(100%, var(--app-max-width));
+  height: 100dvh;
+  margin: auto;
+  overflow: hidden;
+  --map-sheet-bottom: 0px;
+  background: white;
+}

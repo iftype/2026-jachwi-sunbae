@@ -1,4 +1,5 @@
 export type MapCategory = 'HOSPITAL' | 'TRANSPORT' | 'SCHOOL' | 'CONVENIENCE' | 'AGENCY';
+export type NearbyCategory = Exclude<MapCategory, 'TRANSPORT'>;
 
 export type MapBounds = { south: number; west: number; north: number; east: number };
 
@@ -39,6 +40,6 @@ export type NearbyPlace = {
 export type NearbyResult = {
   center: { latitude: number; longitude: number };
   radius: 500 | 1000 | 2000;
-  counts: Record<MapCategory, number>;
+  counts: Record<NearbyCategory, number>;
   places: NearbyPlace[];
 };

@@ -1,6 +1,7 @@
-import type { CSSProperties, KeyboardEvent } from 'react';
+import { type CSSProperties, type KeyboardEvent, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
+import { trackExplorationRecordView } from '@/features/onboarding/lib/explorationJourney';
 import MoneyField from '@/features/property/ui/money-field/MoneyField';
 import useIsMobileViewport from '@/shared/lib/hooks/useIsMobileViewport';
 import { useKeyboardInset } from '@/shared/lib/hooks/useKeyboardInset';
@@ -28,6 +29,9 @@ const CreatePropertyPage = () => {
   const keyboardInset = useKeyboardInset();
   const form = usePropertyCreationForm(routeState);
   const { values, errors, revealedStep, nameStep } = form;
+  useEffect(() => {
+    if (routeState.fromExploration) trackExplorationRecordView();
+  }, [routeState.fromExploration]);
   const isNameStep = revealedStep >= nameStep;
   const submitOnKeyboardEnter = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key !== 'Enter') return;
@@ -45,6 +49,11 @@ const CreatePropertyPage = () => {
           backLabel="매물 등록 닫기"
           navigationIcon="close"
         />
+        {routeState.fromExploration && (
+          <p className={styles.stepNotice}>
+            찾아본 동네에서 기록을 시작해요. 실제 방문한 방의 위치는 주소 단계에서 확인해주세요.
+          </p>
+        )}
         <form
           className={styles.formContainer}
           style={{ '--keyboard-inset': `${keyboardInset}px` } as CSSProperties}

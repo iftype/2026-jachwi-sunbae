@@ -94,7 +94,7 @@ const ResolvedNearbyAnalysisPage = ({ propertyId }: { propertyId: number }) => {
           />
           <MapCategoryRail
             selectedCategories={analysis.selectedCategories}
-            counts={nearby.data?.counts}
+            counts={nearby.isSuccess ? nearby.data.counts : undefined}
             onToggle={analysis.selectCategory}
           />
           <NearbyMapNotice

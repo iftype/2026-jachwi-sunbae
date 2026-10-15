@@ -9,7 +9,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-// 인증된 사용자의 법정동별 월세 거래 조회 요청을 처리한다.
 @RestController
 @RequestMapping("/api/rental-transactions")
 public class RentalTransactionController {

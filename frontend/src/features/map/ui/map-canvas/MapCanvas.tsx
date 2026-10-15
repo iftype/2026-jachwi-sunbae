@@ -29,6 +29,8 @@ const demoMarkerStyle = (marker: MapMarker, center: { latitude: number; longitud
 
 const MapCanvas = ({
   center,
+  animateView = false,
+  coordinateAction,
   markers = EMPTY_MARKERS,
   circles = EMPTY_CIRCLES,
   level = 5,
@@ -50,6 +52,8 @@ const MapCanvas = ({
   const boundedCenter = useMemo(() => clampToSouthKorea(center), [center.latitude, center.longitude]);
   const { containerRef, canvasRef, liveMode, sdkError } = useNaverMap({
     center,
+    animateView,
+    coordinateAction,
     markers,
     circles,
     radiusCenter,
@@ -91,6 +95,25 @@ const MapCanvas = ({
           <span className={styles.roadOne} />
           <span className={styles.roadTwo} />
           <span className={styles.park}>MOCA PARK</span>
+          {coordinateAction && (
+            <button
+              className={styles.coordinateAction}
+              data-placement={coordinateAction.placement}
+              style={{
+                ...demoMarkerStyle({ ...coordinateAction, id: 'coordinate-action' }, boundedCenter),
+                bottom: 'auto',
+                transform:
+                  coordinateAction.placement === 'above' ? 'translate(-50%, -100%)' : 'translate(1.5rem, -3rem)',
+              }}
+              disabled={coordinateAction.disabled}
+              onClick={(event) => {
+                event.stopPropagation();
+                coordinateAction.onClick();
+              }}
+            >
+              {coordinateAction.label}
+            </button>
+          )}
           {regions !== undefined && (
             <svg
               viewBox="0 0 100 100"
@@ -119,8 +142,8 @@ const MapCanvas = ({
                   fillOpacity={
                     region.appearance
                       ? region.id === selectedRegionId
-                        ? 0.3
-                        : 0.17
+                        ? 0.38
+                        : 0.28
                       : region.id === selectedRegionId
                         ? 0.5
                         : region.isRecommended
@@ -132,10 +155,20 @@ const MapCanvas = ({
                   stroke={region.appearance?.strokeColor ?? (region.id === selectedRegionId ? '#787b80' : '#a4a7ab')}
                   style={
                     region.appearance?.glowColor
-                      ? { filter: `drop-shadow(0 0 2px ${region.appearance.glowColor})` }
+                      ? {
+                          filter: `drop-shadow(0 0 0.5px color-mix(in srgb, ${region.appearance.glowColor} 20%, transparent))`,
+                        }
                       : undefined
                   }
-                  strokeWidth={region.id === selectedRegionId ? '0.3' : '0.2'}
+                  strokeWidth={
+                    region.appearance
+                      ? region.id === selectedRegionId
+                        ? '0.2'
+                        : '0.125'
+                      : region.id === selectedRegionId
+                        ? '0.3'
+                        : '0.2'
+                  }
                   onClick={(event) => {
                     event.stopPropagation();
                     onSelectRegion?.(region.id);

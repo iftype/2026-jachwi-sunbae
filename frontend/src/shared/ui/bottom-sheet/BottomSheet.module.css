@@ -3,7 +3,7 @@
   left: 0;
   right: 0;
   bottom: var(--map-sheet-bottom, 0px);
-  height: var(--sheet-height, 58%);
+  height: var(--sheet-height, var(--sheet-default-height, 58%));
   max-height: calc(100% - var(--map-sheet-bottom, 0px) - 1rem);
   display: flex;
   flex-direction: column;
@@ -45,6 +45,9 @@
 .header h2 {
   font-size: 1.05rem;
   margin: 0;
+}
+.sheet[data-resizable='false'] .header {
+  padding-top: 1.25rem;
 }
 .header button {
   display: grid;

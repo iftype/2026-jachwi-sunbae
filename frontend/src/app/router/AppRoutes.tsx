@@ -3,18 +3,22 @@ import { lazy } from 'react';
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 
 import PropertyAppLayout from '@/app/layouts/property-app-layout/PropertyAppLayout';
+import PublicExploreLayout from '@/app/layouts/public-explore-layout/PublicExploreLayout';
 import LoginPage from '@/pages/login/LoginPage';
+import PropertyListSkeleton from '@/pages/property-list/ui/property-list-skeleton/PropertyListSkeleton';
 import { useAuthentication } from '@/features/auth/model/useAuthentication';
 import { isChecklistStage } from '@/features/checklist/model/checklist';
+import { getExplorationRecordLocation } from '@/features/onboarding/lib/explorationJourney';
 
 import LazyRouteBoundary from './LazyRouteBoundary';
 import ProtectedRoute from './ProtectedRoute';
 
 const IntroPage = lazy(() => import('@/pages/intro/IntroPage'));
+const ServiceIntroductionPage = lazy(() => import('@/pages/landing/LandingPage'));
 const NeighborhoodPreviewPage = lazy(() => import('@/pages/neighborhood-preview/NeighborhoodPreviewPage'));
 const NeighborhoodEntryPage = lazy(() => import('@/pages/neighborhood-entry/NeighborhoodEntryPage'));
 const NeighborhoodRoutePage = lazy(() => import('@/pages/neighborhood-preview/NeighborhoodRoutePage'));
-const LandingPage = lazy(() => import('@/pages/landing/LandingPage'));
+const NeighborhoodPricePage = lazy(() => import('@/pages/neighborhood-preview/NeighborhoodPricePage'));
 const PrivacyPage = lazy(() => import('@/pages/privacy/PrivacyPage'));
 const NotFoundPage = lazy(() => import('@/pages/not-found/NotFoundPage'));
 const PropertyListPage = lazy(() => import('@/pages/property-list/PropertyListPage'));
@@ -50,28 +54,63 @@ const LoginRoute = () => {
   const { session } = useAuthentication();
 
   if (session !== null) {
-    return <Navigate to="/properties" replace />;
+    const selectedLocation = getExplorationRecordLocation();
+    return (
+      <Navigate
+        to={selectedLocation ? '/properties/new' : '/properties'}
+        state={selectedLocation ? { selectedLocation, fromExploration: true } : undefined}
+        replace
+      />
+    );
   }
 
   return <LoginPage />;
 };
 
+const LandingRoute = () => {
+  const { session } = useAuthentication();
+  return session ? <Navigate to="/properties" replace /> : lazyPage(<ServiceIntroductionPage />);
+};
+const EntryRoute = () => {
+  const { session } = useAuthentication();
+  return <Navigate to={session ? '/properties' : '/landing'} replace />;
+};
 const AppRoutes = () => (
   <Routes>
+    <Route path="/" element={<EntryRoute />} />
+    <Route element={<PublicExploreLayout />}>
+      <Route path="/explore" element={lazyPage(<NeighborhoodEntryPage />)} />
+      <Route path="/explore/commute" element={lazyPage(<NeighborhoodPreviewPage />)}>
+        <Route path="areas/:adminDongCode" element={lazyPage(<NeighborhoodRoutePage />)} />
+        <Route path="areas/:adminDongCode/details" element={lazyPage(<NeighborhoodRoutePage />)} />
+      </Route>
+      <Route path="/explore/price" element={lazyPage(<NeighborhoodPreviewPage />)}>
+        <Route path="prices/:legalDongCode" element={lazyPage(<NeighborhoodPricePage />)} />
+      </Route>
+    </Route>
     <Route element={<PropertyAppLayout />}>
       <Route path="/neighborhoods" element={lazyPage(<NeighborhoodEntryPage />)} />
       <Route path="/neighborhoods/map" element={lazyPage(<NeighborhoodPreviewPage />)}>
         <Route path="areas/:adminDongCode" element={lazyPage(<NeighborhoodRoutePage />)} />
+        <Route path="areas/:adminDongCode/details" element={lazyPage(<NeighborhoodRoutePage />)} />
+        <Route path="prices/:legalDongCode" element={lazyPage(<NeighborhoodPricePage />)} />
       </Route>
     </Route>
     <Route path="/intro" element={lazyPage(<IntroPage />)} />
-    <Route path="/landing" element={lazyPage(<LandingPage />)} />
+    <Route path="/landing" element={<LandingRoute />} />
+    <Route path="/about" element={lazyPage(<ServiceIntroductionPage />)} />
     <Route path="/privacy" element={lazyPage(<PrivacyPage />)} />
     <Route path="/login" element={<LoginRoute />} />
     <Route element={<ProtectedRoute />}>
       <Route element={<PropertyAppLayout />}>
-        <Route index element={<Navigate to="/properties" replace />} />
-        <Route path="/properties" element={lazyPage(<PropertyListPage />)} />
+        <Route
+          path="/properties"
+          element={
+            <LazyRouteBoundary fallback={<PropertyListSkeleton showHeader />}>
+              <PropertyListPage />
+            </LazyRouteBoundary>
+          }
+        />
         <Route path="/properties/new" element={lazyPage(<CreatePropertyPage />)} />
         <Route path="/properties/:propertyId" element={lazyPage(<PropertyDetailPage />)} />
 

@@ -42,7 +42,8 @@ public class MapController {
     }
 
     @GetMapping("/nearby")
-    @Operation(summary = "주변 시설 조회", description = "반경과 카테고리에 맞는 실제 장소 좌표와 반환 장소 기준 집계를 조회합니다."
+    @Operation(summary = "주변 시설 조회", description = "반경과 카테고리에 맞는 실제 장소 좌표와 반환 장소 기준 집계를 조회합니다. "
+            + "버스정류장은 GET /api/maps/bus-stops로 조회합니다."
     )
     public ApiResponse<NearbyResponse> nearby(@RequestParam BigDecimal latitude, @RequestParam BigDecimal longitude,
                                               @RequestParam int radius, @RequestParam(required = false) Set<MapCategory> categories) {

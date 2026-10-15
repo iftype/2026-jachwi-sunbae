@@ -9,7 +9,9 @@ export {
   resetPostHogClientForTests as resetPostHogForTests,
   resetPostHogIdentity,
   setPostHogSessionContext,
+  setPostHogAuthenticationReader,
   trackPostHogEvent,
+  trackPostHogOutboundEvent,
   trackPostHogPageView,
 } from './posthog/runtime';
 export type { PostHogErrorCategory, PostHogErrorSeverity } from './posthog/types';

@@ -89,7 +89,7 @@
   display: grid;
   min-height: var(--bottom-navigation-height);
   box-sizing: border-box;
-  padding: 0.55rem 0 calc(0.55rem + env(safe-area-inset-bottom));
+  padding: 0.3rem 0 calc(0.3rem + env(safe-area-inset-bottom));
   place-items: center;
   align-content: center;
   gap: 0.16rem;
