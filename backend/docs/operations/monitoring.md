@@ -1,8 +1,8 @@
 # 모니터링
 
-- 상태: dev·prod 애플리케이션·서비스 종료 로그 수집, 환경별 5종 경보 및 운영 대시보드 적용
+- 상태: dev·prod 애플리케이션·서비스 종료 로그 수집, 환경별 5종 경보 및 운영 대시보드 적용, perf 프로필의 Prometheus 메트릭 노출 구성
 
-현재 예산에서는 구조화 로그로 장애 발생 시각과 원인을 찾고, 기존 CloudWatch·ALB 지표로 서비스 상태를 확인한다. 메모리·JVM 지표는 후속 작업이다.
+현재 예산에서는 구조화 로그로 장애 발생 시각과 원인을 찾고, 기존 CloudWatch·ALB 지표로 서비스 상태를 확인한다. 부하 테스트용 perf 서버에서는 Prometheus로 JVM·HTTP·HikariCP 메트릭을 확인한다. dev·prod의 JVM 지표 수집은 후속 작업이다.
 
 ## 운영 대시보드
 
@@ -49,7 +49,7 @@ CPU 경보는 인스턴스 ID 대신 `jachwi-sunbae-{dev|prod}-asg`를 차원으
 - 오류: 애플리케이션 기동 실패와 HTTP 5xx
 - 성능: 요청 지연시간
 - 프로세스: 애플리케이션 준비·종료·자동 재시작
-- 자원: CPU와 메모리. 현재는 EC2 기본 메트릭만 사용하며 JVM 메트릭은 후속 작업으로 둔다
+- 자원: CPU와 메모리. dev·prod는 EC2 기본 메트릭만 사용하며 JVM 메트릭은 perf 프로필에서만 노출한다
 
 ## 원칙
 
@@ -57,6 +57,58 @@ CPU 경보는 인스턴스 ID 대신 `jachwi-sunbae-{dev|prod}-asg`를 차원으
 - 로그에 비밀번호, 토큰, 개인정보와 전체 요청·응답 본문을 남기지 않는다.
 - 관찰하려는 질문과 판단 기준을 수집 전에 정한다.
 - 사실로 관찰한 값과 팀의 해석을 구분해 기록한다.
+
+## 애플리케이션 메트릭 (Prometheus)
+
+부하 테스트 중 병목이 JVM 메모리·GC, DB 커넥션 풀, 특정 API 중 어디에 있는지 구분하기 위해 Micrometer Prometheus 레지스트리를 사용한다. 의존성은 모든 환경의 실행 JAR에 포함되지만, `/actuator/prometheus` HTTP 노출은 `perf` 프로필에서만 켠다.
+
+별도 Monitoring EC2의 Prometheus·Grafana는 perf-2 EC2의 Node Exporter에서 CPU·메모리·디스크 지표를 수집한다. 애플리케이션 메트릭 원격 수집은 아직 구성하지 않았다.
+
+### 환경별 설정
+
+| 항목                         | dev·prod (`prod`)                                | perf (`prod,perf`)               |
+| ---------------------------- | ------------------------------------------------ | -------------------------------- |
+| API 포트                     | 80                                               | 80                               |
+| Actuator 포트                | 80 (API와 같음)                                  | 9091, `127.0.0.1`에만 바인딩     |
+| 노출 엔드포인트              | `health`, `info`                                 | `health`, `info`, `prometheus`   |
+| HTTP 응답 시간 히스토그램    | 꺼짐                                             | 켜짐 (`http.server.requests`)    |
+| CodeDeploy `ValidateService` | `127.0.0.1:80/actuator/health`, `/actuator/info` | 대상 아님 (perf 파이프라인 없음) |
+
+perf는 `SPRING_PROFILES_ACTIVE=prod,perf`로 실행한다. `prod`의 DB·로그·API 포트 설정을 그대로 쓰고, [`application-perf.yml`](../../src/main/resources/application-perf.yml)의 Actuator 설정만 더한다.
+
+관리 포트를 분리했으므로 perf에서는 `/actuator/health`, `/actuator/info`도 80이 아닌 9091에서 응답한다. 80번의 `/actuator/*`는 404다. dev·prod의 [`validate.sh`](../../deploy/scripts/validate.sh) 검증 경로는 바꾸지 않았다. perf를 CodeDeploy로 배포하게 되면 `HEALTH_URL`, `INFO_URL`을 9091로 지정해야 한다.
+
+### perf 서버에서 확인
+
+9091은 `127.0.0.1`에만 열려 있으므로 perf EC2 안에서 확인한다.
+
+```bash
+curl -fsS http://127.0.0.1:9091/actuator/health
+curl -fsS http://127.0.0.1:9091/actuator/prometheus | grep -E '^(jvm_memory_used_bytes|hikaricp_connections_active|http_server_requests_seconds_count)'
+```
+
+Prometheus 서버가 이 메트릭을 원격으로 수집하려면 인증된 연결 경로를 따로 구성해야 한다. 9091을 공개 ALB나 사설망 전체에 그대로 열지 않는다.
+
+### 주요 메트릭과 PromQL
+
+| 영역     | 질문                     | PromQL                                                                                                                 |
+| -------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| CPU      | 서버 CPU 사용률          | `1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[1m]))` (Node Exporter)                                |
+| CPU      | JVM 프로세스 CPU 사용률  | `process_cpu_usage`                                                                                                    |
+| JVM      | Heap 사용량              | `sum(jvm_memory_used_bytes{area="heap"})`                                                                              |
+| JVM      | Non-Heap 사용량          | `sum(jvm_memory_used_bytes{area="nonheap"})`                                                                           |
+| JVM      | 초당 GC 정지 시간        | `sum(rate(jvm_gc_pause_seconds_sum[1m]))`                                                                              |
+| JVM      | 스레드 수                | `jvm_threads_live_threads`                                                                                             |
+| HikariCP | 사용 중·대기 커넥션      | `hikaricp_connections_active`, `hikaricp_connections_idle`, `hikaricp_connections_pending`                             |
+| HikariCP | 커넥션 획득 시간 초과    | `increase(hikaricp_connections_timeout_total[5m])`                                                                     |
+| HTTP     | API별 초당 요청 수       | `sum by (uri) (rate(http_server_requests_seconds_count[1m]))`                                                          |
+| HTTP     | 5xx 비율                 | `sum(rate(http_server_requests_seconds_count{status=~"5.."}[1m])) / sum(rate(http_server_requests_seconds_count[1m]))` |
+| HTTP     | API별 p95 응답 시간 (초) | `histogram_quantile(0.95, sum by (le, uri) (rate(http_server_requests_seconds_bucket[1m])))`                           |
+| HTTP     | API별 p99 응답 시간 (초) | `histogram_quantile(0.99, sum by (le, uri) (rate(http_server_requests_seconds_bucket[1m])))`                           |
+
+HTTP `uri` 태그는 실제 값이 아닌 경로 템플릿 (`/api/properties/{propertyId}`)으로 기록된다. 인증 필터에서 401로 끝난 요청은 `UNKNOWN`, 매핑되지 않은 경로의 404는 `/**`로 묶인다. 사용자 ID나 매물 ID별로 시계열이 늘어나지 않는다.
+
+`hikaricp_connections_pending`이 0보다 크게 유지되거나 `hikaricp_connections_timeout_total`이 증가하면 커넥션 풀이 부족하다는 신호다. 같은 시각의 RDS 지표와 함께 확인한다.
 
 ## 로그 구성
 
