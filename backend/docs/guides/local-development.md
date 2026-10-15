@@ -31,33 +31,25 @@ docker compose up -d
 docker compose ps
 ```
 
-MySQL과 MinIO가 healthy여야 한다. 빈 MySQL 볼륨은 [월세 거래 테이블을 포함한 기준 스키마](../../src/main/resources/db/init/001-schema.sql)와 시스템 체크 항목,
-[로컬 버스정류장 샘플](../../docker/mysql/init/003-bus-stops-sample.sql), [로컬 CCTV 샘플](../../docker/mysql/init/005-cctvs-sample.sql)로 자동 초기화된다.
-Compose가 각 SQL을 읽기 전용으로 마운트하며 파일명의 번호 순서 (`001` → `002` → `003` → `004` → `005`)로 실행한다.
-초기화 SQL은 기존 볼륨에 다시 적용되지 않으며, 볼륨을 삭제하면 로컬 데이터도 사라진다.
+MySQL과 MinIO가 healthy여야 한다. Compose는 DB와 객체 저장소만 준비한다.
+빈 DB의 테이블과 시스템 체크 항목은 백엔드를 처음 실행할 때 Flyway가
+[`V1__initial_schema.sql`](../../src/main/resources/db/migration/V1__initial_schema.sql)로 생성한다.
+`local` 프로필의 백엔드는 Flyway 실행 후 버스정류장·착한가격업소·CCTV 테이블이 비어 있으면 샘플을 자동 적재한다.
+데이터가 있는 테이블은 건너뛰므로 재시작해도 기존 데이터가 유지된다. 테이블을 비우면 다음 기동에 샘플이 다시 적재된다.
 
-초기화 SQL이 바뀐 뒤 예전 볼륨으로 실행해 `Unknown column` 같은 스키마 오류가 나면 MySQL 볼륨만 다시 만든다. `docker compose down -v`는 MinIO 사진 볼륨까지 지우므로 쓰지 않는다.
-
-```bash
-docker compose stop mysql
-docker compose rm -f mysql
-docker volume rm jachwi-sunbae-backend_mysql-data
-docker compose up -d mysql
-```
+기존 볼륨에 Flyway 이력이 없다면 [기존 DB 기준선 등록](../operations/database-migrations.md#기존-db의-최초-전환)을 한 번 수행한다.
+이후 스키마 변경은 새 버전 SQL로 적용하며, 스키마를 맞추기 위해 볼륨을 삭제하지 않는다.
 
 ### 버스정류장 데이터
 
 버스정류장 조회 (`GET /api/maps/bus-stops`)는 `bus_stops` 테이블에서 조회한다.
-빈 볼륨에는 `docker/mysql/init/003-bus-stops-sample.sql`이 판교, 서울 시청, 신림 주변 2.5km의 정류장 샘플을 자동으로 넣는다.
-샘플은 로컬 Docker 초기화 전용이며 애플리케이션 JAR에 포함하지 않는다.
+`docker/mysql/init/003-bus-stops-sample.sql`은 판교, 서울 시청, 신림 주변 2.5km의 정류장 샘플이다.
+샘플은 로컬 앱 기동 시 테이블이 비어 있을 때 자동 적재하며 애플리케이션 JAR에 포함하지 않는다.
 다른 지역을 확인하려면 아래의 전체 데이터를 적재한다.
 
-이미 만든 볼륨에는 테이블과 샘플이 생기지 않는다.
-볼륨을 지우면 회원·매물 데이터도 사라지므로, 대신 다음 명령으로 추가한다.
-기준 스키마는 없는 테이블만 만들고, 샘플 적재는 기존 `bus_stops` 데이터를 샘플로 교체한다.
+기존 `bus_stops` 데이터를 샘플로 교체하려면 백엔드의 마이그레이션이 끝난 뒤 다음 명령을 실행한다.
 
 ```bash
-docker compose exec -T mysql mysql -ujachwi_sunbae -plocal_password jachwi_sunbae < src/main/resources/db/init/001-schema.sql
 docker compose exec -T mysql mysql -ujachwi_sunbae -plocal_password jachwi_sunbae < docker/mysql/init/003-bus-stops-sample.sql
 ```
 
@@ -74,13 +66,12 @@ docker compose exec -T mysql mysql -ujachwi_sunbae -plocal_password jachwi_sunba
 ### CCTV 데이터
 
 CCTV 조회 (`GET /api/maps/cctvs`)는 `cctvs` 테이블에서 조회한다.
-빈 볼륨에는 `docker/mysql/init/005-cctvs-sample.sql`이 버스정류장 샘플과 같은 판교, 서울 시청, 신림 주변 2.5km의 CCTV 샘플을 자동으로 넣는다.
-샘플은 로컬 Docker 초기화 전용이며 애플리케이션 JAR에 포함하지 않는다.
+`docker/mysql/init/005-cctvs-sample.sql`은 버스정류장 샘플과 같은 판교, 서울 시청, 신림 주변 2.5km의 CCTV 샘플이다.
+샘플은 로컬 앱 기동 시 테이블이 비어 있을 때 자동 적재하며 애플리케이션 JAR에 포함하지 않는다.
 
-이미 만든 볼륨에는 테이블과 샘플이 생기지 않으므로 다음 명령으로 추가한다. 샘플 적재는 기존 `cctvs` 데이터를 샘플로 교체한다.
+기존 `cctvs` 데이터를 샘플로 교체하려면 백엔드의 마이그레이션이 끝난 뒤 다음 명령을 실행한다.
 
 ```bash
-docker compose exec -T mysql mysql -ujachwi_sunbae -plocal_password jachwi_sunbae < src/main/resources/db/init/001-schema.sql
 docker compose exec -T mysql mysql -ujachwi_sunbae -plocal_password jachwi_sunbae < docker/mysql/init/005-cctvs-sample.sql
 ```
 
@@ -97,13 +88,12 @@ docker compose exec -T mysql mysql -ujachwi_sunbae -plocal_password jachwi_sunba
 ### 착한가격업소 데이터
 
 착한가격업소 조회 (`GET /api/maps/good-price-stores`)는 `good_price_stores` 테이블에서 조회한다.
-빈 볼륨에는 `docker/mysql/init/004-good-price-stores-sample.sql`이 버스정류장 샘플과 같은 판교, 서울 시청, 신림 주변 2.5km의 업소 샘플을 자동으로 넣는다.
-샘플은 로컬 Docker 초기화 전용이며 애플리케이션 JAR에 포함하지 않는다.
+`docker/mysql/init/004-good-price-stores-sample.sql`은 버스정류장 샘플과 같은 판교, 서울 시청, 신림 주변 2.5km의 업소 샘플이다.
+샘플은 로컬 앱 기동 시 테이블이 비어 있을 때 자동 적재하며 애플리케이션 JAR에 포함하지 않는다.
 
-이미 만든 볼륨에는 테이블과 샘플이 생기지 않으므로 다음 명령으로 추가한다. 샘플 적재는 기존 `good_price_stores` 데이터를 샘플로 교체한다.
+기존 `good_price_stores` 데이터를 샘플로 교체하려면 백엔드의 마이그레이션이 끝난 뒤 다음 명령을 실행한다.
 
 ```bash
-docker compose exec -T mysql mysql -ujachwi_sunbae -plocal_password jachwi_sunbae < src/main/resources/db/init/001-schema.sql
 docker compose exec -T mysql mysql -ujachwi_sunbae -plocal_password jachwi_sunbae < docker/mysql/init/004-good-price-stores-sample.sql
 ```
 
@@ -120,8 +110,9 @@ docker compose exec -T mysql mysql -ujachwi_sunbae -plocal_password jachwi_sunba
 
 ### 월세 거래 데이터
 
-월세 거래 조회 (`GET /api/rental-transactions`)는 `rental_transactions` 테이블에서 조회한다. 빈 볼륨에는 [기준 스키마](../../src/main/resources/db/init/001-schema.sql)가 월세 테이블을 만들며 거래 데이터는 넣지 않는다.
-기존 DB에 월세 테이블이 없다면 관리자가 기준 스키마 끝의 `legal_dongs`, `rental_datasets`, `rental_transactions` 테이블 정의만 순서대로 적용한다. 운영 DB에 기준 스키마 전체를 다시 실행하지 않는다.
+월세 거래 조회 (`GET /api/rental-transactions`)는 `rental_transactions` 테이블에서 조회한다.
+빈 DB에서는 백엔드 기동 시 Flyway의 [기준 스키마](../../src/main/resources/db/migration/V1__initial_schema.sql)가 월세 테이블을 만들며 거래 데이터는 넣지 않는다.
+기존 DB는 [마이그레이션 절차](../operations/database-migrations.md)에 따라 기준선을 확인하고 변경 SQL을 버전으로 관리한다.
 적재 도구는 테이블을 만들지 않고 기존 스키마를 확인한다.
 법정동은 `admin_dongs`의 행정동과 코드 체계가 달라 `legal_dongs`에 별도로 저장한다. 면적 기준은 주택 유형에서 결정되므로 거래 테이블에 중복 저장하지 않으며, 정제 CSV의 `area_basis` 값은 적재 전에 주택 유형과 일치하는지 검증한다.
 주택·계약 유형, 월세와 면적의 제공 조건은 적재 전에 도메인에서 검증하고, DB는 수집본·법정동 참조와 원본 행의 중복을 제약한다.
@@ -148,6 +139,7 @@ set +a
 
 IntelliJ IDEA에서 애플리케이션이나 Gradle 작업을 직접 실행하면 `.env`가 자동으로 주입되지 않는다. 이 경우 Run Configuration의 환경변수에 `.env`와 같은 값을 설정하거나 위
 터미널 명령으로 실행한다.
+샘플 SQL은 `backend/docker/mysql/init`에서 읽으므로 IntelliJ의 작업 디렉터리도 `backend`로 설정한다.
 
 로컬 CORS는 `CORS_ALLOWED_ORIGINS=http://localhost:3000`을 사용한다.
 

@@ -17,6 +17,7 @@
 - [API 컨벤션](conventions/api-convention.md)
 - [예외 컨벤션](conventions/exception-convention.md)
 - [백엔드 배포](operations/deployment.md)
+- [DB 마이그레이션](operations/database-migrations.md)
 - [롤백](operations/rollback.md)
 - [모니터링](operations/monitoring.md)
 - [장애 대응](operations/incident-response.md)
