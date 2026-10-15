@@ -39,7 +39,7 @@ export type MapCanvasProps = {
 export type MapRegion = {
   id: string;
   name: string;
-  appearance?: { fillColor: string; strokeColor: string; glowColor?: string };
+  appearance?: { fillColor: string; strokeColor: string };
   isRecommended?: boolean;
   /** 구역 위 두 칸으로 표시할 요약. 화면이 아니라 지도 좌표에 고정한다. */
   summary?: { travel?: string; price?: string };

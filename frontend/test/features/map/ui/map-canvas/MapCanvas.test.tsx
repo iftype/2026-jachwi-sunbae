@@ -2,6 +2,7 @@ import { act, render, waitFor } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { MapRegion } from '@/features/map/model/MapCanvas';
 import MapCanvas from '@/features/map/ui/map-canvas/MapCanvas';
 import { PublicConfigProvider } from '@/shared/config/PublicConfigContext';
 import type { PublicConfig } from '@/shared/config/publicConfigTypes';
@@ -35,6 +36,7 @@ class FakeLatLngBounds {
 const overlayInstances: FakeOverlay[] = [];
 
 class FakeOverlay {
+  setPaths = vi.fn();
   setOptions = vi.fn();
   readonly pane = document.createElement('div');
   onAdd?: () => void;
@@ -51,7 +53,7 @@ class FakeOverlay {
     }
   });
 
-  constructor() {
+  constructor(readonly options?: { paths?: FakeLatLng[][] }) {
     overlayInstances.push(this);
   }
 }
@@ -178,6 +180,110 @@ describe('Naver 지도 상태 동기화', () => {
     expect((leave[0] as FakeOverlay).setOptions).toHaveBeenLastCalledWith({ fillOpacity: 0.24 });
     unmount();
     expect(window.naver!.maps.Event.removeListener).toHaveBeenCalled();
+  });
+
+  it('선택 변경에는 경계를 재사용하고 좌표가 바뀐 동만 교체하며 제거 시 정리한다', async () => {
+    const region: MapRegion = {
+      id: 'a',
+      name: '동네',
+      isRecommended: true,
+      paths: [
+        [
+          { latitude: 37.5, longitude: 127 },
+          { latitude: 37.6, longitude: 127.1 },
+        ],
+      ],
+    };
+    const onSelect = vi.fn();
+    const center = { latitude: 37.5, longitude: 127 };
+    const { rerender, unmount } = renderWithConfig(<MapCanvas center={center} regions={[region]} />);
+    await waitFor(() => expect(overlayInstances).toHaveLength(1));
+    const original = overlayInstances[0];
+    rerender(<MapCanvas center={center} regions={[{ ...region }]} selectedRegionId="a" onSelectRegion={onSelect} />);
+    expect(overlayInstances).toHaveLength(1);
+    expect(original.setOptions).toHaveBeenLastCalledWith(expect.objectContaining({ fillOpacity: 0.5 }));
+    const click = vi
+      .mocked(window.naver!.maps.Event.addListener)
+      .mock.calls.find((call) => call[0] === original && call[1] === 'click')!;
+    act(() => click[2]());
+    expect(onSelect).toHaveBeenCalledWith('a');
+    rerender(<MapCanvas center={center} regions={[{ ...region, paths: [...region.paths] }]} />);
+    expect(overlayInstances).toHaveLength(1);
+    expect(original.setPaths).toHaveBeenCalledOnce();
+    rerender(<MapCanvas center={center} regions={[]} />);
+    expect(original.setMap).toHaveBeenCalledWith(null);
+    expect(window.naver!.maps.Event.removeListener).toHaveBeenCalledTimes(3);
+    unmount();
+    expect(window.naver!.maps.Event.removeListener).toHaveBeenCalledTimes(
+      vi.mocked(window.naver!.maps.Event.addListener).mock.calls.length,
+    );
+  });
+
+  it('idle 시 실제 줌 등급에 맞춰 좌표만 교체하고 같은 등급의 이동에는 갱신하지 않는다', async () => {
+    const original = [
+      [
+        [
+          { latitude: 37, longitude: 127 },
+          { latitude: 37.1, longitude: 127 },
+          { latitude: 37, longitude: 127.1 },
+          { latitude: 37, longitude: 127 },
+        ],
+      ],
+    ];
+    const overview = [[original[0][0].slice()]];
+    const medium = [[original[0][0].slice()]];
+    renderWithConfig(
+      <MapCanvas
+        center={original[0][0][0]}
+        level={10}
+        regions={[{ id: 'a', name: '동', paths: [], polygons: original, simplifiedPolygons: { overview, medium } }]}
+      />,
+    );
+    await waitFor(() => expect(overlayInstances).toHaveLength(1));
+    const polygon = overlayInstances[0];
+    const idle = vi
+      .mocked(window.naver!.maps.Event.addListener)
+      .mock.calls.find((call) => call[0] === maps[0] && call[1] === 'idle')!;
+    maps[0].zoom = 14;
+    act(() => idle[2]());
+    expect(polygon.setPaths).toHaveBeenCalledTimes(1);
+    maps[0].zoom = 16;
+    act(() => idle[2]());
+    expect(polygon.setPaths).toHaveBeenCalledTimes(2);
+    maps[0].zoom = 17;
+    act(() => idle[2]());
+    expect(polygon.setPaths).toHaveBeenCalledTimes(2);
+    maps[0].zoom = 10;
+    act(() => idle[2]());
+    expect(polygon.setPaths).toHaveBeenCalledTimes(3);
+    expect(overlayInstances).toHaveLength(1);
+  });
+
+  it('분리된 면과 내부 링을 그대로 전달하고 중복 광택 경계를 만들지 않는다', async () => {
+    const ring = [
+      { latitude: 37.5, longitude: 127 },
+      { latitude: 37.6, longitude: 127.1 },
+    ];
+    const { unmount } = renderWithConfig(
+      <MapCanvas
+        center={ring[0]}
+        regions={[
+          {
+            id: 'multi',
+            name: '분리된 동',
+            paths: [ring],
+            polygons: [[ring, ring], [ring]],
+            appearance: { fillColor: '#ff0000', strokeColor: '#000000' },
+          },
+        ]}
+      />,
+    );
+    await waitFor(() => expect(overlayInstances).toHaveLength(2));
+    expect(overlayInstances[0].options?.paths).toHaveLength(2);
+    expect(overlayInstances[1].options?.paths).toHaveLength(1);
+    expect(overlayInstances[0].options?.paths?.[0][0].lat()).toBe(37.5);
+    unmount();
+    overlayInstances.forEach((overlay) => expect(overlay.setMap).toHaveBeenCalledWith(null));
   });
 
   it('크기가 달라질 때만 autoResize를 호출하고 타일 새로고침은 하지 않는다', async () => {

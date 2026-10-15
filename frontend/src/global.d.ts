@@ -61,7 +61,16 @@ type NaverMapsNamespace = {
     fillOpacity: number;
     clickable: boolean;
     zIndex: number;
-  }) => NaverOverlay & { setOptions: (options: { fillOpacity?: number }) => void };
+  }) => NaverOverlay & {
+    setPaths: (paths: NaverLatLng[][]) => void;
+    setOptions: (options: {
+      fillOpacity?: number;
+      fillColor?: string;
+      strokeColor?: string;
+      strokeWeight?: number;
+      zIndex?: number;
+    }) => void;
+  };
   Circle: new (options: {
     map: NaverMap;
     center: NaverLatLng;
