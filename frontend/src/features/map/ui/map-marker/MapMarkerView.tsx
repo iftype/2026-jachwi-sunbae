@@ -48,6 +48,12 @@ const MapMarkerView = ({ marker, selectedMarkerId = null, onSelectMarker }: MapM
   const canSelect = marker.actionable === true && onSelectMarker !== undefined;
   const markerContent = (
     <>
+      {marker.summary && (
+        <span className={styles.markerSummaryCard}>
+          <strong title={marker.label}>{marker.label}</strong>
+          <small title={marker.summary.amount}>{marker.summary.amount}</small>
+        </span>
+      )}
       {isCurrentLocationDot(marker) ? null : usesCategoryIcon(marker) && marker.category !== undefined ? (
         <MapCategoryIcon category={marker.category} className={styles.categoryIcon} />
       ) : marker.tone === 'property' || marker.tone === 'selected' || marker.tone === 'propertyCluster' ? (

@@ -1,0 +1,44 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.home {
+  display: block;
+  border-radius: 0.75rem;
+}
+.home:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 3px;
+}
+/* 로고 글자는 나중에 이미지로 바꿀 예정이라 지금은 오리 이미지만 둔다. */
+.logo {
+  display: block;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+}
+.profile {
+  display: grid;
+  place-items: center;
+  border: 0;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.profile img {
+  width: 2.1rem;
+  height: 2.1rem;
+}
+.profile:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 3px;
+}
+@media (hover: hover) {
+  .profile:hover {
+    background: var(--color-card-surface-hover);
+  }
+}
