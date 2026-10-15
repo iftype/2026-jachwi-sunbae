@@ -39,10 +39,12 @@ class GtfsImportServiceTransactionTest {
     private static final MySQLContainer<?> MYSQL = new MySQLContainer<>("mysql:8.4.10")
             .withUrlParam("rewriteBatchedStatements", "true");
 
+    // 적재는 남은 구간이 있는 노선만 저장하므로, 서울 정류장 두 곳을 잇는 구간을 함께 둔다.
     private static final GtfsFeed EXISTING_FEED = new GtfsFeed(
             List.of(new GtfsRoute("OLD", "구노선", "구노선", 3, new Seconds(300))),
-            List.of(new GtfsStop("X", "옛정류장", new Coordinate(37.55, 126.98))),
-            List.of(),
+            List.of(new GtfsStop("X", "옛정류장", new Coordinate(37.55, 126.98)),
+                    new GtfsStop("Y", "옛정류장2", new Coordinate(37.55, 126.975))),
+            List.of(new GtfsEdge("OLD", "X", "Y", new Seconds(120))),
             List.of());
 
     // 같은 정류장 번호가 두 번 나와, 기존 데이터를 지우고 노선을 저장한 뒤 정류장 기본 키 위반으로 실패한다.
@@ -77,7 +79,7 @@ class GtfsImportServiceTransactionTest {
         assertThat(jdbcTemplate.queryForList("SELECT route_id FROM gtfs_routes", String.class))
                 .containsExactly("OLD");
         assertThat(jdbcTemplate.queryForList("SELECT stop_id FROM gtfs_stops", String.class))
-                .containsExactly("X");
+                .containsExactlyInAnyOrder("X", "Y");
     }
 
     // 스프링 컨텍스트 없이 운영과 같은 @Transactional 프록시를 씌운다.
