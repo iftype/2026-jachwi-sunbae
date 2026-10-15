@@ -118,6 +118,12 @@ JWT secret, 지도 Client Secret, S3 자격증명은 프론트에 넣지 않습�
 
 ## 상태와 보안
 
+개인정보처리방침(`/privacy`)의 상단 뒤로 가기는 고정된 `/intro` 대신 진입 전 화면의 히스토리로 돌아갑니다.
+로그인 화면의 쿼리와 마이페이지의 해시도 유지합니다. 직접 접속해 앱 내 이전 이력이 없으면 `/`로 교체하여
+로그인 상태에 따른 기본 진입 화면으로 이동합니다.
+
+운영 사이트의 Maze 사용성 테스트 설치와 배포 후 검증은 [Maze 테스트 안내](docs/maze-testing.md)를 참고합니다.
+
 - Access Token은 탭 단위 `sessionStorage`에 `expiresAt`과 함께 저장해 새로고침만 복구합니다. `localStorage`에는 쓰지 않습니다.
 - 401·만료·로그아웃은 인증 Query Cache와 토큰을 함께 지웁니다.
 - 사진 콘텐츠는 URL을 `<img>`에 직접 주지 않고 Bearer 인증 Blob으로 조회해 Object URL을 만든 뒤 해제합니다.

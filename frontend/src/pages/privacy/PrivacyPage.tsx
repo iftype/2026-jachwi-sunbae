@@ -1,12 +1,24 @@
+import { useNavigate, useNavigationType } from 'react-router-dom';
+
 import TopNavigation from '@/shared/ui/top-navigation/TopNavigation';
 
 import styles from './PrivacyPage.module.css';
 
 const PrivacyPage = () => {
+  const navigate = useNavigate();
+  const navigationType = useNavigationType();
+  const goBack = () => {
+    if (navigationType === 'PUSH' || window.history.state?.idx > 0) {
+      void navigate(-1);
+      return;
+    }
+    void navigate('/', { replace: true });
+  };
+
   return (
     <main className={styles.page}>
       <div className={styles.content}>
-        <TopNavigation title="개인정보 처리방침" backTo="/intro" backLabel="소개 화면으로 돌아가기" />
+        <TopNavigation title="개인정보 처리방침" onBack={goBack} backLabel="이전 화면으로 돌아가기" />
         <section className={styles.section} aria-labelledby="privacy-overview-heading">
           <p className={styles.eyebrow}>개인정보 처리방침</p>
           <h1 id="privacy-overview-heading">자취선배는 필요한 정보만 처리합니다.</h1>
