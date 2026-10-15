@@ -6,6 +6,24 @@
 
 아직 릴리스하지 않은 변경을 기록한다.
 
+## [2.0.1] - 2026-10-15
+
+### Added
+
+- 운영 환경에 Maze 사용성 테스트 스니펫을 연결한다.
+- 랜딩에 비로그인 사용자를 위한 로그인 진입 링크를 추가한다.
+
+### Changed
+
+- 랜딩 사용 시연을 단계 버튼식에서 스크롤형으로 바꾸고, `동네 찾아보기` 버튼과 로그인 링크를 화면 하단에 고정한다.
+- 로그인 후 진입 경로와 관계없이 매물 목록으로 이동한다.
+- 첫 통근 검색 기본값을 40분·환승 1회로 조정한다.
+
+### Fixed
+
+- 개인정보처리방침에서 이전 화면으로 돌아가고, 직접 접속한 경우 기본 진입 경로로 이동한다.
+- 다른 위치를 선택하면 현재 위치 점을 숨기고, 통근 결과에서 동네를 고를 때 표시되던 출발 정류장 마커를 제거한다.
+
 ## [2.0.0] - 2026-10-15
 
 ### Breaking Changes
@@ -104,7 +122,8 @@
 - WebView 지도 마커 위치 갱신을 `transform` 기반으로 최적화한다.
 - 매물 사진 Object URL을 재사용해 지도 확대·이동 중 불필요한 재생성을 줄인다.
 
-[Unreleased]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/compare/v2.0.1...HEAD
+[2.0.1]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/releases/tag/v2.0.1
 [2.0.0]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/releases/tag/v2.0.0
 [1.1.0]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/releases/tag/v1.1.0
 [1.0.0]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/releases/tag/v1.0.0
