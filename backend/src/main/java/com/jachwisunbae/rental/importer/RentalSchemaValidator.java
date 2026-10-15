@@ -28,7 +28,7 @@ public class RentalSchemaValidator {
             """, String.class);
         if (!tables.containsAll(REQUIRED_COLUMNS.keySet())) {
             throw new IllegalStateException("월세 적재용 InnoDB 테이블이 준비되지 않았습니다. "
-                + "관리자 계정으로 001-schema.sql의 월세 테이블 정의를 적용해 주세요.");
+                + "관리자 계정으로 Flyway 마이그레이션 적용 여부를 확인해 주세요.");
         }
     }
 
