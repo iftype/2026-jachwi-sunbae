@@ -75,8 +75,8 @@ const useNeighborhoodPreview = () => {
   const [currentPosition, setCurrentPosition] = useState<MapCoordinate | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
-  const [maxMinutes, setMaxMinutes] = useState(restoredSearch?.maxMinutes ?? 60);
-  const [maxTransfers, setMaxTransfers] = useState(restoredSearch?.maxTransfers ?? 2);
+  const [maxMinutes, setMaxMinutes] = useState(restoredSearch?.maxMinutes ?? 40);
+  const [maxTransfers, setMaxTransfers] = useState(restoredSearch?.maxTransfers ?? 1);
   const [maxRent, setMaxRent] = useState(restoredSearch?.maxRent ?? 0);
   const isValidCommuteTime =
     Number.isInteger(maxMinutes) && maxMinutes >= 10 && maxMinutes <= 60 && maxMinutes % 10 === 0;
@@ -347,6 +347,7 @@ const useNeighborhoodPreview = () => {
     searchError,
     selectAddress: (address: MapAddress) => {
       locationIntent.current += 1;
+      setCurrentPosition(null);
       const point = {
         ...address,
         name: address.roadAddress ?? address.jibunAddress ?? address.address ?? '선택한 위치',
@@ -391,6 +392,7 @@ const useNeighborhoodPreview = () => {
       }
       if (!query.trim() || !matchesDestination) return;
       locationIntent.current += 1;
+      setCurrentPosition(null);
       setMapCandidate(PREVIEW_DESTINATION);
       setSelectionCenter(PREVIEW_DESTINATION);
       setSelectionLevel(4);
@@ -421,6 +423,7 @@ const useNeighborhoodPreview = () => {
     chooseMapPoint: (latitude: number, longitude: number) => {
       if (phase === 'analyzing') return;
       locationIntent.current += 1;
+      setCurrentPosition(null);
       void client.cancelQueries({ queryKey: ['commute-areas'] });
       setSelectedId(null);
       setSelectedStopId(null);
