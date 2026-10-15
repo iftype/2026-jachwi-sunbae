@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
 import { onlineItemFixture, secondOnlineItemFixture } from '@/app/mocks/fixtures/checklistFixtures';

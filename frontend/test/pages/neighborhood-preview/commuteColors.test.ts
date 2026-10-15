@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { expect, it } from 'vitest';
 
 import { COMMUTE_COLORS, commuteColor, commuteLegend } from '@/pages/neighborhood-preview/model/commuteColors';

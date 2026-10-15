@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { expect, it } from 'vitest';
 
 import { getMapFocusCenter } from '@/features/map/lib/mapViewportFocus';

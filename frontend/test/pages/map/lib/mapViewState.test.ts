@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { expect, it } from 'vitest';
 
 import { type MapViewState, readMapView, writeMapView } from '@/pages/map/lib/mapViewState';

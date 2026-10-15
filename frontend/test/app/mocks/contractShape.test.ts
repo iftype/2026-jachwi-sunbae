@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { setupServer } from 'msw/node';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
