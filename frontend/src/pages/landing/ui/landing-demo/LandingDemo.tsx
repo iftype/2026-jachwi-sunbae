@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 
 import mascotImage from '@/shared/assets/empty-property.jpg';
 
+import { trackLandingDemoInteraction } from '../../lib/landingAnalytics';
+
 import styles from './LandingDemo.module.css';
 
 const STEPS = ['동네 찾기', '방 등록', '정보 저장', '체크리스트'];
@@ -62,7 +64,15 @@ const LandingDemo = () => {
       <h2 id="usage-heading">이렇게 사용해요</h2>
       <div className={styles.steps} aria-label="사용 예시 단계">
         {STEPS.map((step, index) => (
-          <button key={step} type="button" aria-pressed={stage === index} onClick={() => selectStep(index)}>
+          <button
+            key={step}
+            type="button"
+            aria-pressed={stage === index}
+            onClick={() => {
+              trackLandingDemoInteraction('step', String(index + 1));
+              selectStep(index);
+            }}
+          >
             <span>{index + 1}</span>
             {step}
           </button>
@@ -84,6 +94,7 @@ const LandingDemo = () => {
                   type="button"
                   aria-pressed={mode === 'commute'}
                   onClick={() => {
+                    trackLandingDemoInteraction('mode', 'commute');
                     setMode('commute');
                     selectStep(0);
                   }}
@@ -94,6 +105,7 @@ const LandingDemo = () => {
                   type="button"
                   aria-pressed={mode === 'price'}
                   onClick={() => {
+                    trackLandingDemoInteraction('mode', 'price');
                     setMode('price');
                     selectStep(0);
                   }}
@@ -191,7 +203,14 @@ const LandingDemo = () => {
         </span>
       </div>
       <p className={styles.caption}>{CAPTIONS[stage]}</p>
-      <button className={styles.playbackControl} type="button" onClick={() => setIsPaused((value) => !value)}>
+      <button
+        className={styles.playbackControl}
+        type="button"
+        onClick={() => {
+          trackLandingDemoInteraction('playback', isPaused ? 'play' : 'pause');
+          setIsPaused((value) => !value);
+        }}
+      >
         {isPaused ? '시연 재생' : '일시정지'}
       </button>
     </section>

@@ -55,12 +55,20 @@ describe('PostHogTracker 초기 수집 수명주기', () => {
         environment: 'development',
         app_version: '1.1.0',
         platform: 'web',
+        auth_status: 'anonymous',
+        traffic_type: 'development',
+        device_category: 'desktop',
+        operating_system: 'other',
+        native_app_version: null,
       }),
     );
     expect(sdk.register).toHaveBeenCalledWith({
       environment: 'development',
       app_version: '1.1.0',
       platform: 'web',
+      device_category: 'desktop',
+      operating_system: 'other',
+      native_app_version: null,
     });
     expect(sdk.register.mock.invocationCallOrder[0]).toBeLessThan(sdk.capture.mock.invocationCallOrder[0]);
     expect(sdk.reset).not.toHaveBeenCalled();
@@ -84,6 +92,11 @@ describe('PostHogTracker 초기 수집 수명주기', () => {
         environment: 'development',
         app_version: '1.1.0',
         platform: 'web',
+        auth_status: 'anonymous',
+        traffic_type: 'development',
+        device_category: 'desktop',
+        operating_system: 'other',
+        native_app_version: null,
       }),
     );
     expect(sdk.init).toHaveBeenCalledOnce();
@@ -110,12 +123,20 @@ describe('PostHogTracker 초기 수집 수명주기', () => {
         environment: 'development',
         app_version: '1.1.0',
         platform: 'web',
+        auth_status: 'anonymous',
+        traffic_type: 'development',
+        device_category: 'desktop',
+        operating_system: 'other',
+        native_app_version: null,
       }),
     );
     expect(sdk.register).toHaveBeenCalledWith({
       environment: 'development',
       app_version: '1.1.0',
       platform: 'web',
+      device_category: 'desktop',
+      operating_system: 'other',
+      native_app_version: null,
     });
   });
 });

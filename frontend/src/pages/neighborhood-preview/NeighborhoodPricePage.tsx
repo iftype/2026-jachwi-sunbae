@@ -4,6 +4,7 @@ import ExplorationRecordAction from '@/features/onboarding/ui/exploration-record
 import { Button } from '@/shared/ui/button/Button';
 import Icon from '@/shared/ui/icon/Icon';
 
+import useNeighborhoodDetailAnalytics from './hooks/useNeighborhoodDetailAnalytics';
 import type { NeighborhoodPreviewContext } from './hooks/useNeighborhoodPreview';
 
 import styles from './NeighborhoodPricePage.module.css';
@@ -14,6 +15,13 @@ const NeighborhoodPricePage = () => {
   const { legalDongCode } = useParams();
   const navigate = useNavigate();
   const area = preview.selectedPrice?.legalDongCode === legalDongCode ? preview.selectedPrice : undefined;
+  useNeighborhoodDetailAnalytics({
+    feature: 'rental',
+    mock: preview.isMockData,
+    ready: !!area,
+    itemKey: area?.legalDongCode ?? null,
+    transactionCount: area?.items.length,
+  });
   const close = () => navigate(`${preview.mapPath}?mode=price`, { replace: true });
   return (
     <main className={styles.page} aria-label="동네 월세 상세">

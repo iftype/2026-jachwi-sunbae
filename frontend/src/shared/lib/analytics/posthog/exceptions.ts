@@ -1,4 +1,6 @@
 import { classifyPostHogException } from './errorClassification';
-import { runPostHogAction } from './runtime';
-export const capturePostHogException = (error: unknown, properties?: Record<string, unknown>): boolean =>
-  runPostHogAction((client) => client.captureException(error, classifyPostHogException(error, properties)));
+import { getPostHogEventProperties, runPostHogAction } from './runtime';
+export const capturePostHogException = (error: unknown, properties?: Record<string, unknown>): boolean => {
+  const eventProperties = getPostHogEventProperties(classifyPostHogException(error, properties));
+  return runPostHogAction((client) => client.captureException(error, eventProperties));
+};

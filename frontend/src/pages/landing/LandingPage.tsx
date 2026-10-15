@@ -1,21 +1,17 @@
-import { useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 import mascotImage from '@/shared/assets/empty-property.jpg';
-import { trackPostHogEvent } from '@/shared/lib/analytics/posthog';
 
 import { trackLandingCta } from './lib/landingAnalytics';
 import { getLandingMobilePlatform, LANDING_APP_URLS } from './lib/landingPlatform';
+import useLandingAnalytics from './lib/useLandingAnalytics';
 import LandingDemo from './ui/landing-demo/LandingDemo';
 
 import styles from './LandingPage.module.css';
 
 const LandingPage = () => {
-  const isAbout = useLocation().pathname === '/about';
+  useLandingAnalytics('exploration_v1');
   const appPlatform = getLandingMobilePlatform(navigator.userAgent, navigator.maxTouchPoints);
-  useEffect(() => {
-    trackPostHogEvent(isAbout ? 'service_introduction_viewed' : 'landing_page_viewed');
-  }, [isAbout]);
   return (
     <main className={styles.page}>
       <section className={styles.card} aria-labelledby="landing-heading">

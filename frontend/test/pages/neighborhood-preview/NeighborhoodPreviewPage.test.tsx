@@ -15,8 +15,14 @@ import { setAuthentication } from '@/features/auth/model/authStore';
 import { MapLocationError, readGeolocationPermission, requestCurrentMapLocation } from '@/features/map/lib/mapLocation';
 import type { MapCanvasProps } from '@/features/map/model/MapCanvas';
 import { PublicConfigProvider } from '@/shared/config/PublicConfigContext';
+import { trackPostHogEvent } from '@/shared/lib/analytics/posthog';
 
 import { server } from '../../server';
+
+vi.mock('@/shared/lib/analytics/posthog', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/shared/lib/analytics/posthog')>()),
+  trackPostHogEvent: vi.fn(),
+}));
 
 vi.mock('@/features/map/lib/mapLocation', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/map/lib/mapLocation')>()),
@@ -47,6 +53,7 @@ vi.mock('@/features/map/ui/map-canvas/MapCanvas', () => ({
   ),
 }));
 beforeEach(() => {
+  vi.mocked(trackPostHogEvent).mockClear();
   vi.mocked(readGeolocationPermission).mockResolvedValue('prompt');
   vi.mocked(requestCurrentMapLocation).mockReset();
   server.use(...createCommuteAreaHandlers({ delayMs: 0 }));
@@ -263,12 +270,27 @@ it('상위 동네 카드를 선택하면 첫 정류장의 상세 경로를 받�
   await screen.findByRole('region', { name: '행정동 프리셋 지도' });
   expect(screen.getByLabelText('통근 시간 상위 동네').querySelectorAll('button')).toHaveLength(3);
   await user.click(screen.getByRole('button', { name: /1위 역삼1동/ }));
+  expect(trackPostHogEvent).toHaveBeenCalledWith(
+    'neighborhood_area_selected',
+    expect.objectContaining({ feature: 'commute' }),
+  );
+  expect(vi.mocked(trackPostHogEvent).mock.calls.filter(([event]) => event === 'commute_route_viewed')).toHaveLength(0);
   const view = screen.getByLabelText('지도 시점').textContent;
   expect(screen.queryByLabelText('대중교통 경로')).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: /대중교통 정보 보기/ }));
   expect(await screen.findByLabelText('대중교통 경로')).toHaveTextContent('예상 3분');
+  await waitFor(() =>
+    expect(trackPostHogEvent).toHaveBeenCalledWith(
+      'commute_route_viewed',
+      expect.objectContaining({ feature: 'commute' }),
+    ),
+  );
   expect(screen.getByLabelText('대중교통 경로')).toHaveTextContent('도보');
   await user.click(screen.getByRole('button', { name: /역삼역.포스코센터/ }));
+  expect(trackPostHogEvent).toHaveBeenCalledWith(
+    'commute_departure_station_changed',
+    expect.objectContaining({ feature: 'commute' }),
+  );
   await waitFor(() => expect(screen.getByLabelText('대중교통 경로')).toHaveTextContent('예상 5분'));
   await user.click(screen.getByRole('button', { name: '대중교통 상세 닫기' }));
   await user.keyboard('{Escape}');
@@ -353,6 +375,12 @@ it('월세 평균가 필터를 적용하고 지도 가격을 선택하면 별도
   await user.click(screen.getByRole('button', { name: '테스트동' }));
   expect(await screen.findByRole('main', { name: '동네 월세 상세' })).toHaveTextContent('50만원');
   expect(screen.getByText('주변 월세 거래 기록')).toBeInTheDocument();
+  await waitFor(() =>
+    expect(trackPostHogEvent).toHaveBeenCalledWith(
+      'rental_information_viewed',
+      expect.objectContaining({ has_transactions: true, transaction_count: 1 }),
+    ),
+  );
   await user.click(screen.getByRole('button', { name: '월세 상세 닫기' }));
   expect(await screen.findByRole('region', { name: '행정동 프리셋 지도' })).toBeInTheDocument();
 });
@@ -377,6 +405,15 @@ it('통근 서버 오류는 가짜 결과로 대체하지 않는다', async () =
   await user.click(screen.getByRole('button', { name: '선택한 조건으로 찾기' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('대중교통 정보를 준비하고 있습니다.');
   expect(screen.queryByRole('region', { name: '행정동 프리셋 지도' })).not.toBeInTheDocument();
+  await waitFor(() =>
+    expect(trackPostHogEvent).toHaveBeenCalledWith(
+      'neighborhood_search_failed',
+      expect.objectContaining({ feature: 'commute' }),
+    ),
+  );
+  expect(
+    vi.mocked(trackPostHogEvent).mock.calls.filter(([event]) => event === 'neighborhood_search_results_viewed'),
+  ).toHaveLength(0);
 });
 it('환승은 두 회까지, 통근은 10~60분을 10분 단위로만 선택한다', async () => {
   show();

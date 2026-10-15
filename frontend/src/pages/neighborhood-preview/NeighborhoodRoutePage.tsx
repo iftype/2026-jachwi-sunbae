@@ -5,6 +5,7 @@ import { Button } from '@/shared/ui/button/Button';
 import Icon from '@/shared/ui/icon/Icon';
 
 import useHorizontalDrag from './hooks/useHorizontalDrag';
+import useNeighborhoodDetailAnalytics from './hooks/useNeighborhoodDetailAnalytics';
 import type { NeighborhoodPreviewContext } from './hooks/useNeighborhoodPreview';
 
 import styles from './NeighborhoodRoutePage.module.css';
@@ -16,6 +17,13 @@ const NeighborhoodRoutePage = () => {
   const { adminDongCode } = useParams();
   const isDetailPage = useMatch(`${preview.mapPath}/areas/:adminDongCode/details`);
   const area = preview.selected?.adminDongCode === adminDongCode ? preview.selected : undefined;
+  useNeighborhoodDetailAnalytics({
+    feature: 'commute',
+    mock: preview.isMockData,
+    ready: !!isDetailPage && !!area && !!preview.route && !preview.isRouteLoading && !preview.routeError,
+    failed: !!isDetailPage && !!area && !!preview.routeError,
+    itemKey: area && preview.selectedStation ? `${area.adminDongCode}:${preview.selectedStation.stopId}` : null,
+  });
 
   if (!area)
     return (
