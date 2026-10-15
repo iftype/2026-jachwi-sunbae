@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import javax.sql.DataSource;
+import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
@@ -17,10 +18,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
-import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -46,10 +45,9 @@ class RentalImportAcceptanceTest {
 
     @BeforeEach
     void prepareSchemaAndFiles() throws Exception {
-        admin.execute("DROP TABLE IF EXISTS rental_transactions");
-        admin.execute("DROP TABLE IF EXISTS rental_datasets");
-        admin.execute("DROP TABLE IF EXISTS legal_dongs");
-        new ResourceDatabasePopulator(new ClassPathResource("db/init/001-schema.sql")).execute(adminSource);
+        Flyway flyway = Flyway.configure().dataSource(adminSource).cleanDisabled(false).load();
+        flyway.clean();
+        flyway.migrate();
         Files.writeString(work.resolve("법정동 코드.txt"),
             "법정동코드\t법정동명\t폐지여부\n1162010200\t서울특별시 관악구 신림동\t존재\n",
             Charset.forName("MS949"));
