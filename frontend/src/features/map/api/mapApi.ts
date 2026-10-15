@@ -2,7 +2,7 @@ import { apiRequest } from '@/features/auth/api/apiClient';
 import { readArray, readInteger, readRecord, readString } from '@/shared/api/responseParsers';
 import type { PublicConfig } from '@/shared/config/publicConfigTypes';
 
-import type { MapAddress, MapCategory, NearbyPlace, NearbyResult } from '../model/Map';
+import type { MapAddress, NearbyCategory, NearbyPlace, NearbyResult } from '../model/Map';
 
 const readCoordinate = (record: Record<string, unknown>, key: string): number => {
   const value = record[key];
@@ -28,8 +28,8 @@ const parseAddress = (value: unknown): MapAddress => {
   };
 };
 
-const isMapCategory = (value: string): value is MapCategory =>
-  value === 'HOSPITAL' || value === 'TRANSPORT' || value === 'SCHOOL' || value === 'CONVENIENCE' || value === 'AGENCY';
+const isMapCategory = (value: string): value is NearbyCategory =>
+  value === 'HOSPITAL' || value === 'SCHOOL' || value === 'CONVENIENCE' || value === 'AGENCY';
 
 const parseNearbyPlace = (value: unknown): NearbyPlace => {
   const record = readRecord(value);
@@ -52,10 +52,10 @@ const parseNearby = (value: unknown): NearbyResult => {
   const countsRecord = readRecord(record.counts);
   const radius = readInteger(record, 'radius');
   if (radius !== 500 && radius !== 1000 && radius !== 2000) throw new Error('지도 반경 응답이 올바르지 않습니다.');
-  const categories: MapCategory[] = ['HOSPITAL', 'TRANSPORT', 'SCHOOL', 'CONVENIENCE', 'AGENCY'];
+  const categories: NearbyCategory[] = ['HOSPITAL', 'SCHOOL', 'CONVENIENCE', 'AGENCY'];
   const counts = Object.fromEntries(
     categories.map((category) => [category, readInteger(countsRecord, category)]),
-  ) as Record<MapCategory, number>;
+  ) as Record<NearbyCategory, number>;
   return {
     center: { latitude: readCoordinate(center, 'latitude'), longitude: readCoordinate(center, 'longitude') },
     radius,
@@ -89,7 +89,7 @@ export const fetchNearby = (
   latitude: number,
   longitude: number,
   radius: 500 | 1000 | 2000,
-  categories: MapCategory[],
+  categories: NearbyCategory[],
   signal?: AbortSignal,
 ): Promise<NearbyResult> =>
   apiRequest({

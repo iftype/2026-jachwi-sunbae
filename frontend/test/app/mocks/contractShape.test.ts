@@ -9,6 +9,9 @@ import { handlers } from '@/app/mocks/handlers';
  * 그래서 "많아도 실패"하도록 키 집합을 정확히 비교한다. 계약이 바뀌면 이 표를 먼저 고친다.
  */
 const CONTRACT = {
+  BusStopsResponse: ['center', 'radius', 'count', 'busStops'],
+  BusStopResponse: ['nodeId', 'name', 'latitude', 'longitude', 'distanceMeters'],
+  NearbyResponse: ['center', 'radius', 'counts', 'places'],
   PropertyListItemResponse: [
     'id',
     'name',
@@ -126,6 +129,18 @@ const json = (body: unknown): RequestInit => ({
 });
 
 describe('목 응답은 배포된 dev 계약과 같은 필드를 내려준다', () => {
+  it('지도 nearby 집계에서 교통은 빠지고 정류장은 전용 응답을 사용한다', async () => {
+    const nearby = (await readData('/api/maps/nearby?latitude=37.5&longitude=127&radius=500')) as { counts: unknown };
+    expectShape(nearby, 'NearbyResponse');
+    expect(keysOf(nearby.counts)).toEqual(['HOSPITAL', 'SCHOOL', 'CONVENIENCE', 'AGENCY'].sort());
+    const bus = (await readData('/api/maps/bus-stops?latitude=37.5&longitude=127&radius=500')) as {
+      busStops: unknown[];
+    };
+    expectShape(bus, 'BusStopsResponse');
+    bus.busStops.forEach((stop) => expectShape(stop, 'BusStopResponse'));
+    expect((await fetch(BASE + '/api/maps/nearby?categories=TRANSPORT')).status).toBe(400);
+    expect((await fetch(BASE + '/api/maps/bus-stops?latitude=37.5&longitude=127&radius=600')).status).toBe(400);
+  });
   it('GET /api/properties', async () => {
     const data = (await readData('/api/properties')) as { items: Array<Record<string, unknown>> };
     // 사진과 적용된 체크리스트가 모두 있는 매물이라야 중첩 응답까지 확인할 수 있다.

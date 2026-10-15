@@ -35,7 +35,7 @@ describe('최종 API 명세 MSW handlers', () => {
       data: {
         center: { latitude: 37.48, longitude: 126.93 },
         radius: 500,
-        counts: { HOSPITAL: 5, TRANSPORT: 0, SCHOOL: 0, CONVENIENCE: 0, AGENCY: 0 },
+        counts: { HOSPITAL: 5, SCHOOL: 0, CONVENIENCE: 0, AGENCY: 0 },
       },
     });
     const data = body.data as { places: Array<{ category: string; distanceMeters: number; latitude: number }> };

@@ -1,13 +1,10 @@
-import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
-import { fetchNearby } from '@/features/map/api/mapApi';
+import { useNearbyFacilities } from '@/features/map/api/useNearbyFacilities';
 import { clusterNearbyPlaces } from '@/features/map/lib/mapClustering';
 import type { MapCoordinate } from '@/features/map/lib/mapLocation';
-import { ALL_MAP_CATEGORIES } from '@/features/map/lib/mapPresentation';
 import type { MapCategory } from '@/features/map/model/Map';
 import type { MapRadiusCircle } from '@/features/map/model/MapCanvas';
-import { usePublicConfig } from '@/shared/config/PublicConfigContext';
 
 import { type MapRadius, RADIUS_OPTIONS, radiusLabel } from '../lib/mapRadius';
 
@@ -17,14 +14,8 @@ const useMapNearby = (
   selectedCategories: MapCategory[],
   selectedRadius: MapRadius | null,
 ) => {
-  const config = usePublicConfig();
   const nearbyRadius = selectedRadius ?? 500;
-  const nearby = useQuery({
-    queryKey: ['nearby-map', queryCenter?.latitude, queryCenter?.longitude, nearbyRadius, ALL_MAP_CATEGORIES.join(',')],
-    queryFn: ({ signal }) => {
-      return fetchNearby(config, queryCenter.latitude, queryCenter.longitude, nearbyRadius, ALL_MAP_CATEGORIES, signal);
-    },
-  });
+  const nearby = useNearbyFacilities(queryCenter, nearbyRadius, selectedCategories);
 
   const filteredPlaces = useMemo(
     () => nearby.data?.places.filter((place) => selectedCategories.includes(place.category)) ?? [],
