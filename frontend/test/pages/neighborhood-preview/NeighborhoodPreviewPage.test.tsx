@@ -222,6 +222,26 @@ it('위치 권한이 허용되어도 마커만 보여주고 안내 버튼을 누
   expect(await screen.findByRole('button', { name: '선택한 조건으로 찾기' })).toBeInTheDocument();
   expect(screen.getByLabelText('지도 시점')).toHaveTextContent('"level":4');
 });
+it.each([
+  ['commute', false],
+  ['price', false],
+  ['commute', true],
+  ['price', true],
+] as const)('%s 지도(공개 %s)에서 다른 위치를 찍으면 현재 위치 점을 지운다', async (mode, isPublic) => {
+  vi.mocked(requestCurrentMapLocation).mockResolvedValue({ latitude: 37.55, longitude: 127.05 });
+  show(mode, isPublic);
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: '내 현재 위치로 이동' }));
+  await waitFor(() => expect(screen.getByLabelText('목적지 좌표')).toHaveTextContent('current-location'));
+  await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
+  const markers = JSON.parse(screen.getByLabelText('목적지 좌표').textContent ?? '[]');
+  expect(markers).toEqual([
+    expect.objectContaining({ id: 'candidate', tone: 'selected', latitude: 37.4, longitude: 127.12 }),
+  ]);
+  // 현재 위치를 다시 누르면 점도 다시 표시한다.
+  await user.click(screen.getByRole('button', { name: '내 현재 위치로 이동' }));
+  await waitFor(() => expect(screen.getByLabelText('목적지 좌표')).toHaveTextContent('current-location'));
+});
 it('현재 위치 조회 실패 시 지도에서 직접 찍을 수 있다', async () => {
   vi.mocked(readGeolocationPermission).mockResolvedValue('granted');
   vi.mocked(requestCurrentMapLocation).mockRejectedValue(new Error('timeout'));

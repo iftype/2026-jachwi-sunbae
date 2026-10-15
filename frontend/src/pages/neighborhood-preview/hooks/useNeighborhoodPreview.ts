@@ -347,6 +347,7 @@ const useNeighborhoodPreview = () => {
     searchError,
     selectAddress: (address: MapAddress) => {
       locationIntent.current += 1;
+      setCurrentPosition(null);
       const point = {
         ...address,
         name: address.roadAddress ?? address.jibunAddress ?? address.address ?? '선택한 위치',
@@ -391,6 +392,7 @@ const useNeighborhoodPreview = () => {
       }
       if (!query.trim() || !matchesDestination) return;
       locationIntent.current += 1;
+      setCurrentPosition(null);
       setMapCandidate(PREVIEW_DESTINATION);
       setSelectionCenter(PREVIEW_DESTINATION);
       setSelectionLevel(4);
@@ -421,6 +423,7 @@ const useNeighborhoodPreview = () => {
     chooseMapPoint: (latitude: number, longitude: number) => {
       if (phase === 'analyzing') return;
       locationIntent.current += 1;
+      setCurrentPosition(null);
       void client.cancelQueries({ queryKey: ['commute-areas'] });
       setSelectedId(null);
       setSelectedStopId(null);
