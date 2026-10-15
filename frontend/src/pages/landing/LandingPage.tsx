@@ -40,14 +40,16 @@ const LandingPage = () => {
           <p>자취할 동네를 찾고, 직접 본 방을 기록해요.</p>
         </header>
         <LandingDemo />
-        <Link className={styles.webButton} to="/explore" onClick={() => trackLandingCta('web', 'actions')}>
-          동네 찾아보기
-        </Link>
-        {session === null && (
-          <Link className={styles.loginLink} to="/login" onClick={() => trackLandingCta('login', 'actions')}>
-            이미 기록 중이라면 로그인하기
+        <div className={styles.actions}>
+          <Link className={styles.webButton} to="/explore" onClick={() => trackLandingCta('web', 'actions')}>
+            동네 찾아보기
           </Link>
-        )}
+          {session === null && (
+            <Link className={styles.loginLink} to="/login" onClick={() => trackLandingCta('login', 'actions')}>
+              이미 기록 중이라면 로그인하기
+            </Link>
+          )}
+        </div>
       </section>
     </main>
   );

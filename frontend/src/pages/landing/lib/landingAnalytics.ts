@@ -15,5 +15,5 @@ export const trackLandingCta = (
   );
 
 /** 자동 시연은 실제 기능 사용으로 수집하지 않는다. */
-export const trackLandingDemoInteraction = (action: 'step' | 'mode' | 'playback', value: string) =>
+export const trackLandingDemoInteraction = (action: 'mode', value: string) =>
   trackPostHogEvent('landing_demo_interacted', { action, value });

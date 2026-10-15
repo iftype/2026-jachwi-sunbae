@@ -10,7 +10,7 @@
   flex-direction: column;
   width: min(100%, 26rem);
   margin: 0 auto;
-  padding: env(safe-area-inset-top, 0px) 1rem max(1rem, env(safe-area-inset-bottom));
+  padding: env(safe-area-inset-top, 0px) 1rem 0;
 }
 .appRecommendationSlot {
   min-height: 3rem;
@@ -63,9 +63,17 @@
   line-height: 1.5;
   text-wrap: balance;
 }
+.actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  margin: auto -1rem 0;
+  padding: 0.75rem 1rem max(0.75rem, env(safe-area-inset-bottom));
+  background: linear-gradient(to bottom, rgb(255 255 255 / 0%), white 1rem);
+}
 .webButton {
   display: block;
-  margin-top: 2rem;
   padding: 1rem 0.5rem;
   background: #ffc329;
   color: var(--color-ink);
@@ -86,7 +94,7 @@
 }
 .loginLink {
   align-self: center;
-  margin-top: 0.75rem;
+  margin-top: 0.25rem;
   padding: 0.5rem;
   color: var(--color-ink-soft);
   font-size: 0.8rem;
