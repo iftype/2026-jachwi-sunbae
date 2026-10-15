@@ -51,11 +51,16 @@ it('내 매물로 지도·리스트와 주소 필터를 구성하고 홈으로 �
   const user = userEvent.setup();
   renderRecords();
   expect(await screen.findByText('신림역 원룸')).toBeInTheDocument();
-  expect(within(screen.getByRole('navigation', { name: '기록 보기 방식' })).getByRole('button', { name: /지도/ })).toHaveAttribute('aria-pressed', 'true');
+  expect(
+    within(screen.getByRole('navigation', { name: '기록 보기 방식' })).getByRole('button', { name: /지도/ }),
+  ).toHaveAttribute('aria-pressed', 'true');
   expect(screen.getByRole('link', { name: '홈으로 돌아가기' })).toHaveAttribute('href', '/design-preview');
   await user.click(screen.getByRole('button', { name: /리스트/ }));
   expect(screen.getByRole('heading', { name: '모든 기록' })).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: /망원동 투룸/ })).toHaveAttribute('href', expect.stringMatching(/^\/properties\/\d+$/));
+  expect(screen.getByRole('link', { name: /망원동 투룸/ })).toHaveAttribute(
+    'href',
+    expect.stringMatching(/^\/properties\/\d+$/),
+  );
   const districts = within(screen.getByRole('navigation', { name: '기록한 동네' }));
   await user.click(districts.getByRole('button', { name: '관악구' }));
   expect(screen.getByRole('heading', { name: '관악구 기록' })).toBeInTheDocument();
