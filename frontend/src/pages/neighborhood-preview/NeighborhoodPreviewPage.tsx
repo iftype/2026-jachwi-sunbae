@@ -15,7 +15,6 @@ import Toast from '@/shared/ui/toast/Toast';
 import useExplorationTutorial from './hooks/useExplorationTutorial';
 import useNeighborhoodPreview from './hooks/useNeighborhoodPreview';
 import { COMMUTE_COLORS, commuteLegend } from './model/commuteColors';
-import { PREVIEW_DESTINATION } from './model/preview';
 import type { NeighborhoodFilterField } from './NeighborhoodFilters';
 import NeighborhoodFilters from './NeighborhoodFilters';
 import ExplorationTip from './ui/exploration-tip/ExplorationTip';
@@ -151,7 +150,7 @@ const NeighborhoodPreviewPage = () => {
               <SearchField
                 className={styles.activeSearchField}
                 shape="pill"
-                showSubmitButton={preview.isPublicExplore}
+                showSubmitButton
                 label={preview.mode === 'commute' ? '출퇴근 장소' : '관심 지역'}
                 placeholder={preview.mode === 'commute' ? '출퇴근하는 장소 검색' : '관심 지역 검색'}
                 value={preview.query}
@@ -163,7 +162,7 @@ const NeighborhoodPreviewPage = () => {
                 autoFocus={preview.shouldFocusMapSearch}
               />
             </div>
-            {preview.isPublicExplore && !preview.hasChosenMapPoint && (
+            {!preview.hasChosenMapPoint && (
               <>
                 {preview.isSearching && (
                   <p className={styles.mapSearchResult} role="status">
@@ -185,17 +184,6 @@ const NeighborhoodPreviewPage = () => {
                   </button>
                 ))}
               </>
-            )}
-            {!preview.isPublicExplore && preview.query.trim() !== '' && !preview.hasChosenMapPoint && (
-              <button
-                className={styles.mapSearchResult}
-                onClick={() => {
-                  preview.searchDestination();
-                }}
-                disabled={!preview.matchesDestination}
-              >
-                {preview.matchesDestination ? PREVIEW_DESTINATION.name : '시안에서는 판교사옥을 검색할 수 있어요.'}
-              </button>
             )}
             {tutorial.isOpen && filterField === null && (tutorial.step !== 'location' || !preview.query.trim()) && (
               <ExplorationTip

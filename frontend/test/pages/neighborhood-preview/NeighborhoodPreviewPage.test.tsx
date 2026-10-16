@@ -6,6 +6,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, expect, it, vi } from 'vitest';
 
 import { commuteBoundaryFixtures } from '@/app/mocks/fixtures/commuteBoundaryFixtures';
+import { successEnvelope } from '@/app/mocks/fixtures/propertyFixtures';
 import { createCommuteAreaHandlers } from '@/app/mocks/handlers/commuteAreaHandlers';
 import NeighborhoodEntryPage from '@/pages/neighborhood-entry/NeighborhoodEntryPage';
 import NeighborhoodPreviewPage from '@/pages/neighborhood-preview/NeighborhoodPreviewPage';
@@ -285,12 +286,22 @@ it('지도에서 찍으면 선택 위치로 확대하고 바텀시트에서 필�
   expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
   expect(screen.getByLabelText('목적지 좌표')).toHaveTextContent('37.4');
 });
-it('검색으로도 위치를 선택할 수 있다', async () => {
-  show();
+it.each([false, true])('로그인 여부와 관계없이 주소 검색 결과로 위치를 선택한다 (공개 탐색: %s)', async (isPublic) => {
+  server.use(
+    http.get('http://localhost:8080/api/maps/geocode', ({ request }) => {
+      expect(new URL(request.url).searchParams.get('query')).toBe('신논현역');
+      return HttpResponse.json(
+        successEnvelope([{ roadAddress: '서울 강남구 봉은사로 102', latitude: 37.5045, longitude: 127.0249 }]),
+      );
+    }),
+  );
+  show('commute', isPublic);
   const user = userEvent.setup();
-  await user.type(screen.getByRole('textbox', { name: '출퇴근 장소' }), '판교');
+  await user.type(screen.getByRole('textbox', { name: '출퇴근 장소' }), '신논현역');
   await user.keyboard('{Enter}');
-  expect(screen.getByRole('button', { name: '통근 40분 이내' })).toBeInTheDocument();
+  await user.click(await screen.findByRole('button', { name: '서울 강남구 봉은사로 102' }));
+  expect(screen.getByLabelText('목적지 좌표')).toHaveTextContent('37.5045');
+  expect(screen.getByLabelText('지도 시점')).toHaveTextContent('"level":4');
 });
 it('통근 필터·조회·동네 선택 및 닫기에도 결과와 시점을 유지한다', async () => {
   show();
