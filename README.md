@@ -44,7 +44,6 @@
 ├── .github/              # Issue·PR 템플릿, 백엔드·프론트엔드·Markdown CI
 ├── backend/              # Spring Boot, MySQL, MinIO, CodeDeploy 파일
 ├── frontend/             # React, TypeScript, Webpack, S3·CloudFront 배포 파일
-├── mobile/               # React Native 기반 iOS WebView 앱 셸
 ├── qa/                   # AI E2E QA 기준 문서(docs/)와 Playwright 실행 코드
 ├── docs/
 │   ├── convention/       # 저장소 공통 규칙
@@ -84,19 +83,7 @@ npm run dev
 ```
 
 - 앱: `http://localhost:3000`
-- 공개 소개: `http://localhost:3000/intro`
 - Swagger UI: `http://localhost:8080/swagger-ui/index.html`
 - MinIO 콘솔: `http://localhost:9001`
 
 처음 보는 닉네임은 새 기록 공간을 만듭니다. 비밀번호를 비우면 같은 닉네임을 아는 사람이 기록을 함께 수정할 수 있고, 비밀번호를 입력하면 같은 닉네임이라도 비밀번호 없는 기록과 분리된 보호 기록을 사용합니다.
-
-### iOS 앱
-
-웹 화면과 API 로직은 그대로 재사용하고 앱 전용 동작만 `mobile/`에서 관리합니다. 자세한 설치, 실행, 버전 선정 이유와 App Store 제출 체크리스트는 [모바일 문서](mobile/README.md)를 참고합니다.
-
-```bash
-cd mobile
-npm ci
-cd ios && pod install && cd ..
-npm run ios
-```
