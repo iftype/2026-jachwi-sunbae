@@ -5,14 +5,13 @@
 Spring Boot가 기동 시 Flyway로 미적용 마이그레이션을 실행한다. 로컬·통합 테스트·dev·prod는 같은 SQL을 사용하며,
 적용 이력은 각 DB의 `flyway_schema_history`에 저장한다. Compose는 SQL 초기화를 실행하지 않는다.
 
-| 항목      | 현재 설정                                                        |
-| --------- | ---------------------------------------------------------------- |
-| SQL 경로  | `backend/src/main/resources/db/migration`                        |
-| 최초 버전 | `V1__initial_schema.sql`: 24개 테이블과 시스템 체크 항목         |
-| 현재 버전 | `V2__add_bus_stops_coordinate_index.sql`: 버스정류장 좌표 인덱스 |
-| 기준선    | `baseline-version=1`, `baseline-on-migrate=false`                |
-| 검증      | `validate-on-migrate=true`, `validate-migration-naming=true`     |
-| 보호 설정 | `clean-disabled=true`, `spring.sql.init.mode=never`              |
+| 항목      | 현재 설정                                                    |
+| --------- | ------------------------------------------------------------ |
+| SQL 경로  | `backend/src/main/resources/db/migration`                    |
+| 최초 버전 | `V1__initial_schema.sql`: 24개 테이블과 시스템 체크 항목     |
+| 기준선    | `baseline-version=1`, `baseline-on-migrate=false`            |
+| 검증      | `validate-on-migrate=true`, `validate-migration-naming=true` |
+| 보호 설정 | `clean-disabled=true`, `spring.sql.init.mode=never`          |
 
 백엔드는 `JdbcTemplate`을 사용하며 JPA·Hibernate의 `ddl-auto`는 사용하지 않는다.
 
@@ -85,61 +84,10 @@ sudo systemctl restart jachwi-sunbae.service
 ```
 
 빈 DB에서는 V1이 실제 실행되므로 이력 유형이 `SQL`이다.
-버전 1 기준선을 등록하면 같은 기동에서 V2가 이어서 실행된다. 정상 결과는 `1 BASELINE 1`, `2 SQL 1`이다.
-
-## V2 버스정류장 좌표 인덱스
-
-`GET /api/maps/bus-stops`의 좌표 범위 조회가 `bus_stops` 전체를 스캔하지 않도록 `idx_bus_stops_latitude_longitude (latitude, longitude)`를 추가한다.
-`ALGORITHM=INPLACE, LOCK=NONE`으로 생성하므로 생성 중에도 조회·쓰기를 막지 않는다. 앱 기동 시 실행되므로 인덱스 생성이 끝난 뒤 health가 `UP`이 된다.
-
-### 적용 전 확인
-
-V2는 인덱스가 없는 DB를 전제로 한다. 같은 이름의 인덱스가 이미 있으면 `Duplicate key name` 오류로 기동이 실패한다.
-MySQL은 DDL을 롤백하지 못하므로 실패한 V2가 `success = 0`으로 이력에 남고, 이후 기동도 검증에서 실패한다.
-이때 임의로 `repair`하지 않고 [롤백 절차](rollback.md#데이터베이스-변경이-포함된-롤백)를 따른다.
-
-dev·prod는 Flyway 이력과 인덱스 존재 여부를 확인하지 않았다. V2가 포함된 리비전을 배포하기 전에 대상 DB에서 두 결과를 확인한다.
-
-```sql
-SELECT version, type, success
-FROM flyway_schema_history
-ORDER BY installed_rank;
-
-SELECT index_name, seq_in_index, column_name
-FROM information_schema.statistics
-WHERE table_schema = DATABASE()
-  AND table_name = 'bus_stops'
-ORDER BY index_name, seq_in_index;
-```
-
-| Flyway 이력     | 좌표 인덱스 | 처리                                                                      |
-| --------------- | ----------- | ------------------------------------------------------------------------- |
-| 버전 1까지 있음 | 없음        | 그대로 배포한다. 기동 시 V2가 실행된다.                                   |
-| 없음            | 없음        | [기존 DB의 최초 전환](#기존-db의-최초-전환)대로 버전 1 기준선을 등록한다. |
-| 없음            | 있음        | 아래 버전 2 기준선 편입을 따른다.                                         |
-| 버전 1까지 있음 | 있음        | 배포하지 않는다. 수동 인덱스의 출처를 확인하고 처리 방법을 정한다.        |
-
-### 수동 인덱스가 이미 있는 DB의 버전 2 편입
-
-성능 테스트 RDS `jachwi-sunbae-db-sprint2` (`jachwi_sunbae_dev` 스키마)가 해당한다. 마지막 확인 당시 `flyway_schema_history`가 없었고 V2와 같은 인덱스를 수동 DDL로 만들었다.
-이 DB에 버전 1 기준선을 등록하면 V2가 다시 실행되어 위 오류가 난다.
-
-1. 스냅샷을 만든다.
-2. 위 조회로 `flyway_schema_history`가 없고, `idx_bus_stops_latitude_longitude`가 `latitude`, `longitude` 순서인지 확인한다. 나머지 스키마가 V1과 같은지도 확인한다.
-3. Flyway가 포함된 리비전의 첫 기동에만 다음 두 값을 지정한다.
-
-   ```ini
-   Environment=SPRING_FLYWAY_BASELINE_ON_MIGRATE=true
-   Environment=SPRING_FLYWAY_BASELINE_VERSION=2
-   ```
-
-4. 이력이 버전 `2`, 유형 `BASELINE`, 성공 `1` 한 줄인지 확인하고 두 값을 제거한 뒤 재시작한다.
-
-이 이력은 V1·V2 SQL을 Flyway가 실행했다는 뜻이 아니다. 기존 스키마와 수동 인덱스를 버전 2 상태로 인정한 기록이며, Flyway는 실제 스키마를 비교하지 않는다. 그래서 2단계 확인을 생략하지 않는다.
 
 ## 이후 변경 SQL 작성
 
-현재 버전은 V2이며 다음 변경은 `V3__설명.sql`부터 추가한다. 파일명은 `V<버전>__<설명>.sql` 형식이며 밑줄 두 개를 사용한다.
+현재 버전은 V1이며 다음 변경은 `V2__설명.sql`부터 추가한다. 파일명은 `V<버전>__<설명>.sql` 형식이며 밑줄 두 개를 사용한다.
 
 - 버전이 겹치지 않도록 적용 순서를 조율한다. DB 변경이 없으면 새 SQL을 만들지 않는다.
 - 적용된 V1과 이후 SQL은 수정·이동·삭제하지 않고 다음 버전을 추가한다.

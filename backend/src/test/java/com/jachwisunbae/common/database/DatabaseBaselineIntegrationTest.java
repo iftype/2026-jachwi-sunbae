@@ -10,6 +10,7 @@ import javax.sql.DataSource;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.FlywayException;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.flyway.FlywayMigrationStrategy;
 import org.springframework.core.io.ClassPathResource;
@@ -42,6 +43,7 @@ class DatabaseBaselineIntegrationTest {
     }
 
     @Test
+    @DisplayName("빈 DB에 마이그레이션하면 시스템 체크 항목만 기본 데이터로 들어간다")
     void migratesAnEmptyDatabaseWithSystemItems() {
         flyway().migrate();
 
@@ -52,6 +54,7 @@ class DatabaseBaselineIntegrationTest {
     }
 
     @Test
+    @DisplayName("빈 DB에 V1부터 V2까지 적용하면 버스정류장 좌표 인덱스가 위도·경도 순서로 생성된다")
     void migratesAnEmptyDatabaseUpToBusStopCoordinateIndex() {
         flyway().migrate();
 
@@ -60,6 +63,7 @@ class DatabaseBaselineIntegrationTest {
     }
 
     @Test
+    @DisplayName("기존 스키마 DB에 버전 1 기준선을 등록하면 기존 데이터를 유지한 채 V2만 적용한다")
     void oneTimeBaselinePreservesExistingMembersChecklistsAndSystemItems() {
         new ResourceDatabasePopulator(
                 new ClassPathResource("db/migration/V1__initial_schema.sql")).execute(dataSource);
@@ -97,6 +101,7 @@ class DatabaseBaselineIntegrationTest {
 
     // 성능 테스트 RDS처럼 Flyway 이력 없이 V2 인덱스를 수동으로 먼저 만든 DB
     @Test
+    @DisplayName("좌표 인덱스를 수동으로 만든 DB는 버전 1 기준선에서 실패하고 버전 2 기준선으로 편입된다")
     void manuallyIndexedDatabaseFailsOnVersion1BaselineAndJoinsOnVersion2Baseline() {
         new ResourceDatabasePopulator(
                 new ClassPathResource("db/migration/V1__initial_schema.sql")).execute(dataSource);
@@ -122,6 +127,7 @@ class DatabaseBaselineIntegrationTest {
     }
 
     @Test
+    @DisplayName("로컬 기동 시 마이그레이션 후 샘플을 적재하고 재기동해도 수정한 샘플을 유지한다")
     void localStartupLoadsSamplesAfterMigrationsAndPreservesThemOnRestart() {
         FlywayMigrationStrategy strategy = new LocalDatabaseSampleConfig().localSampleMigrationStrategy();
 
@@ -146,6 +152,7 @@ class DatabaseBaselineIntegrationTest {
     }
 
     @Test
+    @DisplayName("로컬 기동 시 기존 데이터가 있는 테이블은 두고 빈 샘플 테이블만 채운다")
     void localStartupKeepsExistingDataAndFillsOnlyEmptySampleTables() {
         Flyway flyway = flyway();
         flyway.migrate();
