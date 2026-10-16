@@ -87,7 +87,7 @@ AWS S3는 EC2 `ec2-project` instance role로 접근하므로 `PHOTO_STORAGE_ENDP
 백엔드는 네이버 API를 사용하지 않는다.
 
 `src/main/resources/db/migration/V1__initial_schema.sql`은 기존 스키마와 시스템 체크 항목을 고정한 최초 마이그레이션이다.
-백엔드 기동 시 Flyway가 아직 적용하지 않은 버전을 실행한다. 새 변경은 `V2__설명.sql`부터 추가한다.
+백엔드 기동 시 Flyway가 아직 적용하지 않은 버전을 실행한다. 새 변경은 `V3__설명.sql`부터 추가한다.
 `docker/mysql/init/003-bus-stops-sample.sql`, `004-good-price-stores-sample.sql`, `005-cctvs-sample.sql`은 로컬 샘플이며 애플리케이션 JAR에 포함하지 않는다.
 `local` 프로필에서는 Flyway 실행 후 각 테이블이 비어 있을 때만 자동 적재한다. 작업 디렉터리는 `backend`여야 한다.
 `prod` 프로필에서는 이 샘플 적재를 실행하지 않는다.
