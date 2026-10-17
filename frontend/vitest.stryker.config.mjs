@@ -1,4 +1,4 @@
-import { defineConfig, mergeConfig } from 'vitest/config';
+import { configDefaults, defineConfig, mergeConfig } from 'vitest/config';
 
 import baseConfig from './vitest.config.mjs';
 
@@ -10,7 +10,7 @@ export default mergeConfig(
   defineConfig({
     test: {
       include: ['test/**/{api,lib,model,hooks}/**/*.test.{ts,tsx}', 'test/pages/**/*.test.ts'],
-      exclude: ['**/node_modules/**', 'test/**/ui/**'],
+      exclude: [...configDefaults.exclude, '.stryker-tmp/**', 'reports/**', 'test/**/ui/**'],
     },
   }),
 );
