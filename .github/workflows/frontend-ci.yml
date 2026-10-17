@@ -104,3 +104,87 @@ jobs:
       - name: Build
         if: steps.changes.outputs.frontend == 'true'
         run: npm run build
+
+  mutation:
+    name: Mutation test changed logic
+    # 바뀐 로직 파일에만 뮤테이션 테스트를 돌려 살아남은 변이를 리뷰 입력으로 남긴다.
+    # 점수는 병합 조건이 아니라서 실패해도 PR을 막지 않는다.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      API_BASE_URL: http://localhost:8080
+      POSTHOG_PROJECT_TOKEN: ci-example-posthog-token
+      POSTHOG_HOST: https://us.i.posthog.com
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed logic files
+        id: changes
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          CHANGED_FILES="$(git diff --name-only --diff-filter=ACMR "origin/${BASE_REF}...HEAD" -- src)"
+          if grep -Eq '^frontend/src/.*/(api|lib|model|hooks)/.*\.ts$' <<< "${CHANGED_FILES}"; then
+            echo "logic=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "logic=false" >> "${GITHUB_OUTPUT}"
+            echo "바뀐 로직 파일이 없어 뮤테이션 테스트를 생략한다." >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+      - name: Set up Node.js
+        if: steps.changes.outputs.logic == 'true'
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        if: steps.changes.outputs.logic == 'true'
+        run: npm ci
+
+      - name: Restore incremental mutation report
+        if: steps.changes.outputs.logic == 'true'
+        uses: actions/cache@v5
+        with:
+          path: frontend/reports/mutation/incremental.json
+          key: mutation-incremental-${{ github.head_ref }}-${{ github.sha }}
+          restore-keys: |
+            mutation-incremental-${{ github.head_ref }}-
+            mutation-incremental-${{ github.base_ref }}-
+
+      - name: Run mutation tests on changed logic files
+        if: steps.changes.outputs.logic == 'true'
+        env:
+          MUTATION_BASE: origin/${{ github.base_ref }}
+        run: node scripts/mutation-changed.mjs "${MUTATION_BASE}" 2>&1 | tee mutation.log
+
+      - name: Write mutation summary
+        if: steps.changes.outputs.logic == 'true' && always()
+        run: |
+          {
+            echo "## 뮤테이션 테스트 결과"
+            echo
+            echo '```text'
+            sed -E 's/\x1B\[[0-9;]*[A-Za-z]//g' mutation.log | grep -vE '^\s*$|Mutation testing +\[' | tail -n 120
+            echo '```'
+            echo
+            echo "살아남은 변이는 테스트가 잡지 못한 동작 변경이다. HTML 보고서는 workflow artifacts에서 받을 수 있다."
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload mutation report
+        if: steps.changes.outputs.logic == 'true' && always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: mutation-report
+          path: frontend/reports/mutation/index.html
+          if-no-files-found: ignore
