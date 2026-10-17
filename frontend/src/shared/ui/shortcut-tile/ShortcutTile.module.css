@@ -1,0 +1,60 @@
+.shortcut {
+  display: grid;
+  grid-template-rows: auto auto;
+  justify-items: center;
+  align-content: start;
+  gap: 0.4rem;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--color-ink);
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+.shortcut:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 3px;
+}
+/* 타일 크기는 칸 너비로만 정해져서 이름이 길어져도 줄어들거나 넘치지 않는다. */
+.tile {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: var(--radius-tile);
+  overflow: hidden;
+  background: var(--color-card-surface);
+  transition: transform 150ms ease;
+}
+/* 아이콘은 타일 크기를 기준으로 채우되 가장자리에 약간 여백을 둔다. */
+.tile > img {
+  width: 78%;
+  height: 78%;
+}
+/* 긴 이름은 단어 단위로 최대 두 줄까지 보이고 넘치면 말줄임한다. */
+.label {
+  display: -webkit-box;
+  width: 100%;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.03em;
+  text-align: center;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+@media (hover: hover) {
+  .shortcut:hover .tile {
+    transform: translateY(-2px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tile {
+    transition: none;
+  }
+}

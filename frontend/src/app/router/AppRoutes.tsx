@@ -12,8 +12,9 @@ import { isChecklistStage } from '@/features/checklist/model/checklist';
 import LazyRouteBoundary from './LazyRouteBoundary';
 import ProtectedRoute from './ProtectedRoute';
 
-const IntroPage = lazy(() => import('@/pages/intro/IntroPage'));
 const ServiceIntroductionPage = lazy(() => import('@/pages/landing/LandingPage'));
+const DesignHomePage = lazy(() => import('@/pages/design-home/DesignHomePage'));
+const DesignRecordsPage = lazy(() => import('@/pages/design-records/DesignRecordsPage'));
 const NeighborhoodPreviewPage = lazy(() => import('@/pages/neighborhood-preview/NeighborhoodPreviewPage'));
 const NeighborhoodEntryPage = lazy(() => import('@/pages/neighborhood-entry/NeighborhoodEntryPage'));
 const NeighborhoodRoutePage = lazy(() => import('@/pages/neighborhood-preview/NeighborhoodRoutePage'));
@@ -84,12 +85,13 @@ const AppRoutes = () => (
         <Route path="prices/:legalDongCode" element={lazyPage(<NeighborhoodPricePage />)} />
       </Route>
     </Route>
-    <Route path="/intro" element={lazyPage(<IntroPage />)} />
     <Route path="/landing" element={<LandingRoute />} />
     <Route path="/about" element={lazyPage(<ServiceIntroductionPage />)} />
     <Route path="/privacy" element={lazyPage(<PrivacyPage />)} />
     <Route path="/login" element={<LoginRoute />} />
     <Route element={<ProtectedRoute />}>
+      <Route path="/design-preview" element={lazyPage(<DesignHomePage />)} />
+      <Route path="/design-preview/records" element={lazyPage(<DesignRecordsPage />)} />
       <Route element={<PropertyAppLayout />}>
         <Route
           path="/properties"

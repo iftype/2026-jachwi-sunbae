@@ -10,6 +10,8 @@
   --color-brand-800: #1f1f1f;
   --color-brand-900: #111;
   --color-brand-yellow: #f5b91e;
+  /* 오리 부리보다 채도를 조금 낮춘 파랑. 안내 카드처럼 노랑과 짝을 이루는 보조 브랜드색이다. */
+  --color-brand-blue: #6b9ae6;
   --color-danger: #c96b6b;
 
   /* Change this single accent to retheme selected tabs, progress indicators and soft actions together. */
@@ -65,6 +67,15 @@
   --color-check-unconfirmed: #c6c6c6;
   --color-check-unconfirmed-ink: #666;
 
+  /* Card-style home: 기능 카드·바로가기 타일·레일 카드가 함께 쓰는 표면과 강조색. */
+  --color-card-surface: #f1f2f4;
+  --color-card-surface-hover: #e8ebef;
+  --color-card-brand-surface: var(--color-brand-yellow);
+  --color-card-informative-surface: var(--color-brand-blue);
+  --color-on-card-accent: #fff;
+  --color-page-subtle: #f0f2f5;
+  --color-price: #5279d2;
+
   --color-overlay: rgb(17 20 29 / 56%);
   --color-overlay-strong: rgb(17 20 29 / 78%);
   --color-surface-translucent: rgb(255 255 255 / 96%);
@@ -72,6 +83,8 @@
   --radius-sm: 0.65rem;
   --radius-md: 0.85rem;
   --radius-lg: 1.05rem;
+  --radius-card: 1.15rem;
+  --radius-tile: 1rem;
   --space-xs: 0.4rem;
   --space-sm: 0.75rem;
   --space-md: 1rem;

@@ -292,8 +292,11 @@ describe('매물 체크리스트 연결과 자동 저장', () => {
         ),
       ),
     );
+    const user = userEvent.setup();
     renderAuthenticated('/properties/10');
 
+    // 체크리스트는 매물 상세의 `체크리스트` 탭에서 보인다.
+    await user.click(await screen.findByRole('tab', { name: '체크리스트' }));
     const sectionHeading = await screen.findByRole('heading', { name: '체크리스트' });
     const section = sectionHeading.closest('section');
     expect(section).not.toBeNull();

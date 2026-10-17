@@ -408,31 +408,11 @@
   color: var(--color-muted);
 }
 .areaCards {
-  display: flex;
-  gap: 0.55rem;
-  overflow-x: auto;
-  scroll-snap-type: x proximity;
-  scroll-padding-inline: 0.5rem;
   padding: 0 0.5rem 0.5rem;
-  scrollbar-width: none;
-  cursor: grab;
-  user-select: none;
-  touch-action: pan-x pan-y;
-}
-.areaCards[data-dragging='true'] {
-  cursor: grabbing;
-  scroll-snap-type: none;
-}
-.areaCards[data-dragging='true'] .areaCard {
-  cursor: grabbing;
-}
-.areaCards::-webkit-scrollbar {
-  display: none;
+  scroll-padding-inline: 0.5rem;
 }
 .areaCard {
   flex: 0 0 8.5rem;
-  cursor: grab;
-  scroll-snap-align: start;
 }
 .resultControls {
   position: absolute;
@@ -753,4 +733,11 @@
   background: white;
   border-radius: 0.75rem;
   font-size: 0.8rem;
+}
+/* 분석 중·실패 화면은 지도를 없애지 않고 덮는다. 지도는 뒤에서 계속 준비된다. */
+.mapOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  background: var(--color-surface, #fff);
 }

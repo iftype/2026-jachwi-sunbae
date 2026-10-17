@@ -114,3 +114,58 @@
     box-shadow: 0 0 2rem rgb(59 52 36 / 8%);
   }
 }
+
+@media (max-width: 600px) {
+  .root[data-wide-property-page='true'] {
+    width: 100%;
+  }
+}
+
+/* 카드형 홈 시안 셸: 바텀탭 대신 상단 홈 버튼으로 시안 홈에 돌아간다. */
+.root[data-design-shell='true'] {
+  display: flex;
+  flex-direction: column;
+  --bottom-navigation-height: 0px;
+  /* 카드형 홈과 같은 테두리 없는 회색 카드로 기존 화면의 표면을 맞춘다. */
+  --color-surface: #f1f2f4;
+  --color-border: transparent;
+  --radius-md: 1rem;
+  --radius-lg: 1.15rem;
+}
+
+.root[data-design-shell='true'][data-wide-property-page='true'],
+.root[data-design-shell='true'][data-map-page='true'] {
+  /* 매물 목록·상세는 이미 시안에 맞춘 화면이고 지도는 시트가 지도 위에 떠야 하므로 표면을 흰색으로 둔다. */
+  --color-surface: #fff;
+  --color-border: #eaebed;
+}
+
+.root[data-design-shell='true'] .content {
+  flex: 1;
+  min-height: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.root[data-design-shell='true'][data-map-page='true'] .content {
+  --map-sheet-bottom: env(safe-area-inset-bottom);
+  padding-bottom: 0;
+}
+
+.designBar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  height: 3.25rem;
+  padding: env(safe-area-inset-top) 1rem 0;
+  background: var(--color-canvas);
+}
+
+.designHome {
+  display: inline-flex;
+  align-items: center;
+  margin-left: -0.35rem;
+  padding: 0.25rem 0.35rem;
+  border-radius: 0.75rem;
+  color: var(--color-ink);
+  text-decoration: none;
+}

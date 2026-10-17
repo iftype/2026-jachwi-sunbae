@@ -1,0 +1,11 @@
+/* 빠른 메뉴는 한 줄 4칸 그리드에 바로가기 타일을 왼쪽부터 채운다. */
+.menu {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-top: 1.25rem;
+}
+/* 빈칸은 타일 크기만큼 자리만 차지하고 보이거나 반응하지 않는다. */
+.emptySlot {
+  aspect-ratio: 1;
+}

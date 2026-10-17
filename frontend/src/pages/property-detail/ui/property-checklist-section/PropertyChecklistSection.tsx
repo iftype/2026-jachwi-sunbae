@@ -1,10 +1,12 @@
-import { useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
 
+import PropertyChecklistItemControl from '@/pages/property-checklist/ui/property-checklist-item-control/PropertyChecklistItemControl';
 import { useAssignActiveChecklist } from '@/features/checklist/api/useChecklistMutations';
 import { clearLastSelectedChecklist, readLastSelectedChecklist } from '@/features/checklist/model/lastChecklistStore';
 import ChecklistProgressBar from '@/features/checklist/ui/checklist-progress-bar/ChecklistProgressBar';
-import { usePropertyChecklistOverview } from '@/features/property/api/useProperties';
+import { usePropertyChecklistDetail, usePropertyChecklistOverview } from '@/features/property/api/useProperties';
+import { getChecklistStageLabel } from '@/features/property/lib/propertyFormat';
+import type { PropertyChecklistItem } from '@/features/property/model/Property';
 import { Button, ButtonLink } from '@/shared/ui/button/Button';
 import DetailSection from '@/shared/ui/detail-section/DetailSection';
 import Icon from '@/shared/ui/icon/Icon';
@@ -16,11 +18,12 @@ type PropertyChecklistSectionProps = {
 };
 
 const PropertyChecklistSection = ({ propertyId }: PropertyChecklistSectionProps) => {
-  const navigate = useNavigate();
   const checklists = usePropertyChecklistOverview(propertyId);
   const assignDefaultChecklist = useAssignActiveChecklist(propertyId, 'ON_SITE');
   const assignmentStarted = useRef(false);
+  const [editingMemoItemId, setEditingMemoItemId] = useState<number | null>(null);
   const onSiteChecklist = checklists.data?.stages.find((item) => item.stage === 'ON_SITE');
+  const propertyChecklistId = onSiteChecklist?.applied ? onSiteChecklist.propertyChecklistId : null;
 
   useEffect(() => {
     if (
@@ -63,19 +66,16 @@ const PropertyChecklistSection = ({ propertyId }: PropertyChecklistSectionProps)
         {assignDefaultChecklist.isError && (
           <p className={styles.retry}>체크리스트를 시작하지 못했어요. 다시 눌러 주세요.</p>
         )}
-        {!checklists.isError &&
-          (onSiteChecklist?.applied === true && onSiteChecklist.propertyChecklistId !== null ? (
-            <ButtonLink
-              className={styles.mainAction}
-              variant="primary"
-              fullWidth
-              to={`/properties/${propertyId}/checklists/${onSiteChecklist.propertyChecklistId}`}
-              state={{ from: 'property-detail' }}
-            >
-              체크리스트
-              <Icon name="arrow-right" size={16} />
-            </ButtonLink>
-          ) : (
+        {!checklists.isError && propertyChecklistId !== null ? (
+          <AppliedChecklistItems
+            propertyId={propertyId}
+            propertyChecklistId={propertyChecklistId}
+            editingMemoItemId={editingMemoItemId}
+            onStartMemoEdit={setEditingMemoItemId}
+            onFinishMemoEdit={() => setEditingMemoItemId(null)}
+          />
+        ) : (
+          !checklists.isError && (
             <Button
               className={styles.mainAction}
               variant="primary"
@@ -83,21 +83,14 @@ const PropertyChecklistSection = ({ propertyId }: PropertyChecklistSectionProps)
               isLoading={assignDefaultChecklist.isPending}
               loadingLabel="준비 중…"
               onClick={() => {
-                void assignDefaultChecklist
-                  .mutateAsync('SYSTEM_DEFAULT')
-                  .then((applied) => {
-                    navigate(`/properties/${propertyId}/checklists/${applied.propertyChecklistId}`, {
-                      replace: true,
-                      state: { from: 'property-detail' },
-                    });
-                  })
-                  .catch(() => undefined);
+                void assignDefaultChecklist.mutateAsync('SYSTEM_DEFAULT').catch(() => undefined);
               }}
             >
               체크리스트
               <Icon name="arrow-right" size={16} />
             </Button>
-          ))}
+          )
+        )}
       </DetailSection>
 
       <div className={styles.contractSection}>
@@ -112,6 +105,65 @@ const PropertyChecklistSection = ({ propertyId }: PropertyChecklistSectionProps)
         </ButtonLink>
       </div>
     </>
+  );
+};
+
+const AppliedChecklistItems = ({
+  propertyId,
+  propertyChecklistId,
+  editingMemoItemId,
+  onStartMemoEdit,
+  onFinishMemoEdit,
+}: {
+  propertyId: number;
+  propertyChecklistId: number;
+  editingMemoItemId: number | null;
+  onStartMemoEdit: (itemId: number) => void;
+  onFinishMemoEdit: () => void;
+}) => {
+  const checklist = usePropertyChecklistDetail(propertyId, propertyChecklistId);
+
+  if (checklist.isPending) {
+    return <p className={styles.loading}>체크리스트를 불러오는 중이에요.</p>;
+  }
+
+  if (checklist.isError) {
+    return (
+      <button className={styles.retry} type="button" onClick={() => void checklist.refetch()}>
+        체크리스트를 불러오지 못했어요. 다시 시도
+      </button>
+    );
+  }
+
+  const detail = checklist.data;
+  const completedCount = detail.items.filter((item) => item.status !== 'UNCONFIRMED').length;
+
+  return (
+    <div className={styles.expandedChecklist}>
+      <header className={styles.expandedHeader}>
+        <div>
+          <span>{getChecklistStageLabel(detail.stage)}</span>
+          <h3>{detail.checklistName}</h3>
+        </div>
+        <strong>
+          {completedCount}/{detail.items.length}
+        </strong>
+      </header>
+      <ol className={styles.items}>
+        {detail.items.map((item: PropertyChecklistItem) => (
+          <PropertyChecklistItemControl
+            key={item.itemId}
+            propertyId={propertyId}
+            propertyChecklistId={propertyChecklistId}
+            item={item}
+            isMemoEditing={editingMemoItemId === item.itemId}
+            isMemoEditDisabled={editingMemoItemId !== null && editingMemoItemId !== item.itemId}
+            onStartMemoEdit={() => onStartMemoEdit(item.itemId)}
+            onFinishMemoEdit={onFinishMemoEdit}
+          />
+        ))}
+      </ol>
+    </div>
   );
 };
 

@@ -1,10 +1,10 @@
 import { useMatch, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 
 import ExplorationRecordAction from '@/features/onboarding/ui/exploration-record-action/ExplorationRecordAction';
+import useHorizontalDrag from '@/shared/lib/hooks/useHorizontalDrag';
 import { Button } from '@/shared/ui/button/Button';
 import Icon from '@/shared/ui/icon/Icon';
 
-import useHorizontalDrag from './hooks/useHorizontalDrag';
 import useNeighborhoodDetailAnalytics from './hooks/useNeighborhoodDetailAnalytics';
 import type { NeighborhoodPreviewContext } from './hooks/useNeighborhoodPreview';
 
