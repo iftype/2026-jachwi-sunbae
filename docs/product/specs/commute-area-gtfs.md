@@ -150,7 +150,13 @@ KTDB 데이터의 342건은 모두 `transfer_type` 2이고 `min_transfer_time`�
 
 ## 3. 파싱 흐름
 
-운영자가 서버에서 `app.jar`를 적재 모드(`--transit.gtfs.import-on-startup=true`)로 실행하면 지정한 디렉터리의 파일을 아래 순서로 읽는다. 파일마다 처음부터 끝까지 한 번만 읽고, 1.4GB인 `stop_times.txt`도 한 줄씩 흘려 읽어 전체를 메모리에 올리지 않는다.
+운영자가 서버에서 일회성 적재 명령을 실행하면 행정동 경계를 먼저 적재한 뒤 지정한 디렉터리의 GTFS 파일을 아래 순서로 읽는다. 파일마다 처음부터 끝까지 한 번만 읽고, 1.4GB인 `stop_times.txt`도 한 줄씩 흘려 읽어 전체를 메모리에 올리지 않는다.
+
+```bash
+sudo /opt/jachwi-sunbae/scripts/import-transit-network.sh \
+  --transit.admin-dong.file=/path/to/admin-dongs.geojson \
+  --transit.gtfs.directory=/path/to/gtfs
+```
 
 | 단계 | 읽는 파일        | 하는 일                                                                              | 결과                 |
 | ---- | ---------------- | ------------------------------------------------------------------------------------ | -------------------- |
