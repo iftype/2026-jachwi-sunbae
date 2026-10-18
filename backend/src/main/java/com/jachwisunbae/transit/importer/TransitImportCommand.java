@@ -1,9 +1,9 @@
 package com.jachwisunbae.transit.importer;
 
 import com.jachwisunbae.JachwiSunbaeBackendApplication;
-import com.jachwisunbae.transit.service.importing.AdminDongImportService;
-import com.jachwisunbae.transit.service.importing.GtfsImportService;
-import com.jachwisunbae.transit.service.importing.dto.result.GtfsImportResult;
+import com.jachwisunbae.transit.service.AdminDongImportService;
+import com.jachwisunbae.transit.service.GtfsImportService;
+import com.jachwisunbae.transit.service.dto.result.GtfsImportResult;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -1,8 +1,8 @@
 package com.jachwisunbae.transit.controller.dto.response;
 
-import com.jachwisunbae.transit.domain.search.CommuteRoute;
-import com.jachwisunbae.transit.domain.search.RouteLeg;
-import com.jachwisunbae.transit.domain.search.RoutePoint;
+import com.jachwisunbae.transit.domain.CommuteRoute;
+import com.jachwisunbae.transit.domain.RouteLeg;
+import com.jachwisunbae.transit.domain.RoutePoint;
 import java.util.List;
 
 public record CommuteRouteResponse(int totalMinutes, int transferCount, List<Leg> legs) {

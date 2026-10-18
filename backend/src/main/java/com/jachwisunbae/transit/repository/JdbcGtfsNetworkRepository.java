@@ -1,10 +1,10 @@
 package com.jachwisunbae.transit.repository;
 
 import com.jachwisunbae.transit.domain.GtfsEdge;
+import com.jachwisunbae.transit.domain.GtfsFeed;
 import com.jachwisunbae.transit.domain.GtfsRoute;
 import com.jachwisunbae.transit.domain.GtfsStop;
 import com.jachwisunbae.transit.domain.GtfsTransfer;
-import com.jachwisunbae.transit.domain.importing.GtfsFeed;
 import com.jachwisunbae.transit.domain.vo.Coordinate;
 import com.jachwisunbae.transit.domain.vo.Seconds;
 import java.sql.PreparedStatement;

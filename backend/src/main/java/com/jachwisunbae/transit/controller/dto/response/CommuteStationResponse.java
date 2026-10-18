@@ -1,7 +1,7 @@
 package com.jachwisunbae.transit.controller.dto.response;
 
 import com.jachwisunbae.transit.domain.GtfsStop;
-import com.jachwisunbae.transit.domain.search.ReachableStop;
+import com.jachwisunbae.transit.domain.ReachableStop;
 
 public record CommuteStationResponse(String stopId, String stopName, double latitude, double longitude,
                                      int travelMinutes, String direction) {

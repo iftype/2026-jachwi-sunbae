@@ -2,10 +2,10 @@ package com.jachwisunbae.transit.provider.gtfs;
 
 import com.jachwisunbae.common.exception.errorcode.ErrorCode;
 import com.jachwisunbae.common.exception.server.InternalSystemException;
+import com.jachwisunbae.transit.domain.GtfsFeed;
 import com.jachwisunbae.transit.domain.GtfsRoute;
 import com.jachwisunbae.transit.domain.GtfsStop;
 import com.jachwisunbae.transit.domain.GtfsTransfer;
-import com.jachwisunbae.transit.domain.importing.GtfsFeed;
 import com.jachwisunbae.transit.provider.gtfs.aggregation.StopTimeAccumulator;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
