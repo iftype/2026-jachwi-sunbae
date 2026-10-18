@@ -3,7 +3,6 @@ import { useLocation } from 'react-router-dom';
 
 import { trackExplorationRecordView } from '@/features/onboarding/lib/explorationJourney';
 import MoneyField from '@/features/property/ui/money-field/MoneyField';
-import useIsMobileViewport from '@/shared/lib/hooks/useIsMobileViewport';
 import { useKeyboardInset } from '@/shared/lib/hooks/useKeyboardInset';
 import BottomActionArea from '@/shared/ui/bottom-action-area/BottomActionArea';
 import { Button } from '@/shared/ui/button/Button';
@@ -15,17 +14,15 @@ import PropertyLocationPicker from './ui/property-location-picker/PropertyLocati
 
 import styles from './CreatePropertyPage.module.css';
 
-const stepNotice = (revealedStep: number, isReadyToSubmit: boolean, isMobileViewport: boolean) => {
+const stepNotice = (revealedStep: number, isReadyToSubmit: boolean) => {
   if (isReadyToSubmit) return '필수 정보를 모두 입력했다면 매물을 등록해 주세요.';
-  const action = isMobileViewport ? '키패드의 확인을 눌러 주세요.' : '다음을 눌러 주세요.';
-  if (revealedStep === 0) return `보증금을 입력한 뒤 ${action}`;
-  if (revealedStep === 1) return `월세를 입력한 뒤 ${action}`;
+  if (revealedStep === 0) return '보증금을 입력한 뒤 다음을 눌러 주세요.';
+  if (revealedStep === 1) return '월세를 입력한 뒤 다음을 눌러 주세요.';
   return '위치를 선택한 뒤 다음을 눌러 주세요.';
 };
 
 const CreatePropertyPage = () => {
   const routeState = (useLocation().state as PropertyCreationRouteState | null) ?? {};
-  const isMobileViewport = useIsMobileViewport();
   const keyboardInset = useKeyboardInset();
   const form = usePropertyCreationForm(routeState);
   const { values, errors, revealedStep, nameStep } = form;
@@ -111,15 +108,21 @@ const CreatePropertyPage = () => {
             </p>
           )}
           <p className={styles.stepNotice}>
-            {stepNotice(revealedStep, isNameStep && form.location.status === 'ready', isMobileViewport)}
+            {stepNotice(revealedStep, isNameStep && form.location.status === 'ready')}
           </p>
-          {keyboardInset === 0 && (isNameStep || revealedStep >= 2 || !isMobileViewport) && (
-            <BottomActionArea>
-              <Button variant="primary" type="submit" fullWidth isLoading={form.isCreating}>
-                {isNameStep ? '매물 등록' : '다음'}
-              </Button>
-            </BottomActionArea>
-          )}
+          {/* iOS 숫자 키패드에는 확인 키가 없어서, 키패드가 열려 있어도 버튼을 키패드 바로 위에 띄운다. */}
+          <BottomActionArea>
+            <Button
+              variant="primary"
+              type="submit"
+              fullWidth
+              isLoading={form.isCreating}
+              // 누를 때 입력칸 포커스를 뺏지 않아 키패드가 닫혔다 열리며 버튼이 튀지 않는다.
+              onMouseDown={(event) => event.preventDefault()}
+            >
+              {isNameStep ? '매물 등록' : '다음'}
+            </Button>
+          </BottomActionArea>
         </form>
       </div>
     </main>
