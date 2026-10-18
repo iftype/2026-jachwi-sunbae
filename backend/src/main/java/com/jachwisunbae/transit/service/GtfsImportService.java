@@ -50,8 +50,6 @@ public class GtfsImportService {
                 feed.edges().size(), feed.transfers().size(), matchedCount(feed.stops()));
     }
 
-    // 정류장이 어느 시도에 있는지 행정동 경계로 판단하므로, 행정동이 먼저 적재되어 있어야 한다.
-    // 파일을 읽기 전에 확인해, 큰 GTFS 파일을 다 읽은 뒤에 실패하지 않게 한다.
     private AdminDongLocator adminDongLocator() {
         List<AdminDong> adminDongs = adminDongRepository.findAll();
         if (adminDongs.isEmpty()) {
@@ -67,27 +65,36 @@ public class GtfsImportService {
         return assigned.retainStops(stop -> stopIds.contains(stop.stopId()));
     }
 
-    // 수도권 행정동에 든 정류장을 남긴다. 단순화한 경계 사이 틈에 놓여 행정동이 비어 있는 정류장(수도권에 124개)을 빼면
-    // 그 정류장을 지나는 노선이 끊기므로, 행정동이 빈 정류장은 남긴 정류장과 구간으로 이어져 있으면 함께 남긴다.
+    // 수도권 행정동에 속한 정류장을 남긴다.
+    // 행정동 코드가 없는 정류장은 노선이 끊기지 않도록 수도권 정류장과 연결된 경우 함께 남긴다.
     private static Set<String> capitalStopIds(final GtfsFeed feed) {
-        Set<String> stopIds = new HashSet<>();
+        Set<String> capitalStopIds = new HashSet<>();
         Set<String> unknownStopIds = new HashSet<>();
+
         for (GtfsStop stop : feed.stops()) {
             if (CapitalRegion.includesInNetwork(stop.adminDongCode())) {
-                stopIds.add(stop.stopId());
+                capitalStopIds.add(stop.stopId());
             } else if (stop.adminDongCode() == null) {
                 unknownStopIds.add(stop.stopId());
             }
         }
-        boolean added = true;
-        while (added) {
+
+        includeLinkedUnknownStops(feed.edges(), capitalStopIds, unknownStopIds);
+        return capitalStopIds;
+    }
+
+    // 행정동 코드가 없는 정류장이 연속될 수 있어 더 이상 추가되지 않을 때까지 확인한다.
+    private static void includeLinkedUnknownStops(final List<GtfsEdge> edges, final Set<String> capitalStopIds,
+                                                  final Set<String> unknownStopIds) {
+        boolean added;
+        do {
             added = false;
-            for (GtfsEdge edge : feed.edges()) {
-                added |= addIfLinked(edge.fromStopId(), edge.toStopId(), stopIds, unknownStopIds);
-                added |= addIfLinked(edge.toStopId(), edge.fromStopId(), stopIds, unknownStopIds);
+            for (GtfsEdge edge : edges) {
+                boolean fromStopAdded = addIfLinked(edge.fromStopId(), edge.toStopId(), capitalStopIds, unknownStopIds);
+                boolean toStopAdded = addIfLinked(edge.toStopId(), edge.fromStopId(), capitalStopIds, unknownStopIds);
+                added = added || fromStopAdded || toStopAdded;
             }
-        }
-        return stopIds;
+        } while (added);
     }
 
     private static boolean addIfLinked(final String stopId, final String linkedStopId, final Set<String> stopIds,
@@ -103,7 +110,6 @@ public class GtfsImportService {
         return (int) stops.stream().filter(stop -> stop.adminDongCode() != null).count();
     }
 
-    // 빈 경로는 Path.of("")가 현재 디렉터리를 가리켜 디렉터리 검사를 통과하므로 따로 막는다.
     private Path feedDirectory() {
         if (directory.isBlank() || !Files.isDirectory(Path.of(directory))) {
             throw new IllegalStateException("GTFS 파일이 있는 디렉터리가 아닙니다: " + directory);

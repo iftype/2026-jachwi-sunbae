@@ -32,8 +32,7 @@ class AdminDongImportServiceTest {
     @DisplayName("행정동 경계를 교체한다.")
     void replacesBoundaries() throws IOException {
         AdminDongImportService service = new AdminDongImportService(directory.resolve("admin.geojson").toString(),
-                readerReturning(List.of(AdminDongFixture.SEOUL_STATION_DONG)), adminDongRepository,
-                networkRepository);
+                readerReturning(List.of(AdminDongFixture.SEOUL_STATION_DONG)), adminDongRepository);
         Files.writeString(directory.resolve("admin.geojson"), "{}");
 
         int result = service.importBoundaries();
@@ -47,11 +46,10 @@ class AdminDongImportServiceTest {
     void rejectsMissingFile() {
         AdminDongGeoJsonReader reader = readerReturning(List.of());
 
-        assertThatThrownBy(() -> new AdminDongImportService("", reader, adminDongRepository, networkRepository)
+        assertThatThrownBy(() -> new AdminDongImportService("", reader, adminDongRepository)
                 .importBoundaries())
                 .isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> new AdminDongImportService(directory.toString(), reader, adminDongRepository,
-                networkRepository).importBoundaries())
+        assertThatThrownBy(() -> new AdminDongImportService(directory.toString(), reader, adminDongRepository).importBoundaries())
                 .isInstanceOf(IllegalStateException.class);
         assertThat(adminDongRepository.findAll()).containsExactly(OLD_DONG);
     }

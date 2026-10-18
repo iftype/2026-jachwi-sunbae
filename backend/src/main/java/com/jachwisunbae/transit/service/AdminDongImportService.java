@@ -17,16 +17,13 @@ public class AdminDongImportService {
     private final String file;
     private final AdminDongGeoJsonReader reader;
     private final AdminDongRepository adminDongRepository;
-    private final GtfsNetworkRepository networkRepository;
 
     public AdminDongImportService(@Value("${transit.admin-dong.file:}") final String file,
                                   final AdminDongGeoJsonReader reader,
-                                  final AdminDongRepository adminDongRepository,
-                                  final GtfsNetworkRepository networkRepository) {
+                                  final AdminDongRepository adminDongRepository) {
         this.file = file;
         this.reader = reader;
         this.adminDongRepository = adminDongRepository;
-        this.networkRepository = networkRepository;
     }
 
     @Transactional
