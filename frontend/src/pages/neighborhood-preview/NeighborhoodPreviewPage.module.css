@@ -734,3 +734,10 @@
   border-radius: 0.75rem;
   font-size: 0.8rem;
 }
+/* 분석 중·실패 화면은 지도를 없애지 않고 덮는다. 지도는 뒤에서 계속 준비된다. */
+.mapOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  background: var(--color-surface, #fff);
+}
