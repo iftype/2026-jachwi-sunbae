@@ -25,7 +25,6 @@ public class CommuteAreaService {
         this.transitNetworkCache = transitNetworkCache;
     }
 
-    // 노선망은 메모리에 두고 계산만 하므로 트랜잭션을 열지 않는다. 처음 읽을 때만 TransitNetworkLoader가 연다.
     public CommuteAreaSearchResult search(final Coordinate destination, final int maxMinutes,
                                           final int maxTransfers) {
         TransitNetwork network = transitNetworkCache.get();
@@ -38,8 +37,6 @@ public class CommuteAreaService {
         return new CommuteAreaSearchResult(maxMinutes, toCommuteAreas(reachableStops));
     }
 
-    // 행정동을 찾지 못한 정류장과 서울·경기 밖(인천) 정류장은 뺀다.
-    // 정류장이 통근 시간 순서이므로 묶은 뒤에도 동네 안 정류장은 그 순서를 따른다.
     private List<CommuteArea> toCommuteAreas(final List<ReachableStop> reachableStops) {
         Map<String, List<ReachableStop>> stopsByCode = reachableStops.stream()
                 .filter(stop -> CapitalRegion.includesInResult(stop.adminDongCode()))

@@ -8,7 +8,6 @@ import com.jachwisunbae.transit.domain.AdminDong;
 import com.jachwisunbae.transit.domain.GtfsStop;
 import com.jachwisunbae.transit.domain.vo.Coordinate;
 import com.jachwisunbae.transit.provider.geojson.AdminDongGeoJsonReader;
-import com.jachwisunbae.transit.service.dto.result.AdminDongImportResult;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;

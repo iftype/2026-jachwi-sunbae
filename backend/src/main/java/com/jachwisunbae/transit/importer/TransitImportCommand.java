@@ -3,7 +3,6 @@ package com.jachwisunbae.transit.importer;
 import com.jachwisunbae.JachwiSunbaeBackendApplication;
 import com.jachwisunbae.transit.service.AdminDongImportService;
 import com.jachwisunbae.transit.service.GtfsImportService;
-import com.jachwisunbae.transit.service.dto.result.AdminDongImportResult;
 import com.jachwisunbae.transit.service.dto.result.GtfsImportResult;
 import java.util.Set;
 import org.slf4j.Logger;
@@ -30,9 +29,8 @@ public class TransitImportCommand {
 
     static void importTransitData(final AdminDongImportService adminDongImportService,
                                   final GtfsImportService gtfsImportService) {
-        AdminDongImportResult adminDongResult = adminDongImportService.importBoundaries();
-        LOG.info("행정동 경계를 적재했습니다. adminDongs={}, stops={}, matchedStops={}",
-                adminDongResult.adminDongCount(), adminDongResult.stopCount(), adminDongResult.matchedStopCount());
+        int adminDongCount = adminDongImportService.importBoundaries();
+        LOG.info("행정동 경계를 적재했습니다. adminDongs={}", adminDongCount);
 
         GtfsImportResult gtfsResult = gtfsImportService.importFeed();
         LOG.info("GTFS 노선망을 적재했습니다. routes={}, stops={}, edges={}, transfers={}, matchedStops={}",
