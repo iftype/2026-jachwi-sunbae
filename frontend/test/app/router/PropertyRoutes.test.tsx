@@ -388,37 +388,22 @@ describe('FE-2 등록·수정·메모', () => {
     }
   });
 
-  it('모바일에서는 첫 입력에 자동 포커스하지 않고 키패드 확인으로 다음 단계로 이동한다', async () => {
-    const matchMedia = vi.spyOn(window, 'matchMedia').mockImplementation(
-      (query) =>
-        ({
-          matches: query === '(max-width: 430px)',
-          media: query,
-          onchange: null,
-          addListener: () => undefined,
-          removeListener: () => undefined,
-          addEventListener: () => undefined,
-          removeEventListener: () => undefined,
-          dispatchEvent: () => false,
-        }) as MediaQueryList,
-    );
+  it('키패드가 열려 있어도 다음 버튼을 보여주고 키패드 확인으로도 다음 단계로 이동한다', async () => {
+    const user = userEvent.setup();
+    renderAuthenticated('/properties/new');
 
-    try {
-      const user = userEvent.setup();
-      renderAuthenticated('/properties/new');
+    const depositField = await screen.findByLabelText('보증금 입력 (만원)');
+    expect(depositField).not.toHaveFocus();
+    expect(screen.getByRole('button', { name: '다음' })).toBeInTheDocument();
 
-      const depositField = await screen.findByLabelText('보증금 입력 (만원)');
-      expect(depositField).not.toHaveFocus();
-      expect(screen.queryByRole('button', { name: '다음' })).not.toBeInTheDocument();
+    await user.type(depositField, '1000');
+    await user.keyboard('{Enter}');
 
-      await user.type(depositField, '1000');
-      await user.keyboard('{Enter}');
+    const rentField = await screen.findByLabelText('월세 입력 (만원)');
+    await user.type(rentField, '55');
+    await user.click(screen.getByRole('button', { name: '다음' }));
 
-      expect(await screen.findByLabelText('월세 입력 (만원)')).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: '다음' })).not.toBeInTheDocument();
-    } finally {
-      matchMedia.mockRestore();
-    }
+    expect(await screen.findByRole('region', { name: '매물 위치 선택' })).toBeInTheDocument();
   });
 
   it('수정은 변경이 없어도 전체 필드를 보내고 상세 화면으로 돌아간다', async () => {
