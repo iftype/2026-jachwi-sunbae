@@ -29,19 +29,17 @@ class AdminDongImportServiceTest {
                     new GtfsStop("S2", "부산역", new Coordinate(35.11, 129.04))));
 
     @Test
-    @DisplayName("행정동 경계를 교체하고 적재된 정류장의 행정동 코드를 새 경계로 다시 붙인다")
-    void replacesBoundariesAndReassignsStops() throws IOException {
+    @DisplayName("행정동 경계를 교체한다.")
+    void replacesBoundaries() throws IOException {
         AdminDongImportService service = new AdminDongImportService(directory.resolve("admin.geojson").toString(),
                 readerReturning(List.of(AdminDongFixture.SEOUL_STATION_DONG)), adminDongRepository,
                 networkRepository);
         Files.writeString(directory.resolve("admin.geojson"), "{}");
 
-        AdminDongImportResult result = service.importBoundaries();
+        int result = service.importBoundaries();
 
         assertThat(adminDongRepository.findAll()).containsExactly(AdminDongFixture.SEOUL_STATION_DONG);
-        assertThat(networkRepository.stops()).extracting(GtfsStop::adminDongCode)
-                .containsExactly("11010530", null);
-        assertThat(result).isEqualTo(new AdminDongImportResult(1, 2, 1));
+        assertThat(result).isEqualTo(1);
     }
 
     @Test
