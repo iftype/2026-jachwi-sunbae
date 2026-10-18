@@ -1,6 +1,6 @@
 package com.jachwisunbae.transit.controller.dto.response;
 
-import com.jachwisunbae.transit.domain.CommuteArea;
+import com.jachwisunbae.transit.domain.search.CommuteArea;
 import java.util.List;
 
 // 행정동 이름과 경계는 클라이언트가 가진 행정동 데이터에서 코드로 찾는다.

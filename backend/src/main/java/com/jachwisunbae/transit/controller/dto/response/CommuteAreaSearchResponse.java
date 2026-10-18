@@ -1,6 +1,6 @@
 package com.jachwisunbae.transit.controller.dto.response;
 
-import com.jachwisunbae.transit.service.dto.result.CommuteAreaSearchResult;
+import com.jachwisunbae.transit.service.search.dto.result.CommuteAreaSearchResult;
 import java.util.List;
 
 public record CommuteAreaSearchResponse(int maxMinutes, int areaCount, List<CommuteAreaResponse> areas) {

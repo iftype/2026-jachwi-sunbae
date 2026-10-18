@@ -4,12 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jachwisunbae.transit.domain.CommuteArea;
 import com.jachwisunbae.transit.domain.GtfsStop;
-import com.jachwisunbae.transit.domain.ReachableStop;
+import com.jachwisunbae.transit.domain.search.CommuteArea;
+import com.jachwisunbae.transit.domain.search.ReachableStop;
 import com.jachwisunbae.transit.domain.vo.Coordinate;
 import com.jachwisunbae.transit.domain.vo.Seconds;
-import com.jachwisunbae.transit.service.dto.result.CommuteAreaSearchResult;
+import com.jachwisunbae.transit.service.search.dto.result.CommuteAreaSearchResult;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

@@ -4,10 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jachwisunbae.transit.domain.CommuteRoute;
 import com.jachwisunbae.transit.domain.GtfsStop;
-import com.jachwisunbae.transit.domain.RouteLeg;
-import com.jachwisunbae.transit.domain.RoutePoint;
+import com.jachwisunbae.transit.domain.search.CommuteRoute;
+import com.jachwisunbae.transit.domain.search.RouteLeg;
+import com.jachwisunbae.transit.domain.search.RoutePoint;
 import com.jachwisunbae.transit.domain.vo.Coordinate;
 import com.jachwisunbae.transit.domain.vo.Seconds;
 import java.util.List;

@@ -4,9 +4,9 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.jachwisunbae.transit.service.AdminDongImportService;
-import com.jachwisunbae.transit.service.GtfsImportService;
-import com.jachwisunbae.transit.service.dto.result.GtfsImportResult;
+import com.jachwisunbae.transit.service.importing.AdminDongImportService;
+import com.jachwisunbae.transit.service.importing.GtfsImportService;
+import com.jachwisunbae.transit.service.importing.dto.result.GtfsImportResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
