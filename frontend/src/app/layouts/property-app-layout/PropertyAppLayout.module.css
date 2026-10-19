@@ -20,11 +20,6 @@
   scrollbar-width: none;
 }
 
-/* 앱의 네이티브 탭바 높이(안전 영역 제외)를 하단 여백과 떠 있는 버튼 위치의 기준으로 쓴다. */
-.root[data-native-tab-bar='true'] {
-  --bottom-navigation-height: var(--native-tab-bar-height, 3.5rem);
-}
-
 .root[data-full-screen='true'] .content {
   padding-bottom: 0;
 }
@@ -33,29 +28,6 @@
   --map-sheet-bottom: calc(var(--bottom-navigation-height) + 1.1rem + env(safe-area-inset-bottom));
   padding-bottom: 0;
   overflow: hidden;
-}
-
-/* 네이티브 탭은 WebView 아래의 형제 뷰다. 지도 내부에서는 탭 여백을 다시 예약하지 않는다. */
-.root[data-map-page='true'][data-native-tab-bar='true'] {
-  height: 100%;
-}
-
-.root[data-map-page='true'][data-native-tab-bar='true'] .content {
-  --map-sheet-bottom: 0px;
-  padding-bottom: 0;
-}
-
-/* 새 앱은 탭을 WebView 위에 겹친다. 구버전의 형제 뷰 배치는 유지한다. */
-.root[data-map-page='true'][data-native-tab-overlay='true'] .content {
-  --map-sheet-bottom: calc(
-    var(--bottom-navigation-height) + var(--native-tab-bar-safe-bottom, env(safe-area-inset-bottom))
-  );
-}
-
-.root[data-native-tab-overlay='true']:not([data-full-screen='true']):not([data-map-page='true']) .content {
-  padding-bottom: calc(
-    var(--bottom-navigation-height) + 1.1rem + var(--native-tab-bar-safe-bottom, env(safe-area-inset-bottom))
-  );
 }
 
 .content::-webkit-scrollbar {
