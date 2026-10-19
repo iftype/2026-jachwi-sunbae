@@ -1,12 +1,10 @@
 import { Link, NavLink, Outlet, useLocation, useOutletContext } from 'react-router-dom';
 
 import type { Member } from '@/features/auth/model/Member';
-import { hasNativeAppFeature } from '@/shared/lib/native-app/nativeApp';
 import { DESIGN_HOME_PATH, isDesignShell } from '@/shared/lib/navigation/designShell';
 import Icon from '@/shared/ui/icon/Icon';
 
 import { MAIN_TABS } from './mainTabs';
-import useNativeTabBar from './useNativeTabBar';
 
 import styles from './PropertyAppLayout.module.css';
 
@@ -28,15 +26,12 @@ const PropertyAppLayout = () => {
     location.pathname === '/me' ||
     location.pathname === '/compare' ||
     location.pathname.startsWith('/neighborhoods/map');
-  const hasNativeTabBar = useNativeTabBar(!fullScreen && !designShell);
 
   return (
     <div
       className={styles.root}
       data-design-shell={designShell || undefined}
       data-full-screen={fullScreen || undefined}
-      data-native-tab-bar={hasNativeTabBar || undefined}
-      data-native-tab-overlay={hasNativeTabBar && hasNativeAppFeature('tab-bar-overlay') ? true : undefined}
       data-map-page={location.pathname === '/map' || location.pathname.startsWith('/neighborhoods/map') || undefined}
       data-wide-property-page={
         location.pathname === '/properties' || /^\/properties\/\d+$/.test(location.pathname) || undefined
@@ -52,7 +47,7 @@ const PropertyAppLayout = () => {
       <div className={styles.content}>
         <Outlet context={member} />
       </div>
-      {!designShell && !fullScreen && !hasNativeTabBar && (
+      {!designShell && !fullScreen && (
         <nav className={styles.bottomNavigation} aria-label="주요 메뉴">
           {MAIN_TABS.map((tab) => (
             <NavLink key={tab.key} to={tab.path} aria-label={tab.label}>

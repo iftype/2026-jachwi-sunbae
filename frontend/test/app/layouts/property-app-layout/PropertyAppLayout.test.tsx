@@ -26,24 +26,9 @@ describe('모바일 앱 셸', () => {
     expect(screen.getByRole('link', { name: '동네 찾기' })).toHaveAttribute('aria-current', 'page');
   });
 
-  it('네이티브 동네 찾기는 웹 탭을 중복 표시하지 않는다', () => {
-    window.__JACHWI_NATIVE_APP__ = { platform: 'ios', version: 1, features: ['tab-bar', 'tab-bar-overlay'] };
-    const { container } = render(
-      <MemoryRouter initialEntries={['/neighborhoods/map']}>
-        <Routes>
-          <Route element={<PropertyAppLayout />}>
-            <Route path="/neighborhoods/map" element={<h1>동네 찾기</h1>} />
-          </Route>
-        </Routes>
-      </MemoryRouter>,
-    );
-    expect(container.querySelector('[data-map-page="true"][data-native-tab-overlay="true"]')).not.toBeNull();
-    expect(screen.queryByRole('navigation', { name: '주요 메뉴' })).not.toBeInTheDocument();
-  });
-
-  it('네이티브 탭을 쓰는 지도는 별도 하단 여백 정책을 적용하고 웹 탭을 중복 표시하지 않는다', () => {
-    window.__JACHWI_NATIVE_APP__ = { platform: 'ios', version: 1, features: ['tab-bar'] };
-    const { container } = render(
+  it('앱 안에서도 웹 하단바를 보여준다', () => {
+    window.__JACHWI_NATIVE_APP__ = { platform: 'ios', version: 1 };
+    render(
       <MemoryRouter initialEntries={['/map']}>
         <Routes>
           <Route element={<PropertyAppLayout />}>
@@ -52,9 +37,9 @@ describe('모바일 앱 셸', () => {
         </Routes>
       </MemoryRouter>,
     );
-    expect(container.querySelector('[data-map-page="true"][data-native-tab-bar="true"]')).not.toBeNull();
-    expect(screen.queryByRole('navigation', { name: '주요 메뉴' })).not.toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: '주요 메뉴' })).toBeInTheDocument();
   });
+
   it('현재 화면과 주요 메뉴 다섯 개를 함께 표시한다', () => {
     render(
       <MemoryRouter initialEntries={['/properties']}>
@@ -73,20 +58,5 @@ describe('모바일 앱 셸', () => {
     expect(screen.getByRole('link', { name: '체크리스트' })).toHaveAttribute('href', '/checklists');
     expect(screen.getByRole('link', { name: '마이' })).toHaveAttribute('href', '/me');
     expect(screen.getByRole('link', { name: '동네 찾기' })).toHaveAttribute('href', '/neighborhoods');
-  });
-
-  it('새 앱의 겹치는 탭 배치를 구버전 앱과 구분한다', () => {
-    window.__JACHWI_NATIVE_APP__ = { platform: 'ios', version: 1, features: ['tab-bar', 'tab-bar-overlay'] };
-    const { container } = render(
-      <MemoryRouter initialEntries={['/map']}>
-        <Routes>
-          <Route element={<PropertyAppLayout />}>
-            <Route path="/map" element={<h1>지도</h1>} />
-          </Route>
-        </Routes>
-      </MemoryRouter>,
-    );
-    expect(container.querySelector('[data-native-tab-overlay="true"]')).not.toBeNull();
-    expect(screen.queryByRole('navigation', { name: '주요 메뉴' })).not.toBeInTheDocument();
   });
 });
