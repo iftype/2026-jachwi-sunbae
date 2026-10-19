@@ -1,6 +1,3 @@
-# Independently managed mobile project
-mobile/
-
 # Dependencies and generated output
 **/node_modules/
 **/build/

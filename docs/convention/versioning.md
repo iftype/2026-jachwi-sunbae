@@ -3,7 +3,7 @@
 ## 기본 원칙
 
 - 저장소 루트의 `VERSION`을 제품 버전의 단일 기준으로 사용한다.
-- 백엔드, 프론트엔드, iOS, Android는 같은 제품 버전을 사용한다.
+- 백엔드와 프론트엔드는 같은 제품 버전을 사용한다. Android·iOS 앱은 별도 저장소에서 관리한다.
 - 제품 버전은 `MAJOR.MINOR.PATCH` 형식의 시맨틱 버저닝을 따른다.
 - 배포 전에 `python3 .github/scripts/check_versions.py`로 버전 동기화를 검사한다.
 - 릴리스별 변경은 루트의 `CHANGELOG.md`에 기록한다.
@@ -27,19 +27,17 @@
 
 `VERSION`을 수정해도 각 애플리케이션 버전이 자동으로 변경되지는 않는다. 릴리스 PR에서 다음 값을 같은 제품 버전으로 함께 수정한다.
 
-| 파일                                                      | 변경할 값                                 |
-| --------------------------------------------------------- | ----------------------------------------- |
-| `VERSION`                                                 | 제품 버전                                 |
-| `frontend/package.json`, `mobile/package.json`            | `version`                                 |
-| `frontend/package-lock.json`, `mobile/package-lock.json`  | 최상위 `version`과 `packages[""].version` |
-| `frontend/public/version.json`                            | `version`                                 |
-| `backend/build.gradle`                                    | `version`                                 |
-| `mobile/android/app/build.gradle`                         | `versionName`                             |
-| `mobile/ios/JachwiSunbaeMobile.xcodeproj/project.pbxproj` | Debug·Release의 `MARKETING_VERSION`       |
+| 파일                           | 변경할 값                                 |
+| ------------------------------ | ----------------------------------------- |
+| `VERSION`                      | 제품 버전                                 |
+| `frontend/package.json`        | `version`                                 |
+| `frontend/package-lock.json`   | 최상위 `version`과 `packages[""].version` |
+| `frontend/public/version.json` | `version`                                 |
+| `backend/build.gradle`         | `version`                                 |
 
 lock 파일에서 외부 의존성의 버전은 변경하지 않는다. `CHANGELOG.md`에는 해당 버전의 릴리스 섹션과 변경 내역, 릴리스 링크를 추가하고 `Unreleased` 비교 링크의 기준 태그를 갱신한다.
 
-저장소 루트에서 두 검사를 모두 통과해야 한다. 버전 검사에는 프론트엔드와 모바일 lock 파일의 제품 버전도 포함된다.
+저장소 루트에서 두 검사를 모두 통과해야 한다. 버전 검사에는 프론트엔드 lock 파일의 제품 버전도 포함된다.
 
 ```bash
 python3 .github/scripts/check_versions.py
@@ -54,10 +52,6 @@ python3 .github/scripts/check_changelog.py "$(tr -d '[:space:]' < VERSION)"
 4. 프론트엔드는 `/version.json`, 백엔드는 `/actuator/info`를 조회해 복구된 버전과 커밋을 확인한다.
 
 운영 브랜치의 이력을 덮어쓰거나 태그를 이동하지 않는다. 잘못된 릴리스는 새 PATCH 버전으로 수정하고, 긴급 복구는 기존 태그를 기준으로 재배포한다.
-
-## 네이티브 빌드 번호
-
-iOS의 `CURRENT_PROJECT_VERSION`과 Android의 `versionCode`는 제품 버전과 별도로 관리하는 배포 빌드 번호다. 앱 스토어에 새 빌드를 업로드할 때마다 이전 값보다 크게 증가시킨다.
 
 ## 릴리스 태그
 
