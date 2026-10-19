@@ -53,8 +53,6 @@ public class JdbcPropertyRepository implements PropertyRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    // 진행률 파생 테이블에도 회원 조건을 둔다. GROUP BY가 있는 파생 테이블에는 바깥 조건이 전달되지 않아,
-    // 조건이 없으면 모든 회원의 체크리스트 항목을 집계한 뒤에 이 회원의 매물만 꺼낸다.
     @Override
     public List<PropertyListItemQuery> findListByMemberId(final long memberId) {
         String sql = """
@@ -85,11 +83,6 @@ public class JdbcPropertyRepository implements PropertyRepository {
                     GROUP BY pc.property_id
                 ) progress ON progress.property_id = p.id
                 WHERE p.member_id = ? AND p.deleted_at IS NULL
-                GROUP BY p.id, p.member_id, p.name, p.deposit_amount, p.monthly_rent_amount,
-                         p.address, p.latitude, p.longitude, pd.discovery_source,
-                         ph.id, ph.storage_key, ph.content_type,
-                         progress.total_count, progress.completed_count, progress.good_count,
-                         progress.caution_count, progress.unconfirmed_count
                 ORDER BY p.id DESC
                 """;
         return jdbcTemplate.query(sql, propertyListRowMapper, memberId, memberId);
