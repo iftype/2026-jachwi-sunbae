@@ -7,6 +7,7 @@ import java.math.BigDecimal;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -22,6 +23,24 @@ class BusStopTest {
 
         assertThat(busStop.getNodeId()).isEqualTo("GGB204000159");
         assertThat(busStop.getCityCode()).isEqualTo("31020");
+    }
+
+    @ParameterizedTest
+    @CsvSource({"GGB204000159, 204000159", "SEB204000159, 204000159", "ICB118000013, 118000013"})
+    @DisplayName("정류장 ID에서 관리 기관 코드를 뺀 정류소 ID를 구한다")
+    void stationIdWithoutAgencyCode(String nodeId, String expected) {
+        BusStop busStop = BusStop.reconstruct(nodeId, "벤처타운(북문)", LATITUDE, LONGITUDE, "31020");
+
+        assertThat(busStop.getStationId()).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"STOP_400", "204000159", "GGBX204000159"})
+    @DisplayName("관리 기관 코드 형식이 아니면 정류장 ID를 그대로 정류소 ID로 쓴다")
+    void stationIdWithoutAgencyCodeFormat(String nodeId) {
+        BusStop busStop = BusStop.reconstruct(nodeId, "벤처타운(북문)", LATITUDE, LONGITUDE, "31020");
+
+        assertThat(busStop.getStationId()).isEqualTo(nodeId);
     }
 
     @ParameterizedTest

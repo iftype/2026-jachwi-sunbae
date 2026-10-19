@@ -225,7 +225,6 @@ const useNeighborhoodPreview = () => {
           })),
     [areas, maxMinutes, mode, priceAreas, selectedId],
   );
-  const matchesDestination = `${PREVIEW_DESTINATION.name} ${PREVIEW_DESTINATION.address}`.includes(query.trim());
   return {
     isPublicExplore,
     mapPath,
@@ -329,6 +328,7 @@ const useNeighborhoodPreview = () => {
       setSelectionCenter(point);
       setSelectionLevel(4);
       setHasChosenMapPoint(true);
+      setShouldFocusMapSearch(false);
       setPhase('conditions');
     },
     changeQuery: (value: string) => {
@@ -340,36 +340,22 @@ const useNeighborhoodPreview = () => {
       setHasChosenMapPoint(false);
       setPhase('map');
     },
-    matchesDestination,
     searchDestination: async () => {
-      if (isPublicExplore) {
-        if (!query.trim()) return;
-        const intent = ++locationIntent.current;
-        setIsSearching(true);
-        setSearchError(null);
-        try {
-          const results = await searchAddress(config, query.trim());
-          if (intent !== locationIntent.current) return;
-          setAddressResults(results);
-          if (!results.length) setSearchError('검색 결과가 없어요. 주소를 더 자세히 입력해주세요.');
-        } catch {
-          if (intent === locationIntent.current)
-            setSearchError('주소를 찾지 못했어요. 지도에서 위치를 선택하거나 다시 검색해주세요.');
-        } finally {
-          if (intent === locationIntent.current) setIsSearching(false);
-        }
-        return;
+      if (!query.trim()) return;
+      const intent = ++locationIntent.current;
+      setIsSearching(true);
+      setSearchError(null);
+      try {
+        const results = await searchAddress(config, query.trim());
+        if (intent !== locationIntent.current) return;
+        setAddressResults(results);
+        if (!results.length) setSearchError('검색 결과가 없어요. 주소를 더 자세히 입력해주세요.');
+      } catch {
+        if (intent === locationIntent.current)
+          setSearchError('주소를 찾지 못했어요. 지도에서 위치를 선택하거나 다시 검색해주세요.');
+      } finally {
+        if (intent === locationIntent.current) setIsSearching(false);
       }
-      if (!query.trim() || !matchesDestination) return;
-      locationIntent.current += 1;
-      setCurrentPosition(null);
-      setMapCandidate(PREVIEW_DESTINATION);
-      setSelectionCenter(PREVIEW_DESTINATION);
-      setSelectionLevel(4);
-      setDestination(PREVIEW_DESTINATION);
-      setHasChosenMapPoint(true);
-      setShouldFocusMapSearch(false);
-      setPhase('conditions');
     },
     shouldFocusMapSearch,
     openMapSearch: () => {
