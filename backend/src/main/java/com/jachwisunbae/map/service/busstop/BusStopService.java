@@ -9,6 +9,7 @@ import com.jachwisunbae.map.service.dto.result.busstop.BusStopResult;
 import com.jachwisunbae.map.service.dto.result.busstop.BusStopsResult;
 import java.math.BigDecimal;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.springframework.stereotype.Service;
@@ -26,17 +27,25 @@ public class BusStopService {
 
     // 사각형으로 후보를 좁힌 뒤 실제 거리로 사각형 모서리 부분을 걸러 내고 가까운 순으로 정렬한다.
     // 반경 비교는 반올림 전 거리로 해서, 사각형과 같은 기준으로 경계를 판단한다.
+    // 여러 기관이 등록한 같은 정류장(정류소 ID가 같은 정류장)은 가장 가까운 하나만 남긴다.
     public BusStopsResult nearby(BigDecimal latitude, BigDecimal longitude, int radius) {
         validateQuery(latitude, longitude, radius);
         CoordinateBounds bounds = CoordinateBounds.around(latitude, longitude, radius);
-        List<BusStopResult> busStops = busStopRepository.findAllWithin(bounds).stream()
+        List<Candidate> candidates = busStopRepository.findAllWithin(bounds).stream()
                 .map(busStop -> new Candidate(busStop, busStop.distanceMetersFrom(latitude, longitude)))
                 .filter(candidate -> candidate.distanceMeters() <= radius)
                 .sorted(Comparator.comparingDouble(Candidate::distanceMeters)
                         .thenComparing(candidate -> candidate.busStop().getNodeId()))
+                .toList();
+        return new BusStopsResult(latitude, longitude, radius, nearestPerStation(candidates));
+    }
+
+    private List<BusStopResult> nearestPerStation(List<Candidate> sortedCandidates) {
+        Set<String> stationIds = new HashSet<>();
+        return sortedCandidates.stream()
+                .filter(candidate -> stationIds.add(candidate.busStop().getStationId()))
                 .map(Candidate::toResult)
                 .toList();
-        return new BusStopsResult(latitude, longitude, radius, busStops);
     }
 
     private void validateQuery(BigDecimal latitude, BigDecimal longitude, int radius) {
