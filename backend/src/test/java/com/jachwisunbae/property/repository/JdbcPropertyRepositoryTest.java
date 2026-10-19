@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
 import com.jachwisunbae.property.repository.query.PropertyListItemQuery;
+import java.sql.PreparedStatement;
+import java.sql.Statement;
 import java.util.List;
 import javax.sql.DataSource;
 import org.flywaydb.core.Flyway;
@@ -13,6 +15,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -85,23 +89,20 @@ class JdbcPropertyRepositoryTest {
     }
 
     private long insertMember(final String nickname) {
-        jdbcTemplate.update("INSERT INTO members (nickname, created_at, updated_at) VALUES (?, NOW(6), NOW(6))",
+        return insert("INSERT INTO members (nickname, created_at, updated_at) VALUES (?, NOW(6), NOW(6))",
                 nickname);
-        return lastInsertId();
     }
 
     private long insertProperty(final long memberId, final String name) {
-        jdbcTemplate.update("INSERT INTO properties (member_id, name, created_at) VALUES (?, ?, NOW(6))",
+        return insert("INSERT INTO properties (member_id, name, created_at) VALUES (?, ?, NOW(6))",
                 memberId, name);
-        return lastInsertId();
     }
 
     private long insertChecklist(final long propertyId, final String stage) {
-        jdbcTemplate.update("""
+        return insert("""
                 INSERT INTO property_checklists (property_id, checklist_name, stage, created_at, updated_at)
                 VALUES (?, '기본', ?, NOW(6), NOW(6))
                 """, propertyId, stage);
-        return lastInsertId();
     }
 
     private void insertItem(final long checklistId, final long systemCheckItemId, final String status) {
@@ -112,7 +113,16 @@ class JdbcPropertyRepositoryTest {
                 """, checklistId, systemCheckItemId, systemCheckItemId % 100, status);
     }
 
-    private long lastInsertId() {
-        return jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+    // DriverManagerDataSource는 호출마다 새 연결을 열어 LAST_INSERT_ID()를 쓸 수 없으므로, 같은 문장에서 생성 키를 받는다.
+    private long insert(final String sql, final Object... parameters) {
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            for (int index = 0; index < parameters.length; index++) {
+                statement.setObject(index + 1, parameters[index]);
+            }
+            return statement;
+        }, keyHolder);
+        return keyHolder.getKey().longValue();
     }
 }
