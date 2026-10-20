@@ -18,6 +18,7 @@
 | 화면 통합 | 라우팅, React Query, API 성공·실패·재시도, 주요 사용자 흐름 | React Testing Library + MSW, `test/app/router/*Routes.test.tsx` | 여러 컴포넌트와 서버 상태가 함께 동작할 때       |
 | 계약      | API 파서와 MSW fixture가 실제 응답 형식을 넘지 않는지 확인  | Vitest, `test/features/**/api`, `test/app/mocks`                | API 응답 필드나 DTO가 바뀔 때                    |
 | E2E·시각  | 실제 브라우저, 지도 SDK, WebView, 반응형 레이아웃           | 현재 수동 점검                                                  | 브라우저 엔진·외부 SDK·레이아웃 확인이 필요할 때 |
+| 뮤테이션  | 로직 테스트가 코드가 틀렸을 때 실제로 실패하는지 확인       | Stryker, `src/**/{api,lib,model,hooks}` 대상                    | 로직 파일을 바꾼 PR, 테스트가 빈 곳을 찾을 때    |
 
 컴포넌트 내부 함수나 CSS 클래스 이름은 직접 테스트하지 않습니다. 사용자가 접근하는 버튼, 링크, 입력 필드, 메시지와 이동 결과를 검증합니다.
 
@@ -50,6 +51,10 @@ npm run format:check
 npm test
 npm run build
 ```
+
+테스트는 기본으로 jsdom에서 파일마다 격리되고, 파일은 코어 수만큼 병렬로 실행됩니다. 라우트 테스트 일부는 `waitFor` 대기가 CPU 부하에 민감해 CI에서만 한 번 재시도하고(`retry`), 로컬에서는 재시도하지 않아 불안정한 테스트가 그대로 드러납니다. 파일마다 jsdom과 공통 설정을 새로 준비하는 시간이 테스트 본문보다 길기 때문에, 화면·`window`·저장소를 쓰지 않는 테스트 파일은 맨 위에 `// @vitest-environment node`를 둡니다. 이 파일은 jsdom 없이 실행되고 공통 설정(`test/setup.ts`)도 DOM 준비를 건너뜁니다. 워커는 프로세스 대신 스레드(`pool: 'threads'`)로 띄웁니다.
+
+PR에서 `src/**/{api,lib,model,hooks}` 아래 로직 파일이 바뀌면 별도 잡이 그 파일에만 뮤테이션 테스트를 돌려 살아남은 변이를 요약에 남깁니다. 이 잡은 병합 조건이 아니며, 결과는 테스트를 어디에 보강할지 정하는 리뷰 입력으로 씁니다. 실행 방법과 제외 근거는 [뮤테이션 테스트](mutation-testing.md)에 있습니다.
 
 작업 완료 조건은 다음과 같습니다.
 

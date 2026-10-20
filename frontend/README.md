@@ -14,6 +14,7 @@ React 19·TypeScript 6·Webpack 5 기반 모바일 우선 SPA입니다.
 - [백엔드 환경변수](../backend/docs/guides/environment-variables.md)
 - [프론트엔드 배포](docs/deployment.md)
 - [프론트엔드 테스트 전략](docs/testing-strategy.md)
+- [뮤테이션 테스트](docs/mutation-testing.md)
 
 ## 설치와 실행
 
