@@ -455,7 +455,76 @@ describe('FE-2 등록·수정·메모', () => {
     expect(section.getByText('수도세, 인터넷')).toBeInTheDocument();
     expect(section.getByText('에어컨, 냉장고')).toBeInTheDocument();
     expect(section.getByText('2026-08-20 14:00')).toBeInTheDocument();
-    expect(section.getByRole('link', { name: '편집' })).toHaveAttribute('href', '/properties/10/memo');
+    expect(section.getByRole('button', { name: '부가 정보 편집' })).toBeInTheDocument();
+  });
+
+  it('상세의 기본 정보 편집은 움직이지 않는 시트에서 고치고 위치는 그대로 보낸다', async () => {
+    let requestBody: unknown;
+    server.use(
+      http.get(`${config.apiBaseUrl}/api/properties/10`, () => HttpResponse.json(successEnvelope(detailWithoutPhotos))),
+      http.get(`${config.apiBaseUrl}/api/properties/10/memo`, () =>
+        HttpResponse.json(successEnvelope({ propertyId: 10, freeMemo: '' })),
+      ),
+      http.put(`${config.apiBaseUrl}/api/properties/10`, async ({ request }) => {
+        requestBody = await request.json();
+        return HttpResponse.json(successEnvelope({ id: 10, ...(requestBody as object) }));
+      }),
+    );
+    const user = userEvent.setup();
+    renderAuthenticated('/properties/10');
+
+    await user.click(await screen.findByRole('button', { name: '기본 정보 편집' }));
+    const sheet = within(screen.getByRole('region', { name: '기본 정보 수정' }));
+    expect(sheet.queryByRole('button', { name: '상세 패널 높이 조절' })).not.toBeInTheDocument();
+    const rent = sheet.getByLabelText('월세 (만원)');
+    await user.clear(rent);
+    await user.type(rent, '60');
+    await user.click(sheet.getByRole('button', { name: '기본 정보 저장' }));
+
+    await waitFor(() => expect(screen.queryByRole('region', { name: '기본 정보 수정' })).not.toBeInTheDocument());
+    expect(screen.getByRole('heading', { name: '신림역 원룸', level: 1 })).toBeInTheDocument();
+    expect(requestBody).toMatchObject({
+      name: propertyDetailFixture.name,
+      depositAmount: propertyDetailFixture.depositAmount,
+      monthlyRentAmount: 600_000,
+      address: propertyDetailFixture.location.address,
+      latitude: propertyDetailFixture.location.latitude,
+      longitude: propertyDetailFixture.location.longitude,
+    });
+  });
+
+  it('상세의 부가 정보 편집은 시트에서 저장하고 닫기로 저장 없이 닫는다', async () => {
+    let updateCalls = 0;
+    let requestBody: unknown;
+    server.use(
+      http.get(`${config.apiBaseUrl}/api/properties/10`, () => HttpResponse.json(successEnvelope(detailWithoutPhotos))),
+      http.get(`${config.apiBaseUrl}/api/properties/10/memo`, () =>
+        HttpResponse.json(successEnvelope({ propertyId: 10, freeMemo: '' })),
+      ),
+      http.put(`${config.apiBaseUrl}/api/properties/10`, async ({ request }) => {
+        updateCalls += 1;
+        requestBody = await request.json();
+        return HttpResponse.json(successEnvelope({ id: 10, ...(requestBody as object) }));
+      }),
+    );
+    const user = userEvent.setup();
+    renderAuthenticated('/properties/10');
+
+    await user.click(await screen.findByRole('button', { name: '부가 정보 편집' }));
+    await user.click(screen.getByRole('button', { name: '부가 정보 수정 닫기' }));
+    expect(screen.queryByRole('region', { name: '부가 정보 수정' })).not.toBeInTheDocument();
+    expect(updateCalls).toBe(0);
+
+    await user.click(screen.getByRole('button', { name: '부가 정보 편집' }));
+    const sheet = within(screen.getByRole('region', { name: '부가 정보 수정' }));
+    expect(sheet.getByLabelText('입주 가능일')).toHaveValue('2026-09-01');
+    await user.click(sheet.getByRole('checkbox', { name: '책상' }));
+    await user.click(sheet.getByRole('button', { name: '부가 정보 저장' }));
+
+    await waitFor(() => expect(screen.queryByRole('region', { name: '부가 정보 수정' })).not.toBeInTheDocument());
+    expect(updateCalls).toBe(1);
+    expect(requestBody).toMatchObject({ roomOptions: ['AIR_CONDITIONER', 'REFRIGERATOR', 'DESK'] });
+    expect(screen.getByText('에어컨, 냉장고, 책상')).toBeInTheDocument();
   });
 
   it('부가 정보 화면은 상세 값을 채워 두고 바뀐 값만 전체 수정으로 보낸다', async () => {
