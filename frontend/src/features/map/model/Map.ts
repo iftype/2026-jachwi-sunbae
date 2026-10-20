@@ -16,8 +16,6 @@ export type MapMarker = {
   category?: MapCategory;
   count?: number;
   placeId?: string;
-  /** 마커 안에 넣을 매물 사진. 인증이 끝난 blob URL만 받는다. */
-  photoUrl?: string;
   actionable?: boolean;
 };
 

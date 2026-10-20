@@ -77,7 +77,6 @@ export type PropertyPin = {
   latitude: number;
   longitude: number;
   caption: string;
-  photoUrl?: string;
 };
 
 type PropertyCluster = {
@@ -96,7 +95,6 @@ const markerFromPropertyCluster = (cluster: PropertyCluster): MapMarker => {
       label: pin.name,
       caption: pin.caption,
       tone: 'property',
-      photoUrl: pin.photoUrl,
       actionable: true,
     };
   }
@@ -111,7 +109,6 @@ const markerFromPropertyCluster = (cluster: PropertyCluster): MapMarker => {
     label: `매물 ${cluster.pins.length}개`,
     tone: 'propertyCluster',
     count: cluster.pins.length,
-    photoUrl: cluster.pins.find((pin) => pin.photoUrl !== undefined)?.photoUrl,
     actionable: true,
   };
 };

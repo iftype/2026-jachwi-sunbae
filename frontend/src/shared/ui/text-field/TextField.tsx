@@ -11,11 +11,14 @@ type TextFieldProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'children'> & 
   suffix?: ReactNode;
   labelSuffix?: ReactNode;
   fieldClassName?: string;
-  /** 기본은 밑줄. 네모 테두리가 필요한 곳만 `box`로 되돌린다. */
-  variant?: 'box' | 'underline';
+  /** 기본은 회색 채움형 `filled`. 예전 밑줄 모양은 `underline`, 네모 테두리는 `box`로 쓴다. */
+  variant?: 'box' | 'underline' | 'filled';
   /** 한 화면에서 한 칸씩 크게 묻는 폼은 `large`를 쓴다. */
   fieldSize?: 'medium' | 'large';
-  /** 입력 전에는 placeholder를 보여주고, 포커스하거나 값이 있으면 라벨을 위로 띄운다. */
+  /**
+   * 입력 전에는 placeholder를 보여주고, 포커스하거나 값이 있으면 라벨을 위로 띄운다.
+   * 채움형은 라벨을 칸 위에 고정해 두므로 이 값을 쓰지 않는다.
+   */
   floatingLabel?: boolean;
 };
 
@@ -29,7 +32,7 @@ const TextField = ({
   id,
   className,
   fieldClassName,
-  variant = 'underline',
+  variant = 'filled',
   fieldSize = 'medium',
   floatingLabel = false,
   ...inputProps
@@ -39,6 +42,7 @@ const TextField = ({
   const helpId = helpText === undefined ? undefined : `${inputId}-help`;
   const errorId = error === undefined ? undefined : `${inputId}-error`;
   const describedBy = [helpId, errorId].filter(Boolean).join(' ') || undefined;
+  const usesFloatingLabel = floatingLabel && variant !== 'filled';
 
   const labelContent = (
     <>
@@ -57,11 +61,11 @@ const TextField = ({
       className={`${styles.field} ${fieldClassName ?? ''}`}
       data-variant={variant}
       data-size={fieldSize}
-      data-floating-label={floatingLabel || undefined}
+      data-floating-label={usesFloatingLabel || undefined}
     >
-      {!floatingLabel && <label htmlFor={inputId}>{labelContent}</label>}
+      {!usesFloatingLabel && <label htmlFor={inputId}>{labelContent}</label>}
       <div className={styles.control}>
-        {floatingLabel && (
+        {usesFloatingLabel && (
           <label className={styles.floatingLabel} htmlFor={inputId}>
             {labelContent}
           </label>
@@ -82,7 +86,7 @@ const TextField = ({
         </p>
       )}
       {error !== undefined && (
-        <p id={errorId} className={styles.error}>
+        <p id={errorId} className={styles.error} role="alert">
           {error}
         </p>
       )}

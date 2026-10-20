@@ -49,7 +49,7 @@ export const Danger: Story = {
 export const Link: Story = {
   render: ({ children, variant, fullWidth }) => (
     <MemoryRouter initialEntries={['/']}>
-      <ButtonLink to="/properties" variant={variant} fullWidth={fullWidth}>
+      <ButtonLink to="/" variant={variant} fullWidth={fullWidth}>
         <Icon name="plus" size={15} />
         {children}
       </ButtonLink>

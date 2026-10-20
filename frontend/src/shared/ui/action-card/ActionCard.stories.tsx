@@ -21,7 +21,7 @@ const meta: Meta<typeof ActionCard> = {
   ],
   args: {
     title: '인프라 지도',
-    description: '주변 교통·편의시설을 살펴봐요',
+    description: '주변 교통과 편의시설을 살펴봐요',
     tone: 'neutral',
     size: 'medium',
     to: '/map',

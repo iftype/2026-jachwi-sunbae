@@ -6,7 +6,6 @@ import { PANGYO_MAP_CENTER } from '@/features/map/lib/mapLocation';
 import type { MapBounds } from '@/features/map/model/Map';
 import type { MapMarker } from '@/features/map/model/Map';
 import { usePropertyList } from '@/features/property/api/useProperties';
-import { usePropertyPhotoObjectUrls } from '@/features/property/api/usePropertyPhotoObjectUrls';
 import type { PropertySummary } from '@/features/property/model/Property';
 
 const getViewportSpan = (level: number) => {
@@ -56,8 +55,7 @@ const useMapProperties = (
     });
   }, [bounds, mapped, mapLevel, viewportCenter.latitude, viewportCenter.longitude]);
 
-  // 지도 안의 매물만 사진을 받아 표시한다. 사진이 없으면 마커 UI가 오리 로고를 사용한다.
-  const propertyPhotoUrls = usePropertyPhotoObjectUrls(visibleProperties);
+  // 매물 핀은 사진 대신 모두 자취선배 로고로 그린다.
   const propertyMarkers = useMemo<MapMarker[]>(
     () => [
       ...clusterProperties(
@@ -69,7 +67,6 @@ const useMapProperties = (
             latitude: item.location.latitude ?? PANGYO_MAP_CENTER.latitude,
             longitude: item.location.longitude ?? PANGYO_MAP_CENTER.longitude,
             caption: '',
-            photoUrl: propertyPhotoUrls[item.propertyId],
           })),
         mapLevel,
       ),
@@ -80,12 +77,11 @@ const useMapProperties = (
           latitude: item.location.latitude ?? PANGYO_MAP_CENTER.latitude,
           longitude: item.location.longitude ?? PANGYO_MAP_CENTER.longitude,
           label: item.name,
-          photoUrl: propertyPhotoUrls[item.propertyId],
           tone: 'property' as const,
           actionable: true,
         })),
     ],
-    [mapLevel, propertyPhotoUrls, selectedPropertyId, visibleProperties],
+    [mapLevel, selectedPropertyId, visibleProperties],
   );
 
   return {
