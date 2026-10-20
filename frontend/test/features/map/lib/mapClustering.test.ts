@@ -60,24 +60,22 @@ describe('지도 장소 군집', () => {
   });
 });
 
-const pin = (propertyId: number, latitude: number, longitude: number, photoUrl?: string) => ({
+const pin = (propertyId: number, latitude: number, longitude: number) => ({
   propertyId,
   name: `매물 ${propertyId}`,
   latitude,
   longitude,
   caption: '보증금 1,000 / 월세 55',
-  photoUrl,
 });
 
 describe('지도 매물 군집', () => {
-  it('매물 하나는 대표 사진을 넣은 핀으로 보여 준다', () => {
-    const markers = clusterProperties([pin(1, 37.5665, 126.978, 'blob:photo-1')], 6);
+  it('매물 하나는 개별 핀으로 보여 준다', () => {
+    const markers = clusterProperties([pin(1, 37.5665, 126.978)], 6);
 
     expect(markers).toHaveLength(1);
     expect(markers[0]).toMatchObject({
       id: 'property-1',
       tone: 'property',
-      photoUrl: 'blob:photo-1',
       label: '매물 1',
       actionable: true,
     });
@@ -85,17 +83,12 @@ describe('지도 매물 군집', () => {
   });
 
   it('겹치는 매물은 좌표 중심으로 묶고 묶음 숫자를 보여 준다', () => {
-    const markers = clusterProperties(
-      [pin(1, 37.5665, 126.978), pin(2, 37.5666, 126.9781, 'blob:photo-2'), pin(3, 37.58, 126.99)],
-      6,
-    );
+    const markers = clusterProperties([pin(1, 37.5665, 126.978), pin(2, 37.5666, 126.9781), pin(3, 37.58, 126.99)], 6);
 
     expect(markers).toHaveLength(2);
     const cluster = markers.find((marker) => marker.tone === 'propertyCluster');
     expect(cluster).toMatchObject({ id: 'property-cluster-1-2', count: 2, label: '매물 2개', actionable: true });
     expect(cluster?.latitude).toBeCloseTo((37.5665 + 37.5666) / 2, 6);
-    // 묶음 안에 사진이 있는 매물이 있으면 그 사진을 대표로 쓴다.
-    expect(cluster?.photoUrl).toBe('blob:photo-2');
     expect(markers.find((marker) => marker.id === 'property-3')).toBeDefined();
   });
 
@@ -187,21 +180,15 @@ describe('지도 군집 마커 식별자와 중심', () => {
     ).toEqual(['cluster-a-5-c-5', 'place-b-5']);
   });
 
-  it('매물 묶음은 번호가 낮은 매물 순서로 묶고 그중 첫 사진을 대표로 쓴다', () => {
+  it('매물 묶음은 번호가 낮은 매물 순서로 묶는다', () => {
     const markers = clusterProperties(
-      [pin(3, 37.5667, 126.9783, 'blob:photo-3'), pin(1, 37.5665, 126.978), pin(2, 37.5666, 126.9781, 'blob:photo-2')],
+      [pin(3, 37.5667, 126.9783), pin(1, 37.5665, 126.978), pin(2, 37.5666, 126.9781)],
       6,
     );
 
     expect(markers).toHaveLength(1);
-    expect(markers[0]).toMatchObject({ id: 'property-cluster-1-2-3', count: 3, photoUrl: 'blob:photo-2' });
+    expect(markers[0]).toMatchObject({ id: 'property-cluster-1-2-3', count: 3 });
     expect(markers[0].latitude).toBeCloseTo((37.5665 + 37.5666 + 37.5667) / 3, 8);
     expect(markers[0].longitude).toBeCloseTo((126.978 + 126.9781 + 126.9783) / 3, 8);
-  });
-
-  it('사진이 없는 매물만 묶이면 대표 사진도 없다', () => {
-    const [marker] = clusterProperties([pin(1, 37.5665, 126.978), pin(2, 37.5666, 126.9781)], 6);
-
-    expect(marker.photoUrl).toBeUndefined();
   });
 });

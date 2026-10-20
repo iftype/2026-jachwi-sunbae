@@ -60,10 +60,11 @@
   --color-error-surface: #f1f1f1;
   --color-success: #333;
   --color-success-surface: #f1f1f1;
-  --color-check-good: #9bcbb0;
-  --color-check-good-ink: #222;
-  --color-check-caution: #e3a5a5;
-  --color-check-caution-ink: #444;
+  /* 체크 상태: 괜찮음은 브랜드 파랑, 주의는 빨강, 미확인은 회색. */
+  --color-check-good: var(--color-brand-blue);
+  --color-check-good-ink: #3f6fc4;
+  --color-check-caution: #ef7b7b;
+  --color-check-caution-ink: #d14d4d;
   --color-check-unconfirmed: #c6c6c6;
   --color-check-unconfirmed-ink: #666;
 

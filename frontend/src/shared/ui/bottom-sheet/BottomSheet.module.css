@@ -67,3 +67,12 @@
   flex: 1;
   padding: 0 1.25rem 1.5rem;
 }
+
+/* 태블릿부터는 넓은 화면을 가로지르지 않게 30rem 폭으로 가운데에 띄운다. */
+@media (min-width: 768px) {
+  .sheet {
+    max-width: 30rem;
+    margin-right: auto;
+    margin-left: auto;
+  }
+}

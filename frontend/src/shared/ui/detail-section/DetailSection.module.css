@@ -59,3 +59,12 @@
   font-weight: 800;
   text-decoration: none;
 }
+
+/* 링크 대신 시트를 여는 버튼으로 쓸 때도 같은 모양을 유지한다. */
+button.sectionAction {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  cursor: pointer;
+}

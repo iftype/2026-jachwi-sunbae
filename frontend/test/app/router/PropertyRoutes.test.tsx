@@ -95,7 +95,8 @@ describe('FE-2 매물 목록', () => {
     const firstProperty = within(screen.getByRole('link', { name: '신림역 원룸' }));
     expect(firstProperty.queryByText('미완료')).not.toBeInTheDocument();
     expect(firstProperty.queryByText('체크리스트')).not.toBeInTheDocument();
-    expect(firstProperty.getByText('8/12')).toBeInTheDocument();
+    // 진행 막대 끝의 완료 개수는 보여 주지 않는다.
+    expect(firstProperty.queryByText('8/12')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: '완료' }));
     expect(screen.queryByRole('link', { name: '신림역 원룸' })).not.toBeInTheDocument();

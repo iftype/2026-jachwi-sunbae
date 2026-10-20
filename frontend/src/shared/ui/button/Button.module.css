@@ -6,13 +6,25 @@
   gap: 0.5rem;
   padding: 0.62rem 0.9rem;
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: 0.75rem;
   font-size: 0.8rem;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.2;
   text-align: center;
   text-decoration: none;
   cursor: pointer;
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+}
+
+/* 한 화면의 주 행동처럼 크게 두는 버튼. 높이 52px, 글자 18px. */
+.large {
+  min-height: 3.25rem;
+  padding: 0.875rem 1.25rem;
+  font-size: 1.125rem;
+  line-height: 1.5rem;
 }
 
 /* 아이콘·이모티콘과 한글이 각자의 글꼴 baseline에 끌려가지 않게 한 줄의 가운데를 공유한다. */
@@ -34,12 +46,12 @@
 }
 
 .primary {
-  background: var(--color-ink);
-  color: var(--color-brand-yellow);
+  background: var(--color-brand-blue);
+  color: var(--color-on-card-accent);
 }
 
 .primary:hover:not(:disabled) {
-  background: var(--color-brand-800);
+  background: color-mix(in srgb, var(--color-brand-blue) 88%, black);
 }
 
 .soft {
