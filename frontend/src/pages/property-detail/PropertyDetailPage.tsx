@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 
+import PropertyAdditionalInfoForm from '@/pages/property-memo/ui/property-additional-info-form/PropertyAdditionalInfoForm';
 import { describePropertyLoadError } from '@/features/property/api/propertyErrorMessages';
 import { usePropertyDetail } from '@/features/property/api/useProperties';
 import { useRemoveProperty } from '@/features/property/api/usePropertyMutations';
@@ -20,8 +21,10 @@ import QueryState from '@/shared/ui/query-state/QueryState';
 import TopNavigationMenu from '@/shared/ui/top-navigation-menu/TopNavigationMenu';
 
 import PropertyAdditionalInfoSection from './ui/property-additional-info-section/PropertyAdditionalInfoSection';
+import PropertyBasicInfoForm from './ui/property-basic-info-section/PropertyBasicInfoForm';
 import PropertyBasicInfoSection from './ui/property-basic-info-section/PropertyBasicInfoSection';
 import PropertyChecklistSection from './ui/property-checklist-section/PropertyChecklistSection';
+import PropertyEditSheet from './ui/property-edit-sheet/PropertyEditSheet';
 import PropertyHeroPhoto from './ui/property-hero-photo/PropertyHeroPhoto';
 import PropertyMemoSection from './ui/property-memo-section/PropertyMemoSection';
 import PropertyPhotoSection from './ui/property-photo-section/PropertyPhotoSection';
@@ -81,6 +84,7 @@ const PropertyDetailView = ({ propertyId, detail, backTo }: PropertyDetailViewPr
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'details' | 'checklist'>('details');
+  const [editingSection, setEditingSection] = useState<'basic' | 'additional' | null>(null);
   const deleteButtonRef = useRef<HTMLButtonElement>(null);
   const photoTriggerRef = useRef<HTMLButtonElement | null>(null);
 
@@ -174,9 +178,9 @@ const PropertyDetailView = ({ propertyId, detail, backTo }: PropertyDetailViewPr
                   </button>
                 </TopNavigationMenu>
               </div>
-              <PropertyBasicInfoSection property={detail} />
+              <PropertyBasicInfoSection property={detail} onEdit={() => setEditingSection('basic')} />
 
-              <PropertyAdditionalInfoSection property={detail} />
+              <PropertyAdditionalInfoSection property={detail} onEdit={() => setEditingSection('additional')} />
 
               <PropertyMemoSection propertyId={propertyId} />
 
@@ -207,6 +211,20 @@ const PropertyDetailView = ({ propertyId, detail, backTo }: PropertyDetailViewPr
               window.requestAnimationFrame(() => photoTriggerRef.current?.focus());
             }}
           />
+        )}
+
+        {editingSection !== null && (
+          <PropertyEditSheet
+            title={editingSection === 'basic' ? '기본 정보 수정' : '부가 정보 수정'}
+            initialHeightPercent={88}
+            onClose={() => setEditingSection(null)}
+          >
+            {editingSection === 'basic' ? (
+              <PropertyBasicInfoForm property={detail} onSaved={() => setEditingSection(null)} />
+            ) : (
+              <PropertyAdditionalInfoForm property={detail} layout="sheet" onSaved={() => setEditingSection(null)} />
+            )}
+          </PropertyEditSheet>
         )}
 
         <ConfirmDialog

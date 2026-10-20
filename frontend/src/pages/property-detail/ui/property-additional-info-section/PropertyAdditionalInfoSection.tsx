@@ -1,5 +1,3 @@
-import { Link } from 'react-router-dom';
-
 import { formatManwon } from '@/features/property/lib/propertyFormat';
 import type { PropertyDetail } from '@/features/property/model/Property';
 import { roomOptionLabels, utilityOptionLabels } from '@/features/property/model/propertyOptions';
@@ -12,6 +10,8 @@ import detailStyles from '@/shared/ui/detail-section/DetailSection.module.css';
 
 type PropertyAdditionalInfoSectionProps = {
   property: PropertyDetail;
+  /** 상세 화면 위에 수정 시트를 연다. */
+  onEdit: () => void;
 };
 
 const formatDate = (value: string | null): string => value?.replace(/-/g, '.') ?? '';
@@ -19,15 +19,15 @@ const formatDate = (value: string | null): string => value?.replace(/-/g, '.') ?
 const formatDateTime = (value: string | null): string =>
   value === null ? '' : value.replace('T', ' ').replace(/(\d{2}:\d{2}):\d{2}(?:\.\d+)?$/, '$1');
 
-/** 새 매물 API가 돌려준 부가 정보를 그대로 표시하고, 편집은 한 화면에서 전체 PUT으로 저장한다. */
-const PropertyAdditionalInfoSection = ({ property }: PropertyAdditionalInfoSectionProps) => (
+/** 새 매물 API가 돌려준 부가 정보를 그대로 표시하고, 편집은 상세 위 시트에서 전체 PUT으로 저장한다. */
+const PropertyAdditionalInfoSection = ({ property, onEdit }: PropertyAdditionalInfoSectionProps) => (
   <PropertyInfoSection
     title="부가 정보"
     label="매물 부가 정보"
     action={
-      <Link className={detailStyles.sectionAction} to={`/properties/${property.propertyId}/memo`}>
+      <button className={detailStyles.sectionAction} type="button" aria-label="부가 정보 편집" onClick={onEdit}>
         <Icon name="edit" size={14} /> 편집
-      </Link>
+      </button>
     }
   >
     <InfoValue label="입주 가능일" value={formatDate(property.availableMoveInDate)} />

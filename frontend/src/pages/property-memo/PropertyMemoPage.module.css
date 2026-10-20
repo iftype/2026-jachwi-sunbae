@@ -3,35 +3,3 @@
   padding: 0 1rem 1.5rem;
   background: var(--color-canvas);
 }
-
-.form {
-  display: grid;
-  gap: 1.4rem;
-  padding-bottom: 1rem;
-}
-
-.memoFields,
-.freeMemo {
-  display: grid;
-  gap: 1.4rem;
-}
-
-.memoFields h1 {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 750;
-  letter-spacing: -0.03em;
-}
-
-.memoFields :global(label),
-.freeMemo :global(label) {
-  font-size: 0.82rem;
-}
-
-.memoFields :global(input),
-.freeMemo :global(textarea) {
-  min-height: 2.6rem;
-  padding: 0.5rem 0;
-  background: var(--color-canvas);
-  font-size: 0.92rem;
-}
