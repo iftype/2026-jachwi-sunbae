@@ -76,19 +76,16 @@ public class JdbcPropertyRepository implements PropertyRepository {
                            SUM(pci.status = 'GOOD') AS good_count,
                            SUM(pci.status = 'CAUTION') AS caution_count,
                            SUM(pci.status = 'UNCONFIRMED') AS unconfirmed_count
-                    FROM property_checklists pc
+                    FROM properties owned
+                    JOIN property_checklists pc ON pc.property_id = owned.id
                     LEFT JOIN property_checklist_items pci ON pci.property_checklist_id = pc.id
+                    WHERE owned.member_id = ? AND owned.deleted_at IS NULL
                     GROUP BY pc.property_id
                 ) progress ON progress.property_id = p.id
                 WHERE p.member_id = ? AND p.deleted_at IS NULL
-                GROUP BY p.id, p.member_id, p.name, p.deposit_amount, p.monthly_rent_amount,
-                         p.address, p.latitude, p.longitude, pd.discovery_source,
-                         ph.id, ph.storage_key, ph.content_type,
-                         progress.total_count, progress.completed_count, progress.good_count,
-                         progress.caution_count, progress.unconfirmed_count
                 ORDER BY p.id DESC
                 """;
-        return jdbcTemplate.query(sql, propertyListRowMapper, memberId);
+        return jdbcTemplate.query(sql, propertyListRowMapper, memberId, memberId);
     }
 
     @Override
