@@ -13,6 +13,26 @@
   margin: 0;
   letter-spacing: -0.035em;
 }
+/* 불러오기에 실패하면 이미지·안내·다시 시도 버튼을 가운데에 세로로 둔다. */
+.loadError {
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+  padding: 1.25rem 0 0.5rem;
+  text-align: center;
+}
+.loadError p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+/* 이미지가 들어올 자리. 크기만 잡아 둔다. */
+.loadErrorImage {
+  width: 6rem;
+  height: 6rem;
+  border-radius: var(--radius-tile);
+  background: var(--color-card-surface);
+}
 .rooms {
   /* 홈 본문 좌우 패딩만큼 화면 끝까지 카드를 흘려 다음 카드가 있다는 걸 보여준다. */
   --horizontal-rail-bleed: 1.25rem;
@@ -98,4 +118,18 @@
   .roomCard {
     flex-basis: 52%;
   }
+}
+/* 넓은 화면에서도 카드는 모바일 크기로 두고 한 줄에 더 많이 보여준다. */
+@media (min-width: 768px) {
+  .roomCard {
+    flex-basis: 11rem;
+  }
+}
+/* 데스크탑 오른쪽 열처럼 좁은 칸에서는 가장자리 여백 없이 카드를 두 장 남짓 보이게 한다. */
+.section[data-side-column='true'] .rooms {
+  --horizontal-rail-bleed: 0px;
+  --horizontal-rail-gap: 0.75rem;
+}
+.section[data-side-column='true'] .roomCard {
+  flex-basis: calc((100% - var(--horizontal-rail-gap)) / 2.2);
 }

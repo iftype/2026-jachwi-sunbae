@@ -33,28 +33,51 @@ import styles from './PropertyDetailPage.module.css';
 
 const describeError = describePropertyLoadError('매물 상세를 불러오지 못했어요.');
 
-type PropertyDetailViewProps = { propertyId: number; detail: PropertyDetail; backTo: PropertyReturnPath };
+/** 다른 화면 옆 패널로 열 때 쓴다. 보여줄 매물과 닫기(뒤로가기·삭제 뒤)를 패널을 연 화면이 정한다. */
+export type PropertyDetailPanel = { propertyId: number; onClose: () => void };
 
-const PropertyDetailPage = () => {
-  const propertyId = parsePositiveId(useParams().propertyId);
-  const backTo = getPropertyReturnPath(useLocation().state);
+type PropertyDetailViewProps = {
+  propertyId: number;
+  detail: PropertyDetail;
+  backTo: PropertyReturnPath;
+  panel?: PropertyDetailPanel;
+};
+
+type PropertyDetailPageProps = {
+  panel?: PropertyDetailPanel;
+  /** 들어온 화면을 알 수 없을 때(주소 직접 입력 등) 돌아갈 화면. 기본은 기록 화면이다. */
+  returnTo?: PropertyReturnPath;
+};
+
+const PropertyDetailPage = ({ panel, returnTo }: PropertyDetailPageProps) => {
+  const routePropertyId = parsePositiveId(useParams().propertyId);
+  const propertyId = panel?.propertyId ?? routePropertyId;
+  const backTo = getPropertyReturnPath(useLocation().state, returnTo);
   if (propertyId === null) {
     return (
       <ContentState title="올바른 매물 주소가 아니에요.">
         <Link to={backTo}>
           {backTo === '/map'
             ? '매물 지도로 돌아가기'
-            : backTo === '/design-preview/records'
+            : backTo === '/properties'
               ? '기록 화면으로 돌아가기'
-              : '매물 목록으로 돌아가기'}
+              : '홈으로 돌아가기'}
         </Link>
       </ContentState>
     );
   }
-  return <ResolvedPropertyDetailPage propertyId={propertyId} backTo={backTo} />;
+  return <ResolvedPropertyDetailPage propertyId={propertyId} backTo={backTo} panel={panel} />;
 };
 
-const ResolvedPropertyDetailPage = ({ propertyId, backTo }: { propertyId: number; backTo: PropertyReturnPath }) => {
+const ResolvedPropertyDetailPage = ({
+  propertyId,
+  backTo,
+  panel,
+}: {
+  propertyId: number;
+  backTo: PropertyReturnPath;
+  panel?: PropertyDetailPanel;
+}) => {
   const property = usePropertyDetail(propertyId);
 
   return (
@@ -66,18 +89,18 @@ const ResolvedPropertyDetailPage = ({ propertyId, backTo }: { propertyId: number
         <Link to={backTo}>
           {backTo === '/map'
             ? '매물 지도로 돌아가기'
-            : backTo === '/design-preview/records'
+            : backTo === '/properties'
               ? '기록 화면으로 돌아가기'
-              : '매물 목록으로 돌아가기'}
+              : '홈으로 돌아가기'}
         </Link>
       }
     >
-      {(detail) => <PropertyDetailView propertyId={propertyId} detail={detail} backTo={backTo} />}
+      {(detail) => <PropertyDetailView propertyId={propertyId} detail={detail} backTo={backTo} panel={panel} />}
     </QueryState>
   );
 };
 
-const PropertyDetailView = ({ propertyId, detail, backTo }: PropertyDetailViewProps) => {
+const PropertyDetailView = ({ propertyId, detail, backTo, panel }: PropertyDetailViewProps) => {
   const navigate = useNavigate();
   const returnState = getPropertyReturnState(useLocation().state);
   const removeMutation = useRemoveProperty(propertyId);
@@ -92,34 +115,44 @@ const PropertyDetailView = ({ propertyId, detail, backTo }: PropertyDetailViewPr
     trackPostHogEvent('property_detail_viewed', { property_id: propertyId });
   }, [propertyId]);
 
+  const Root = panel ? 'div' : 'main';
+
   const deleteProperty = async () => {
     try {
       await removeMutation.mutateAsync();
       setIsDeleteDialogOpen(false);
-      navigate(backTo, { replace: true, state: { focusHeading: true } });
+      if (panel) panel.onClose();
+      else navigate(backTo, { replace: true, state: { focusHeading: true } });
     } catch {
       // 삭제 확인 창에서 재시도할 수 있도록 유지한다.
     }
   };
 
   return (
-    <main className={styles.page}>
+    // 패널로 열면 패널을 연 화면의 main 안에 들어가므로 main을 겹치지 않는다.
+    <Root className={styles.page} data-panel={panel ? 'true' : undefined}>
       <div className={styles.container}>
         <header className={styles.header}>
-          <Link
-            className={styles.backButton}
-            to={backTo}
-            state={returnState}
-            aria-label={
-              backTo === '/map'
-                ? '매물 지도로 돌아가기'
-                : backTo === '/design-preview/records'
-                  ? '기록 화면으로 돌아가기'
-                  : '매물 목록으로 돌아가기'
-            }
-          >
-            <Icon name="chevron-left" size={24} />
-          </Link>
+          {panel ? (
+            <button className={styles.backButton} type="button" aria-label="목록으로 돌아가기" onClick={panel.onClose}>
+              <Icon name="chevron-left" size={24} />
+            </button>
+          ) : (
+            <Link
+              className={styles.backButton}
+              to={backTo}
+              state={returnState}
+              aria-label={
+                backTo === '/map'
+                  ? '매물 지도로 돌아가기'
+                  : backTo === '/properties'
+                    ? '기록 화면으로 돌아가기'
+                    : '홈으로 돌아가기'
+              }
+            >
+              <Icon name="chevron-left" size={24} />
+            </Link>
+          )}
           <h1 className={styles.headerTitle}>{detail.name}</h1>
         </header>
 
@@ -244,7 +277,7 @@ const PropertyDetailView = ({ propertyId, detail, backTo }: PropertyDetailViewPr
           )}
         </ConfirmDialog>
       </div>
-    </main>
+    </Root>
   );
 };
 

@@ -56,117 +56,15 @@ const renderAuthenticated = (path: string, state?: unknown) => {
 
 it.each([
   [{ returnTo: '/map' }, '매물 지도로 돌아가기', '/map'],
-  [undefined, '매물 목록으로 돌아가기', '/properties'],
-  [{ returnTo: 'https://other.example' }, '매물 목록으로 돌아가기', '/properties'],
+  [{ returnTo: '/' }, '홈으로 돌아가기', '/'],
+  [undefined, '기록 화면으로 돌아가기', '/properties'],
+  [{ returnTo: 'https://other.example' }, '기록 화면으로 돌아가기', '/properties'],
 ])('상세의 돌아가기 목적지는 진입 화면을 따르고 외부 주소는 허용하지 않는다 (%j)', async (state, label, href) => {
   server.use(
     http.get(`${config.apiBaseUrl}/api/properties/10`, () => HttpResponse.json(successEnvelope(detailWithoutPhotos))),
   );
   renderAuthenticated('/properties/10', state);
   expect(await screen.findByRole('link', { name: label as string })).toHaveAttribute('href', href);
-});
-
-describe('FE-2 매물 목록', () => {
-  it('매물 0개와 검색 결과 없음을 구분한다', async () => {
-    server.use(
-      http.get(`${config.apiBaseUrl}/api/properties`, () =>
-        HttpResponse.json(successEnvelope(propertyPageFixture([]))),
-      ),
-    );
-    const user = userEvent.setup();
-    renderAuthenticated('/properties');
-
-    expect(await screen.findByText('아직 등록한 매물이 없어요.')).toBeInTheDocument();
-    await user.type(screen.getByRole('textbox', { name: '매물 이름 검색' }), '없는 매물{Enter}');
-    expect(await screen.findByText('검색 결과가 없어요.')).toBeInTheDocument();
-  });
-
-  it('매물 진행 현황을 표시하고 상태별로 필터링한다', async () => {
-    server.use(
-      http.get(`${config.apiBaseUrl}/api/properties`, () =>
-        HttpResponse.json(successEnvelope(propertyPageFixture([propertySummaryFixture, secondPropertySummaryFixture]))),
-      ),
-    );
-    const user = userEvent.setup();
-    renderAuthenticated('/properties');
-
-    expect(await screen.findByRole('link', { name: '신림역 원룸' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '망원동 투룸' })).toBeInTheDocument();
-    const firstProperty = within(screen.getByRole('link', { name: '신림역 원룸' }));
-    expect(firstProperty.queryByText('미완료')).not.toBeInTheDocument();
-    expect(firstProperty.queryByText('체크리스트')).not.toBeInTheDocument();
-    // 진행 막대 끝의 완료 개수는 보여 주지 않는다.
-    expect(firstProperty.queryByText('8/12')).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: '완료' }));
-    expect(screen.queryByRole('link', { name: '신림역 원룸' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '망원동 투룸' })).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: '미완료' }));
-    expect(screen.getByRole('link', { name: '신림역 원룸' })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: '망원동 투룸' })).not.toBeInTheDocument();
-  });
-
-  it('전체 개수와 서버가 반환한 순서를 목록에 반영한다', async () => {
-    server.use(
-      http.get(`${config.apiBaseUrl}/api/properties`, () =>
-        HttpResponse.json(successEnvelope(propertyPageFixture([propertySummaryFixture, secondPropertySummaryFixture]))),
-      ),
-    );
-    renderAuthenticated('/properties');
-
-    expect(
-      await screen.findByText((_, element) => element?.tagName === 'SPAN' && element.textContent === '전체 2'),
-    ).toBeInTheDocument();
-    const list = screen.getByRole('region', { name: '매물 목록' });
-    expect(
-      within(list)
-        .getAllByRole('link')
-        .map((link) => link.getAttribute('aria-label')),
-    ).toEqual(['신림역 원룸', '망원동 투룸']);
-  });
-
-  it('검색은 목록을 다시 요청하지 않고 받아온 매물 이름을 기준으로 적용한다', async () => {
-    let listCalls = 0;
-    server.use(
-      http.get(`${config.apiBaseUrl}/api/properties`, () => {
-        listCalls += 1;
-        return HttpResponse.json(
-          successEnvelope(propertyPageFixture([propertySummaryFixture, secondPropertySummaryFixture])),
-        );
-      }),
-    );
-    const user = userEvent.setup();
-    renderAuthenticated('/properties');
-    await screen.findByRole('link', { name: '신림역 원룸' });
-    const callsAfterInitialLoad = listCalls;
-    const searchbox = await screen.findByRole('textbox', { name: '매물 이름 검색' });
-
-    await user.type(searchbox, '  망원  ');
-    await user.keyboard('{Enter}');
-
-    expect(await screen.findByRole('link', { name: '망원동 투룸' })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: '신림역 원룸' })).not.toBeInTheDocument();
-    expect(listCalls).toBe(callsAfterInitialLoad);
-  });
-
-  it('최초 목록 실패 후 재시도할 수 있다', async () => {
-    let shouldFail = true;
-    server.use(
-      http.get(`${config.apiBaseUrl}/api/properties`, () => {
-        return shouldFail
-          ? HttpResponse.error()
-          : HttpResponse.json(successEnvelope(propertyPageFixture([propertySummaryFixture])));
-      }),
-    );
-    const user = userEvent.setup();
-    renderAuthenticated('/properties');
-
-    expect(await screen.findByText('매물 목록을 불러오지 못했어요.')).toBeInTheDocument();
-    shouldFail = false;
-    await user.click(screen.getByRole('button', { name: '다시 시도' }));
-    expect(await screen.findByRole('link', { name: '신림역 원룸' })).toBeInTheDocument();
-  });
 });
 
 describe('FE-2 매물 비교 PDF', () => {
@@ -184,7 +82,7 @@ describe('FE-2 매물 비교 PDF', () => {
 
     renderAuthenticated('/compare');
 
-    expect(await screen.findByRole('heading', { name: '함께 볼 매물을 골라 주세요.' })).toBeInTheDocument();
+    expect(await screen.findByText('0개 선택')).toBeInTheDocument();
     await waitFor(() => expect(comparisonViewCalls).toBe(1));
   });
 
@@ -207,7 +105,7 @@ describe('FE-2 매물 비교 PDF', () => {
     const user = userEvent.setup();
     renderAuthenticated('/compare');
 
-    expect(await screen.findByRole('heading', { name: '함께 볼 매물을 골라 주세요.' })).toBeInTheDocument();
+    expect(await screen.findByText('0개 선택')).toBeInTheDocument();
     await user.click(await screen.findByRole('checkbox', { name: /신림역 원룸/ }));
     await user.click(screen.getByRole('checkbox', { name: /망원동 투룸/ }));
     await user.click(screen.getByRole('button', { name: '선택한 2개 PDF 받기' }));
@@ -922,7 +820,7 @@ describe('FE-2 사진과 삭제 확인', () => {
     expect(screen.getByRole('img', { name: '업로드 순 1번째 사진' })).toBeInTheDocument();
   });
 
-  it('매물 삭제 영향·취소·성공을 처리하고 목록으로 이동한다', async () => {
+  it('매물 삭제 영향·취소·성공을 처리하고 기록 화면으로 이동한다', async () => {
     let deleteCalls = 0;
     server.use(
       http.get(`${config.apiBaseUrl}/api/properties/10`, () => HttpResponse.json(successEnvelope(detailWithoutPhotos))),
@@ -945,7 +843,7 @@ describe('FE-2 사진과 삭제 확인', () => {
 
     await user.click(screen.getByRole('button', { name: '삭제' }));
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: '매물 삭제' }));
-    expect(await screen.findByRole('heading', { name: '내 매물' })).toHaveFocus();
+    expect(await screen.findByRole('heading', { name: '본 방 기록' })).toHaveFocus();
     expect(deleteCalls).toBe(1);
   });
 
@@ -975,7 +873,7 @@ describe('FE-2 사진과 삭제 확인', () => {
     renderAuthenticated('/properties/99');
 
     expect(await screen.findByText('매물을 찾을 수 없어요.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '매물 목록으로 돌아가기' })).toHaveAttribute('href', '/properties');
+    expect(screen.getByRole('link', { name: '기록 화면으로 돌아가기' })).toHaveAttribute('href', '/properties');
     expect(screen.queryByRole('button', { name: '다시 시도' })).not.toBeInTheDocument();
   });
 });

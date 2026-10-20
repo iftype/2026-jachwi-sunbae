@@ -1,7 +1,7 @@
 import { formatManwon } from '@/features/property/lib/propertyFormat';
 import type { PropertySummary } from '@/features/property/model/Property';
 import AuthenticatedPhoto from '@/features/property/ui/authenticated-photo/AuthenticatedPhoto';
-import mascotImage from '@/shared/assets/empty-property.jpg';
+import mascotImage from '@/shared/assets/jachwi-sunbae-goose.webp';
 import SelectionControl from '@/shared/ui/selection-control/SelectionControl';
 
 import styles from './ComparePropertyOption.module.css';
@@ -13,7 +13,8 @@ type ComparePropertyOptionProps = {
   onToggle: () => void;
 };
 
-const StageOverview = ({ property }: { property: PropertySummary }) => (
+/** 단계별 체크리스트 적용·진행 칩. 휴대폰 리스트와 데스크탑 표가 함께 쓴다. */
+export const StageOverview = ({ property }: { property: PropertySummary }) => (
   <span className={styles.stageOverview}>
     {property.stages.map((stage, index) => (
       <span key={stage.stage} data-applied={stage.applied || undefined}>

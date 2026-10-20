@@ -35,10 +35,10 @@ const scenario = new URLSearchParams(window.location.search).get('scenario') ?? 
 const routeByScenario: Record<string, string> = {
   components: '/',
   login: '/login',
-  unauthorized: '/properties',
+  unauthorized: '/',
   'not-found': '/does-not-exist',
-  'list-empty': '/properties',
-  'list-two': '/properties',
+  'list-empty': '/',
+  'list-two': '/',
   new: '/properties/new',
   detail: '/properties/10',
   'memo-empty': '/properties/10',
@@ -63,7 +63,7 @@ const routeByScenario: Record<string, string> = {
   'todo-tips': '/tips',
 };
 
-window.history.replaceState(null, '', routeByScenario[scenario] ?? '/properties');
+window.history.replaceState(null, '', routeByScenario[scenario] ?? '/');
 if (scenario === 'login') {
   clearAuthentication(null);
 } else if (scenario !== 'components') {

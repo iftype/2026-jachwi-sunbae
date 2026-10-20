@@ -49,7 +49,10 @@ const draftToValues = (draft: PropertyInputDto | undefined): PropertyFormValues 
  * 보증금 → 월세 → (위치) → 이름 순서로 한 칸씩 열어 가며 매물을 등록한다.
  * 지도에서 위치를 골라 들어왔다면 위치 단계는 건너뛴다.
  */
-export const usePropertyCreationForm = (routeState: PropertyCreationRouteState) => {
+export const usePropertyCreationForm = (
+  routeState: PropertyCreationRouteState,
+  { onCreated }: { onCreated?: (propertyId: number) => void } = {},
+) => {
   const navigate = useNavigate();
   const hasPresetLocation = routeState.selectedLocation !== undefined && !routeState.fromExploration;
   const entrypoint = hasPresetLocation ? 'map' : 'form';
@@ -141,7 +144,8 @@ export const usePropertyCreationForm = (routeState: PropertyCreationRouteState) 
         longitude: selectedLocation.longitude,
       });
       if (routeState.fromExploration) trackExplorationSaved();
-      navigate(`/properties/${created.propertyId}`, { replace: true });
+      if (onCreated) onCreated(created.propertyId);
+      else navigate(`/properties/${created.propertyId}`, { replace: true });
     } catch {
       setCreateError('매물을 등록하지 못했어요. 입력한 정보는 유지되니 다시 시도해 주세요.');
     }

@@ -12,6 +12,8 @@ export const propertyArea = (address: string | null) => {
 };
 
 export const recordPresentation = (property: PropertySummary) => ({
+  /** 공용 매물 카드(PropertyCard)에 그대로 넘기는 원본 요약. */
+  summary: property,
   id: String(property.propertyId),
   district: propertyArea(property.location.address),
   name: property.name,

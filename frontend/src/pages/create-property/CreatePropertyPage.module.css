@@ -64,3 +64,15 @@
   padding: 0.75rem 1.25rem calc(0.75rem + env(safe-area-inset-bottom));
   transition: bottom 0.18s ease-out;
 }
+
+/* 패널로 열면 화면 맨 아래가 아닌 패널 스크롤 영역 아래에 버튼을 붙인다. */
+.page[data-panel='true'] .content {
+  padding-bottom: 1rem;
+}
+
+.page[data-panel='true'] .formContainer > [data-divider] {
+  position: sticky;
+  bottom: 0;
+  max-width: none;
+  margin: 0 -1.25rem;
+}
