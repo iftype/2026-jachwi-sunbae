@@ -1,0 +1,17 @@
+/* 홈 데스크탑·휴대폰 화면이 함께 쓰는 바탕과 안내 문구. */
+.page {
+  height: 100dvh;
+  overflow-y: auto;
+  background: var(--color-surface);
+  color: var(--color-ink);
+}
+.tip {
+  margin: 1.2rem 0 0;
+  padding: 1.1rem 1rem;
+  border-radius: var(--radius-tile);
+  background: var(--color-card-surface);
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.6;
+  color: var(--color-ink);
+}

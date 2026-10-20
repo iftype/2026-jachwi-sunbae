@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 
+import PropertyAdditionalInfoForm from '@/pages/property-memo/ui/property-additional-info-form/PropertyAdditionalInfoForm';
 import { describePropertyLoadError } from '@/features/property/api/propertyErrorMessages';
 import { usePropertyDetail } from '@/features/property/api/useProperties';
 import { useRemoveProperty } from '@/features/property/api/usePropertyMutations';
@@ -20,8 +21,10 @@ import QueryState from '@/shared/ui/query-state/QueryState';
 import TopNavigationMenu from '@/shared/ui/top-navigation-menu/TopNavigationMenu';
 
 import PropertyAdditionalInfoSection from './ui/property-additional-info-section/PropertyAdditionalInfoSection';
+import PropertyBasicInfoForm from './ui/property-basic-info-section/PropertyBasicInfoForm';
 import PropertyBasicInfoSection from './ui/property-basic-info-section/PropertyBasicInfoSection';
 import PropertyChecklistSection from './ui/property-checklist-section/PropertyChecklistSection';
+import PropertyEditSheet from './ui/property-edit-sheet/PropertyEditSheet';
 import PropertyHeroPhoto from './ui/property-hero-photo/PropertyHeroPhoto';
 import PropertyMemoSection from './ui/property-memo-section/PropertyMemoSection';
 import PropertyPhotoSection from './ui/property-photo-section/PropertyPhotoSection';
@@ -30,28 +33,51 @@ import styles from './PropertyDetailPage.module.css';
 
 const describeError = describePropertyLoadError('매물 상세를 불러오지 못했어요.');
 
-type PropertyDetailViewProps = { propertyId: number; detail: PropertyDetail; backTo: PropertyReturnPath };
+/** 다른 화면 옆 패널로 열 때 쓴다. 보여줄 매물과 닫기(뒤로가기·삭제 뒤)를 패널을 연 화면이 정한다. */
+export type PropertyDetailPanel = { propertyId: number; onClose: () => void };
 
-const PropertyDetailPage = () => {
-  const propertyId = parsePositiveId(useParams().propertyId);
-  const backTo = getPropertyReturnPath(useLocation().state);
+type PropertyDetailViewProps = {
+  propertyId: number;
+  detail: PropertyDetail;
+  backTo: PropertyReturnPath;
+  panel?: PropertyDetailPanel;
+};
+
+type PropertyDetailPageProps = {
+  panel?: PropertyDetailPanel;
+  /** 들어온 화면을 알 수 없을 때(주소 직접 입력 등) 돌아갈 화면. 기본은 기록 화면이다. */
+  returnTo?: PropertyReturnPath;
+};
+
+const PropertyDetailPage = ({ panel, returnTo }: PropertyDetailPageProps) => {
+  const routePropertyId = parsePositiveId(useParams().propertyId);
+  const propertyId = panel?.propertyId ?? routePropertyId;
+  const backTo = getPropertyReturnPath(useLocation().state, returnTo);
   if (propertyId === null) {
     return (
       <ContentState title="올바른 매물 주소가 아니에요.">
         <Link to={backTo}>
           {backTo === '/map'
             ? '매물 지도로 돌아가기'
-            : backTo === '/design-preview/records'
+            : backTo === '/properties'
               ? '기록 화면으로 돌아가기'
-              : '매물 목록으로 돌아가기'}
+              : '홈으로 돌아가기'}
         </Link>
       </ContentState>
     );
   }
-  return <ResolvedPropertyDetailPage propertyId={propertyId} backTo={backTo} />;
+  return <ResolvedPropertyDetailPage propertyId={propertyId} backTo={backTo} panel={panel} />;
 };
 
-const ResolvedPropertyDetailPage = ({ propertyId, backTo }: { propertyId: number; backTo: PropertyReturnPath }) => {
+const ResolvedPropertyDetailPage = ({
+  propertyId,
+  backTo,
+  panel,
+}: {
+  propertyId: number;
+  backTo: PropertyReturnPath;
+  panel?: PropertyDetailPanel;
+}) => {
   const property = usePropertyDetail(propertyId);
 
   return (
@@ -63,24 +89,25 @@ const ResolvedPropertyDetailPage = ({ propertyId, backTo }: { propertyId: number
         <Link to={backTo}>
           {backTo === '/map'
             ? '매물 지도로 돌아가기'
-            : backTo === '/design-preview/records'
+            : backTo === '/properties'
               ? '기록 화면으로 돌아가기'
-              : '매물 목록으로 돌아가기'}
+              : '홈으로 돌아가기'}
         </Link>
       }
     >
-      {(detail) => <PropertyDetailView propertyId={propertyId} detail={detail} backTo={backTo} />}
+      {(detail) => <PropertyDetailView propertyId={propertyId} detail={detail} backTo={backTo} panel={panel} />}
     </QueryState>
   );
 };
 
-const PropertyDetailView = ({ propertyId, detail, backTo }: PropertyDetailViewProps) => {
+const PropertyDetailView = ({ propertyId, detail, backTo, panel }: PropertyDetailViewProps) => {
   const navigate = useNavigate();
   const returnState = getPropertyReturnState(useLocation().state);
   const removeMutation = useRemoveProperty(propertyId);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'details' | 'checklist'>('details');
+  const [editingSection, setEditingSection] = useState<'basic' | 'additional' | null>(null);
   const deleteButtonRef = useRef<HTMLButtonElement>(null);
   const photoTriggerRef = useRef<HTMLButtonElement | null>(null);
 
@@ -88,34 +115,44 @@ const PropertyDetailView = ({ propertyId, detail, backTo }: PropertyDetailViewPr
     trackPostHogEvent('property_detail_viewed', { property_id: propertyId });
   }, [propertyId]);
 
+  const Root = panel ? 'div' : 'main';
+
   const deleteProperty = async () => {
     try {
       await removeMutation.mutateAsync();
       setIsDeleteDialogOpen(false);
-      navigate(backTo, { replace: true, state: { focusHeading: true } });
+      if (panel) panel.onClose();
+      else navigate(backTo, { replace: true, state: { focusHeading: true } });
     } catch {
       // 삭제 확인 창에서 재시도할 수 있도록 유지한다.
     }
   };
 
   return (
-    <main className={styles.page}>
+    // 패널로 열면 패널을 연 화면의 main 안에 들어가므로 main을 겹치지 않는다.
+    <Root className={styles.page} data-panel={panel ? 'true' : undefined}>
       <div className={styles.container}>
         <header className={styles.header}>
-          <Link
-            className={styles.backButton}
-            to={backTo}
-            state={returnState}
-            aria-label={
-              backTo === '/map'
-                ? '매물 지도로 돌아가기'
-                : backTo === '/design-preview/records'
-                  ? '기록 화면으로 돌아가기'
-                  : '매물 목록으로 돌아가기'
-            }
-          >
-            <Icon name="chevron-left" size={24} />
-          </Link>
+          {panel ? (
+            <button className={styles.backButton} type="button" aria-label="목록으로 돌아가기" onClick={panel.onClose}>
+              <Icon name="chevron-left" size={24} />
+            </button>
+          ) : (
+            <Link
+              className={styles.backButton}
+              to={backTo}
+              state={returnState}
+              aria-label={
+                backTo === '/map'
+                  ? '매물 지도로 돌아가기'
+                  : backTo === '/properties'
+                    ? '기록 화면으로 돌아가기'
+                    : '홈으로 돌아가기'
+              }
+            >
+              <Icon name="chevron-left" size={24} />
+            </Link>
+          )}
           <h1 className={styles.headerTitle}>{detail.name}</h1>
         </header>
 
@@ -174,9 +211,9 @@ const PropertyDetailView = ({ propertyId, detail, backTo }: PropertyDetailViewPr
                   </button>
                 </TopNavigationMenu>
               </div>
-              <PropertyBasicInfoSection property={detail} />
+              <PropertyBasicInfoSection property={detail} onEdit={() => setEditingSection('basic')} />
 
-              <PropertyAdditionalInfoSection property={detail} />
+              <PropertyAdditionalInfoSection property={detail} onEdit={() => setEditingSection('additional')} />
 
               <PropertyMemoSection propertyId={propertyId} />
 
@@ -209,6 +246,20 @@ const PropertyDetailView = ({ propertyId, detail, backTo }: PropertyDetailViewPr
           />
         )}
 
+        {editingSection !== null && (
+          <PropertyEditSheet
+            title={editingSection === 'basic' ? '기본 정보 수정' : '부가 정보 수정'}
+            initialHeightPercent={88}
+            onClose={() => setEditingSection(null)}
+          >
+            {editingSection === 'basic' ? (
+              <PropertyBasicInfoForm property={detail} onSaved={() => setEditingSection(null)} />
+            ) : (
+              <PropertyAdditionalInfoForm property={detail} layout="sheet" onSaved={() => setEditingSection(null)} />
+            )}
+          </PropertyEditSheet>
+        )}
+
         <ConfirmDialog
           isOpen={isDeleteDialogOpen}
           title={`${detail.name}을 삭제할까요?`}
@@ -226,7 +277,7 @@ const PropertyDetailView = ({ propertyId, detail, backTo }: PropertyDetailViewPr
           )}
         </ConfirmDialog>
       </div>
-    </main>
+    </Root>
   );
 };
 

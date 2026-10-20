@@ -57,9 +57,9 @@ const PropertyHeroPhoto = ({
         aria-label={
           backTo === '/map'
             ? '매물 지도로 돌아가기'
-            : backTo === '/design-preview/records'
+            : backTo === '/properties'
               ? '기록 화면으로 돌아가기'
-              : '매물 목록으로 돌아가기'
+              : '홈으로 돌아가기'
         }
       >
         <Icon name="chevron-left" size={24} />

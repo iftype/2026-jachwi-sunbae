@@ -1,0 +1,15 @@
+/* 매물은 따로 떨어진 카드 대신 한 상자 안에 이어진 리스트로 두고, 항목 사이는 얇은 줄로 나눈다. */
+.propertyList {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  list-style: none;
+}
+
+.propertyList > li + li {
+  border-top: 1px solid #e4e6ea;
+}

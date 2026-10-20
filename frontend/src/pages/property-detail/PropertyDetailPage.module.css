@@ -3,6 +3,11 @@
   background: var(--color-canvas);
 }
 
+/* 패널로 열면 패널 높이 안에서 스크롤하므로 화면 높이를 채우지 않는다. */
+.page[data-panel='true'] {
+  min-height: 0;
+}
+
 .container {
   --page-inline-padding: 1rem;
 
@@ -23,9 +28,13 @@
   height: 2.5rem;
   flex: 0 0 auto;
   place-items: center;
+  border: 0;
   border-radius: 50%;
+  padding: 0;
+  background: transparent;
   color: var(--color-ink);
   text-decoration: none;
+  cursor: pointer;
 }
 
 /* 헤더 제목은 뒤로가기 화살표 바로 오른쪽에 왼쪽 정렬로 둔다. */

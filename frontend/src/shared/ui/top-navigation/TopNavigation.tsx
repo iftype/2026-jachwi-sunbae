@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
-import { DESIGN_HOME_PATH, isDesignShell } from '../../lib/navigation/designShell';
 import Icon from '../icon/Icon';
 
 import styles from './TopNavigation.module.css';
@@ -27,8 +26,7 @@ const TopNavigation = ({
   endSlot,
   className,
 }: TopNavigationProps) => {
-  // 시안 셸에서는 기존 홈(/properties)으로 가는 뒤로가기를 시안 홈으로 돌린다.
-  const backPath = backTo === '/properties' && isDesignShell() ? DESIGN_HOME_PATH : backTo;
+  const backPath = backTo;
   return (
     <header
       className={`${styles.root} ${className ?? ''}`}

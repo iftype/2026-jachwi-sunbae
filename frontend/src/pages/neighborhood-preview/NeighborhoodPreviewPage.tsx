@@ -1,12 +1,14 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Navigate, Outlet, useMatch } from 'react-router-dom';
 
+import { SERVICE_MAP_STYLE_ID } from '@/features/map/lib/mapStyle';
 import type { MapRegion } from '@/features/map/model/MapCanvas';
 import MapCanvas from '@/features/map/ui/map-canvas/MapCanvas';
 import MapCurrentLocationButton from '@/features/map/ui/map-current-location-button/MapCurrentLocationButton';
 import ExplorationRecordAction from '@/features/onboarding/ui/exploration-record-action/ExplorationRecordAction';
 import BottomSheet from '@/shared/ui/bottom-sheet/BottomSheet';
 import { Button } from '@/shared/ui/button/Button';
+import DesktopHeaderSlot, { useHasDesktopHeaderSlot } from '@/shared/ui/desktop-header/DesktopHeaderSlot';
 import HorizontalRail from '@/shared/ui/horizontal-rail/HorizontalRail';
 import Icon from '@/shared/ui/icon/Icon';
 import RankedCard from '@/shared/ui/ranked-card/RankedCard';
@@ -24,10 +26,10 @@ import styles from './NeighborhoodPreviewPage.module.css';
 
 const CARD_RANKS = [1, 2, 3, 4, 5] as const;
 const NO_REGIONS: MapRegion[] = [];
-const NEIGHBORHOOD_MAP_STYLE_ID = '631c1c09-380e-427f-b7d8-e600956dac10';
 
 const NeighborhoodPreviewPage = () => {
   const preview = useNeighborhoodPreview();
+  const searchInHeader = useHasDesktopHeaderSlot();
   const tutorial = useExplorationTutorial({
     enabled: preview.isPublicExplore,
     mode: preview.mode,
@@ -98,7 +100,7 @@ const NeighborhoodPreviewPage = () => {
       <section className={styles.mapPage} aria-label={isResultMap ? '행정동 프리셋 지도' : '지도에서 목적지 선택'}>
         <MapCanvas
           animateView
-          customStyleId={NEIGHBORHOOD_MAP_STYLE_ID}
+          customStyleId={SERVICE_MAP_STYLE_ID}
           interactive
           {...(isResultMap
             ? {
@@ -171,22 +173,35 @@ const NeighborhoodPreviewPage = () => {
         ) : preview.isSelectingOnMap ? (
           <>
             <header className={styles.searchHeader} data-tutorial-step={tutorial.isOpen ? tutorial.step : undefined}>
-              <div className={styles.mapSearch}>
-                <SearchField
-                  className={styles.activeSearchField}
-                  shape="pill"
-                  showSubmitButton
-                  label={preview.mode === 'commute' ? '출퇴근 장소' : '관심 지역'}
-                  placeholder={preview.mode === 'commute' ? '출퇴근하는 장소 검색' : '관심 지역 검색'}
-                  value={preview.query}
-                  onValueChange={preview.changeQuery}
-                  onSubmit={() => {
-                    preview.searchDestination();
-                  }}
-                  onBack={preview.openModeSelection}
-                  autoFocus={preview.shouldFocusMapSearch}
-                />
-              </div>
+              {/* 휴대폰은 인프라 지도처럼 검색창 왼쪽에 흰 원형 뒤로가기를 두고, 데스크탑은 둘 다 공용 헤더 가운데로 옮긴다. */}
+              <DesktopHeaderSlot>
+                <div
+                  className={searchInHeader ? styles.headerMapSearch : styles.mapSearch}
+                  data-tutorial-step={tutorial.isOpen ? tutorial.step : undefined}
+                >
+                  <button
+                    type="button"
+                    className={styles.mapBack}
+                    aria-label="뒤로 가기"
+                    onClick={preview.openModeSelection}
+                  >
+                    <Icon name="chevron-left" size={24} />
+                  </button>
+                  <SearchField
+                    className={styles.activeSearchField}
+                    shape="pill"
+                    showSubmitButton
+                    label={preview.mode === 'commute' ? '출퇴근 장소' : '관심 지역'}
+                    placeholder={preview.mode === 'commute' ? '출퇴근하는 장소 검색' : '관심 지역 검색'}
+                    value={preview.query}
+                    onValueChange={preview.changeQuery}
+                    onSubmit={() => {
+                      preview.searchDestination();
+                    }}
+                    autoFocus={preview.shouldFocusMapSearch}
+                  />
+                </div>
+              </DesktopHeaderSlot>
               {!preview.hasChosenMapPoint && (
                 <>
                   {preview.isSearching && (

@@ -1,0 +1,43 @@
+.districts {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 0.6rem 1rem 0.85rem;
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+.districts::-webkit-scrollbar {
+  display: none;
+}
+.districts button {
+  flex-shrink: 0;
+  padding: 0.65rem 1rem;
+  border: 0;
+  border-radius: 1.5rem;
+  background: #f4f4f5;
+  color: #82868e;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.districts button[aria-pressed='true'] {
+  background: #648fff;
+  color: white;
+}
+.districts[data-over-map='true'] button:not([aria-pressed='true']) {
+  background: white;
+  box-shadow: 0 2px 8px #00000018;
+}
+.districts button:focus-visible {
+  outline: 2px solid #25282d;
+  outline-offset: 3px;
+}
+/* 태블릿 너비부터는 여백과 글자만 키운다. */
+@media (min-width: 768px) {
+  .districts {
+    padding: 0.6rem 1.5rem 1rem;
+  }
+  .districts button {
+    font-size: 0.92rem;
+  }
+}

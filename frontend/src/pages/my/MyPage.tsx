@@ -41,7 +41,7 @@ const MyPage = () => {
   return (
     <main className={styles.page}>
       <div className={styles.container}>
-        <TopNavigation title="마이" backTo="/properties" backLabel="홈으로 돌아가기" />
+        <TopNavigation title="마이" backTo="/" backLabel="홈으로 돌아가기" />
         <section className={styles.profileCard} aria-labelledby="member-heading">
           <span className={styles.avatar} aria-hidden="true">
             {displayInitial}

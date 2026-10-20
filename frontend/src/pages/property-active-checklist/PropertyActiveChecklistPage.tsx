@@ -28,7 +28,7 @@ const readNewChecklistId = (state: unknown): number | null => {
 const isFromPropertyDetail = (state: unknown) =>
   typeof state === 'object' && state !== null && 'from' in state && state.from === 'property-detail';
 
-const backToList = <Link to="/properties">매물 목록으로 돌아가기</Link>;
+const backToList = <Link to="/">홈으로 돌아가기</Link>;
 const describeError = describeChecklistLoadError('체크리스트를 불러오지 못했어요.', {
   PROPERTY_NOT_FOUND: '매물을 찾을 수 없어요.',
 });

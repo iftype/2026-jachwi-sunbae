@@ -141,3 +141,12 @@
   font-size: 0.8rem;
   margin-top: 1.5rem;
 }
+
+/* 데스크탑에서는 동네 상세를 지도 전체를 덮지 않고 왼쪽 28rem 패널로 연다. */
+@media (min-width: 1024px) {
+  .detailPage {
+    right: auto;
+    width: 28rem;
+    box-shadow: 0.4rem 0 1.5rem rgb(0 0 0 / 10%);
+  }
+}

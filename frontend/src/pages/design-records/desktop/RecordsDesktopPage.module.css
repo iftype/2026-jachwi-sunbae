@@ -1,0 +1,48 @@
+/*
+ * 데스크탑 본 방 기록: 화면 전체를 쓰며 왼쪽에 리스트, 오른쪽에 지도를 나란히 둔다.
+ * 공용 틀(RecordsPage.module.css) 위에 덧씌우므로, 순서와 상관없이 이기도록 화면 루트(.root) 아래로 한정한다.
+ */
+.root .frame {
+  width: 100%;
+}
+.root .body {
+  display: grid;
+  grid-template-areas: 'list map';
+  grid-template-columns: 28rem minmax(0, 1fr);
+}
+.root .list {
+  grid-area: list;
+  padding: 1rem 1.5rem 1.5rem;
+  border-right: 1px solid #eceef1;
+}
+.root .map {
+  grid-area: map;
+}
+/* 매물 등록·상세는 리스트 자리에 연다. 두 화면이 자체 여백을 가지므로 리스트 여백은 뺀다. */
+.root .sidePanel {
+  padding: 0;
+  background: #fff;
+}
+/* 동네 뱃지는 오른쪽 지도 위에 띄운다. */
+.root .districts {
+  position: absolute;
+  z-index: 10;
+  top: 0;
+  right: 0;
+  left: 0;
+  padding-top: 0.75rem;
+}
+/* 기록하기 버튼은 지도 오른쪽 아래에 둔다. */
+.root .add {
+  right: 1.5rem;
+  bottom: 1.5rem;
+}
+.root .hint {
+  bottom: 2.75rem;
+}
+.root .notice {
+  right: 1.5rem;
+  bottom: 5.75rem;
+  left: auto;
+  width: 22rem;
+}

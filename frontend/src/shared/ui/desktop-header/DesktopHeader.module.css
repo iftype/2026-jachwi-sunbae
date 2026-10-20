@@ -1,0 +1,104 @@
+.header {
+  /*
+   * 화면마다 기준 글자 크기(rem)를 키우는 경우가 있어도 헤더는 어디서나 같은 크기로 보이게
+   * 글자 크기를 16px로 고정하고 안쪽 크기는 em으로 잡는다.
+   */
+  font-size: 16px;
+  /* 가운데 자리가 비어도 메뉴·마이페이지 위치가 바뀌지 않게 격자 대신 가로 줄로 둔다. */
+  display: flex;
+  align-items: center;
+  gap: 1em;
+  box-sizing: border-box;
+  width: 100%;
+  padding: max(1.1em, env(safe-area-inset-top)) 1.5em 0.8em;
+  /* 화면마다 표면색 변수가 달라도 헤더는 흰색으로 통일한다. */
+  background: #fff;
+  border-bottom: 1px solid #eceef1;
+}
+
+.homeLogo {
+  display: block;
+  border-radius: 0.75em;
+}
+
+.homeLogo:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+.homeLogo img {
+  display: block;
+  width: 2.5em;
+  height: 2.5em;
+  border-radius: 0.75em;
+}
+
+.slot {
+  display: flex;
+  min-width: 0;
+  flex: 0 1 28em;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.slot:empty {
+  display: none;
+}
+
+.nav {
+  display: flex;
+  gap: 0;
+  margin-left: auto;
+}
+
+/* 메뉴는 마우스를 올리면 살짝 둥근 네모로 옅게만 표시하고, 지금 화면은 파란 글자로 둔다. */
+.nav a {
+  padding: 0.5em 0.6em;
+  border-radius: 0.5em;
+  color: #6b7079;
+  font-size: 0.95em;
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.nav a:hover {
+  background: #f6f7f9;
+  color: #25282d;
+}
+
+.nav a[aria-current='page'] {
+  color: var(--color-brand-blue);
+  font-weight: 700;
+}
+
+.nav a[aria-current='page']:hover {
+  color: var(--color-brand-blue);
+}
+
+/* 메뉴와 구분되도록 마이페이지는 메뉴에서 조금 떨어뜨린다. */
+.profile {
+  display: grid;
+  margin-left: 1em;
+  width: 2.4em;
+  height: 2.4em;
+  border-radius: 0.5em;
+  place-items: center;
+  transition: background-color 0.18s ease;
+}
+
+.profile img {
+  width: 2.1em;
+  height: 2.1em;
+}
+
+.profile:hover {
+  background: #f6f7f9;
+}
+
+.profile:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 3px;
+}

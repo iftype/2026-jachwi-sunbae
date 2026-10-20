@@ -1,0 +1,21 @@
+/* 데스크탑은 기록 화면처럼 왼쪽에 매물 목록, 오른쪽에 지도를 나란히 둔다. 검색 결과도 왼쪽 칸 위에 띄운다. */
+.root {
+  grid-template-columns: 28rem minmax(0, 1fr);
+}
+
+.panel {
+  grid-area: 1 / 1;
+}
+
+/* 목록 대신 연 매물 상세는 같은 칸에서 따로 스크롤한다. */
+.detailPanel {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  border-right: 1px solid #eceef1;
+  background: #fff;
+}
+
+.root .mapStage {
+  grid-area: 1 / 2;
+}
