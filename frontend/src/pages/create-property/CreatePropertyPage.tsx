@@ -21,15 +21,22 @@ const stepNotice = (revealedStep: number, isReadyToSubmit: boolean) => {
   return '위치를 선택한 뒤 다음을 눌러 주세요.';
 };
 
-const CreatePropertyPage = () => {
+/** 다른 화면 옆 패널로 열 때 쓴다. 닫기와 등록 뒤 이동을 패널을 연 화면이 정한다. */
+export type PropertyCreationPanel = {
+  onClose: () => void;
+  onCreated: (propertyId: number) => void;
+};
+
+const CreatePropertyPage = ({ panel }: { panel?: PropertyCreationPanel }) => {
   const routeState = (useLocation().state as PropertyCreationRouteState | null) ?? {};
   const keyboardInset = useKeyboardInset();
-  const form = usePropertyCreationForm(routeState);
+  const form = usePropertyCreationForm(panel ? {} : routeState, { onCreated: panel?.onCreated });
   const { values, errors, revealedStep, nameStep } = form;
   useEffect(() => {
     if (routeState.fromExploration) trackExplorationRecordView();
   }, [routeState.fromExploration]);
   const isNameStep = revealedStep >= nameStep;
+  const Root = panel ? 'div' : 'main';
   const submitOnKeyboardEnter = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key !== 'Enter') return;
     event.preventDefault();
@@ -37,12 +44,14 @@ const CreatePropertyPage = () => {
   };
 
   return (
-    <main className={styles.page}>
+    // 패널로 열면 패널을 연 화면의 main 안에 들어가므로 main을 겹치지 않는다.
+    <Root className={styles.page} data-panel={panel ? 'true' : undefined}>
       <div className={styles.content}>
         <TopNavigation
           className={styles.createNavigation}
           title="새 매물 등록"
-          backTo="/properties"
+          backTo={panel ? undefined : '/'}
+          onBack={panel?.onClose}
           backLabel="매물 등록 닫기"
           navigationIcon="close"
         />
@@ -125,7 +134,7 @@ const CreatePropertyPage = () => {
           </BottomActionArea>
         </form>
       </div>
-    </main>
+    </Root>
   );
 };
 

@@ -1,0 +1,195 @@
+/* 휴대폰·태블릿 본 방 기록 전용: 헤더(뒤로가기·지도/리스트 전환), 지도 위에 뜬 헤더, 지도 아래 선택 매물 카드. */
+.header {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr 2.5rem;
+  align-items: center;
+  padding: max(0.85rem, env(safe-area-inset-top)) 1rem 0.7rem;
+}
+/* 뒤로가기와 보기 전환은 지도·리스트 어느 쪽에서도 같은 모양이어서, 보기를 바꿔도 움직이거나 바뀌지 않는다. */
+.back {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid #e3e5e9;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 2px 10px #00000018;
+  color: #383c43;
+  text-decoration: none;
+}
+.switch {
+  display: flex;
+  padding: 0.3rem;
+  width: max-content;
+  justify-self: center;
+  border: 1px solid #e3e5e9;
+  background: white;
+  border-radius: 2rem;
+  box-shadow: 0 2px 10px #00000018;
+}
+.switch button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-width: 5.1rem;
+  padding: 0.6rem 0.7rem;
+  border: 0;
+  border-radius: 1.5rem;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #a2a4a9;
+  background: transparent;
+  cursor: pointer;
+}
+.switch button[aria-pressed='true'] {
+  color: white;
+  background: #3e4048;
+}
+/*
+ * 지도 보기에서는 헤더와 동네 뱃지를 흰 배경 없이 지도 위에 띄운다.
+ * 빈 자리는 지도 조작을 막지 않는다. 뒤로가기·보기 전환은 흰 바탕과 테두리·그림자로 지도 위에서도 잘 보인다.
+ */
+.mapChrome {
+  position: absolute;
+  z-index: 15;
+  top: 0;
+  right: 0;
+  left: 0;
+  pointer-events: none;
+}
+.mapChrome a,
+.mapChrome button,
+.mapChrome nav {
+  pointer-events: auto;
+}
+/* 지도 위에 뜬 헤더·뱃지 아래로 현재 위치 버튼을 내린다. 공용 지도 버튼 위치보다 우선하도록 화면 루트 아래로 한정한다. */
+.root .recenterBelowChrome {
+  top: calc(max(0.85rem, env(safe-area-inset-top)) + 8.15rem);
+}
+.selectedCard {
+  position: absolute;
+  z-index: 20;
+  right: 1.25rem;
+  bottom: 1.75rem;
+  left: 1.25rem;
+  display: flex;
+  align-items: stretch;
+  min-height: 8.5rem;
+  overflow: hidden;
+  border: 1px solid #eceef1;
+  border-radius: 0.8rem;
+  background: white;
+  box-shadow: 0 3px 14px #1e2b3d24;
+}
+.selectedMain {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: flex-start;
+  gap: 0.75rem;
+  color: inherit;
+  text-decoration: none;
+}
+.selectedPhoto,
+.selectedPhotoFallback {
+  display: grid;
+  width: 7rem;
+  min-height: 8.5rem;
+  flex: 0 0 auto;
+  object-fit: cover;
+  place-items: center;
+  background: #eff1f5;
+  color: #969da6;
+}
+.selectedPhoto:global(.authenticated-photo) {
+  box-sizing: border-box;
+  min-width: 0;
+  gap: 0.25rem;
+  padding: 0.35rem;
+  overflow: hidden;
+  font-size: 0.58rem;
+  line-height: 1.25;
+}
+.selectedPhoto:global(.authenticated-photo) > span {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+.selectedPhoto:global(.authenticated-photo) :global(.inline-button) {
+  min-height: 1.4rem;
+  max-width: 100%;
+  padding: 0.1rem 0.25rem;
+  font-size: 0.6rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-underline-offset: 0.1rem;
+}
+.selectedDetails {
+  display: grid;
+  min-width: 0;
+  align-self: flex-start;
+  gap: 0.25rem;
+  padding: 0.8rem 0 0.65rem;
+}
+.selectedDetails strong,
+.selectedDetails > span,
+.selectedDetails small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.selectedDetails strong {
+  font-size: 0.9rem;
+}
+.selectedDetails > span {
+  color: #42464e;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.dismissCard {
+  display: grid;
+  width: 2.5rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: #9297a0;
+  cursor: pointer;
+}
+.back:focus-visible {
+  outline: 2px solid #25282d;
+  outline-offset: 3px;
+}
+/* 태블릿 너비부터는 배치는 그대로 두고 글자와 여백만 키운다. */
+@media (min-width: 768px) {
+  .header {
+    padding: max(1.1rem, env(safe-area-inset-top)) 1.5rem 0.8rem;
+  }
+  .switch button {
+    min-width: 6rem;
+    font-size: 0.95rem;
+  }
+  .selectedCard {
+    right: 1.5rem;
+    left: 1.5rem;
+    min-height: 10rem;
+  }
+  .selectedPhoto,
+  .selectedPhotoFallback {
+    width: 9rem;
+    min-height: 10rem;
+  }
+  .selectedDetails strong {
+    font-size: 1.05rem;
+  }
+  .selectedDetails > span {
+    font-size: 0.92rem;
+  }
+}

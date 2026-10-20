@@ -93,7 +93,7 @@ const emptyStageProgress = (stage: 'ON_SITE' | 'PRE_CONTRACT') => ({
 });
 
 describe('체크리스트 탐색과 편집', () => {
-  it('체크리스트 홈 접속 시 현장 체크리스트 목록으로 이동한다', async () => {
+  it('체크리스트 홈 접속 시 체크리스트 목록과 홈으로 돌아가는 링크를 보여준다', async () => {
     server.use(
       http.get(`${config.apiBaseUrl}/api/checklists`, () =>
         HttpResponse.json(successEnvelope(checklistPageFixture([]))),
@@ -102,7 +102,7 @@ describe('체크리스트 탐색과 편집', () => {
     renderAuthenticated('/checklists');
 
     expect(await screen.findByRole('heading', { name: '체크리스트' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '체크리스트' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: '홈으로 돌아가기' })).toHaveAttribute('href', '/');
   });
 
   it('빈 단계에서는 별도 빈 카드 없이 새 체크리스트 만들기 링크를 제공한다', async () => {

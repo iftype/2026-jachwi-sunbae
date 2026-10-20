@@ -1,0 +1,150 @@
+/* 리스트 위 필터 줄. 아직 기능 구현 전이라 칩은 흐리게 두고 '필터 준비 중'을 붙인다. */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.filters {
+  display: flex;
+  min-width: 0;
+  gap: 0.35rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.filters button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid #e3e5e9;
+  border-radius: 0.5rem;
+  background: #fff;
+  color: #9499a2;
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: not-allowed;
+}
+.comingSoon {
+  flex: none;
+  padding: 0.2rem 0.45rem;
+  border-radius: 0.35rem;
+  background: #f3f4f6;
+  color: #9499a2;
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+.items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 1.5rem;
+}
+.actions {
+  position: relative;
+  z-index: 2;
+}
+.menuToggle {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #7c828b;
+  cursor: pointer;
+}
+.menuToggle:hover {
+  background: #f3f4f6;
+}
+.menuToggle:focus-visible,
+.menu button:focus-visible {
+  outline: 2px solid #25282d;
+  outline-offset: 3px;
+}
+.menu {
+  position: absolute;
+  top: 2.1rem;
+  right: 0;
+  z-index: 5;
+  min-width: 6rem;
+  padding: 0.3rem;
+  border: 1px solid #eceef1;
+  border-radius: 0.7rem;
+  background: white;
+  box-shadow: 0 0.3rem 0.85rem #1e2b3d24;
+}
+.menu button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.6rem;
+  border: 0;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: #c44e4e;
+  font: inherit;
+  font-size: 0.78rem;
+  text-align: left;
+  cursor: pointer;
+}
+.menu button:hover {
+  background: #fff3f3;
+}
+@media (max-width: 360px) {
+  .menuToggle {
+    width: 1.6rem;
+    height: 1.6rem;
+  }
+}
+/* 불러오는 동안의 스켈레톤: 사진 칸과 이름·가격·주소 줄 자리를 은은하게 반짝인다. */
+.skeleton {
+  display: block;
+  border-radius: 0.4rem;
+  background: linear-gradient(90deg, #eff1f5 25%, #e3e6eb 50%, #eff1f5 75%);
+  background-size: 200% 100%;
+  animation: record-skeleton-shimmer 1.2s ease-in-out infinite;
+}
+/* 스켈레톤 줄은 공용 매물 카드(PropertyCard)와 같은 크기로 둔다. */
+.skeletonRoom {
+  display: grid;
+  grid-template-columns: 6.7rem minmax(0, 1fr);
+  gap: 0.875rem;
+}
+.skeletonPhoto {
+  height: 8.5rem;
+}
+.skeletonLines {
+  display: grid;
+  align-content: start;
+  gap: 0.5rem;
+  padding-top: 0.25rem;
+}
+.skeletonLines .skeleton {
+  height: 0.8rem;
+}
+.skeletonLines .skeleton:nth-child(1) {
+  width: 45%;
+}
+.skeletonLines .skeleton:nth-child(2) {
+  width: 70%;
+}
+.skeletonLines .skeleton:nth-child(3) {
+  width: 85%;
+}
+@keyframes record-skeleton-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}

@@ -118,6 +118,11 @@
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+/* 지도 화면은 휴대폰 폭(24.375rem) 열에 가두지 않고 창 크기와 상관없이 화면 전체를 쓴다. */
+.root[data-design-shell='true'][data-map-page='true'] {
+  width: 100%;
+}
+
 .root[data-design-shell='true'][data-map-page='true'] .content {
   --map-sheet-bottom: env(safe-area-inset-bottom);
   padding-bottom: 0;
@@ -140,4 +145,47 @@
   border-radius: 0.75rem;
   color: var(--color-ink);
   text-decoration: none;
+}
+
+/*
+ * 태블릿부터는 휴대폰 폭에 가두지 않는다. 지도가 아닌 화면은 48rem 폭 가운데 열로 넓힌다. 화면 아래 고정 버튼도 같은 폭(--app-max-width)을 따른다.
+ */
+@media (min-width: 768px) {
+  .root[data-design-shell='true'] {
+    --app-max-width: 48rem;
+
+    width: min(100%, var(--app-max-width));
+    box-shadow: none;
+  }
+}
+
+/* 데스크탑은 화면 전체 폭에 공용 헤더를 두고, 지도가 아닌 화면의 내용만 48rem 가운데 열에 둔다. */
+@media (min-width: 1024px) {
+  .root[data-design-shell='true'] {
+    width: 100%;
+    background: var(--color-canvas);
+  }
+
+  .root[data-design-shell='true']:not([data-map-page='true']) .content > * {
+    width: min(100%, 48rem);
+    margin-right: auto;
+    margin-left: auto;
+  }
+}
+
+/*
+ * 지도가 아닌 앱 화면(체크리스트·방 비교·마이·매물 화면 등)은 휴대폰 기준 글자가 넓은 화면에서 너무 작아 보이므로,
+ * 이 화면이 열려 있는 동안 기준 글자 크기(rem)를 태블릿 112.5%, 데스크탑 125%로 올려 글자와 여백을 같은 비율로 키운다.
+ * 공용 데스크탑 헤더는 글자 크기를 px로 고정해 이 배율의 영향을 받지 않는다.
+ */
+@media (min-width: 768px) {
+  :global(html):has(.root[data-design-shell='true']:not([data-map-page='true'])) {
+    font-size: 112.5%;
+  }
+}
+
+@media (min-width: 1024px) {
+  :global(html):has(.root[data-design-shell='true']:not([data-map-page='true'])) {
+    font-size: 125%;
+  }
 }

@@ -1,0 +1,51 @@
+.footer {
+  display: grid;
+  justify-items: center;
+  gap: 0.6rem;
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--color-border);
+  color: var(--color-placeholder);
+  font-size: 0.7rem;
+  line-height: 1.5;
+  text-align: center;
+}
+.slogan {
+  margin: 0;
+  color: var(--color-muted);
+}
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25rem 1rem;
+}
+.links a {
+  border-radius: 0.25rem;
+  color: var(--color-muted);
+  text-decoration: none;
+}
+.links a:hover {
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-underline-offset: 0.15rem;
+}
+.links a:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+.copyright {
+  font-size: inherit;
+}
+/* 데스크탑에서는 본문 왼쪽 끝에 맞춰 왼쪽 정렬한다. */
+/* 데스크탑 홈에서는 왼쪽 정렬하고 위 여백을 넓힌다. */
+.footer[data-align-start='true'] {
+  justify-items: start;
+  margin-top: 4rem;
+  padding-top: 2rem;
+  text-align: left;
+}
+.footer[data-align-start='true'] .links {
+  justify-content: flex-start;
+}

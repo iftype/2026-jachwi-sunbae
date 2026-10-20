@@ -1,5 +1,4 @@
 import ActionCard from '@/shared/ui/action-card/ActionCard';
-import Icon from '@/shared/ui/icon/Icon';
 
 import recordHouse from '../assets/record-house.webp';
 import recordNotebook from '../assets/record-notebook.webp';
@@ -14,19 +13,14 @@ const RecordCard = ({ className }: { className?: string }) => (
     size="large"
     title="매물 기록하기"
     description="직접 본 매물을 기록해요"
-    to="/design-preview/records"
+    to="/properties"
     className={`${styles.record} ${className ?? ''}`.trim()}
     illustration={
-      <>
-        <span className={styles.add} aria-hidden="true">
-          <Icon name="plus" size={19} />
-        </span>
-        <span className={styles.scene} aria-hidden="true">
-          <img className={styles.notebook} src={recordNotebook} alt="" width={480} height={480} />
-          <img className={styles.pencil} src={recordPencil} alt="" width={480} height={480} />
-          <img className={styles.house} src={recordHouse} alt="" width={480} height={480} />
-        </span>
-      </>
+      <span className={styles.scene} aria-hidden="true">
+        <img className={styles.notebook} src={recordNotebook} alt="" width={480} height={480} />
+        <img className={styles.pencil} src={recordPencil} alt="" width={480} height={480} />
+        <img className={styles.house} src={recordHouse} alt="" width={480} height={480} />
+      </span>
     }
   />
 );

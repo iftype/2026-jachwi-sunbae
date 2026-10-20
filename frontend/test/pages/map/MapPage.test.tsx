@@ -237,7 +237,7 @@ it('선택 매물의 반경을 바꾸면 새 확대 수준에서 매물을 기�
         <PublicConfigProvider config={{ apiBaseUrl: 'http://localhost:8080', mapProviderMode: 'demo' }}>
           <Routes>
             <Route path="/map" element={<MapPage />} />
-            <Route path="/properties/:propertyId" element={<ReturnToMap />} />
+            <Route path="/map/:propertyId" element={<ReturnToMap />} />
           </Routes>
         </PublicConfigProvider>
       </MemoryRouter>

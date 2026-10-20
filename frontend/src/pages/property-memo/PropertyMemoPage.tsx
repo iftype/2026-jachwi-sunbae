@@ -15,7 +15,7 @@ const PropertyMemoPage = () => {
   if (propertyId === null) {
     return (
       <ContentState title="올바른 매물 주소가 아니에요.">
-        <Link to="/properties">매물 목록으로 돌아가기</Link>
+        <Link to="/">홈으로 돌아가기</Link>
       </ContentState>
     );
   }

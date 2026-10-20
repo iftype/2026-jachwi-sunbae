@@ -9,3 +9,9 @@
 .emptySlot {
   aspect-ratio: 1;
 }
+/* 태블릿부터는 칸이 넓어져도 타일이 모바일 크기를 넘지 않게 칸 크기에 상한을 둔다. */
+@media (min-width: 768px) {
+  .menu {
+    grid-template-columns: repeat(4, minmax(0, 5.5rem));
+  }
+}
