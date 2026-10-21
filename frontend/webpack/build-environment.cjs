@@ -39,6 +39,8 @@ const readBuildEnvironment = ({ isProduction, proxyTarget }) => {
     ? `http://localhost:${devServerPort}`
     : (process.env.API_BASE_URL ?? 'http://localhost:8080');
   const naverMapClientId = process.env.NAVER_MAP_CLIENT_ID ?? '';
+  // GitHub Pages처럼 하위 경로에 올릴 때만 PUBLIC_PATH를 지정한다. 끝은 항상 '/'로 맞춘다.
+  const publicPath = (process.env.PUBLIC_PATH ?? '/').replace(/\/?$/, '/');
 
   return {
     apiBaseUrl,
@@ -47,13 +49,14 @@ const readBuildEnvironment = ({ isProduction, proxyTarget }) => {
     devServerPort,
     isMockingEnabled,
     commuteDataSource: isMockingEnabled && process.env.USE_REAL_COMMUTE_API !== 'true' ? 'mock' : 'server',
-    boundaryBaseUrl: process.env.ADMIN_BOUNDARY_BASE_URL ?? '/boundaries',
+    boundaryBaseUrl: process.env.ADMIN_BOUNDARY_BASE_URL ?? `${publicPath}boundaries`,
     mapProviderMode: isProduction
       ? 'naver'
       : (process.env.MAP_PROVIDER_MODE ?? (naverMapClientId === '' ? 'demo' : 'naver')),
     naverMapClientId,
     posthogHost: process.env.POSTHOG_HOST ?? '',
     posthogProjectToken: process.env.POSTHOG_PROJECT_TOKEN ?? '',
+    publicPath,
   };
 };
 

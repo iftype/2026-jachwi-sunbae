@@ -1,0 +1,75 @@
+name: Fork Preview Pages
+
+# 포크 저장소에서만 MSW 목 데이터로 프론트엔드를 GitHub Pages에 올려 휴대폰으로 확인한다.
+on:
+  push:
+    branches-ignore:
+      - main
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: fork-preview-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build MSW preview
+    if: github.repository == 'iftype/2026-jachwi-sunbae'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      ENABLE_MSW: 'true'
+      PUBLIC_PATH: /${{ github.event.repository.name }}/
+      API_BASE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+      MAP_PROVIDER_MODE: demo
+      APP_VERSION: ${{ github.ref_name }}@${{ github.sha }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # production 모드는 네이버 지도를 강제하므로 데모 지도를 쓰도록 development 모드로 빌드한다.
+      - name: Build
+        run: npx webpack --config webpack/webpack.config.cjs --mode development
+
+      - name: Add MSW worker and SPA fallback
+        run: |
+          cp public/mockServiceWorker.js dist/
+          cp dist/index.html dist/404.html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/dist
+
+  deploy:
+    name: Deploy preview
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

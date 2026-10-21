@@ -31,7 +31,7 @@ module.exports = (_env, argv) => {
       filename: isProduction ? '[name].[contenthash].js' : '[name].js',
       chunkFilename: isProduction ? '[name].[contenthash].js' : '[name].js',
       assetModuleFilename: isProduction ? 'assets/[name].[contenthash][ext]' : 'assets/[name][ext]',
-      publicPath: '/',
+      publicPath: buildEnvironment.publicPath,
       clean: true,
     },
     optimization: isProduction

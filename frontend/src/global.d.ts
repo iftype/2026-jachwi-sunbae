@@ -8,6 +8,7 @@ declare const __APP_ENVIRONMENT__: 'production' | 'development';
 declare const __ENABLE_MSW__: boolean;
 declare const __COMMUTE_DATA_SOURCE__: 'mock' | 'server';
 declare const __ADMIN_BOUNDARY_BASE_URL__: string;
+declare const __PUBLIC_PATH__: string;
 
 interface Window {
   jachwiNaverSdkReady?: () => void;
