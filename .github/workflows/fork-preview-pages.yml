@@ -30,7 +30,9 @@ jobs:
       ENABLE_MSW: 'true'
       PUBLIC_PATH: /${{ github.event.repository.name }}/
       API_BASE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
-      MAP_PROVIDER_MODE: demo
+      # 저장소 변수 NAVER_MAP_CLIENT_ID가 있으면 네이버 지도, 없으면 데모 지도를 쓴다.
+      NAVER_MAP_CLIENT_ID: ${{ vars.NAVER_MAP_CLIENT_ID }}
+      MAP_PROVIDER_MODE: ${{ vars.NAVER_MAP_CLIENT_ID != '' && 'naver' || 'demo' }}
       APP_VERSION: ${{ github.ref_name }}@${{ github.sha }}
 
     steps:
