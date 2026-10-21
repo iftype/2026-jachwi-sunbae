@@ -3,9 +3,8 @@ name: Fork Preview Pages
 # 포크 저장소에서만 MSW 목 데이터로 프론트엔드를 GitHub Pages에 올려 휴대폰으로 확인한다.
 on:
   push:
-    branches-ignore:
-      - main
-      - develop
+    branches:
+      - 'preview/**'
   workflow_dispatch:
 
 permissions:
