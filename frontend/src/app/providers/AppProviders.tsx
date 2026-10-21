@@ -5,6 +5,7 @@ import { UNSAFE_createBrowserHistory, unstable_HistoryRouter as HistoryRouter } 
 import { queryClient } from '@/shared/api/queryClient';
 import { PublicConfigProvider } from '@/shared/config/PublicConfigContext';
 import type { PublicConfig } from '@/shared/config/publicConfigTypes';
+import { PUBLIC_PATH } from '@/shared/config/publicPath';
 import { createGuardedHistory } from '@/shared/lib/navigation/guardedHistory';
 
 type AppProvidersProps = {
@@ -25,7 +26,7 @@ const AppProviders = ({ config, children }: AppProvidersProps) => {
   return (
     <PublicConfigProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <HistoryRouter history={history}>{children}</HistoryRouter>
+        <HistoryRouter history={history} basename={PUBLIC_PATH}>{children}</HistoryRouter>
       </QueryClientProvider>
     </PublicConfigProvider>
   );

@@ -62,6 +62,7 @@ const createPlugins = ({ isProduction, buildEnvironment }) => [
     __ENABLE_MSW__: JSON.stringify(buildEnvironment.isMockingEnabled),
     __COMMUTE_DATA_SOURCE__: JSON.stringify(buildEnvironment.commuteDataSource),
     __ADMIN_BOUNDARY_BASE_URL__: JSON.stringify(buildEnvironment.boundaryBaseUrl),
+    __PUBLIC_PATH__: JSON.stringify(buildEnvironment.publicPath),
   }),
   new HtmlWebpackPlugin({
     template: './index.html',
