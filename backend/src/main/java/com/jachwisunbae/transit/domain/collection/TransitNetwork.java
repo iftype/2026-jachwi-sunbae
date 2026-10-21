@@ -1,5 +1,7 @@
 package com.jachwisunbae.transit.domain.collection;
 
+import static com.jachwisunbae.transit.domain.collection.StopLinks.TRANSFER;
+
 import com.jachwisunbae.transit.domain.CommuteRoute;
 import com.jachwisunbae.transit.domain.GtfsEdge;
 import com.jachwisunbae.transit.domain.GtfsRoute;
@@ -22,15 +24,14 @@ import java.util.Optional;
 // 전국 노선망에서 목적지까지 제한 시간 안에 갈 수 있는 정류장과, 정류장 하나에서 목적지까지의 경로를 찾는다.
 // 생활권 탐색은 목적지에서 출발해 구간을 거꾸로 따라가며 정류장마다 가장 짧은 통근 시간을 구하고(다익스트라),
 // 경로 안내는 같은 규칙으로 출발 정류장에서 목적지 쪽으로 따라가며 지나온 구간을 기록한다.
-// 정류장 21만 개, 구간 117만 개를 다루므로 정류장과 노선을 번호로 바꿔 배열에 담고,
-// 탐색 상태도 객체 없이 SearchStates·StateHeap의 원시 배열로 다룬다.
+// 정류장 21만 개, 구간 117만 개를 다루므로 정류장과 노선을 번호로 바꾸고(TransitNetworkBuilder),
+// 연결은 정류장별로 묶은 StopLinks에, 탐색 상태는 객체 없이 SearchStates·StateHeap의 원시 배열에 담는다.
 public final class TransitNetwork {
 
     public static final double WALKING_METERS_PER_SECOND = 1.2;
     public static final Seconds MAX_ARRIVAL_WALK_TIME = new Seconds(600);
 
     private static final int RAIL_ROUTE_TYPE = 1;
-    private static final int TRANSFER = -1;
     private static final String[] COMPASS = {"북", "북동", "동", "남동", "남", "남서", "서", "북서"};
 
     private final List<GtfsStop> stops;
@@ -41,69 +42,53 @@ public final class TransitNetwork {
     private final boolean[] railStops;
     private final StopGrid stopGrid;
 
-    // 정류장 i에 도착하는 구간·환승은 incoming[incomingStart[i] .. incomingStart[i + 1]) 이다.
-    private final int[] incomingStart;
-    private final int[] incomingFrom;
-    private final int[] incomingRoute;
-    private final int[] incomingSeconds;
-
-    // 정류장 i에서 출발하는 구간·환승은 outgoing[outgoingStart[i] .. outgoingStart[i + 1]) 이다.
-    private final int[] outgoingStart;
-    private final int[] outgoingTo;
-    private final int[] outgoingRoute;
-    private final int[] outgoingSeconds;
+    // 생활권 탐색은 목적지에서 거꾸로 가므로 들어오는 연결을, 경로 안내는 나가는 연결을 쓴다.
+    // 두 목록의 연결 번호는 서로 다르므로 섞어 쓰지 않는다.
+    private final StopLinks incoming;
+    private final StopLinks outgoing;
 
     public TransitNetwork(final List<GtfsStop> stops, final List<GtfsRoute> routes,
                           final List<GtfsEdge> edges, final List<GtfsTransfer> transfers) {
-        this(collect(stops, routes, edges, transfers));
+        this(collect(stops, routes, edges, transfers).build());
     }
 
-    private TransitNetwork(final Builder builder) {
-        this.stops = builder.stops;
-        this.stopIndexes = builder.stopIndexes;
-        this.routes = builder.routes;
+    private TransitNetwork(final TransitNetwork network) {
+        this(network.stops, network.stopIndexes, network.routes, network.incoming, network.outgoing,
+                network.stopGrid);
+    }
+
+    TransitNetwork(final List<GtfsStop> stops, final Map<String, Integer> stopIndexes, final List<GtfsRoute> routes,
+                   final StopLinks incoming, final StopLinks outgoing, final StopGrid stopGrid) {
+        this.stops = stops;
+        this.stopIndexes = stopIndexes;
+        this.routes = routes;
+        this.incoming = incoming;
+        this.outgoing = outgoing;
+        this.stopGrid = stopGrid;
         this.waitSeconds = new int[routes.size()];
         this.railRoutes = new boolean[routes.size()];
         for (int route = 0; route < routes.size(); route++) {
             waitSeconds[route] = routes.get(route).waitTime().value();
             railRoutes[route] = routes.get(route).routeType() == RAIL_ROUTE_TYPE;
         }
-
-        int linkCount = builder.size;
-        int[] from = builder.from;
-        int[] to = builder.to;
-        int[] route = builder.route;
-        int[] seconds = builder.seconds;
         this.railStops = new boolean[stops.size()];
-        for (int link = 0; link < linkCount; link++) {
-            if (route[link] != TRANSFER && railRoutes[route[link]]) {
-                railStops[from[link]] = true;
-                railStops[to[link]] = true;
+        for (int stop = 0; stop < stops.size(); stop++) {
+            for (int link = outgoing.start(stop); link < outgoing.end(stop); link++) {
+                if (!outgoing.isTransfer(link) && railRoutes[outgoing.route(link)]) {
+                    railStops[stop] = true;
+                    railStops[outgoing.other(link)] = true;
+                }
             }
         }
-
-        this.incomingStart = groupStart(to, linkCount);
-        int[] incomingOrder = groupOrder(to, incomingStart, linkCount);
-        this.incomingFrom = pick(from, incomingOrder);
-        this.incomingRoute = pick(route, incomingOrder);
-        this.incomingSeconds = pick(seconds, incomingOrder);
-
-        this.outgoingStart = groupStart(from, linkCount);
-        int[] outgoingOrder = groupOrder(from, outgoingStart, linkCount);
-        this.outgoingTo = pick(to, outgoingOrder);
-        this.outgoingRoute = pick(route, outgoingOrder);
-        this.outgoingSeconds = pick(seconds, outgoingOrder);
-        this.stopGrid = new StopGrid(stops);
     }
 
-    // 구간을 한 개씩 받아 노선망을 만든다. 117만 개 구간을 목록으로 모으지 않고 DB에서 읽는 대로 번호 배열에 담는다.
-    public static Builder builder(final List<GtfsStop> stops, final List<GtfsRoute> routes) {
-        return new Builder(stops, routes);
+    public static TransitNetworkBuilder builder(final List<GtfsStop> stops, final List<GtfsRoute> routes) {
+        return new TransitNetworkBuilder(stops, routes);
     }
 
-    private static Builder collect(final List<GtfsStop> stops, final List<GtfsRoute> routes,
-                                   final List<GtfsEdge> edges, final List<GtfsTransfer> transfers) {
-        Builder builder = builder(stops, routes);
+    private static TransitNetworkBuilder collect(final List<GtfsStop> stops, final List<GtfsRoute> routes,
+                                                 final List<GtfsEdge> edges, final List<GtfsTransfer> transfers) {
+        TransitNetworkBuilder builder = builder(stops, routes);
         edges.forEach(builder::addEdge);
         transfers.forEach(builder::addTransfer);
         return builder;
@@ -146,21 +131,22 @@ public final class TransitNetwork {
             int stop = states.stop(state);
             int currentRoute = states.route(state);
             int currentBoardings = states.boardings(state);
-            for (int link = incomingStart[stop]; link < incomingStart[stop + 1]; link++) {
-                int route = incomingRoute[link];
+            for (int link = incoming.start(stop); link < incoming.end(stop); link++) {
+                int route = incoming.route(link);
                 boolean boarding = route != TRANSFER && route != currentRoute;
                 int boardings = currentBoardings + (boarding ? 1 : 0);
                 if (boardings - 1 > maxTransfers) {
                     continue;
                 }
-                int seconds = current + incomingSeconds[link] + (boarding ? waitSeconds[route] : 0);
+                int seconds = current + incoming.seconds(link) + (boarding ? waitSeconds[route] : 0);
                 if (seconds > limit.value()) {
                     continue;
                 }
-                int next = states.findOrInsert(SearchStates.key(incomingFrom[link], route, boardings));
+                int previousStop = incoming.other(link);
+                int next = states.findOrInsert(SearchStates.key(previousStop, route, boardings));
                 if (seconds < states.seconds(next)) {
                     states.update(next, seconds, SearchStates.NONE, SearchStates.NONE, 0);
-                    bestSeconds[incomingFrom[link]] = Math.min(bestSeconds[incomingFrom[link]], seconds);
+                    bestSeconds[previousStop] = Math.min(bestSeconds[previousStop], seconds);
                     heap.push(next, seconds);
                 }
             }
@@ -200,19 +186,19 @@ public final class TransitNetwork {
             }
             int currentRoute = states.route(state);
             int currentBoardings = states.boardings(state);
-            for (int link = outgoingStart[stop]; link < outgoingStart[stop + 1]; link++) {
-                int route = outgoingRoute[link];
+            for (int link = outgoing.start(stop); link < outgoing.end(stop); link++) {
+                int route = outgoing.route(link);
                 boolean boarding = route != TRANSFER && route != currentRoute;
                 int boardings = currentBoardings + (boarding ? 1 : 0);
                 if (boardings - 1 > maxTransfers) {
                     continue;
                 }
                 int wait = boarding ? waitSeconds[route] : 0;
-                int seconds = current + outgoingSeconds[link] + wait;
+                int seconds = current + outgoing.seconds(link) + wait;
                 if (seconds > limit.value()) {
                     continue;
                 }
-                int next = states.findOrInsert(SearchStates.key(outgoingTo[link], route, boardings));
+                int next = states.findOrInsert(SearchStates.key(outgoing.other(link), route, boardings));
                 if (seconds < states.seconds(next)) {
                     states.update(next, seconds, state, link, wait);
                     heap.push(next, seconds);
@@ -245,9 +231,9 @@ public final class TransitNetwork {
         List<RouteLeg> legs = new ArrayList<>();
         int start = 0;
         while (start < steps.size()) {
-            int route = outgoingRoute[steps.get(start).link()];
+            int route = outgoing.route(steps.get(start).link());
             int end = start;
-            while (end + 1 < steps.size() && outgoingRoute[steps.get(end + 1).link()] == route) {
+            while (end + 1 < steps.size() && outgoing.route(steps.get(end + 1).link()) == route) {
                 end++;
             }
             legs.add(toLeg(steps.subList(start, end + 1), route));
@@ -262,8 +248,8 @@ public final class TransitNetwork {
         int rideSeconds = 0;
         int waitSecondsOfLeg = 0;
         for (Step step : steps) {
-            points.add(point(outgoingTo[step.link()]));
-            rideSeconds += outgoingSeconds[step.link()];
+            points.add(point(outgoing.other(step.link())));
+            rideSeconds += outgoing.seconds(step.link());
             waitSecondsOfLeg += step.waitSeconds();
         }
         if (route == TRANSFER) {
@@ -319,11 +305,11 @@ public final class TransitNetwork {
         Coordinate from = stops.get(stop).coordinate();
         double east = 0;
         double north = 0;
-        for (int link = outgoingStart[stop]; link < outgoingStart[stop + 1]; link++) {
-            if (outgoingRoute[link] == TRANSFER) {
+        for (int link = outgoing.start(stop); link < outgoing.end(stop); link++) {
+            if (outgoing.isTransfer(link)) {
                 continue;
             }
-            Coordinate to = stops.get(outgoingTo[link]).coordinate();
+            Coordinate to = stops.get(outgoing.other(link)).coordinate();
             double stepEast = (to.longitude() - from.longitude()) * Math.cos(Math.toRadians(from.latitude()));
             double stepNorth = to.latitude() - from.latitude();
             double length = Math.hypot(stepEast, stepNorth);
@@ -347,106 +333,7 @@ public final class TransitNetwork {
         return index;
     }
 
-
-
-    // keys[0 .. count)를 정류장 번호로 묶었을 때 각 정류장 묶음이 시작하는 위치다.
-    private int[] groupStart(final int[] keys, final int count) {
-        int[] start = new int[stops.size() + 1];
-        for (int i = 0; i < count; i++) {
-            start[keys[i] + 1]++;
-        }
-        for (int stop = 0; stop < stops.size(); stop++) {
-            start[stop + 1] += start[stop];
-        }
-        return start;
-    }
-
-    private static int[] groupOrder(final int[] keys, final int[] start, final int count) {
-        int[] cursor = Arrays.copyOf(start, start.length);
-        int[] order = new int[count];
-        for (int i = 0; i < count; i++) {
-            order[cursor[keys[i]]++] = i;
-        }
-        return order;
-    }
-
-    private static int[] pick(final int[] values, final int[] order) {
-        int[] picked = new int[order.length];
-        for (int i = 0; i < order.length; i++) {
-            picked[i] = values[order[i]];
-        }
-        return picked;
-    }
-
-    public static final class Builder {
-
-        private static final int INITIAL_CAPACITY = 1 << 16;
-
-        private final List<GtfsStop> stops;
-        private final Map<String, Integer> stopIndexes = new HashMap<>();
-        private final List<GtfsRoute> routes;
-        private final Map<String, Integer> routeIndexes = new HashMap<>();
-        private int[] from = new int[INITIAL_CAPACITY];
-        private int[] to = new int[INITIAL_CAPACITY];
-        private int[] route = new int[INITIAL_CAPACITY];
-        private int[] seconds = new int[INITIAL_CAPACITY];
-        private int size;
-
-        private Builder(final List<GtfsStop> stops, final List<GtfsRoute> routes) {
-            if (routes.size() >= SearchStates.MAX_ROUTES) {
-                throw new IllegalArgumentException("노선이 너무 많습니다. routes=" + routes.size());
-            }
-            this.stops = List.copyOf(stops);
-            this.routes = List.copyOf(routes);
-            for (int i = 0; i < this.stops.size(); i++) {
-                stopIndexes.put(this.stops.get(i).stopId(), i);
-            }
-            for (int i = 0; i < this.routes.size(); i++) {
-                routeIndexes.put(this.routes.get(i).routeId(), i);
-            }
-        }
-
-        public void addEdge(final GtfsEdge edge) {
-            Integer routeIndex = routeIndexes.get(edge.routeId());
-            if (routeIndex == null) {
-                throw new IllegalArgumentException("노선망에 없는 노선입니다. routeId=" + edge.routeId());
-            }
-            add(stopIndex(edge.fromStopId()), stopIndex(edge.toStopId()), routeIndex, edge.travelTime());
-        }
-
-        public void addTransfer(final GtfsTransfer transfer) {
-            add(stopIndex(transfer.fromStopId()), stopIndex(transfer.toStopId()), TRANSFER,
-                    transfer.transferTime());
-        }
-
-        public TransitNetwork build() {
-            return new TransitNetwork(this);
-        }
-
-        private void add(final int fromStop, final int toStop, final int routeIndex, final Seconds time) {
-            if (size == from.length) {
-                from = Arrays.copyOf(from, size * 2);
-                to = Arrays.copyOf(to, size * 2);
-                route = Arrays.copyOf(route, size * 2);
-                seconds = Arrays.copyOf(seconds, size * 2);
-            }
-            from[size] = fromStop;
-            to[size] = toStop;
-            route[size] = routeIndex;
-            seconds[size] = time.value();
-            size++;
-        }
-
-        private int stopIndex(final String stopId) {
-            Integer index = stopIndexes.get(stopId);
-            if (index == null) {
-                throw new IllegalArgumentException("노선망에 없는 정류장입니다. stopId=" + stopId);
-            }
-            return index;
-        }
-    }
-
-    // 경로 안내에서 지나온 구간·환승 하나다. fromStop에서 link를 따라갔고, 탈 때 waitSeconds를 기다렸다.
+    // 경로 안내에서 지나온 구간·환승 하나다. fromStop에서 나가는 연결 link를 따라갔고, 탈 때 waitSeconds를 기다렸다.
     private record Step(int fromStop, int link, int waitSeconds) {
     }
 }
