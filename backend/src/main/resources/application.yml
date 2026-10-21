@@ -57,3 +57,4 @@ management:
         include:
           - health
           - info
+          - prometheus
