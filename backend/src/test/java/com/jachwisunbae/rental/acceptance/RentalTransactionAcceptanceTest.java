@@ -2,7 +2,6 @@ package com.jachwisunbae.rental.acceptance;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -23,7 +22,6 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
-import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -50,7 +48,6 @@ class RentalTransactionAcceptanceTest {
     private MockMvc mvc;
     @Autowired
     private ObjectMapper objectMapper;
-    private String token;
 
     @DynamicPropertySource
     static void configureDatabase(final DynamicPropertyRegistry registry) {
@@ -61,11 +58,7 @@ class RentalTransactionAcceptanceTest {
     }
 
     @BeforeEach
-    void setUpTransactions() throws Exception {
-        var login = mvc.perform(post("/api/auth/nickname").contentType(MediaType.APPLICATION_JSON)
-                .content("{\"nickname\":\"월세인수테스트\"}"))
-            .andExpect(status().isOk()).andReturn();
-        token = objectMapper.readTree(login.getResponse().getContentAsString()).path("data").path("accessToken").asText();
+    void setUpTransactions() {
         jdbc.update("DELETE FROM rental_transactions");
         jdbc.update("DELETE FROM rental_datasets");
         jdbc.update("DELETE FROM legal_dongs");
@@ -128,7 +121,7 @@ class RentalTransactionAcceptanceTest {
 
     @Test
     void returnsKnownDongNameWhenNoTransactionsExist() throws Exception {
-        mvc.perform(authenticated().param("legalDongCode", "1162010100"))
+        mvc.perform(baseRequest().param("legalDongCode", "1162010100"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.items").isEmpty())
             .andExpect(jsonPath("$.data.legalDongName").value("서울특별시 관악구 봉천동"))
             .andExpect(jsonPath("$.data.totalCount").value(0)).andExpect(jsonPath("$.data.hasNext").value(false));
@@ -136,7 +129,7 @@ class RentalTransactionAcceptanceTest {
 
     @Test
     void returnsEmptyListForDongWithoutCollectedInformation() throws Exception {
-        mvc.perform(authenticated().param("legalDongCode", "9999999999"))
+        mvc.perform(baseRequest().param("legalDongCode", "9999999999"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.items").isEmpty())
             .andExpect(jsonPath("$.data.legalDongName").isEmpty()).andExpect(jsonPath("$.data.totalCount").value(0));
     }
@@ -181,7 +174,7 @@ class RentalTransactionAcceptanceTest {
     @ParameterizedTest
     @ValueSource(strings = {"123", "abcdefghij", "11620102000", "1162010200'"})
     void rejectsInvalidDongCode(final String code) throws Exception {
-        mvc.perform(authenticated().param("legalDongCode", code)).andExpect(status().isBadRequest())
+        mvc.perform(baseRequest().param("legalDongCode", code)).andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.code").value("RENTAL_QUERY_INVALID"));
     }
 
@@ -194,16 +187,19 @@ class RentalTransactionAcceptanceTest {
 
     @Test
     void rejectsMissingCodeAndNonNumericPage() throws Exception {
-        mvc.perform(authenticated()).andExpect(status().isBadRequest())
+        mvc.perform(baseRequest()).andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
         mvc.perform(request().param("page", "abc")).andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
     }
 
     @Test
-    void requiresAuthentication() throws Exception {
-        mvc.perform(get("/api/rental-transactions").param("legalDongCode", "1162010200"))
-            .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value("ACCESS_TOKEN_INVALID"));
+    void returnsTransactionsWithoutAuthentication() throws Exception {
+        mvc.perform(request())
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value("SUCCESS"))
+            .andExpect(jsonPath("$.data.totalCount").value(3))
+            .andExpect(jsonPath("$.data.items.length()").value(3));
     }
 
     @Test
@@ -215,12 +211,12 @@ class RentalTransactionAcceptanceTest {
             .andExpect(jsonPath("$.message").value("서버 내부 오류가 발생했습니다."));
     }
 
-    private MockHttpServletRequestBuilder authenticated() {
-        return get("/api/rental-transactions").header("Authorization", "Bearer " + token);
+    private MockHttpServletRequestBuilder baseRequest() {
+        return get("/api/rental-transactions");
     }
 
     private MockHttpServletRequestBuilder request() {
-        return authenticated().param("legalDongCode", "1162010200");
+        return baseRequest().param("legalDongCode", "1162010200");
     }
 
     private void insert(final String contractDate, final long rowNumber) {
