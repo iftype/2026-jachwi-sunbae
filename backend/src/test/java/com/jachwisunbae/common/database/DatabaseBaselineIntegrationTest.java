@@ -54,16 +54,16 @@ class DatabaseBaselineIntegrationTest {
     }
 
     @Test
-    @DisplayName("빈 DB에 V1부터 V2까지 적용하면 버스정류장 좌표 인덱스가 위도·경도 순서로 생성된다")
+    @DisplayName("빈 DB에 V3까지 적용하면 버스정류장 좌표 인덱스가 위도·경도 순서로 유지된다")
     void migratesAnEmptyDatabaseUpToBusStopCoordinateIndex() {
         flyway().migrate();
 
-        assertThat(history()).containsExactly("1:SQL:1", "2:SQL:1");
+        assertThat(history()).containsExactly("1:SQL:1", "2:SQL:1", "3:SQL:1");
         assertThat(busStopCoordinateIndexColumns()).containsExactly("latitude", "longitude");
     }
 
     @Test
-    @DisplayName("기존 스키마 DB에 버전 1 기준선을 등록하면 기존 데이터를 유지한 채 V2만 적용한다")
+    @DisplayName("기존 스키마 DB에 버전 1 기준선을 등록하면 회원 ID와 기록을 유지한 채 V3까지 적용한다")
     void oneTimeBaselinePreservesExistingMembersChecklistsAndSystemItems() {
         new ResourceDatabasePopulator(
                 new ClassPathResource("db/migration/V1__initial_schema.sql")).execute(dataSource);
@@ -81,7 +81,7 @@ class DatabaseBaselineIntegrationTest {
                 """);
         insertBusStop("existing", "기존 정류장");
         var busStopsBefore = jdbcTemplate.queryForList("SELECT * FROM bus_stops ORDER BY id");
-        var membersBefore = jdbcTemplate.queryForList("SELECT * FROM members ORDER BY id");
+        var membersBefore = jdbcTemplate.queryForList("SELECT id, created_at, updated_at FROM members ORDER BY id");
         var checklistsBefore = jdbcTemplate.queryForList("SELECT * FROM user_checklists ORDER BY id");
         var systemItemsBefore = jdbcTemplate.queryForList("SELECT * FROM system_check_items ORDER BY id");
         Flyway flyway = Flyway.configure()
@@ -90,12 +90,13 @@ class DatabaseBaselineIntegrationTest {
                 .baselineOnMigrate(true)
                 .load();
 
-        assertThat(flyway.migrate().migrationsExecuted).isOne();
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(2);
         assertThat(jdbcTemplate.queryForList("SELECT * FROM bus_stops ORDER BY id")).isEqualTo(busStopsBefore);
-        assertThat(jdbcTemplate.queryForList("SELECT * FROM members ORDER BY id")).isEqualTo(membersBefore);
+        assertThat(jdbcTemplate.queryForList("SELECT id, created_at, updated_at FROM members ORDER BY id"))
+                .isEqualTo(membersBefore);
         assertThat(jdbcTemplate.queryForList("SELECT * FROM user_checklists ORDER BY id")).isEqualTo(checklistsBefore);
         assertThat(jdbcTemplate.queryForList("SELECT * FROM system_check_items ORDER BY id")).isEqualTo(systemItemsBefore);
-        assertThat(history()).containsExactly("1:BASELINE:1", "2:SQL:1");
+        assertThat(history()).containsExactly("1:BASELINE:1", "2:SQL:1", "3:SQL:1");
         assertThat(busStopCoordinateIndexColumns()).containsExactly("latitude", "longitude");
     }
 
@@ -119,8 +120,8 @@ class DatabaseBaselineIntegrationTest {
         assertThat(history()).containsExactly("1:BASELINE:1", "2:SQL:0");
         jdbcTemplate.execute("DROP TABLE flyway_schema_history");
 
-        assertThat(baselineFlyway("2").migrate().migrationsExecuted).isZero();
-        assertThat(history()).containsExactly("2:BASELINE:1");
+        assertThat(baselineFlyway("2").migrate().migrationsExecuted).isOne();
+        assertThat(history()).containsExactly("2:BASELINE:1", "3:SQL:1");
         assertThat(busStopCoordinateIndexColumns()).containsExactly("latitude", "longitude");
         assertThat(jdbcTemplate.queryForList("SELECT * FROM bus_stops ORDER BY id")).isEqualTo(busStopsBefore);
         assertThat(flyway().migrate().migrationsExecuted).isZero();
