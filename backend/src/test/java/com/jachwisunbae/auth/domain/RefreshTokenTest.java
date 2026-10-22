@@ -18,11 +18,12 @@ class RefreshTokenTest {
 
     private static final LocalDateTime NOW = LocalDateTime.of(2027, 10, 22, 12, 0);
     private static final String TOKEN_HASH = "a1".repeat(32);
+    private static final long VALIDITY_DAYS = 365;
 
     @Test
     @DisplayName("새 토큰은 ID 없이 생성하고 윤년을 지나도 정확히 365일 후 만료된다")
     void createsTokenWith365DayLifetime() {
-        RefreshToken token = RefreshToken.create(7L, TOKEN_HASH, NOW);
+        RefreshToken token = RefreshToken.create(7L, TOKEN_HASH, NOW, VALIDITY_DAYS);
 
         assertThat(token.getId()).isNull();
         assertThat(token.getMemberId()).isEqualTo(7L);
@@ -30,6 +31,33 @@ class RefreshTokenTest {
         assertThat(token.getCreatedAt()).isEqualTo(NOW);
         assertThat(token.getUpdatedAt()).isEqualTo(NOW);
         assertThat(token.getExpiresAt()).isEqualTo(NOW.plusDays(365));
+    }
+
+    @Test
+    @DisplayName("전달받은 유효기간을 생성과 갱신에 적용한다")
+    void usesConfiguredValidityDays() {
+        RefreshToken token = RefreshToken.create(7L, TOKEN_HASH, NOW, 30);
+        assertThat(token.getExpiresAt()).isEqualTo(NOW.plusDays(30));
+
+        LocalDateTime renewedAt = NOW.plusDays(1);
+        token.extendExpiry(renewedAt, 90);
+
+        assertThat(token.getExpiresAt()).isEqualTo(renewedAt.plusDays(90));
+    }
+
+    @ParameterizedTest
+    @ValueSource(longs = {0, -1})
+    @DisplayName("유효기간이 양수가 아니면 생성과 갱신을 거부한다")
+    void rejectsNonPositiveValidityDays(long validityDays) {
+        assertThatThrownBy(() -> RefreshToken.create(7L, TOKEN_HASH, NOW, validityDays))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        RefreshToken token = RefreshToken.create(7L, TOKEN_HASH, NOW, VALIDITY_DAYS);
+        LocalDateTime expiresAt = token.getExpiresAt();
+        assertThatThrownBy(() -> token.extendExpiry(NOW.plusDays(1), validityDays))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(token.getExpiresAt()).isEqualTo(expiresAt);
+        assertThat(token.getUpdatedAt()).isEqualTo(NOW);
     }
 
     @Test
@@ -65,7 +93,7 @@ class RefreshTokenTest {
     @ValueSource(longs = {0, -1})
     @DisplayName("회원 ID가 없거나 양수가 아니면 생성과 복원을 거부한다")
     void rejectsInvalidMemberId(Long memberId) {
-        assertThatThrownBy(() -> RefreshToken.create(memberId, TOKEN_HASH, NOW))
+        assertThatThrownBy(() -> RefreshToken.create(memberId, TOKEN_HASH, NOW, VALIDITY_DAYS))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> RefreshToken.reconstruct(10L, memberId, TOKEN_HASH,
                 NOW, NOW, NOW.plusDays(365)))
@@ -86,7 +114,7 @@ class RefreshTokenTest {
     @MethodSource("invalidTokenHashes")
     @DisplayName("토큰 해시는 64자리 소문자 16진수여야 한다")
     void rejectsInvalidTokenHash(String tokenHash) {
-        assertThatThrownBy(() -> RefreshToken.create(7L, tokenHash, NOW))
+        assertThatThrownBy(() -> RefreshToken.create(7L, tokenHash, NOW, VALIDITY_DAYS))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> RefreshToken.reconstruct(10L, 7L, tokenHash,
                 NOW, NOW, NOW.plusDays(365)))
@@ -100,7 +128,7 @@ class RefreshTokenTest {
     @Test
     @DisplayName("생성 시각이 없으면 내부 검증 예외가 발생한다")
     void rejectsMissingCreationTime() {
-        assertThatThrownBy(() -> RefreshToken.create(7L, TOKEN_HASH, null))
+        assertThatThrownBy(() -> RefreshToken.create(7L, TOKEN_HASH, null, VALIDITY_DAYS))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -143,7 +171,7 @@ class RefreshTokenTest {
     @CsvSource({"-1,false", "0,true", "1,true"})
     @DisplayName("만료 직전에는 유효하고 만료 시각과 같거나 이후이면 만료된다")
     void checksExpiryBoundary(int secondsAfterExpiry, boolean expired) {
-        RefreshToken token = RefreshToken.create(7L, TOKEN_HASH, NOW);
+        RefreshToken token = RefreshToken.create(7L, TOKEN_HASH, NOW, VALIDITY_DAYS);
 
         LocalDateTime checkedAt = token.getExpiresAt().plusSeconds(secondsAfterExpiry);
 
@@ -153,7 +181,7 @@ class RefreshTokenTest {
     @Test
     @DisplayName("만료를 판단할 시각은 필수다")
     void rejectsMissingExpiryCheckTime() {
-        RefreshToken token = RefreshToken.create(7L, TOKEN_HASH, NOW);
+        RefreshToken token = RefreshToken.create(7L, TOKEN_HASH, NOW, VALIDITY_DAYS);
 
         assertThatThrownBy(() -> token.isExpiredAt(null)).isInstanceOf(IllegalArgumentException.class);
     }
@@ -164,7 +192,7 @@ class RefreshTokenTest {
         RefreshToken token = RefreshToken.reconstruct(10L, 7L, TOKEN_HASH, NOW, NOW, NOW.plusDays(365));
         LocalDateTime renewedAt = NOW.plusDays(30);
 
-        token.extendExpiry(renewedAt);
+        token.extendExpiry(renewedAt, VALIDITY_DAYS);
 
         assertThat(token.getId()).isEqualTo(10L);
         assertThat(token.getMemberId()).isEqualTo(7L);
@@ -177,12 +205,12 @@ class RefreshTokenTest {
     @Test
     @DisplayName("같은 시각에 중복 갱신해도 정상적으로 유지한다")
     void allowsRepeatedRenewalAtSameTime() {
-        RefreshToken token = RefreshToken.create(7L, TOKEN_HASH, NOW);
+        RefreshToken token = RefreshToken.create(7L, TOKEN_HASH, NOW, VALIDITY_DAYS);
         LocalDateTime renewedAt = NOW.plusDays(1);
-        token.extendExpiry(renewedAt);
+        token.extendExpiry(renewedAt, VALIDITY_DAYS);
         LocalDateTime expiresAt = token.getExpiresAt();
 
-        token.extendExpiry(renewedAt);
+        token.extendExpiry(renewedAt, VALIDITY_DAYS);
 
         assertThat(token.getExpiresAt()).isEqualTo(expiresAt);
         assertThat(token.getUpdatedAt()).isEqualTo(renewedAt);
@@ -193,11 +221,11 @@ class RefreshTokenTest {
     @ValueSource(ints = {0, 1})
     @DisplayName("만료 시각과 같거나 이후에 연장하면 거부하고 기존 상태를 유지한다")
     void rejectsRenewalOfExpiredToken(int secondsAfterExpiry) {
-        RefreshToken token = RefreshToken.create(7L, TOKEN_HASH, NOW);
+        RefreshToken token = RefreshToken.create(7L, TOKEN_HASH, NOW, VALIDITY_DAYS);
         LocalDateTime expiresAt = token.getExpiresAt();
         LocalDateTime renewedAt = expiresAt.plusSeconds(secondsAfterExpiry);
 
-        assertThatThrownBy(() -> token.extendExpiry(renewedAt))
+        assertThatThrownBy(() -> token.extendExpiry(renewedAt, VALIDITY_DAYS))
                 .isInstanceOf(IllegalStateException.class);
         assertThat(token.getExpiresAt()).isEqualTo(expiresAt);
         assertThat(token.getUpdatedAt()).isEqualTo(NOW);
@@ -206,10 +234,11 @@ class RefreshTokenTest {
     @Test
     @DisplayName("갱신 시각이 없으면 거부하고 기존 상태를 유지한다")
     void rejectsMissingRenewalTime() {
-        RefreshToken token = RefreshToken.create(7L, TOKEN_HASH, NOW);
+        RefreshToken token = RefreshToken.create(7L, TOKEN_HASH, NOW, VALIDITY_DAYS);
         LocalDateTime expiresAt = token.getExpiresAt();
 
-        assertThatThrownBy(() -> token.extendExpiry(null)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> token.extendExpiry(null, VALIDITY_DAYS))
+                .isInstanceOf(IllegalArgumentException.class);
         assertThat(token.getExpiresAt()).isEqualTo(expiresAt);
         assertThat(token.getUpdatedAt()).isEqualTo(NOW);
     }
@@ -221,7 +250,8 @@ class RefreshTokenTest {
         LocalDateTime expiresAt = updatedAt.plusDays(365);
         RefreshToken token = RefreshToken.reconstruct(10L, 7L, TOKEN_HASH, NOW, updatedAt, expiresAt);
 
-        assertThatThrownBy(() -> token.extendExpiry(NOW)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> token.extendExpiry(NOW, VALIDITY_DAYS))
+                .isInstanceOf(IllegalArgumentException.class);
         assertThat(token.getExpiresAt()).isEqualTo(expiresAt);
         assertThat(token.getUpdatedAt()).isEqualTo(updatedAt);
     }
@@ -231,7 +261,7 @@ class RefreshTokenTest {
     void usesProvidedTime() {
         LocalDateTime createdAt = NOW.plusHours(9);
 
-        RefreshToken token = RefreshToken.create(7L, TOKEN_HASH, createdAt);
+        RefreshToken token = RefreshToken.create(7L, TOKEN_HASH, createdAt, VALIDITY_DAYS);
 
         assertThat(token.getCreatedAt()).isEqualTo(createdAt);
         assertThat(token.getUpdatedAt()).isEqualTo(token.getCreatedAt());

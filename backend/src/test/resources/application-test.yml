@@ -4,6 +4,8 @@ auth:
     issuer: jachwi-sunbae
     audience: jachwi-sunbae-api
     access-token-seconds: 900
+  refresh-token:
+    validity-days: 365
 
 app:
   cors:

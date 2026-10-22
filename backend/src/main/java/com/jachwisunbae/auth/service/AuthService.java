@@ -26,6 +26,7 @@ public class AuthService {
     private final RefreshTokenProvider refreshTokenProvider;
     private final Clock clock;
     private final long accessTokenSeconds;
+    private final long refreshTokenValidityDays;
 
     public AuthService(
             MemberRepository memberRepository,
@@ -33,13 +34,15 @@ public class AuthService {
             JwtTokenProvider jwtProvider,
             RefreshTokenProvider refreshTokenProvider,
             Clock clock,
-            @Value("${auth.jwt.access-token-seconds}") long accessTokenSeconds) {
+            @Value("${auth.jwt.access-token-seconds}") long accessTokenSeconds,
+            @Value("${auth.refresh-token.validity-days}") long refreshTokenValidityDays) {
         this.memberRepository = memberRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.jwtProvider = jwtProvider;
         this.refreshTokenProvider = refreshTokenProvider;
         this.clock = clock;
         this.accessTokenSeconds = accessTokenSeconds;
+        this.refreshTokenValidityDays = refreshTokenValidityDays;
     }
 
     @Transactional
@@ -73,7 +76,7 @@ public class AuthService {
             return Optional.empty();
         }
 
-        refreshToken.extendExpiry(now);
+        refreshToken.extendExpiry(now, refreshTokenValidityDays);
         if (refreshTokenRepository.updateExpiry(refreshToken) == 0) {
             return Optional.empty();
         }
@@ -87,7 +90,7 @@ public class AuthService {
 
         String rawToken = refreshTokenProvider.generateToken();
         String tokenHash = refreshTokenProvider.hash(rawToken);
-        RefreshToken refreshToken = RefreshToken.create(member.getId(), tokenHash, now);
+        RefreshToken refreshToken = RefreshToken.create(member.getId(), tokenHash, now, refreshTokenValidityDays);
 
         refreshTokenRepository.save(refreshToken);
         long refreshTokenExpiresIn = Duration.between(now, refreshToken.getExpiresAt()).getSeconds();

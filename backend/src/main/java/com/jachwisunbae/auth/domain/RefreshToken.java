@@ -8,7 +8,6 @@ import lombok.Getter;
 @Getter
 public class RefreshToken extends BaseTimeEntity {
 
-    private static final long VALIDITY_DAYS = 365;
     private static final Pattern TOKEN_HASH_PATTERN = Pattern.compile("[0-9a-f]{64}");
 
     private final Long id;
@@ -27,9 +26,11 @@ public class RefreshToken extends BaseTimeEntity {
         this.expiresAt = expiresAt;
     }
 
-    public static RefreshToken create(final Long memberId, final String tokenHash, final LocalDateTime now) {
+    public static RefreshToken create(final Long memberId, final String tokenHash, final LocalDateTime now,
+                                      final long validityDays) {
         requireTime(now, "생성 시각");
-        return new RefreshToken(null, memberId, tokenHash, now, now, now.plusDays(VALIDITY_DAYS));
+        requirePositiveValidityDays(validityDays);
+        return new RefreshToken(null, memberId, tokenHash, now, now, now.plusDays(validityDays));
     }
 
     public static RefreshToken reconstruct(final Long id, final Long memberId, final String tokenHash,
@@ -44,16 +45,23 @@ public class RefreshToken extends BaseTimeEntity {
         return !expiresAt.isAfter(now);
     }
 
-    public void extendExpiry(final LocalDateTime now) {
+    public void extendExpiry(final LocalDateTime now, final long validityDays) {
         requireTime(now, "갱신 시각");
+        requirePositiveValidityDays(validityDays);
         if (now.isBefore(getUpdatedAt())) {
             throw new IllegalArgumentException("갱신 시각은 마지막 수정 시각보다 빠를 수 없습니다.");
         }
         if (!expiresAt.isAfter(now)) {
             throw new IllegalStateException("만료된 Refresh Token은 연장할 수 없습니다.");
         }
-        this.expiresAt = now.plusDays(VALIDITY_DAYS);
+        this.expiresAt = now.plusDays(validityDays);
         updateUpdatedAt(now);
+    }
+
+    private static void requirePositiveValidityDays(final long validityDays) {
+        if (validityDays <= 0) {
+            throw new IllegalArgumentException("Refresh Token 유효기간은 양수여야 합니다.");
+        }
     }
 
     private static Long requirePositiveId(final Long id, final String name) {
