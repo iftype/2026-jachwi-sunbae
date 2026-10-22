@@ -1,5 +1,3 @@
-import { Link } from 'react-router-dom';
-
 import { formatManwon } from '@/features/property/lib/propertyFormat';
 import type { PropertyDetail } from '@/features/property/model/Property';
 import Icon from '@/shared/ui/icon/Icon';
@@ -11,16 +9,18 @@ import detailStyles from '@/shared/ui/detail-section/DetailSection.module.css';
 
 type PropertyBasicInfoSectionProps = {
   property: PropertyDetail;
+  /** 상세 화면 위에 수정 시트를 연다. */
+  onEdit: () => void;
 };
 
-const PropertyBasicInfoSection = ({ property }: PropertyBasicInfoSectionProps) => (
+const PropertyBasicInfoSection = ({ property, onEdit }: PropertyBasicInfoSectionProps) => (
   <PropertyInfoSection
     title="기본 정보"
     label="매물 기본 정보"
     action={
-      <Link className={detailStyles.sectionAction} to={`/properties/${property.propertyId}/edit`}>
+      <button className={detailStyles.sectionAction} type="button" aria-label="기본 정보 편집" onClick={onEdit}>
         <Icon name="edit" size={14} /> 편집
-      </Link>
+      </button>
     }
   >
     <InfoValue label="매물 이름" value={property.name} />

@@ -82,6 +82,41 @@ class BusStopServiceTest {
     }
 
     @Test
+    @DisplayName("여러 기관이 등록한 같은 정류장은 가장 가까운 하나만 남긴다")
+    void keepsNearestOfSameStation() {
+        addNorth("SEB204000159", "벤처타운(북문)", 24);
+        addNorth("GGB204000159", "벤처타운(북문)", 29);
+        addNorth("GGB204000163", "벤처타운(남문)", 81);
+        addNorth("SEB204000163", "벤처타운(남문)", 87);
+
+        assertThat(service.nearby(LATITUDE, LONGITUDE, 500).busStops())
+                .extracting(stop -> stop.busStop().getNodeId())
+                .containsExactly("SEB204000159", "GGB204000163");
+    }
+
+    @Test
+    @DisplayName("같은 정류장의 거리가 같으면 정류장 ID 순으로 앞선 하나를 남긴다")
+    void keepsFirstNodeIdOfSameStationAtSameDistance() {
+        addNorth("SEB204000159", "벤처타운(북문)", 24);
+        addNorth("GGB204000159", "벤처타운(북문)", 24);
+
+        assertThat(service.nearby(LATITUDE, LONGITUDE, 500).busStops())
+                .extracting(stop -> stop.busStop().getNodeId())
+                .containsExactly("GGB204000159");
+    }
+
+    @Test
+    @DisplayName("이름이 같아도 정류소 ID가 다르면 다른 정류장으로 본다")
+    void keepsSameNameWithDifferentStationId() {
+        addNorth("GGB204000286", "금토교회앞", 354);
+        addNorth("GGB204000285", "금토교회앞", 361);
+
+        assertThat(service.nearby(LATITUDE, LONGITUDE, 500).busStops())
+                .extracting(stop -> stop.busStop().getNodeId())
+                .containsExactly("GGB204000286", "GGB204000285");
+    }
+
+    @Test
     @DisplayName("요청 반경을 감싸는 사각형으로 후보를 조회한다")
     void requestsCandidatesWithinBounds() {
         List<CoordinateBounds> requested = new ArrayList<>();
@@ -127,9 +162,13 @@ class BusStopServiceTest {
     }
 
     private void addNorth(String nodeId, double meters) {
+        addNorth(nodeId, nodeId, meters);
+    }
+
+    private void addNorth(String nodeId, String name, double meters) {
         BigDecimal latitude = LATITUDE.add(BigDecimal.valueOf(
                 Math.toDegrees(meters / GeoDistance.EARTH_RADIUS_METERS))).setScale(7, RoundingMode.HALF_UP);
-        busStops.add(busStop(nodeId, latitude, LONGITUDE));
+        busStops.add(BusStop.reconstruct(nodeId, name, latitude, LONGITUDE, "31020"));
     }
 
     private BusStop busStop(String nodeId, BigDecimal latitude, BigDecimal longitude) {

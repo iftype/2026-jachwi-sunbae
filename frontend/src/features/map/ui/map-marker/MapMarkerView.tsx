@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import mascotImage from '@/shared/assets/empty-property.jpg';
+import logoImage from '@/shared/assets/jachwi-sunbae-goose.webp';
 
 import type { MapMarker } from '../../model/Map';
 import MapCategoryIcon from '../map-category-icon/MapCategoryIcon';
@@ -57,13 +57,7 @@ const MapMarkerView = ({ marker, selectedMarkerId = null, onSelectMarker }: MapM
       {isCurrentLocationDot(marker) ? null : usesCategoryIcon(marker) && marker.category !== undefined ? (
         <MapCategoryIcon category={marker.category} className={styles.categoryIcon} />
       ) : marker.tone === 'property' || marker.tone === 'selected' || marker.tone === 'propertyCluster' ? (
-        <img
-          className={styles.markerPhoto}
-          src={marker.photoUrl ?? mascotImage}
-          alt=""
-          draggable={false}
-          decoding="async"
-        />
+        <img className={styles.markerPhoto} src={logoImage} alt="" draggable={false} decoding="async" />
       ) : (
         <span className={styles.markerIcon} aria-hidden="true">
           {markerSymbol(marker)}

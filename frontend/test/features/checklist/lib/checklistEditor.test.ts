@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -26,6 +27,14 @@ describe('체크리스트 편집 상태와 DTO 변환', () => {
       { systemCheckItemId: existingItem.sourceCheckItemId },
     ]);
     expect(() => toProvidedChecklistItemInputs([customItem])).toThrow('제공 항목만');
+  });
+
+  it('편집 지문은 제공 항목은 원본 항목 ID로, 직접 추가 항목은 질문으로 구분한다', () => {
+    const customItem = checklistItemToEditorItem(customChecklistItemFixture as ChecklistItem);
+    expect(JSON.parse(editorItemsFingerprint([existingItem, customItem]))).toEqual([
+      ['PROVIDED', existingItem.checklistItemId, existingItem.sourceCheckItemId],
+      ['CUSTOM', customItem.checklistItemId, customItem.question],
+    ]);
   });
 
   it('항목 식별자와 순서가 달라지면 편집 지문도 달라진다', () => {

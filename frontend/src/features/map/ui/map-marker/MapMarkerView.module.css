@@ -26,7 +26,7 @@ button.clusterMarker::before {
   content: '';
 }
 
-/* 검정 물방울 핀 안에 대표 사진 또는 오리 로고를 표시한다. */
+/* 파란 물방울 핀 안에 자취선배 로고를 표시한다. */
 .propertyMarker {
   z-index: 8;
   width: calc(2.35rem * var(--map-marker-scale, 1));
@@ -103,7 +103,7 @@ button.clusterMarker::before {
   z-index: 0;
   inset: 0;
   border-radius: 50% 50% 50% 0;
-  background: var(--color-ink, #212124);
+  background: var(--color-brand-blue, #6b9ae6);
   content: '';
   transform: rotate(-45deg);
   pointer-events: none;
@@ -114,7 +114,7 @@ button.clusterMarker::before {
   position: relative;
   z-index: 1;
   box-sizing: border-box;
-  border: 2px solid var(--color-ink, #212124);
+  border: 2px solid var(--color-brand-blue, #6b9ae6);
 }
 
 .propertyMarker.activeMarker .markerPhoto,
@@ -189,9 +189,9 @@ button.clusterMarker::before {
   z-index: 8;
   width: calc(2.35rem * var(--map-marker-scale, 1));
   height: calc(2.35rem * var(--map-marker-scale, 1));
-  border: 2px solid var(--color-ink, #212124);
+  border: 2px solid var(--color-brand-blue, #6b9ae6);
   border-radius: 0.6rem;
-  background: var(--color-ink, #212124);
+  background: var(--color-brand-blue, #6b9ae6);
 }
 
 .propertyClusterMarker .markerCount {

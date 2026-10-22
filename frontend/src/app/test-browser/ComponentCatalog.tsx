@@ -25,7 +25,7 @@ const ComponentCatalog = () => {
   return (
     <div className={styles.canvas}>
       <main className={styles.catalog}>
-        <TopNavigation title="공용 컴포넌트" backTo="/properties" />
+        <TopNavigation title="공용 컴포넌트" backTo="/" />
         <div className={styles.content}>
           <header className={styles.intro}>
             <span>LOCAL COMPONENT CATALOG</span>
@@ -59,7 +59,7 @@ const ComponentCatalog = () => {
             <Button fullWidth isLoading loadingLabel="저장 중…">
               저장
             </Button>
-            <ButtonLink to="/properties" variant="secondary" fullWidth>
+            <ButtonLink to="/" variant="secondary" fullWidth>
               매물 목록으로 이동
             </ButtonLink>
           </section>

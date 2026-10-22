@@ -15,7 +15,6 @@
   display: flex;
   width: 100%;
   height: calc(100% - 4.25rem);
-  max-width: var(--app-max-width);
   max-height: calc(100% - 4.25rem);
   flex-direction: column;
   box-sizing: border-box;
@@ -88,21 +87,9 @@
   overscroll-behavior: contain;
 }
 
-.empty {
-  padding: 2rem 1rem;
-  color: var(--color-muted, #868b94);
-  font-size: 0.85rem;
-  text-align: center;
-}
-
-.list {
-  display: grid;
-  gap: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.list > li[data-selected='true'] {
-  background: color-mix(in srgb, var(--color-primary) 5%, transparent);
+/* 휴대폰 폭에서는 지도 폭 전체를 쓰고, 태블릿은 바텀시트를 30rem 폭으로 가운데에 둔다. */
+@media (min-width: 768px) {
+  .sheet {
+    max-width: 30rem;
+  }
 }

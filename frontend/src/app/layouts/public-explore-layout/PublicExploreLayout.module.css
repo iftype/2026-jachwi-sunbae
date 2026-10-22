@@ -7,3 +7,10 @@
   --map-sheet-bottom: 0px;
   background: white;
 }
+
+/* 태블릿부터는 공개 동네 탐색 지도도 화면 전체를 쓴다. 지도 위 카드·시트는 각자 최대 폭을 지킨다. */
+@media (min-width: 768px) {
+  .layout {
+    width: 100%;
+  }
+}

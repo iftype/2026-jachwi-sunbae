@@ -1,0 +1,43 @@
+/* 휴대폰·태블릿 홈: 로고·안내·기능 카드·빠른 메뉴·최근 기록을 한 열(최대 45rem)로 쌓는다. */
+.topBar,
+.container,
+.side,
+.footer {
+  width: min(100%, 45rem);
+  margin-right: auto;
+  margin-left: auto;
+  padding-right: 1.25rem;
+  padding-left: 1.25rem;
+}
+.topBar {
+  padding-top: max(0.85rem, env(safe-area-inset-top));
+}
+/* 빠른 메뉴(체크리스트·방 비교)는 위 기능 카드 묶음과 붙어 보이지 않게 간격을 더 둔다. */
+.side {
+  margin-top: 1.75rem;
+}
+@media (max-width: 360px) {
+  .topBar,
+  .container,
+  .side,
+  .footer {
+    padding-right: 1rem;
+    padding-left: 1rem;
+  }
+}
+/* 태블릿 너비부터는 여백만 조금 넓힌다. */
+@media (min-width: 768px) {
+  .topBar {
+    padding-top: max(1.25rem, env(safe-area-inset-top));
+  }
+  .container {
+    margin-top: 0.5rem;
+  }
+  .side {
+    margin-top: 2.25rem;
+  }
+  /* 안내 문구는 데스크탑처럼 가운데 정렬해 창 폭을 오가도 글자 위치가 튀지 않게 한다. */
+  .root .tip {
+    text-align: center;
+  }
+}

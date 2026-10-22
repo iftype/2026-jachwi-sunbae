@@ -16,18 +16,14 @@
   gap: 0.4rem;
   min-width: 0;
 }
+/* 순위는 숫자 원 대신 리본 메달 이미지로 보여 준다. 순위 자체는 카드 이름(aria-label)으로 읽힌다. */
 .rank {
-  width: 1.45rem;
-  height: 1.45rem;
+  display: block;
+  width: 2.5rem;
+  height: 2.5rem;
   flex: none;
+  object-fit: contain;
   user-select: none;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--color-brand-yellow);
-  color: var(--color-ink);
-  font-size: 0.8rem;
-  font-weight: 750;
 }
 .title {
   font-size: 0.8rem;

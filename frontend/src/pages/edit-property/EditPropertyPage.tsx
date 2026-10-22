@@ -15,7 +15,7 @@ import TopNavigation from '@/shared/ui/top-navigation/TopNavigation';
 
 import styles from './EditPropertyPage.module.css';
 
-const backToList = <Link to="/properties">매물 목록으로 돌아가기</Link>;
+const backToList = <Link to="/">홈으로 돌아가기</Link>;
 const describeError = describePropertyLoadError('매물 정보를 불러오지 못했어요.');
 
 const EditPropertyPage = () => {

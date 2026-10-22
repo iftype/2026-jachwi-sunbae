@@ -34,37 +34,38 @@
   --action-card-ink: var(--color-on-card-accent);
 }
 
+/* 글자 안쪽 여백은 화면이 넓어질 때 키울 수 있게 변수로 받는다. */
 .text {
   position: absolute;
-  top: 1.15rem;
-  left: 1.15rem;
+  top: var(--action-card-text-inset, 1.15rem);
+  left: var(--action-card-text-inset, 1.15rem);
   z-index: 1;
   display: grid;
   gap: 0.35rem;
 }
 .title {
-  font-size: 1rem;
+  font-size: var(--action-card-title-size, 1rem);
   line-height: 1.25;
   letter-spacing: -0.04em;
 }
 .description {
-  font-size: 0.66rem;
+  font-size: var(--action-card-description-size, 0.66rem);
   opacity: 0.8;
 }
 
 /* 크기: 대표 카드는 제목을 크게 하고 설명을 제목에 붙인다. */
 .large .text {
-  top: 1.1rem;
-  left: 0.9rem;
+  top: var(--action-card-large-text-inset, 1.1rem);
+  left: var(--action-card-large-text-inset, 0.9rem);
   gap: 0.1rem;
 }
 .large .title {
-  font-size: 1.55rem;
+  font-size: var(--action-card-large-title-size, 1.55rem);
   line-height: 1.2;
   white-space: nowrap;
 }
 .large .description {
-  font-size: 0.8rem;
+  font-size: var(--action-card-large-description-size, 0.8rem);
   font-weight: 500;
   opacity: 0.95;
 }

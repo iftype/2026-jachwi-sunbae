@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { handlers } from '@/app/mocks/handlers';

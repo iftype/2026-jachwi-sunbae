@@ -17,7 +17,6 @@ const state = vi.hoisted(() => ({
 vi.mock('@/features/property/api/useProperties', () => ({
   usePropertyList: () => ({ data: { pages: [{ content: state.items }] } }),
 }));
-vi.mock('@/features/property/api/usePropertyPhotoObjectUrls', () => ({ usePropertyPhotoObjectUrls: () => ({}) }));
 vi.mock('@/features/map/lib/mapClustering', () => ({ clusterProperties: () => [] }));
 
 beforeEach(() => {
