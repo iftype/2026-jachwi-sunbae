@@ -1,6 +1,6 @@
 # 모니터링
 
-- 상태: dev·prod 애플리케이션·서비스 종료 로그 수집, 환경별 5종 경보 및 운영 대시보드 적용, perf 프로필의 Prometheus 메트릭 노출 구성
+- 상태: dev·prod 애플리케이션·서비스 종료 로그 수집, 환경별 5종 경보 및 운영 대시보드 적용, 메트릭 노출 구성, dev·prod 공통 GC 로그·Thread Dump 수집 도구 배포
 
 현재 예산에서는 구조화 로그로 장애 발생 시각과 원인을 찾고, 기존 CloudWatch·ALB 지표로 서비스 상태를 확인한다. 부하 테스트용 perf 서버에서는 Prometheus로 JVM·HTTP·HikariCP 메트릭을 확인한다. dev·prod의 JVM 지표 수집은 후속 작업이다.
 
@@ -121,10 +121,12 @@ dev와 prod EC2는 모두 Spring의 `prod` 프로필을 사용한다. `DEPLOYMEN
 
 로그 파일은 다음과 같다.
 
-| 파일                                        | 내용                                | 보존                                            |
-| ------------------------------------------- | ----------------------------------- | ----------------------------------------------- |
-| `/var/log/jachwi-sunbae/application.log`    | 애플리케이션·요청·예외 JSON         | 10MB 단위, 최대 14일·1GB                        |
-| `/var/log/jachwi-sunbae/service-events.log` | systemd가 기록한 프로세스 종료 결과 | 종료당 한 줄을 누적하고 CloudWatch에서 7일 보존 |
+| 파일                                           | 내용                                | 보존                                            |
+| ---------------------------------------------- | ----------------------------------- | ----------------------------------------------- |
+| `/var/log/jachwi-sunbae/application.log`       | 애플리케이션·요청·예외 JSON         | 10MB 단위, 최대 14일·1GB                        |
+| `/var/log/jachwi-sunbae/service-events.log`    | systemd가 기록한 프로세스 종료 결과 | 종료당 한 줄을 누적하고 CloudWatch에서 7일 보존 |
+| `/var/log/jachwi-sunbae/gc.log`                | JVM GC·safepoint 기록               | [JVM 진단 로그](#jvm-진단-로그) 참고            |
+| `/var/log/jachwi-diagnostics/thread-dumps.log` | 운영자가 수집한 Thread Dump         | [JVM 진단 로그](#jvm-진단-로그) 참고            |
 
 요청 로그에는 `request_id`, `http_method`, `path`, `status`, `duration_ms`를 기본 필드로 넣는다. 쿼리 문자열, Authorization 헤더, 요청·응답 본문은 기록하지 않는다. 애플리케이션 내부 예외 로그도 같은 `request_id`를 가지므로 요청 완료 로그와 연결할 수 있다.
 
@@ -145,6 +147,210 @@ sudo systemctl status jachwi-sunbae.service
 sudo journalctl -u jachwi-sunbae.service -n 200 --no-pager
 sudo tail -n 20 /var/log/jachwi-sunbae/application.log
 sudo tail -n 20 /var/log/jachwi-sunbae/service-events.log
+```
+
+## JVM 진단 로그
+
+애플리케이션 로그만으로 보기 어려운 GC 정지·메모리 부족·스레드 고갈을 확인하기 위해 GC 로그와 Thread Dump를 남긴다. dev·prod가 같은 [systemd 유닛](../../deploy/jachwi-sunbae.service)과 [AfterInstall](../../deploy/scripts/after_install.sh)을 사용하므로 설정과 설치 과정이 같다. 환경별 분기는 없다.
+
+| 대상        | 경로                                           | 소유·권한                           | 보존                                                       |
+| ----------- | ---------------------------------------------- | ----------------------------------- | ---------------------------------------------------------- |
+| GC 로그     | `/var/log/jachwi-sunbae/gc.log`                | `jachwi`, 디렉터리 `0750`           | JVM이 5MB마다 순환. 현재 파일과 `gc.log.0`~`gc.log.2` 유지 |
+| Thread Dump | `/var/log/jachwi-diagnostics/thread-dumps.log` | `root:root` `0600`, 디렉터리 `0700` | logrotate가 2MB 초과 시 순환. 이전 파일 5개 유지           |
+| 수집 명령   | `/usr/local/sbin/jachwi-thread-dump`           | `root:root` `0755`                  | 배포마다 저장소 버전으로 교체                              |
+| 순환 설정   | `/etc/logrotate.d/jachwi-thread-dumps`         | `root:root` `0644`                  | 배포마다 저장소 버전으로 교체                              |
+
+배포는 `/opt/jachwi-sunbae`만 비운다. GC 로그와 Thread Dump 파일은 배포로 지워지거나 초기화되지 않는다.
+
+### GC 로그
+
+`ExecStart`에 다음 Java 21 Unified Logging 옵션을 둔다. Heap 정책 `-XX:MaxRAMPercentage=50.0`은 그대로다.
+
+```text
+-Xlog:gc*,safepoint:file=/var/log/jachwi-sunbae/gc.log:time,uptime,level,tags:filecount=3,filesize=5M
+```
+
+- `gc*`는 GC 단계·정지 시간·Heap 변화를, `safepoint`는 모든 Java 스레드를 멈춘 구간을 기록한다.
+- 각 줄은 `[2026-10-22T02:31:51.601+0000][0.197s][info][gc          ] GC(0) Pause Young (Normal) (G1 Evacuation Pause) 17M->4M(32M) 2.839ms` 형식이다. 벽시계 시각과 JVM 기동 후 경과 시간을 함께 남긴다.
+- JVM이 기동할 때 남아 있는 `gc.log`를 `gc.log.0` 등으로 옮긴 뒤 새로 쓴다. 배포·재시작으로 직전 기록이 덮이지 않는다. 최대 용량은 약 20MB다.
+- **JVM은 GC 로그 파일을 열지 못하면 기동하지 않는다.** `AfterInstall`이 로그 디렉터리와 남아 있는 `gc.log*`를 `jachwi` 소유로 맞춘다. 수동으로 디렉터리를 지우거나 root 소유 파일을 만들지 않는다.
+
+### Thread Dump 수집
+
+장애가 진행 중일 때 EC2에서 실행한다.
+
+```bash
+sudo /usr/local/sbin/jachwi-thread-dump
+```
+
+[jachwi-thread-dump.sh](../../deploy/scripts/jachwi-thread-dump.sh)는 다음 순서로 동작한다.
+
+1. root 권한을 확인하고 잠금을 잡는다. 이미 실행 중이면 바로 실패한다.
+2. `jachwi-sunbae.service`가 `active`인지 확인하고 `MainPID`를 조회한다.
+3. PID가 `java`이며 `/opt/jachwi-sunbae/app.jar`를 실행하는지, JVM이 SIGQUIT 핸들러를 설치했는지 확인한다. 기동 직후에는 SIGQUIT으로 프로세스가 종료될 수 있어 신호를 보내지 않는다.
+4. 현재 journal 위치를 기록한 뒤 `systemctl kill --kill-who=main --signal=SIGQUIT jachwi-sunbae.service`를 보낸다.
+5. 현재 부팅의 journal에서 기록한 위치 이후, 해당 PID의 출력만 최대 30초 동안 읽는다. journal 조회는 한 번에 10초로 제한한다.
+6. `Full thread dump` 줄부터 스레드 목록의 마지막 줄인 `JNI global refs:`까지를 완전한 덤프로 본다. 이어지는 교착 상태 정보와 Heap 요약을 함께 담고, 그 밖의 애플리케이션 로그는 제외한다.
+7. journald가 이 서비스의 출력을 버렸다면(`Suppressed ... messages`) 저장하지 않는다.
+8. 아래 구분자로 감싸 `thread-dumps.log`에 덧붙인다. 쓰기에 실패하면 원래 크기로 되돌린다.
+
+```text
+===== THREAD DUMP START 2026-10-22T02:00:00Z PID=12345 =====
+2026-10-22 11:00:00
+Full thread dump OpenJDK 64-Bit Server VM (21.0.12.1+9-LTS mixed mode, sharing):
+...
+JNI global refs: 9, weak refs: 0
+
+Heap
+ ...
+===== THREAD DUMP END 2026-10-22T02:00:02Z =====
+```
+
+구분자의 시각은 UTC다. 그 안의 첫 줄은 JVM이 출력한 서버 시간대 시각이다. 성공하면 `Thread Dump 를 저장했다`와 PID·줄 수를 출력하고, 실패하면 원인을 출력한 뒤 0이 아닌 값으로 끝난다. 실패한 덤프는 파일에 남지 않는다.
+
+사용 시 주의사항:
+
+- 덤프를 만드는 동안 JVM은 safepoint에서 모든 Java 스레드를 잠시 멈춘다. 정지 시간은 스레드 수에 비례하므로 짧은 간격으로 계속 실행하지 않는다.
+- 스레드 상태 변화를 보려면 10초 정도 간격으로 2~3회 실행해 비교한다.
+- 덤프 원본은 journal에도 남는다. 스레드 이름·스택만 담고 환경변수나 비밀값은 출력하지 않지만, 파일과 journal 모두 root만 읽도록 유지한다.
+- 서비스를 재시작하거나 종료하지 않는다. `MainPID`가 수집 중 바뀌면 저장하지 않고 실패한다.
+
+### logrotate
+
+[jachwi-thread-dumps.logrotate](../../deploy/scripts/jachwi-thread-dumps.logrotate)를 `/etc/logrotate.d/jachwi-thread-dumps`로 설치한다. 별도 타이머 없이 OS 기본 `logrotate.timer`가 하루 한 번 확인한다.
+
+| 설정                    | 의미                                        |
+| ----------------------- | ------------------------------------------- |
+| `size 2M`               | 2MB를 넘었을 때만 순환한다                  |
+| `rotate 5`              | `thread-dumps.log.1`~`.5`를 유지한다        |
+| `missingok`             | 아직 덤프가 없어도 오류로 보지 않는다       |
+| `notifempty`            | 빈 파일은 순환하지 않는다                   |
+| `create 0600 root root` | 이름을 바꾼 뒤 같은 권한의 새 파일을 만든다 |
+| `nocompress`            | 압축하지 않는다                             |
+
+`copytruncate`를 쓰지 않는다. 파일 이름을 바꾸고 새 파일을 만드는 방식이라 CloudWatch Agent가 새 파일을 이어서 수집한다. 확인 시 `-d`는 실제로 순환하지 않는다.
+
+```bash
+sudo logrotate -d /etc/logrotate.d/jachwi-thread-dumps
+sudo systemctl status logrotate.timer
+```
+
+### CloudWatch 연동
+
+| 환경 | GC 로그                  | Thread Dump                        | 상태                       |
+| ---- | ------------------------ | ---------------------------------- | -------------------------- |
+| dev  | `/jachwi-sunbae/dev/gc`  | `/jachwi-sunbae/dev/thread-dumps`  | 수집·순환 후 전송 확인     |
+| prod | `/jachwi-sunbae/prod/gc` | `/jachwi-sunbae/prod/thread-dumps` | **미적용.** 별도 작업 필요 |
+
+배포는 CloudWatch Agent 설정을 바꾸지 않는다. 파일 경로와 `===== THREAD DUMP START` 구분자는 Agent 설정과 맞춰야 하므로 바꾸지 않는다. prod에 적용할 때는 dev의 현재 `jachwi-sunbae.json`과 비교해 `collect_list`에 다음 항목을 더하고, 로그 그룹의 `/dev/`를 `/prod/`로 바꾼다.
+
+```json
+[
+  {
+    "file_path": "/var/log/jachwi-sunbae/gc.log",
+    "log_group_name": "/jachwi-sunbae/dev/gc",
+    "log_stream_name": "{instance_id}-gc",
+    "retention_in_days": 7
+  },
+  {
+    "file_path": "/var/log/jachwi-diagnostics/thread-dumps.log",
+    "log_group_name": "/jachwi-sunbae/dev/thread-dumps",
+    "log_stream_name": "{instance_id}-thread-dumps",
+    "multi_line_start_pattern": "^===== THREAD DUMP START",
+    "retention_in_days": 7
+  }
+]
+```
+
+Agent는 `root`로 실행하므로 `0700` 진단 디렉터리를 읽을 수 있다. 덤프 하나가 CloudWatch 이벤트 하나가 된다. CloudWatch 이벤트 최대 크기를 넘는 덤프는 잘릴 수 있으므로 전체 내용은 EC2의 파일에서 확인한다.
+
+### 장애 분석
+
+장애 시각을 먼저 정하고 같은 시각의 애플리케이션 로그·`service-events`·EC2 지표와 함께 본다.
+
+| 관찰                                                              | 확인할 기록                                           | 판단                                           |
+| ----------------------------------------------------------------- | ----------------------------------------------------- | ---------------------------------------------- |
+| 응답 지연, health 지연                                            | `gc.log`의 `Pause` 시간, `safepoint`의 `Total` 시간   | 긴 정지가 지연 시각과 겹치면 GC·safepoint 원인 |
+| `Pause Full`, `To-space exhausted`, GC 후에도 Heap이 줄지 않음    | GC 직전·직후 Heap 크기 추이                           | Heap 부족 또는 메모리 누수 의심                |
+| `service_result=oom-kill` 또는 `exit_status=KILL`                 | `sudo journalctl -k -b \| grep -i oom`, 직전 `gc.log` | Heap 밖 메모리를 포함한 OS 메모리 부족         |
+| 요청 스레드 다수가 `HikariPool.getConnection`에서 `TIMED_WAITING` | Thread Dump, `hikaricp` 관련 경고 로그                | 커넥션 풀 고갈. 커넥션을 쥔 스레드와 RDS 확인  |
+| 여러 스레드가 `BLOCKED`, `Found one Java-level deadlock`          | Thread Dump의 `waiting to lock`·`locked` 대상         | 락 경합 또는 교착 상태                         |
+| 같은 스택에서 `RUNNABLE`이 2~3회 덤프 내내 유지                   | 연속 Thread Dump, 같은 시각 CPU                       | CPU를 계속 쓰는 코드 경로                      |
+
+GC 로그는 다음과 같이 확인한다.
+
+```bash
+sudo tail -n 100 /var/log/jachwi-sunbae/gc.log
+sudo grep -h 'Pause' /var/log/jachwi-sunbae/gc.log* | tail -n 50
+sudo grep -h 'Pause Full\|To-space exhausted' /var/log/jachwi-sunbae/gc.log*
+```
+
+Thread Dump는 다음과 같이 확인한다.
+
+```bash
+sudo grep '^===== THREAD DUMP START' /var/log/jachwi-diagnostics/thread-dumps.log | tail -n 5
+sudo grep -c 'java.lang.Thread.State: BLOCKED' /var/log/jachwi-diagnostics/thread-dumps.log
+sudo less /var/log/jachwi-diagnostics/thread-dumps.log
+```
+
+### 배포 후 확인
+
+CodeDeploy 성공 후 EC2에서 확인한다. Thread Dump 명령은 실제 서비스에 SIGQUIT을 보내므로 dev에서 먼저 확인한다.
+
+```bash
+# 서비스와 health
+sudo systemctl is-active jachwi-sunbae.service
+curl -fsS http://127.0.0.1/actuator/health
+
+# JVM 실행 인자에 GC 옵션 반영
+PID="$(systemctl show -p MainPID --value jachwi-sunbae.service)"
+sudo tr '\0' ' ' < "/proc/${PID}/cmdline"; echo
+systemctl cat jachwi-sunbae.service | grep '^ExecStart='
+
+# GC 로그 생성
+sudo ls -l /var/log/jachwi-sunbae/gc.log*
+sudo tail -n 5 /var/log/jachwi-sunbae/gc.log
+
+# 설치 파일과 권한
+sudo stat -c '%A %U:%G %n' /usr/local/sbin/jachwi-thread-dump \
+  /etc/logrotate.d/jachwi-thread-dumps /var/log/jachwi-diagnostics
+
+# Thread Dump 수집과 프로세스 유지
+sudo /usr/local/sbin/jachwi-thread-dump
+sudo stat -c '%A %U:%G %s %n' /var/log/jachwi-diagnostics/thread-dumps.log
+sudo grep -c '^===== THREAD DUMP START' /var/log/jachwi-diagnostics/thread-dumps.log
+sudo tail -n 20 /var/log/jachwi-diagnostics/thread-dumps.log
+test "$(systemctl show -p MainPID --value jachwi-sunbae.service)" = "${PID}" && echo 'PID 유지'
+curl -fsS http://127.0.0.1/actuator/health
+
+# logrotate 설정
+sudo logrotate -d /etc/logrotate.d/jachwi-thread-dumps
+
+# CloudWatch Agent 수집 (dev)
+sudo grep -n 'gc.log\|thread-dumps.log\|THREAD DUMP START' \
+  /opt/aws/amazon-cloudwatch-agent/etc/jachwi-sunbae.json
+sudo tail -n 50 /opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log
+```
+
+CloudWatch 콘솔의 `/jachwi-sunbae/dev/thread-dumps`에 방금 실행한 시각의 `===== THREAD DUMP START` 이벤트가 하나로 들어왔는지 확인한다. 순환을 직접 확인하려면 `sudo logrotate -f /etc/logrotate.d/jachwi-thread-dumps`로 강제 순환한 뒤 Thread Dump를 다시 실행해 새 이벤트가 전송되는지 본다. 강제 순환은 이전 파일 하나를 소모한다.
+
+### 수집 실패 시 확인
+
+| 메시지·증상                                          | 확인                                                             | 복구                                                                      |
+| ---------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `command not found` 또는 파일 없음                   | `ls -l /usr/local/sbin/jachwi-thread-dump`                       | 최근 배포의 `AfterInstall` 로그 확인 후 재배포                            |
+| `다른 Thread Dump 수집이 진행 중이다`                | `pgrep -af jachwi-thread-dump`                                   | 앞선 실행이 끝난 뒤 다시 실행                                             |
+| `실행 중이 아니다`, `MainPID 가 올바르지 않다`       | `systemctl status jachwi-sunbae.service`                         | 서비스 장애부터 대응                                                      |
+| `SIGQUIT 을 처리할 준비가 되지 않았다`               | 서비스 시작 시각                                                 | 기동이 끝난 뒤 다시 실행                                                  |
+| `Thread Dump 를 찾지 못했다`, `출력이 끝나지 않았다` | `sudo journalctl -u jachwi-sunbae.service -b -n 200 --no-pager`  | JVM이 응답하지 않는 상태일 수 있다. journal에 남은 원본을 확인한다        |
+| `출력 일부를 버렸다`                                 | `sudo journalctl -t systemd-journald -b \| grep Suppressed`      | journald 출력 제한에 걸렸다. 잠시 뒤 다시 실행                            |
+| 배포 후 서비스가 기동하지 않음                       | `journalctl -u jachwi-sunbae.service`의 `Error opening log file` | `/var/log/jachwi-sunbae`와 `gc.log*`의 소유자를 `jachwi`로 맞춘 뒤 재시작 |
+| `AfterInstall`이 진단 도구에서 실패                  | `/opt/codedeploy-agent/deployment-root/deployment-logs/`         | 출력된 파일 누락·logrotate 미설치·설정 오류를 고친 뒤 재배포              |
+
+journal 원본은 다음과 같이 확인한다. 저장에 실패해도 SIGQUIT 출력은 journal에 남는다.
+
+```bash
+sudo journalctl -u jachwi-sunbae.service -b --since '-5 min' --no-pager | grep -n 'Full thread dump\|JNI global refs'
 ```
 
 ## CloudWatch Logs 구성 및 재구축

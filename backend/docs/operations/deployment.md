@@ -93,18 +93,19 @@ printf '%s\n' "${REVISION}" > deployment-revision.txt
 ```
 
 실행 가능한 JAR를 `app.jar`로 복사하고 `backend/deploy/`를 아티팩트 최상단에 배치한다. `BuildArtifact`에는 `app.jar`, `deployment-revision.txt`, `appspec.yml`, `jachwi-sunbae.service`, `scripts/**/*`가 필요하다. `appspec.yml`의 위치나 출력 목록이 잘못되면 배포가 실패한다.
+Thread Dump 스크립트와 logrotate 설정도 `scripts/` 아래에 두어 기존 출력 목록으로 함께 배포한다. 진단 도구 파일이 빠지면 `AfterInstall`이 파일 경로를 출력하고 실패한다.
 
 ## 3. 배포 훅과 완료 조건
 
 [appspec.yml](../../deploy/appspec.yml)이 순서와 제한 시간을 정의한다. 배포 경로는 `/opt/jachwi-sunbae`다.
 
-| 훅                 | 처리                                                                                        |
-| ------------------ | ------------------------------------------------------------------------------------------- |
-| `ApplicationStop`  | 기존 서비스를 중지한다. 직전 리비전의 스크립트를 사용하며 첫 배포에는 실행되지 않는다       |
-| `BeforeInstall`    | 배포 디렉터리를 비운다                                                                      |
-| `AfterInstall`     | 환경별 Vault 도구·인증서와 `app.env`를 준비하고 사용자·권한 확인 후 systemd 유닛을 설치한다 |
-| `ApplicationStart` | `systemctl restart`로 새 애플리케이션을 실행한다                                            |
-| `ValidateService`  | 서비스 실행, `health=UP`, 실행 SHA와 배포 SHA 일치를 확인한다                               |
+| 훅                 | 처리                                                                                                                                       |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ApplicationStop`  | 기존 서비스를 중지한다. 직전 리비전의 스크립트를 사용하며 첫 배포에는 실행되지 않는다                                                      |
+| `BeforeInstall`    | 배포 디렉터리를 비운다                                                                                                                     |
+| `AfterInstall`     | 환경별 Vault 도구·인증서와 `app.env`를 준비하고 사용자·권한 확인 후 [JVM 진단 도구](monitoring.md#jvm-진단-로그)와 systemd 유닛을 설치한다 |
+| `ApplicationStart` | `systemctl restart`로 새 애플리케이션을 실행한다                                                                                           |
+| `ValidateService`  | 서비스 실행, `health=UP`, 실행 SHA와 배포 SHA 일치를 확인한다                                                                              |
 
 과거 서비스 중지가 누락되어 `start`가 옛 프로세스를 유지하고, 그 health 응답으로 배포가 성공 처리된 경험이 있다. 이를 방지하려고 **명시적 restart와 SHA 비교**를 함께 사용한다.
 
@@ -245,5 +246,16 @@ sudo ls /opt/codedeploy-agent/deployment-root/deployment-logs/
 bash -n backend/deploy/scripts/prepare_vault.sh
 bash -n backend/deploy/scripts/fetch_env.sh
 bash -n backend/deploy/scripts/after_install.sh
+bash -n backend/deploy/scripts/jachwi-thread-dump.sh
 git diff --check
 ```
+
+JVM 진단 도구(Thread Dump 스크립트·logrotate·`AfterInstall` 설치·systemd 유닛)를 바꾸면 [diagnostics-test.sh](../../deploy/tests/diagnostics-test.sh)를 Amazon Linux 2023 컨테이너에서 실행한다. 테스트가 `/opt`, `/etc`에 파일을 만들므로 EC2나 로컬 호스트에서 직접 실행하지 않는다. 실제 서비스에 SIGQUIT을 보내지 않고 모의 `systemctl`·`journalctl`과 컨테이너 안의 JVM으로 검증한다.
+
+```bash
+docker run --rm -v "$PWD/backend/deploy:/deploy:ro" -e JACHWI_DIAGNOSTICS_TEST=container \
+  amazonlinux:2023 bash -c 'dnf install -y -q java-21-amazon-corretto-headless logrotate \
+  systemd util-linux procps-ng shadow-utils findutils >/dev/null && bash /deploy/tests/diagnostics-test.sh'
+```
+
+배포 후 진단 도구 확인 절차는 [모니터링 문서](monitoring.md#배포-후-확인)를 따른다.
