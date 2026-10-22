@@ -84,3 +84,10 @@ tasks.register('importRentalTransactions', JavaExec) {
 	classpath = sourceSets.main.runtimeClasspath
 	mainClass = 'com.jachwisunbae.rental.importer.RentalImportCommand'
 }
+
+tasks.register('importTransitNetwork', JavaExec) {
+	group = 'application'
+	description = '행정동 경계와 GTFS 파일을 목적지 탐색용 노선망으로 적재한다.'
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'com.jachwisunbae.transit.importer.TransitImportCommand'
+}
