@@ -1,7 +1,6 @@
 package com.jachwisunbae.auth.domain;
 
 import com.jachwisunbae.common.entity.BaseTimeEntity;
-import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.regex.Pattern;
 import lombok.Getter;
@@ -28,8 +27,8 @@ public class RefreshToken extends BaseTimeEntity {
         this.expiresAt = expiresAt;
     }
 
-    public static RefreshToken create(final Long memberId, final String tokenHash, final Clock clock) {
-        LocalDateTime now = currentTime(clock);
+    public static RefreshToken create(final Long memberId, final String tokenHash, final LocalDateTime now) {
+        requireTime(now, "생성 시각");
         return new RefreshToken(null, memberId, tokenHash, now, now, now.plusDays(VALIDITY_DAYS));
     }
 
@@ -40,13 +39,13 @@ public class RefreshToken extends BaseTimeEntity {
                 createdAt, updatedAt, expiresAt);
     }
 
-    public boolean isExpiredAt(final Clock clock) {
-        LocalDateTime now = currentTime(clock);
+    public boolean isExpiredAt(final LocalDateTime now) {
+        requireTime(now, "판단 시각");
         return !expiresAt.isAfter(now);
     }
 
-    public void extendExpiry(final Clock clock) {
-        LocalDateTime now = currentTime(clock);
+    public void extendExpiry(final LocalDateTime now) {
+        requireTime(now, "갱신 시각");
         if (now.isBefore(getUpdatedAt())) {
             throw new IllegalArgumentException("갱신 시각은 마지막 수정 시각보다 빠를 수 없습니다.");
         }
@@ -55,13 +54,6 @@ public class RefreshToken extends BaseTimeEntity {
         }
         this.expiresAt = now.plusDays(VALIDITY_DAYS);
         updateUpdatedAt(now);
-    }
-
-    private static LocalDateTime currentTime(final Clock clock) {
-        if (clock == null) {
-            throw new IllegalArgumentException("Clock은 필수입니다.");
-        }
-        return LocalDateTime.now(clock);
     }
 
     private static Long requirePositiveId(final Long id, final String name) {

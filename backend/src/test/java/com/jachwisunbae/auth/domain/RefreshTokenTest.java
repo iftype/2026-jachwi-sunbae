@@ -3,11 +3,7 @@ package com.jachwisunbae.auth.domain;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.time.Clock;
-import java.time.Duration;
-import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,14 +16,13 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class RefreshTokenTest {
 
-    private static final Clock CLOCK = Clock.fixed(Instant.parse("2027-10-22T12:00:00Z"), ZoneOffset.UTC);
-    private static final LocalDateTime NOW = LocalDateTime.now(CLOCK);
+    private static final LocalDateTime NOW = LocalDateTime.of(2027, 10, 22, 12, 0);
     private static final String TOKEN_HASH = "a1".repeat(32);
 
     @Test
     @DisplayName("새 토큰은 ID 없이 생성하고 윤년을 지나도 정확히 365일 후 만료된다")
     void createsTokenWith365DayLifetime() {
-        RefreshToken token = RefreshToken.create(7L, TOKEN_HASH, CLOCK);
+        RefreshToken token = RefreshToken.create(7L, TOKEN_HASH, NOW);
 
         assertThat(token.getId()).isNull();
         assertThat(token.getMemberId()).isEqualTo(7L);
@@ -62,7 +57,7 @@ class RefreshTokenTest {
                 NOW.minusDays(400), NOW.minusDays(366), expiresAt);
 
         assertThat(token.getExpiresAt()).isEqualTo(expiresAt);
-        assertThat(token.isExpiredAt(CLOCK)).isTrue();
+        assertThat(token.isExpiredAt(NOW)).isTrue();
     }
 
     @ParameterizedTest
@@ -70,7 +65,7 @@ class RefreshTokenTest {
     @ValueSource(longs = {0, -1})
     @DisplayName("회원 ID가 없거나 양수가 아니면 생성과 복원을 거부한다")
     void rejectsInvalidMemberId(Long memberId) {
-        assertThatThrownBy(() -> RefreshToken.create(memberId, TOKEN_HASH, CLOCK))
+        assertThatThrownBy(() -> RefreshToken.create(memberId, TOKEN_HASH, NOW))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> RefreshToken.reconstruct(10L, memberId, TOKEN_HASH,
                 NOW, NOW, NOW.plusDays(365)))
@@ -91,7 +86,7 @@ class RefreshTokenTest {
     @MethodSource("invalidTokenHashes")
     @DisplayName("토큰 해시는 64자리 소문자 16진수여야 한다")
     void rejectsInvalidTokenHash(String tokenHash) {
-        assertThatThrownBy(() -> RefreshToken.create(7L, tokenHash, CLOCK))
+        assertThatThrownBy(() -> RefreshToken.create(7L, tokenHash, NOW))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> RefreshToken.reconstruct(10L, 7L, tokenHash,
                 NOW, NOW, NOW.plusDays(365)))
@@ -103,8 +98,8 @@ class RefreshTokenTest {
     }
 
     @Test
-    @DisplayName("생성에 사용할 Clock이 없으면 내부 검증 예외가 발생한다")
-    void rejectsMissingCreationClock() {
+    @DisplayName("생성 시각이 없으면 내부 검증 예외가 발생한다")
+    void rejectsMissingCreationTime() {
         assertThatThrownBy(() -> RefreshToken.create(7L, TOKEN_HASH, null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
@@ -148,17 +143,17 @@ class RefreshTokenTest {
     @CsvSource({"-1,false", "0,true", "1,true"})
     @DisplayName("만료 직전에는 유효하고 만료 시각과 같거나 이후이면 만료된다")
     void checksExpiryBoundary(int secondsAfterExpiry, boolean expired) {
-        RefreshToken token = RefreshToken.create(7L, TOKEN_HASH, CLOCK);
+        RefreshToken token = RefreshToken.create(7L, TOKEN_HASH, NOW);
 
-        Clock expiryClock = clockAt(token.getExpiresAt().plusSeconds(secondsAfterExpiry));
+        LocalDateTime checkedAt = token.getExpiresAt().plusSeconds(secondsAfterExpiry);
 
-        assertThat(token.isExpiredAt(expiryClock)).isEqualTo(expired);
+        assertThat(token.isExpiredAt(checkedAt)).isEqualTo(expired);
     }
 
     @Test
-    @DisplayName("만료를 판단할 Clock은 필수다")
-    void rejectsMissingExpiryCheckClock() {
-        RefreshToken token = RefreshToken.create(7L, TOKEN_HASH, CLOCK);
+    @DisplayName("만료를 판단할 시각은 필수다")
+    void rejectsMissingExpiryCheckTime() {
+        RefreshToken token = RefreshToken.create(7L, TOKEN_HASH, NOW);
 
         assertThatThrownBy(() -> token.isExpiredAt(null)).isInstanceOf(IllegalArgumentException.class);
     }
@@ -167,10 +162,9 @@ class RefreshTokenTest {
     @DisplayName("갱신하면 토큰 값과 생성 시각을 유지하고 갱신 시점부터 365일로 연장한다")
     void extendsExpiryFromRenewalTime() {
         RefreshToken token = RefreshToken.reconstruct(10L, 7L, TOKEN_HASH, NOW, NOW, NOW.plusDays(365));
-        Clock renewalClock = Clock.offset(CLOCK, Duration.ofDays(30));
         LocalDateTime renewedAt = NOW.plusDays(30);
 
-        token.extendExpiry(renewalClock);
+        token.extendExpiry(renewedAt);
 
         assertThat(token.getId()).isEqualTo(10L);
         assertThat(token.getMemberId()).isEqualTo(7L);
@@ -183,13 +177,12 @@ class RefreshTokenTest {
     @Test
     @DisplayName("같은 시각에 중복 갱신해도 정상적으로 유지한다")
     void allowsRepeatedRenewalAtSameTime() {
-        RefreshToken token = RefreshToken.create(7L, TOKEN_HASH, CLOCK);
-        Clock renewalClock = Clock.offset(CLOCK, Duration.ofDays(1));
+        RefreshToken token = RefreshToken.create(7L, TOKEN_HASH, NOW);
         LocalDateTime renewedAt = NOW.plusDays(1);
-        token.extendExpiry(renewalClock);
+        token.extendExpiry(renewedAt);
         LocalDateTime expiresAt = token.getExpiresAt();
 
-        token.extendExpiry(renewalClock);
+        token.extendExpiry(renewedAt);
 
         assertThat(token.getExpiresAt()).isEqualTo(expiresAt);
         assertThat(token.getUpdatedAt()).isEqualTo(renewedAt);
@@ -200,20 +193,20 @@ class RefreshTokenTest {
     @ValueSource(ints = {0, 1})
     @DisplayName("만료 시각과 같거나 이후에 연장하면 거부하고 기존 상태를 유지한다")
     void rejectsRenewalOfExpiredToken(int secondsAfterExpiry) {
-        RefreshToken token = RefreshToken.create(7L, TOKEN_HASH, CLOCK);
+        RefreshToken token = RefreshToken.create(7L, TOKEN_HASH, NOW);
         LocalDateTime expiresAt = token.getExpiresAt();
-        Clock expiryClock = clockAt(expiresAt.plusSeconds(secondsAfterExpiry));
+        LocalDateTime renewedAt = expiresAt.plusSeconds(secondsAfterExpiry);
 
-        assertThatThrownBy(() -> token.extendExpiry(expiryClock))
+        assertThatThrownBy(() -> token.extendExpiry(renewedAt))
                 .isInstanceOf(IllegalStateException.class);
         assertThat(token.getExpiresAt()).isEqualTo(expiresAt);
         assertThat(token.getUpdatedAt()).isEqualTo(NOW);
     }
 
     @Test
-    @DisplayName("갱신할 Clock이 없으면 거부하고 기존 상태를 유지한다")
-    void rejectsMissingRenewalClock() {
-        RefreshToken token = RefreshToken.create(7L, TOKEN_HASH, CLOCK);
+    @DisplayName("갱신 시각이 없으면 거부하고 기존 상태를 유지한다")
+    void rejectsMissingRenewalTime() {
+        RefreshToken token = RefreshToken.create(7L, TOKEN_HASH, NOW);
         LocalDateTime expiresAt = token.getExpiresAt();
 
         assertThatThrownBy(() -> token.extendExpiry(null)).isInstanceOf(IllegalArgumentException.class);
@@ -228,26 +221,21 @@ class RefreshTokenTest {
         LocalDateTime expiresAt = updatedAt.plusDays(365);
         RefreshToken token = RefreshToken.reconstruct(10L, 7L, TOKEN_HASH, NOW, updatedAt, expiresAt);
 
-        assertThatThrownBy(() -> token.extendExpiry(CLOCK)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> token.extendExpiry(NOW)).isInstanceOf(IllegalArgumentException.class);
         assertThat(token.getExpiresAt()).isEqualTo(expiresAt);
         assertThat(token.getUpdatedAt()).isEqualTo(updatedAt);
     }
 
     @Test
-    @DisplayName("시스템 기본 시간대와 무관하게 전달된 Clock의 시간대를 사용한다")
-    void usesProvidedClockZone() {
-        Clock seoulClock = CLOCK.withZone(ZoneOffset.ofHours(9));
-        LocalDateTime seoulNow = NOW.plusHours(9);
+    @DisplayName("생성과 만료 판단에 전달받은 시각을 기준으로 사용한다")
+    void usesProvidedTime() {
+        LocalDateTime createdAt = NOW.plusHours(9);
 
-        RefreshToken token = RefreshToken.create(7L, TOKEN_HASH, seoulClock);
+        RefreshToken token = RefreshToken.create(7L, TOKEN_HASH, createdAt);
 
-        assertThat(token.getCreatedAt()).isEqualTo(seoulNow);
+        assertThat(token.getCreatedAt()).isEqualTo(createdAt);
         assertThat(token.getUpdatedAt()).isEqualTo(token.getCreatedAt());
-        assertThat(token.getExpiresAt()).isEqualTo(seoulNow.plusDays(365));
-        assertThat(token.isExpiredAt(seoulClock)).isFalse();
-    }
-
-    private static Clock clockAt(final LocalDateTime time) {
-        return Clock.fixed(time.toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
+        assertThat(token.getExpiresAt()).isEqualTo(createdAt.plusDays(365));
+        assertThat(token.isExpiredAt(createdAt)).isFalse();
     }
 }
