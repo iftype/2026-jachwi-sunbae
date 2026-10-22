@@ -157,12 +157,14 @@ throw new ResourceNotFoundException(ErrorCode.PROPERTY_NOT_FOUND,
 
 사용자의 인증 정보를 확인할 수 없을 때 사용한다.
 
-- 보호 회원의 비밀번호가 일치하지 않는다.
 - Access Token이 없거나 만료되었거나 서명·issuer·audience·subject가 유효하지 않다.
+- 토큰 갱신 요청의 Refresh Token이 없거나 만료·삭제되었거나 정상 회원과 연결되지 않는다.
 
-토큰 오류는 원인을 클라이언트에 구분해 노출하지 않고 `ACCESS_TOKEN_INVALID`로 통일한다. 만료, 서명 실패 같은 상세 원인은 서버 내부에서만 구분한다.
+Access Token 오류는 `ACCESS_TOKEN_INVALID`, 토큰 갱신의 인증 실패는 `REFRESH_TOKEN_INVALID`로 응답한다. 만료, 삭제 같은 상세 원인은 각 코드 안에서 구분해 노출하지 않는다.
 
-프론트엔드는 `401`을 받으면 로그인을 종료한다. 따라서 서버 코드 문제를 `401`로 응답하지 않는다. 예를 들어 인증이 필요 없는 경로의 Controller에 `@AuthenticatedMemberId`를 잘못 붙여 회원 ID가 없는 경우는 서버 문제이므로 `500`이다.
+로그인·인증 복원 요청에서 Refresh Token이 없거나 유효하지 않으면 새 익명 회원을 생성하고 성공 응답을 반환한다. 이 정책을 토큰 갱신 요청에 적용하지 않으며, 갱신 실패로 사용자를 다른 회원으로 전환하지 않는다.
+
+프론트엔드는 Access Token 인증 실패 시 갱신을 시도하고, Refresh Token 인증 실패 시 기존 회원의 인증을 복원할 수 없다고 판단한다. 서버 코드나 DB의 문제를 `401`로 응답하지 않는다. 예를 들어 인증이 필요 없는 경로의 Controller에 `@AuthenticatedMemberId`를 잘못 붙여 회원 ID가 없는 경우는 서버 문제이므로 `500`이다.
 
 ### 5.5. AuthorizationFailedException (403)
 

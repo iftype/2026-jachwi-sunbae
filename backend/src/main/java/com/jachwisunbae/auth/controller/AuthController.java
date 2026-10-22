@@ -9,13 +9,14 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/auth")
-@Tag(name = "Authentication", description = "닉네임 로그인과 Access Token 발급 API")
+@Tag(name = "Authentication", description = "익명 회원 생성, 인증 복원과 토큰 갱신 API")
 public class AuthController {
 
     private final AuthService service;
@@ -26,10 +27,26 @@ public class AuthController {
 
     @PostMapping("/login")
     @Operation(summary = "로그인",
-            description = "첫 접속 시 회원 생성하고, 로그인합니다.")
-    public ApiResponse<LoginResponse> loginAnonymous(HttpServletResponse response) {
-        LoginResult loginResult = service.startAnonymous();
+            description = "유효한 Refresh 쿠키로 기존 회원을 복원합니다. 쿠키가 없거나 만료·삭제되었거나 "
+                    + "정상 회원을 찾을 수 없으면 새 익명 회원을 생성합니다. Access Token은 필요하지 않습니다.")
+    public ApiResponse<LoginResponse> loginAnonymous(
+            @CookieValue(name = "refresh_token", required = false) String rawToken,
+            HttpServletResponse response) {
+        return respondWithCookie(service.startAnonymous(rawToken), response);
+    }
 
+    @PostMapping("/refresh")
+    @Operation(summary = "토큰 갱신",
+            description = "Refresh 쿠키가 유효하고 정상 회원과 연결되어 있으면 유효기간을 연장하고 "
+                    + "Access Token을 재발급합니다. 인증 복원이 불가능하면 401 REFRESH_TOKEN_INVALID를 응답하며 "
+                    + "새 회원을 생성하지 않습니다. Access Token은 필요하지 않습니다.")
+    public ApiResponse<LoginResponse> refresh(
+            @CookieValue(name = "refresh_token", required = false) String rawToken,
+            HttpServletResponse response) {
+        return respondWithCookie(service.refresh(rawToken), response);
+    }
+
+    private ApiResponse<LoginResponse> respondWithCookie(LoginResult loginResult, HttpServletResponse response) {
         ResponseCookie cookie = ResponseCookie
                 .from("refresh_token", loginResult.refreshToken())
                 .httpOnly(true)

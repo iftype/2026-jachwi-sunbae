@@ -8,12 +8,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jachwisunbae.auth.domain.RefreshToken;
+import com.jachwisunbae.auth.repository.RefreshTokenRepository;
 import com.jachwisunbae.auth.token.RefreshTokenProvider;
 import jakarta.servlet.http.Cookie;
+import java.time.LocalDateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.MockMvcPrint;
@@ -46,6 +52,8 @@ class AnonymousAuthenticationAcceptanceTest {
     private ObjectMapper objectMapper;
     @Autowired
     private RefreshTokenProvider refreshTokenProvider;
+    @Autowired
+    private RefreshTokenRepository refreshTokenRepository;
 
     @DynamicPropertySource
     static void configureDatabase(DynamicPropertyRegistry registry) {
@@ -104,6 +112,126 @@ class AnonymousAuthenticationAcceptanceTest {
                 """, Long.class, memberId, tokenHash)).isEqualTo(1L);
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"/api/auth/login", "/api/auth/refresh"})
+    @DisplayName("유효한 쿠키로 기존 회원의 인증을 복원하고 같은 토큰의 만료일을 연장한다")
+    void restoresExistingMemberAndExtendsExpiry(String path) throws Exception {
+        AnonymousLogin original = startAnonymous();
+        RefreshToken originalToken = storedToken(original);
+        LocalDateTime shortenedExpiry = originalToken.getCreatedAt().plusDays(1);
+        jdbcTemplate.update("UPDATE refresh_tokens SET expires_at = ? WHERE member_id = ?",
+                shortenedExpiry, original.memberId());
+
+        var result = mvc.perform(post(path).cookie(original.refreshCookie()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.newMember").value(false))
+                .andExpect(jsonPath("$.data.member.memberId").value(original.memberId()))
+                .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.data.refreshToken").doesNotExist())
+                .andReturn();
+
+        Cookie renewedCookie = result.getResponse().getCookie("refresh_token");
+        assertThat(renewedCookie).isNotNull();
+        assertThat(renewedCookie.getValue()).isEqualTo(original.refreshCookie().getValue());
+        assertThat(renewedCookie.getMaxAge()).isEqualTo(31_536_000);
+        RefreshToken renewed = storedToken(original);
+        assertThat(renewed.getId()).isEqualTo(originalToken.getId());
+        assertThat(renewed.getCreatedAt()).isEqualTo(originalToken.getCreatedAt());
+        assertThat(renewed.getExpiresAt()).isAfter(shortenedExpiry)
+                .isEqualTo(renewed.getUpdatedAt().plusDays(365));
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM members", Long.class)).isEqualTo(1L);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM refresh_tokens", Long.class)).isEqualTo(1L);
+
+        String accessToken = objectMapper.readTree(result.getResponse().getContentAsString())
+                .path("data").path("accessToken").asText();
+        mvc.perform(get("/api/members/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value(original.memberId()));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "not-registered"})
+    @DisplayName("로그인할 때 비어 있거나 등록되지 않은 쿠키가 오면 새 회원을 만든다")
+    void startsNewMemberForUnknownCookie(String rawToken) throws Exception {
+        mvc.perform(post("/api/auth/login").cookie(new Cookie("refresh_token", rawToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.newMember").value(true));
+
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM members", Long.class)).isEqualTo(1L);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM refresh_tokens", Long.class)).isEqualTo(1L);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"expired", "deleted", "deleted-member"})
+    @DisplayName("로그인할 때 인증을 복원할 수 없으면 이전 회원을 보존하고 새 회원을 만든다")
+    void startsNewMemberWhenRestorationFails(String state) throws Exception {
+        AnonymousLogin original = startAnonymous();
+        invalidateAuthentication(original, state);
+
+        var result = mvc.perform(post("/api/auth/login").cookie(original.refreshCookie()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.newMember").value(true))
+                .andReturn();
+
+        long newMemberId = objectMapper.readTree(result.getResponse().getContentAsString())
+                .path("data").path("member").path("memberId").asLong();
+        assertThat(newMemberId).isNotEqualTo(original.memberId());
+        Cookie newCookie = result.getResponse().getCookie("refresh_token");
+        assertThat(newCookie).isNotNull();
+        assertThat(newCookie.getValue()).isNotEqualTo(original.refreshCookie().getValue());
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM members", Long.class)).isEqualTo(2L);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM members WHERE id = ?",
+                Long.class, original.memberId())).isEqualTo(1L);
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(strings = {"", "not-registered"})
+    @DisplayName("갱신 요청의 쿠키가 없거나 등록되지 않았으면 새 회원을 만들지 않고 401을 응답한다")
+    void rejectsRefreshWithoutRegisteredToken(String rawToken) throws Exception {
+        var request = post("/api/auth/refresh");
+        if (rawToken != null) {
+            request.cookie(new Cookie("refresh_token", rawToken));
+        }
+
+        mvc.perform(request)
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("REFRESH_TOKEN_INVALID"));
+
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM members", Long.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM refresh_tokens", Long.class)).isZero();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"expired", "deleted", "deleted-member"})
+    @DisplayName("갱신할 인증이 유효하지 않으면 401을 응답하고 다른 회원으로 전환하지 않는다")
+    void rejectsRefreshOfInvalidAuthentication(String state) throws Exception {
+        AnonymousLogin original = startAnonymous();
+        invalidateAuthentication(original, state);
+
+        mvc.perform(post("/api/auth/refresh").cookie(original.refreshCookie()))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("REFRESH_TOKEN_INVALID"));
+
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM members", Long.class)).isEqualTo(1L);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"/api/auth/login", "/api/auth/refresh"})
+    @DisplayName("저장된 토큰 데이터가 손상되면 인증 실패나 신규 회원 생성으로 숨기지 않고 500을 응답한다")
+    void reportsStoredDataFailureAsServerError(String path) throws Exception {
+        AnonymousLogin original = startAnonymous();
+        jdbcTemplate.update("UPDATE refresh_tokens SET expires_at = updated_at WHERE member_id = ?",
+                original.memberId());
+
+        mvc.perform(post(path).cookie(original.refreshCookie()))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.code").value("INTERNAL_SERVER_ERROR"));
+
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM members", Long.class)).isEqualTo(1L);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM refresh_tokens", Long.class)).isEqualTo(1L);
+    }
+
     @Test
     @DisplayName("JWT가 유효해도 탈퇴한 회원의 정보는 조회할 수 없다")
     void rejectsDeletedMemberWithValidToken() throws Exception {
@@ -138,5 +266,41 @@ class AnonymousAuthenticationAcceptanceTest {
                 .andExpect(status().isNotFound());
 
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM members", Long.class)).isZero();
+    }
+
+    private AnonymousLogin startAnonymous() throws Exception {
+        var result = mvc.perform(post("/api/auth/login"))
+                .andExpect(status().isOk())
+                .andReturn();
+        long memberId = objectMapper.readTree(result.getResponse().getContentAsString())
+                .path("data").path("member").path("memberId").asLong();
+        Cookie refreshCookie = result.getResponse().getCookie("refresh_token");
+        assertThat(refreshCookie).isNotNull();
+        return new AnonymousLogin(memberId, refreshCookie);
+    }
+
+    private RefreshToken storedToken(AnonymousLogin login) {
+        return refreshTokenRepository.findByTokenHash(refreshTokenProvider.hash(login.refreshCookie().getValue()))
+                .orElseThrow();
+    }
+
+    private void invalidateAuthentication(AnonymousLogin login, String state) {
+        switch (state) {
+            case "expired" -> {
+                LocalDateTime issuedAt = storedToken(login).getCreatedAt();
+                jdbcTemplate.update("""
+                        UPDATE refresh_tokens
+                        SET created_at = ?, updated_at = ?, expires_at = ?
+                        WHERE member_id = ?
+                        """, issuedAt.minusDays(400), issuedAt.minusDays(366), issuedAt.minusDays(1), login.memberId());
+            }
+            case "deleted" -> refreshTokenRepository.deleteByMemberId(login.memberId());
+            case "deleted-member" -> jdbcTemplate.update("UPDATE members SET deleted_at = NOW(6) WHERE id = ?",
+                    login.memberId());
+            default -> throw new IllegalArgumentException("알 수 없는 테스트 인증 상태입니다.");
+        }
+    }
+
+    private record AnonymousLogin(long memberId, Cookie refreshCookie) {
     }
 }
