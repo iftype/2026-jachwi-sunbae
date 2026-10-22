@@ -38,14 +38,12 @@ public final class TransitNetwork {
     public static final Seconds MAX_ARRIVAL_WALK_TIME = new Seconds(600);
 
     private static final int RAIL_ROUTE_TYPE = 1;
-    private static final String[] COMPASS = {"북", "북동", "동", "남동", "남", "남서", "서", "북서"};
 
     private final List<GtfsStop> stops;
     private final Map<String, Integer> stopIndexes;
     private final List<GtfsRoute> routes;
     private final int[] waitSeconds;
     private final boolean[] railRoutes;
-    private final boolean[] railStops;
     private final StopGrid stopGrid;
 
     // 생활권 탐색은 목적지에서 거꾸로 가므로 들어오는 연결을, 경로 안내는 나가는 연결을 쓴다.
@@ -76,15 +74,6 @@ public final class TransitNetwork {
         for (int route = 0; route < routes.size(); route++) {
             waitSeconds[route] = routes.get(route).waitTime().value();
             railRoutes[route] = routes.get(route).routeType() == RAIL_ROUTE_TYPE;
-        }
-        this.railStops = new boolean[stops.size()];
-        for (int stop = 0; stop < stops.size(); stop++) {
-            for (int link = outgoing.start(stop); link < outgoing.end(stop); link++) {
-                if (!outgoing.isTransfer(link) && railRoutes[outgoing.route(link)]) {
-                    railStops[stop] = true;
-                    railStops[outgoing.other(link)] = true;
-                }
-            }
         }
     }
 
@@ -271,43 +260,13 @@ public final class TransitNetwork {
         List<ReachableStop> reachableStops = new ArrayList<>();
         for (int stop = 0; stop < stops.size(); stop++) {
             if (bestSeconds[stop] != Integer.MAX_VALUE) {
-                reachableStops.add(new ReachableStop(stops.get(stop), new Seconds(bestSeconds[stop]),
-                        direction(stop)));
+                reachableStops.add(new ReachableStop(stops.get(stop), new Seconds(bestSeconds[stop])));
             }
         }
         reachableStops.sort(Comparator.comparingInt((ReachableStop stop) -> stop.travelTime().value())
                 .thenComparing(stop -> stop.stop().stopName())
                 .thenComparing(stop -> stop.stop().stopId()));
         return reachableStops;
-    }
-
-    // 다음 정류장들로 향하는 단위 벡터를 더해 8방위로 바꾼다.
-    // 역은 양방향 승강장을 한 정류장으로 쓰므로 방향을 두지 않는다.
-    private String direction(final int stop) {
-        if (railStops[stop]) {
-            return null;
-        }
-        Coordinate from = stops.get(stop).coordinate();
-        double east = 0;
-        double north = 0;
-        for (int link = outgoing.start(stop); link < outgoing.end(stop); link++) {
-            if (outgoing.isTransfer(link)) {
-                continue;
-            }
-            Coordinate to = stops.get(outgoing.other(link)).coordinate();
-            double stepEast = (to.longitude() - from.longitude()) * Math.cos(Math.toRadians(from.latitude()));
-            double stepNorth = to.latitude() - from.latitude();
-            double length = Math.hypot(stepEast, stepNorth);
-            if (length > 0) {
-                east += stepEast / length;
-                north += stepNorth / length;
-            }
-        }
-        if (Math.hypot(east, north) < 0.01) {
-            return null;
-        }
-        double bearing = (Math.toDegrees(Math.atan2(east, north)) + 360) % 360;
-        return COMPASS[(int) Math.round(bearing / 45.0) % COMPASS.length];
     }
 
     private int stopIndex(final String stopId) {

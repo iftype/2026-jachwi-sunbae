@@ -81,16 +81,6 @@ class TransitNetworkTest {
     }
 
     @Test
-    @DisplayName("버스 정류장은 다음 정류장 쪽 8방위를, 역과 다음 정류장이 없는 정류장은 방향을 비운다")
-    void findsDirection() {
-        Map<String, String> directions = network.reachableStops(DESTINATION, new Seconds(3600), 2).stream()
-                .filter(stop -> stop.direction() != null)
-                .collect(Collectors.toMap(stop -> stop.stop().stopId(), ReachableStop::direction));
-
-        assertThat(directions).containsOnly(Map.entry("B", "남"), Map.entry("C", "남"), Map.entry("E", "서"));
-    }
-
-    @Test
     @DisplayName("목적지에서 걸어서 10분 안에 정류장이 있는지 알려준다")
     void findsArrivalStop() {
         assertThat(network.hasArrivalStop(DESTINATION)).isTrue();
