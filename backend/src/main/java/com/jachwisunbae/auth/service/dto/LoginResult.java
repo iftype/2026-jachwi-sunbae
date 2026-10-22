@@ -1,9 +1,11 @@
 package com.jachwisunbae.auth.service.dto;
 
 public record LoginResult(
-        String accessToken,
-        long expiresIn,
+        Long memberId,
         boolean newMember,
-        Long memberId
+        String accessToken,
+        long accessTokenExpiresIn,
+        String refreshToken,
+        long refreshTokenExpiresIn
 ) {
 }

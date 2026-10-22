@@ -8,6 +8,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jachwisunbae.auth.token.RefreshTokenProvider;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -42,6 +44,8 @@ class AnonymousAuthenticationAcceptanceTest {
     private MockMvc mvc;
     @Autowired
     private ObjectMapper objectMapper;
+    @Autowired
+    private RefreshTokenProvider refreshTokenProvider;
 
     @DynamicPropertySource
     static void configureDatabase(DynamicPropertyRegistry registry) {
@@ -52,6 +56,7 @@ class AnonymousAuthenticationAcceptanceTest {
 
     @BeforeEach
     void clearMembers() {
+        jdbcTemplate.update("DELETE FROM refresh_tokens");
         jdbcTemplate.update("DELETE FROM members");
     }
 
@@ -64,6 +69,8 @@ class AnonymousAuthenticationAcceptanceTest {
                 .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
                 .andExpect(jsonPath("$.data.tokenType").value("Bearer"))
                 .andExpect(jsonPath("$.data.expiresIn").value(43_200))
+                .andExpect(jsonPath("$.data.refreshToken").doesNotExist())
+                .andExpect(jsonPath("$.data.refreshTokenExpiresIn").doesNotExist())
                 .andExpect(jsonPath("$.data.newMember").value(true))
                 .andExpect(jsonPath("$.data.member.memberId").isNumber())
                 .andExpect(jsonPath("$.data.member.nickname").doesNotExist())
@@ -73,6 +80,14 @@ class AnonymousAuthenticationAcceptanceTest {
         long memberId = data.path("member").path("memberId").asLong();
         String token = data.path("accessToken").asText();
 
+        Cookie refreshCookie = login.getResponse().getCookie("refresh_token");
+        assertThat(refreshCookie).isNotNull();
+        assertThat(refreshCookie.isHttpOnly()).isTrue();
+        assertThat(refreshCookie.getSecure()).isTrue();
+        assertThat(refreshCookie.getPath()).isEqualTo("/api/auth");
+        assertThat(refreshCookie.getMaxAge()).isEqualTo(31_536_000);
+        String tokenHash = refreshTokenProvider.hash(refreshCookie.getValue());
+
         mvc.perform(get("/api/members/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("SUCCESS"))
@@ -81,6 +96,12 @@ class AnonymousAuthenticationAcceptanceTest {
                 .andExpect(jsonPath("$.data.passwordProtected").doesNotExist());
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM members WHERE id = ? AND deleted_at IS NULL",
                 Long.class, memberId)).isEqualTo(1L);
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM refresh_tokens rt
+                JOIN members m ON m.id = rt.member_id
+                WHERE m.id = ? AND rt.created_at = m.created_at AND rt.token_hash = ?
+                """, Long.class, memberId, tokenHash)).isEqualTo(1L);
     }
 
     @Test

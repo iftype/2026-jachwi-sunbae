@@ -21,7 +21,7 @@ public record LoginResponse(
     private static final String BEARER = "Bearer";
 
     public static LoginResponse from(LoginResult result) {
-        return new LoginResponse(result.accessToken(), BEARER, result.expiresIn(), result.newMember(),
+        return new LoginResponse(result.accessToken(), BEARER, result.accessTokenExpiresIn(), result.newMember(),
                 new LoginMemberResponse(result.memberId()));
     }
 }
