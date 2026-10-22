@@ -4,9 +4,11 @@ export type AuthenticationSession = {
   accessToken: string;
   tokenType: string;
   expiresAt: number;
+  memberId: number | null;
 };
 
-export type AuthenticationTerminationReason = 'expired' | 'unauthorized' | 'logout' | null;
+/** 인증을 이어갈 수 없게 된 까닭. `unauthorized`는 서버가 Refresh 쿠키로도 회원을 복원하지 못한 경우다. */
+export type AuthenticationTerminationReason = 'unauthorized' | null;
 
 type AuthenticationState = {
   session: AuthenticationSession | null;
@@ -17,53 +19,18 @@ type AuthenticationInput = {
   accessToken: string;
   tokenType: string;
   expiresIn: number;
+  memberId?: number | null;
 };
 
 const listeners = new Set<() => void>();
-const AUTHENTICATION_STORAGE_KEY = 'jachwi-sunbae.authentication.session';
-let expirationTimer: ReturnType<typeof setTimeout> | null = null;
+// 회원이 바뀌거나 인증이 끝날 때만 올린다. 같은 회원의 토큰 갱신은 진행 중인 요청을 버리지 않는다.
 let authenticationRevision = 0;
-const readStoredSession = (): AuthenticationSession | null => {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = window.localStorage.getItem(AUTHENTICATION_STORAGE_KEY);
-    if (raw === null) return null;
-    const value: unknown = JSON.parse(raw);
-    if (
-      typeof value !== 'object' ||
-      value === null ||
-      !('accessToken' in value) ||
-      !('tokenType' in value) ||
-      !('expiresAt' in value) ||
-      typeof value.accessToken !== 'string' ||
-      value.tokenType !== 'Bearer' ||
-      typeof value.expiresAt !== 'number' ||
-      value.expiresAt <= Date.now()
-    ) {
-      window.localStorage.removeItem(AUTHENTICATION_STORAGE_KEY);
-      return null;
-    }
-    return { accessToken: value.accessToken, tokenType: value.tokenType, expiresAt: value.expiresAt };
-  } catch {
-    window.localStorage.removeItem(AUTHENTICATION_STORAGE_KEY);
-    return null;
-  }
-};
 
-let state: AuthenticationState = {
-  session: readStoredSession(),
-  terminationReason: null,
-};
+// Access Token은 메모리에만 둔다. 새로고침하면 사라지고, Refresh 쿠키로 같은 회원을 다시 받는다.
+let state: AuthenticationState = { session: null, terminationReason: null };
 
 const emitChange = () => {
   listeners.forEach((listener) => listener());
-};
-
-const clearExpirationTimer = () => {
-  if (expirationTimer !== null) {
-    clearTimeout(expirationTimer);
-    expirationTimer = null;
-  }
 };
 
 const clearAuthenticationClientState = () => {
@@ -81,61 +48,38 @@ export const calculateExpiresAt = (expiresIn: number, now = Date.now()): number 
 };
 
 export const clearAuthentication = (reason: AuthenticationTerminationReason) => {
-  clearExpirationTimer();
   authenticationRevision += 1;
   state = { session: null, terminationReason: reason };
-  if (typeof window !== 'undefined') window.localStorage.removeItem(AUTHENTICATION_STORAGE_KEY);
   clearAuthenticationClientState();
   emitChange();
 };
 
+/**
+ * 로그인 응답으로 세션을 정한다. 첫 로그인과 같은 회원의 토큰 갱신이면 화면 캐시를 그대로 두고,
+ * 다른 회원으로 바뀌면 이전 회원의 캐시를 지운다.
+ */
 export const setAuthentication = ({
   accessToken,
   tokenType,
   expiresIn,
+  memberId = null,
 }: AuthenticationInput): AuthenticationSession => {
-  clearExpirationTimer();
-  authenticationRevision += 1;
-  clearAuthenticationClientState();
+  const previous = state.session;
+  if (previous !== null && previous.memberId !== memberId) {
+    authenticationRevision += 1;
+    clearAuthenticationClientState();
+  }
 
-  const session = {
-    accessToken,
-    tokenType,
-    expiresAt: calculateExpiresAt(expiresIn),
-  };
-
+  const session = { accessToken, tokenType, expiresAt: calculateExpiresAt(expiresIn), memberId };
   state = { session, terminationReason: null };
-  if (typeof window !== 'undefined') {
-    window.localStorage.setItem(AUTHENTICATION_STORAGE_KEY, JSON.stringify(session));
-  }
-
-  const remainingMilliseconds = session.expiresAt - Date.now();
-
-  if (remainingMilliseconds <= 0) {
-    clearAuthentication('expired');
-    return session;
-  }
-
-  expirationTimer = setTimeout(() => {
-    clearAuthentication('expired');
-  }, remainingMilliseconds);
-
   emitChange();
   return session;
 };
 
+/** 만료된 토큰은 돌려주지 않는다. 호출한 쪽이 로그인을 다시 불러 새 토큰을 받는다. */
 export const getAccessToken = (): string | null => {
   const { session } = state;
-
-  if (session === null) {
-    return null;
-  }
-
-  if (session.expiresAt <= Date.now()) {
-    clearAuthentication('expired');
-    return null;
-  }
-
+  if (session === null || session.expiresAt <= Date.now()) return null;
   return session.accessToken;
 };
 
@@ -149,24 +93,8 @@ export const subscribeAuthentication = (listener: () => void) => {
 };
 
 export const resetAuthenticationForTests = () => {
-  clearExpirationTimer();
   authenticationRevision += 1;
   state = { session: null, terminationReason: null };
-  if (typeof window !== 'undefined') window.localStorage.removeItem(AUTHENTICATION_STORAGE_KEY);
   queryClient.clear();
   emitChange();
 };
-
-// 다른 탭에서 로그아웃해 저장된 토큰이 사라지면 이 탭의 메모리·캐시도 비운다.
-if (typeof window !== 'undefined') {
-  window.addEventListener('storage', (event) => {
-    if (event.storageArea !== window.localStorage) return;
-    if (
-      (event.key === AUTHENTICATION_STORAGE_KEY || event.key === null) &&
-      event.newValue === null &&
-      state.session !== null
-    ) {
-      clearAuthentication('logout');
-    }
-  });
-}

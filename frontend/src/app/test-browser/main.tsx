@@ -234,18 +234,14 @@ const browserTestFetch: typeof fetch = async (input, init) => {
   const url = new URL(request.url);
   const path = url.pathname;
 
-  if (path === '/api/auth/nickname' && request.method === 'POST') {
-    const body = (await request.json()) as { nickname?: string; password?: string };
+  if (path === '/api/auth/login' && request.method === 'POST') {
     return jsonResponse(
       successEnvelope({
-        accessToken: 'browser-test-nickname-token',
+        accessToken: 'browser-test-auto-login-token',
         tokenType: 'Bearer',
         expiresIn: 3_600,
-        member: {
-          memberId: 1,
-          name: body.nickname ?? '브라우저테스터',
-          passwordProtected: typeof body.password === 'string',
-        },
+        newMember: false,
+        member: { memberId: 1 },
       }),
     );
   }

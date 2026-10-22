@@ -4,7 +4,16 @@ import { setupServer } from 'msw/node';
 const success = (data: unknown) => HttpResponse.json({ code: 'SUCCESS', message: '요청에 성공했습니다.', data });
 
 export const server = setupServer(
-  http.get('*/api/members/me', () => success({ id: 1, name: '이자취', passwordProtected: false })),
+  http.post('*/api/auth/login', () =>
+    success({
+      accessToken: 'test-auto-login-token',
+      tokenType: 'Bearer',
+      expiresIn: 900,
+      newMember: false,
+      member: { memberId: 1 },
+    }),
+  ),
+  http.get('*/api/members/me', () => success({ id: 1 })),
   http.get('*/api/checklists', () => success({ totalCount: 0, items: [] })),
   http.get('*/api/properties/:propertyId/memo', ({ params }) =>
     success({

@@ -16,7 +16,7 @@
 
 최신 develop에서 공개된 통근·월세·지도 주소 API를 사용한다. 인증을 우회하거나 가짜 토큰을 생성하지 않는다.
 
-MSW 실행도 자동 로그인하지 않는다. 기록 버튼에서 로그인 화면으로 이동해 닉네임을 입력하면 기존 `POST /api/auth/nickname` 목 응답으로 로그인한다. 실제 로그인으로 저장된 세션은 새로고침 시 유지하지만, 로그아웃한 세션을 MSW가 다시 생성하지 않는다. 이전 자동 로그인 토큰이 남아 있다면 한 번 로그아웃하고 확인한다. 같은 출처의 다른 탭에도 로그아웃을 반영한다.
+기록 버튼은 예전 로그인 주소(`/login`)로 이동하고, 그 주소는 홈으로 넘어가며 자동 로그인(`POST /api/auth/login`)한다. MSW 목은 Refresh 쿠키를 흉내 내지 않고 늘 같은 익명 회원으로 복원한다.
 
 ## 첫 진입과 지도 사용 안내
 
@@ -32,15 +32,15 @@ MSW 실행도 자동 로그인하지 않는다. 기록 버튼에서 로그인 �
 
 ## 전환 이벤트
 
-| 이벤트                           | 발생 기준                             |
-| -------------------------------- | ------------------------------------- |
-| `landing_page_viewed`            | 랜딩 진입                             |
-| `exploration_started`            | 위치를 정하고 조건으로 찾기를 누름    |
-| `exploration_completed`          | 조회 성공, 빈 결과도 결과 개수와 기록 |
-| `exploration_record_cta_clicked` | 조회 완료 후 방 기록 버튼 클릭        |
-| `exploration_login_completed`    | 위 버튼 이후 실제 닉네임 로그인 성공  |
-| `exploration_record_form_viewed` | 위 흐름에서 매물 등록 화면 진입       |
-| `exploration_property_saved`     | 위 등록 폼의 실제 저장 API 성공       |
+| 이벤트                           | 발생 기준                                 |
+| -------------------------------- | ----------------------------------------- |
+| `landing_page_viewed`            | 랜딩 진입                                 |
+| `exploration_started`            | 위치를 정하고 조건으로 찾기를 누름        |
+| `exploration_completed`          | 조회 성공, 빈 결과도 결과 개수와 기록     |
+| `exploration_record_cta_clicked` | 조회 완료 후 방 기록 버튼 클릭            |
+| `exploration_login_completed`    | 자동 로그인으로 바뀌어 지금은 보내지 않음 |
+| `exploration_record_form_viewed` | 위 흐름에서 매물 등록 화면 진입           |
+| `exploration_property_saved`     | 위 등록 폼의 실제 저장 API 성공           |
 
 공개 탐색 이벤트에 `journey_id`, `exploration_mode`, `source: landing`, `mock_data`를 함께 보낸다. 주소·좌표·닉네임은 이벤트에 넣지 않는다. 선택 위치는 로그인 이후 이어가기 위해 현재 탭의 sessionStorage에 보관하고 30분 후 무효화한다. 저장소가 차단되면 기록 전환은 현재 탭 메모리만 사용하며, 지도 재진입 복원은 지원하지 않는다.
 
