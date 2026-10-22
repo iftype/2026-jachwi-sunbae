@@ -3,7 +3,9 @@ package com.jachwisunbae.map.provider;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.jachwisunbae.map.provider.demo.DemoAddressProvider;
+import com.jachwisunbae.map.provider.demo.DemoAgencyProvider;
 import com.jachwisunbae.map.provider.demo.DemoNearbyPlaceProvider;
+import com.jachwisunbae.map.provider.kakao.KakaoAgencyProvider;
 import com.jachwisunbae.map.provider.kakao.KakaoNearbyPlaceProvider;
 import com.jachwisunbae.map.provider.kakao.KakaoPlaceClient;
 import com.jachwisunbae.map.provider.publicdata.PublicDataAddressProvider;
@@ -26,7 +28,8 @@ class MapProviderSelectionTest {
             .withBean(Clock.class, Clock::systemUTC)
             .withUserConfiguration(DemoAddressProvider.class, DemoNearbyPlaceProvider.class,
                     JusoAddressClient.class, SgisAuthClient.class, SgisTokenProvider.class, SgisAddressClient.class,
-                    PublicDataAddressProvider.class, KakaoPlaceClient.class, KakaoNearbyPlaceProvider.class);
+                    PublicDataAddressProvider.class, KakaoPlaceClient.class, KakaoNearbyPlaceProvider.class,
+                    DemoAgencyProvider.class, KakaoAgencyProvider.class);
 
     @Test
     @DisplayName("설정이 없으면 주소와 주변 시설 모두 demo 공급자를 사용한다")
@@ -34,6 +37,7 @@ class MapProviderSelectionTest {
         contextRunner.run(context -> {
             assertThat(context).getBean(AddressProvider.class).isInstanceOf(DemoAddressProvider.class);
             assertThat(context).getBean(NearbyPlaceProvider.class).isInstanceOf(DemoNearbyPlaceProvider.class);
+            assertThat(context).getBean(AgencyProvider.class).isInstanceOf(DemoAgencyProvider.class);
         });
     }
 
@@ -51,6 +55,7 @@ class MapProviderSelectionTest {
                 .run(context -> {
                     assertThat(context).getBean(AddressProvider.class).isInstanceOf(PublicDataAddressProvider.class);
                     assertThat(context).getBean(NearbyPlaceProvider.class).isInstanceOf(KakaoNearbyPlaceProvider.class);
+                    assertThat(context).getBean(AgencyProvider.class).isInstanceOf(KakaoAgencyProvider.class);
                 });
     }
 

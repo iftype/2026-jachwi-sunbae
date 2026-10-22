@@ -22,8 +22,6 @@ import java.util.Set;
 @ConditionalOnProperty(name = "map.nearby.provider", havingValue = "kakao")
 public class KakaoNearbyPlaceProvider implements NearbyPlaceProvider {
 
-    // 캐시 없이 요청마다 호출하므로 카테고리당 호출 수를 제한한다.
-    private static final int MAX_PAGE_COUNT = 3;
     // 카카오로 조회하는 카테고리와 카카오 카테고리 코드.
     private static final Map<MapCategory, String> CATEGORY_CODES = new EnumMap<>(Map.of(
             MapCategory.HOSPITAL, "HP8",
@@ -47,27 +45,12 @@ public class KakaoNearbyPlaceProvider implements NearbyPlaceProvider {
             if (!CATEGORY_CODES.containsKey(category)) {
                 continue;
             }
-            List<KakaoCategorySearchResponse.Document> documents = searchPages(category, latitude, longitude, radius);
+            List<KakaoCategorySearchResponse.Document> documents =
+                    client.searchCategoryPages(CATEGORY_CODES.get(category), latitude, longitude, radius);
             List<KakaoCategorySearchResponse.Document> validDocuments = filterValid(documents, category);
             addUniquePlaces(unique, validDocuments, category);
         }
         return List.copyOf(unique.values());
-    }
-
-    // 카카오 API를 마지막 페이지 또는 최대 페이지 수까지 순회하며 document를 모은다.
-    private List<KakaoCategorySearchResponse.Document> searchPages(MapCategory category, BigDecimal latitude,
-                                                                   BigDecimal longitude, int radius) {
-        List<KakaoCategorySearchResponse.Document> documents = new ArrayList<>();
-        for (int page = 1; page <= MAX_PAGE_COUNT; page++) {
-            KakaoCategorySearchResponse response =
-                    client.searchCategory(CATEGORY_CODES.get(category), latitude, longitude, radius, page);
-            documents.addAll(response.documents());
-
-            if (response.end()) {
-                break;
-            }
-        }
-        return documents;
     }
 
     // 필수 값이 없는 document는 로그를 남기고 제외한다. 데이터 하나가 이상하다고 전체를 실패시키지 않는다.
@@ -75,7 +58,7 @@ public class KakaoNearbyPlaceProvider implements NearbyPlaceProvider {
                                                                    MapCategory category) {
         List<KakaoCategorySearchResponse.Document> validDocuments = new ArrayList<>();
         for (KakaoCategorySearchResponse.Document document : documents) {
-            if (!hasRequiredFields(document)) {
+            if (!document.hasRequiredFields()) {
                 LOG.warn("카카오 주변 시설 응답에 필수 값이 없어 제외합니다. category={}, id={}", category, document.id());
                 continue;
             }
@@ -93,26 +76,13 @@ public class KakaoNearbyPlaceProvider implements NearbyPlaceProvider {
         }
     }
 
-    private boolean hasRequiredFields(KakaoCategorySearchResponse.Document document) {
-        return document.id() != null && document.placeName() != null
-                && document.latitude() != null && document.longitude() != null && document.distance() != null;
-    }
-
     private NearbyPlace place(KakaoCategorySearchResponse.Document document, MapCategory category) {
         return new NearbyPlace("kakao:" + document.id(),
                 document.placeName(),
                 category,
-                address(document),
+                document.preferredAddress(),
                 document.latitude(),
                 document.longitude(),
                 document.distance());
-    }
-
-    //도로명 주소가 있으면 우선 사용
-    private String address(KakaoCategorySearchResponse.Document document) {
-        if (document.roadAddressName() == null) {
-            return document.addressName();
-        }
-        return document.roadAddressName();
     }
 }
