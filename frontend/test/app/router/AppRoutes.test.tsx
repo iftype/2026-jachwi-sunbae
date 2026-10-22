@@ -201,8 +201,44 @@ describe('익명 자동 인증 흐름', () => {
     renderRoutes('/');
 
     expect(await screen.findByText('이전 기록을 이어서 불러오지 못했어요')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '다시 시도하기' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '뒤로 가기' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '새 기록으로 시작하기' })).toBeInTheDocument();
     expect(getAccessToken()).toBeNull();
+  });
+
+  it('갱신이 거절된 뒤 새 기록으로 시작하기를 누르면 새 익명 회원으로 홈을 보여 준다', async () => {
+    const user = userEvent.setup();
+    setAuthentication({ accessToken: 'expired-token', tokenType: 'Bearer', expiresIn: 60, memberId: 1 });
+    let meCalls = 0;
+    server.use(
+      http.get(`${config.apiBaseUrl}/api/members/me`, ({ request }) => {
+        meCalls += 1;
+        return request.headers.get('Authorization') === 'Bearer new-member-token'
+          ? HttpResponse.json(successEnvelope({ id: 2 }))
+          : HttpResponse.json(errorEnvelope('ACCESS_TOKEN_INVALID', 'expired'), { status: 401 });
+      }),
+      http.post(`${config.apiBaseUrl}/api/auth/refresh`, () =>
+        HttpResponse.json(errorEnvelope('REFRESH_TOKEN_INVALID', 'invalid'), { status: 401 }),
+      ),
+      http.post(`${config.apiBaseUrl}/api/auth/login`, () =>
+        HttpResponse.json(
+          successEnvelope({
+            accessToken: 'new-member-token',
+            tokenType: 'Bearer',
+            expiresIn: 900,
+            newMember: true,
+            member: { memberId: 2 },
+          }),
+        ),
+      ),
+    );
+
+    renderRoutes('/');
+    await user.click(await screen.findByRole('button', { name: '새 기록으로 시작하기' }));
+
+    expect(await screen.findByRole('region', { name: '자취선배 주요 기능' })).toBeInTheDocument();
+    expect(getAccessToken()).toBe('new-member-token');
+    expect(meCalls).toBeGreaterThan(1);
   });
 
   it('현재 회원 조회 네트워크 실패는 재시도를 제공한다', async () => {
