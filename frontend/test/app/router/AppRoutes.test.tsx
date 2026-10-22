@@ -34,11 +34,19 @@ const successEnvelope = (data: unknown) => ({
 
 const errorEnvelope = (code: string, message: string) => ({ code, message, errors: [] });
 
-const RoutePath = () => (
-  <span hidden data-testid="route-path">
-    {useLocation().pathname}
-  </span>
-);
+const RoutePath = () => {
+  const { pathname, search } = useLocation();
+  return (
+    <>
+      <span hidden data-testid="route-path">
+        {pathname}
+      </span>
+      <span hidden data-testid="route-search">
+        {search}
+      </span>
+    </>
+  );
+};
 const renderRoutes = (path: string) => {
   server.use(
     http.get(`${config.apiBaseUrl}/api/properties`, () =>
@@ -111,48 +119,41 @@ describe('익명 자동 인증 흐름', () => {
     expect(getAccessToken()).toBe('first-visit-token');
     expect(loginCalls).toBe(1);
   });
-  it('랜딩은 시연이 바로 보이고 탐색으로 이어진다', async () => {
-    const user = userEvent.setup();
-    renderRoutes('/landing');
-    expect(await screen.findByRole('heading', { name: '자취선배' })).toBeInTheDocument();
-    expect(screen.getByTestId('route-path')).toHaveTextContent('/landing');
-    expect(screen.getByText('자취할 동네를 찾고, 직접 본 방을 기록해요.')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '이렇게 사용해요' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '자취할 동네 찾기' })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: '본 방 기록하기' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: '개인정보 처리방침' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('navigation', { name: '앱과 웹으로 시작하기' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: '서비스 바로가기' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: '앱으로 써보기' })).not.toBeInTheDocument();
-    expect(screen.queryByText(/이미 본 방을 기록하고 싶어요/)).not.toBeInTheDocument();
-    expect(screen.queryByText('살 동네부터, 본 방의 기록까지.')).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '이미 기록 중이라면 로그인하기' })).toHaveAttribute('href', '/login');
-    await user.click(screen.getByRole('link', { name: '동네 찾아보기' }));
-    expect(await screen.findByRole('heading', { name: '자취할 동네를 찾아보세요' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /거리로 찾기/ })).toHaveAttribute('href', '/explore/commute');
-    expect(screen.getByRole('link', { name: /월세 평균가 보기/ })).toHaveAttribute('href', '/explore/price');
-    expect(screen.queryByRole('navigation', { name: '주요 메뉴' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('complementary', { name: '자취선배 첫 사용 안내' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: '자취선배 소개' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: '사용 안내 다시 보기' })).not.toBeInTheDocument();
-  });
-  it('로그인한 사용자는 랜딩에 들어와도 홈으로 이동한다', async () => {
-    setAuthentication({ accessToken: 'valid-token', tokenType: 'Bearer', expiresIn: 60 });
-    server.use(http.get(`${config.apiBaseUrl}/api/members/me`, () => HttpResponse.json(successEnvelope(member))));
-    renderRoutes('/landing');
+  it('예전 랜딩 주소로 들어오면 쿼리를 유지한 채 홈으로 가서 자동 로그인한다', async () => {
+    renderRoutes('/landing?utm_source=instagram');
     expect(await screen.findByRole('region', { name: '자취선배 주요 기능' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: '이렇게 사용해요' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('route-path')).toHaveTextContent(/^\/$/);
+    expect(screen.getByTestId('route-search')).toHaveTextContent('?utm_source=instagram');
+    expect(getAccessToken()).toBe('test-auto-login-token');
   });
-  it('소개는 로그인 없이 별도 주소에서 볼 수 있다', async () => {
-    renderRoutes('/about');
-    expect(await screen.findByRole('heading', { name: '자취선배' })).toBeInTheDocument();
+  it('사용 방법은 로그인 없이 보고 단계마다 실제 기능으로 이어진다', async () => {
+    let loginCalls = 0;
+    server.use(
+      http.post(`${config.apiBaseUrl}/api/auth/login`, () => {
+        loginCalls += 1;
+        return HttpResponse.json(errorEnvelope('UNEXPECTED', 'unexpected'), { status: 500 });
+      }),
+    );
+    renderRoutes('/guide');
+    expect(await screen.findByRole('heading', { level: 1, name: '사용 방법' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '로그인 없이 바로 시작해요' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '이렇게 사용해요' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '동네 찾아보기' })).toHaveAttribute('href', '/explore');
+    expect(screen.getByRole('link', { name: '동네 찾아보기' })).toHaveAttribute('href', '/neighborhoods');
+    expect(screen.getByRole('link', { name: '매물 등록하기' })).toHaveAttribute('href', '/properties/new');
+    expect(screen.getByRole('link', { name: '본 방 기록 보기' })).toHaveAttribute('href', '/properties');
+    expect(screen.getByRole('link', { name: '체크리스트 보기' })).toHaveAttribute('href', '/checklists');
+    expect(screen.getByRole('link', { name: '홈에서 시작하기' })).toHaveAttribute('href', '/');
+    expect(screen.queryByRole('link', { name: '앱으로 써보기' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /로그인하기/ })).not.toBeInTheDocument();
+    expect(loginCalls).toBe(0);
+  });
+  it('예전 서비스 소개 주소는 사용 방법으로 이동한다', async () => {
+    renderRoutes('/about');
+    expect(await screen.findByRole('heading', { level: 1, name: '사용 방법' })).toBeInTheDocument();
+    expect(screen.getByTestId('route-path')).toHaveTextContent('/guide');
   });
   it('예전 로그인 주소로 들어오면 자동 로그인 뒤 홈으로 이어진다', async () => {
-    const user = userEvent.setup();
-    renderRoutes('/landing');
-    await user.click(await screen.findByRole('link', { name: '이미 기록 중이라면 로그인하기' }));
+    renderRoutes('/login');
     expect(await screen.findByRole('region', { name: '자취선배 주요 기능' })).toBeInTheDocument();
     expect(screen.getByTestId('route-path')).toHaveTextContent(/^\/$/);
   });

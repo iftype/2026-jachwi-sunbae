@@ -1,23 +1,22 @@
 import type { ReactNode } from 'react';
 import { lazy } from 'react';
-import { Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 
 import PropertyAppLayout from '@/app/layouts/property-app-layout/PropertyAppLayout';
 import PublicExploreLayout from '@/app/layouts/public-explore-layout/PublicExploreLayout';
-import { useAuthentication } from '@/features/auth/model/useAuthentication';
 import { isChecklistStage } from '@/features/checklist/model/checklist';
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
 
 import LazyRouteBoundary from './LazyRouteBoundary';
 import ProtectedRoute from './ProtectedRoute';
 
-const ServiceIntroductionPage = lazy(() => import('@/pages/landing/LandingPage'));
 const DesignHomePage = lazy(() => import('@/pages/design-home/DesignHomePage'));
 const DesignRecordsPage = lazy(() => import('@/pages/design-records/DesignRecordsPage'));
 const NeighborhoodPreviewPage = lazy(() => import('@/pages/neighborhood-preview/NeighborhoodPreviewPage'));
 const NeighborhoodEntryPage = lazy(() => import('@/pages/neighborhood-entry/NeighborhoodEntryPage'));
 const NeighborhoodRoutePage = lazy(() => import('@/pages/neighborhood-preview/NeighborhoodRoutePage'));
 const NeighborhoodPricePage = lazy(() => import('@/pages/neighborhood-preview/NeighborhoodPricePage'));
+const UsageGuidePage = lazy(() => import('@/pages/usage-guide/UsageGuidePage'));
 const PrivacyPage = lazy(() => import('@/pages/privacy/PrivacyPage'));
 const NotFoundPage = lazy(() => import('@/pages/not-found/NotFoundPage'));
 const CreatePropertyPage = lazy(() => import('@/pages/create-property/CreatePropertyPage'));
@@ -59,9 +58,10 @@ const RecordsRoute = () => {
   return <PropertyAppLayout />;
 };
 
-const LandingRoute = () => {
-  const { session } = useAuthentication();
-  return session ? <Navigate to="/" replace /> : lazyPage(<ServiceIntroductionPage />);
+/** 광고에 쓰던 랜딩 주소는 홈으로 바로 보낸다. 유입 측정을 위해 쿼리(utm 등)는 그대로 넘긴다. */
+const LegacyLandingRoute = () => {
+  const { search } = useLocation();
+  return <Navigate to={{ pathname: '/', search }} replace />;
 };
 const AppRoutes = () => (
   <Routes>
@@ -76,6 +76,7 @@ const AppRoutes = () => (
       </Route>
     </Route>
     <Route element={<PropertyAppLayout />}>
+      <Route path="/guide" element={lazyPage(<UsageGuidePage />)} />
       <Route path="/neighborhoods" element={lazyPage(<NeighborhoodEntryPage />)} />
       <Route path="/neighborhoods/map" element={lazyPage(<NeighborhoodPreviewPage />)}>
         <Route path="areas/:adminDongCode" element={lazyPage(<NeighborhoodRoutePage />)} />
@@ -83,8 +84,9 @@ const AppRoutes = () => (
         <Route path="prices/:legalDongCode" element={lazyPage(<NeighborhoodPricePage />)} />
       </Route>
     </Route>
-    <Route path="/landing" element={<LandingRoute />} />
-    <Route path="/about" element={lazyPage(<ServiceIntroductionPage />)} />
+    {/* 랜딩은 없다. 첫 진입은 홈에서 자동 로그인하고, 서비스 소개는 사용 방법(`/guide`)이 맡는다. */}
+    <Route path="/landing" element={<LegacyLandingRoute />} />
+    <Route path="/about" element={<Navigate to="/guide" replace />} />
     <Route path="/privacy" element={lazyPage(<PrivacyPage />)} />
     {/* 로그인 화면은 없다. 예전 주소로 들어오면 홈에서 자동 로그인한다. */}
     <Route path="/login" element={<Navigate to="/" replace />} />

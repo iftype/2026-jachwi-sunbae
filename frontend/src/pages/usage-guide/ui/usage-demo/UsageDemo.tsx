@@ -1,10 +1,12 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import mascotImage from '@/shared/assets/empty-property.jpg';
+import Icon from '@/shared/ui/icon/Icon';
 
-import { trackLandingDemoInteraction } from '../../lib/landingAnalytics';
+import { trackUsageGuideDemoInteraction } from '../../lib/usageGuideAnalytics';
 
-import styles from './LandingDemo.module.css';
+import styles from './UsageDemo.module.css';
 
 const SAMPLE_NAME = '학교 앞 원룸';
 const STEP_TICKS = 34;
@@ -51,18 +53,25 @@ type StepProps = {
   index: number;
   title: string;
   caption: string;
+  action: { to: string; label: string };
   children: (progress: number) => ReactNode;
 };
 
-const DemoStep = ({ index, title, caption, children }: StepProps) => {
+const DemoStep = ({ index, title, caption, action, children }: StepProps) => {
   const { ref, isRevealed, progress } = useRevealProgress();
   return (
-    <article ref={ref} className={styles.step} data-revealed={isRevealed} aria-labelledby={`landing-step-${index}`}>
-      <p className={styles.stepLabel}>
-        <span>{index + 1}</span>
-        <strong id={`landing-step-${index}`}>{title}</strong>
-      </p>
-      <p className={styles.caption}>{caption}</p>
+    <article ref={ref} className={styles.step} data-revealed={isRevealed} aria-labelledby={`usage-step-${index}`}>
+      <div className={styles.stepText}>
+        <p className={styles.stepLabel}>
+          <span>{index + 1}</span>
+          <strong id={`usage-step-${index}`}>{title}</strong>
+        </p>
+        <p className={styles.caption}>{caption}</p>
+        <Link className={styles.stepAction} to={action.to}>
+          {action.label}
+          <Icon name="arrow-right" size={14} />
+        </Link>
+      </div>
       <div className={styles.screen} data-stage={index}>
         <div className={styles.toolbar}>
           <img src={mascotImage} width={22} height={22} alt="" />
@@ -78,18 +87,23 @@ const DemoStep = ({ index, title, caption, children }: StepProps) => {
   );
 };
 
-/** 서버에 저장하지 않는 가상 사용 예시. 스크롤로 각 단계를 보여준다. */
-const LandingDemo = () => {
+/** 서버에 저장하지 않는 가상 사용 예시. 스크롤로 각 단계를 보여주고, 단계마다 실제 기능으로 이어 준다. */
+const UsageDemo = () => {
   const [mode, setMode] = useState<'commute' | 'price'>('commute');
   const selectMode = (value: typeof mode) => {
-    trackLandingDemoInteraction('mode', value);
+    trackUsageGuideDemoInteraction('mode', value);
     setMode(value);
   };
 
   return (
-    <section className={styles.demo} aria-labelledby="usage-heading">
-      <h2 id="usage-heading">이렇게 사용해요</h2>
-      <DemoStep index={0} title="동네 찾기" caption="자주 가는 곳 주변을 통근 시간이나 월세 평균가로 살펴봐요.">
+    <section className={styles.demo} aria-labelledby="usage-steps-heading">
+      <h2 id="usage-steps-heading">이렇게 사용해요</h2>
+      <DemoStep
+        index={0}
+        title="동네 찾기"
+        caption="자주 가는 곳 주변을 통근 시간이나 월세 평균가로 살펴봐요."
+        action={{ to: '/neighborhoods', label: '동네 찾아보기' }}
+      >
         {(progress) => (
           <>
             <h3>자취할 동네 찾기</h3>
@@ -132,7 +146,12 @@ const LandingDemo = () => {
           </>
         )}
       </DemoStep>
-      <DemoStep index={1} title="방 등록" caption="보러 갈 방의 이름과 가격을 적어요.">
+      <DemoStep
+        index={1}
+        title="방 등록"
+        caption="보러 갈 방의 이름과 가격을 적어요."
+        action={{ to: '/properties/new', label: '매물 등록하기' }}
+      >
         {(progress) => (
           <>
             <h3>매물 추가</h3>
@@ -159,7 +178,12 @@ const LandingDemo = () => {
           </>
         )}
       </DemoStep>
-      <DemoStep index={2} title="정보 저장" caption="방 정보와 사진을 한곳에 저장해요.">
+      <DemoStep
+        index={2}
+        title="정보 저장"
+        caption="방 정보와 사진을 한곳에 저장해요."
+        action={{ to: '/properties', label: '본 방 기록 보기' }}
+      >
         {() => (
           <>
             <h3>학교 앞 원룸</h3>
@@ -181,7 +205,12 @@ const LandingDemo = () => {
           </>
         )}
       </DemoStep>
-      <DemoStep index={3} title="체크리스트" caption="현장에서 확인한 내용을 체크해요.">
+      <DemoStep
+        index={3}
+        title="체크리스트"
+        caption="현장에서 확인한 내용을 체크해요."
+        action={{ to: '/checklists', label: '체크리스트 보기' }}
+      >
         {(progress) => (
           <>
             <h3>현장 체크리스트</h3>
@@ -200,4 +229,4 @@ const LandingDemo = () => {
   );
 };
 
-export default LandingDemo;
+export default UsageDemo;

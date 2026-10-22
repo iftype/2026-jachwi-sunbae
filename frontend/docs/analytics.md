@@ -14,7 +14,7 @@
 
 `app/analytics/PostHogTracker.tsx`는 React와 SDK 수명주기를 연결한다. 초기화·공통 속성·식별은 layout effect에서 처리해 페이지의 첫 effect 이벤트가 초기화보다 먼저 실행되어 버려지지 않게 한다. 페이지뷰는 그 이후 전송한다. 로그인은 수집의 전제 조건이 아니며 익명 방문에서도 경로와 기능 이벤트를 수집한다.
 
-등록·메모 이벤트 이름과 필수 속성 타입은 소유 기능의 `features/property/lib/propertyAnalytics.ts`에 둔다. 랜딩 CTA는 페이지의 `pages/landing/lib/landingAnalytics.ts`가 소유한다. shared는 도메인 이벤트 목록을 알지 않는다. 기존 이벤트 전체를 한 번에 이관하지 않고 이번에 정비한 경계부터 타입 계약을 적용한다. 제품 목표와 이벤트 해석은 [지표 기준](analytics-goals.md)을 따른다.
+등록·메모 이벤트 이름과 필수 속성 타입은 소유 기능의 `features/property/lib/propertyAnalytics.ts`에 둔다. 사용 방법 이벤트는 페이지의 `pages/usage-guide/lib/usageGuideAnalytics.ts`가 소유한다. shared는 도메인 이벤트 목록을 알지 않는다. 기존 이벤트 전체를 한 번에 이관하지 않고 이번에 정비한 경계부터 타입 계약을 적용한다. 제품 목표와 이벤트 해석은 [지표 기준](analytics-goals.md)을 따른다.
 
 ## 이벤트 추가·수정 기준
 
