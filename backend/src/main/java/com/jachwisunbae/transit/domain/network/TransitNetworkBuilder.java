@@ -1,11 +1,14 @@
 package com.jachwisunbae.transit.domain.network;
 
-import static com.jachwisunbae.transit.domain.network.StopLinks.TRANSFER;
+import static com.jachwisunbae.transit.domain.network.search.StopLinks.TRANSFER;
 
 import com.jachwisunbae.transit.domain.GtfsEdge;
 import com.jachwisunbae.transit.domain.GtfsRoute;
 import com.jachwisunbae.transit.domain.GtfsStop;
 import com.jachwisunbae.transit.domain.GtfsTransfer;
+import com.jachwisunbae.transit.domain.network.search.SearchStates;
+import com.jachwisunbae.transit.domain.network.search.StopGrid;
+import com.jachwisunbae.transit.domain.network.search.StopLinks;
 import com.jachwisunbae.transit.domain.vo.Seconds;
 import java.util.Arrays;
 import java.util.HashMap;
