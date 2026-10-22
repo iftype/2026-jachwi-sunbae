@@ -1,6 +1,6 @@
-package com.jachwisunbae.transit.domain.collection;
+package com.jachwisunbae.transit.domain.network;
 
-import static com.jachwisunbae.transit.domain.collection.StopLinks.TRANSFER;
+import static com.jachwisunbae.transit.domain.network.StopLinks.TRANSFER;
 
 import com.jachwisunbae.transit.domain.CommuteRoute;
 import com.jachwisunbae.transit.domain.GtfsEdge;
@@ -137,22 +137,22 @@ public final class TransitNetwork {
         states.update(origin, 0, SearchStates.NONE, SearchStates.NONE, 0);
         heap.push(origin, 0);
 
-        Arrival arrival = new Arrival(states, walkSeconds, limit);
-        search(outgoing, states, heap, limit, maxTransfers, arrival::visit, (stop, seconds) -> {
+        RouteArrival arrival = new RouteArrival(states, walkSeconds, limit);
+        search(outgoing, states, heap, limit, maxTransfers, arrival, (stop, seconds) -> {
         });
-        if (arrival.state == SearchStates.NONE) {
+        if (arrival.state() == SearchStates.NONE) {
             return Optional.empty();
         }
-        int arrivalStop = states.stop(arrival.state);
-        List<RouteLeg> legs = toLegs(arrival.state, states);
+        int arrivalStop = states.stop(arrival.state());
+        List<RouteLeg> legs = toLegs(arrival.state(), states);
         int finalWalkSeconds = walkSeconds.get(arrivalStop);
         if (finalWalkSeconds > 0) {
             legs.add(new RouteLeg(RouteLeg.Type.WALK, null,
                     List.of(point(arrivalStop), RoutePoint.destination(destination)),
                     new Seconds(finalWalkSeconds), new Seconds(0)));
         }
-        return Optional.of(new CommuteRoute(new Seconds(arrival.seconds),
-                Math.max(0, states.boardings(arrival.state) - 1), legs));
+        return Optional.of(new CommuteRoute(new Seconds(arrival.seconds()),
+                Math.max(0, states.boardings(arrival.state()) - 1), legs));
     }
 
     // 생활권 탐색과 경로 안내가 함께 쓰는 다익스트라다. 두 탐색은 쓰는 연결 목록(들어오는·나가는 연결)과
@@ -199,9 +199,10 @@ public final class TransitNetwork {
 
     // 도착한 상태에서 지나온 구간을 거꾸로 따라간 뒤, 같은 노선으로 이어진 구간과 이어진 도보 환승을 하나로 묶는다.
     private List<RouteLeg> toLegs(final int arrival, final SearchStates states) {
-        List<Step> steps = new ArrayList<>();
+        List<RouteStep> steps = new ArrayList<>();
         for (int state = arrival; states.previous(state) != SearchStates.NONE; state = states.previous(state)) {
-            steps.add(new Step(states.stop(states.previous(state)), states.link(state), states.waitSeconds(state)));
+            steps.add(new RouteStep(states.stop(states.previous(state)), states.link(state),
+                    states.waitSeconds(state)));
         }
         Collections.reverse(steps);
 
@@ -219,12 +220,12 @@ public final class TransitNetwork {
         return legs;
     }
 
-    private RouteLeg toLeg(final List<Step> steps, final int route) {
+    private RouteLeg toLeg(final List<RouteStep> steps, final int route) {
         List<RoutePoint> points = new ArrayList<>();
         points.add(point(steps.getFirst().fromStop()));
         int rideSeconds = 0;
         int waitSecondsOfLeg = 0;
-        for (Step step : steps) {
+        for (RouteStep step : steps) {
             points.add(point(outgoing.other(step.link())));
             rideSeconds += outgoing.seconds(step.link());
             waitSecondsOfLeg += step.waitSeconds();
@@ -308,50 +309,5 @@ public final class TransitNetwork {
             throw new IllegalArgumentException("노선망에 없는 정류장입니다. stopId=" + stopId);
         }
         return index;
-    }
-
-    // 꺼낸 상태를 처리한다. false를 돌려주면 탐색을 멈춘다.
-    @FunctionalInterface
-    private interface StateVisitor {
-        boolean visit(int state, int seconds);
-    }
-
-    // 더 짧은 시간으로 정류장에 닿았을 때 할 일이다.
-    @FunctionalInterface
-    private interface StopReacher {
-        void reach(int stop, int seconds);
-    }
-
-    // 경로 안내에서 걷는 시간까지 더해 가장 빨리 목적지에 닿은 상태를 기록한다.
-    // 꺼낸 상태가 이미 찾은 도착보다 늦으면 더 빠른 경로가 나올 수 없으므로 탐색을 멈춘다.
-    private static final class Arrival {
-
-        private final SearchStates states;
-        private final Map<Integer, Integer> walkSeconds;
-        private final Seconds limit;
-        private int state = SearchStates.NONE;
-        private int seconds = Integer.MAX_VALUE;
-
-        private Arrival(final SearchStates states, final Map<Integer, Integer> walkSeconds, final Seconds limit) {
-            this.states = states;
-            this.walkSeconds = walkSeconds;
-            this.limit = limit;
-        }
-
-        private boolean visit(final int candidate, final int current) {
-            if (current >= seconds) {
-                return false;
-            }
-            Integer walk = walkSeconds.get(states.stop(candidate));
-            if (walk != null && current + walk <= limit.value() && current + walk < seconds) {
-                state = candidate;
-                seconds = current + walk;
-            }
-            return true;
-        }
-    }
-
-    // 경로 안내에서 지나온 구간·환승 하나다. fromStop에서 나가는 연결 link를 따라갔고, 탈 때 waitSeconds를 기다렸다.
-    private record Step(int fromStop, int link, int waitSeconds) {
     }
 }

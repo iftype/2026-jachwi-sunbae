@@ -1,4 +1,4 @@
-package com.jachwisunbae.transit.domain.collection;
+package com.jachwisunbae.transit.domain.network;
 
 import java.util.Arrays;
 

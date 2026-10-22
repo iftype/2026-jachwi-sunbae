@@ -1,6 +1,6 @@
-package com.jachwisunbae.transit.domain.collection;
+package com.jachwisunbae.transit.domain.network;
 
-import static com.jachwisunbae.transit.domain.collection.StopLinks.TRANSFER;
+import static com.jachwisunbae.transit.domain.network.StopLinks.TRANSFER;
 
 import com.jachwisunbae.transit.domain.GtfsEdge;
 import com.jachwisunbae.transit.domain.GtfsRoute;

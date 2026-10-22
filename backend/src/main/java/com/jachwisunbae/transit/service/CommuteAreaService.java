@@ -5,7 +5,7 @@ import com.jachwisunbae.common.exception.errorcode.ErrorCode;
 import com.jachwisunbae.transit.domain.CapitalRegion;
 import com.jachwisunbae.transit.domain.CommuteArea;
 import com.jachwisunbae.transit.domain.ReachableStop;
-import com.jachwisunbae.transit.domain.collection.TransitNetwork;
+import com.jachwisunbae.transit.domain.network.TransitNetwork;
 import com.jachwisunbae.transit.domain.vo.Coordinate;
 import com.jachwisunbae.transit.domain.vo.Seconds;
 import com.jachwisunbae.transit.service.dto.result.CommuteAreaSearchResult;
