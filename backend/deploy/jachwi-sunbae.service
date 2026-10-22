@@ -18,7 +18,8 @@ EnvironmentFile=/etc/jachwi-sunbae/app.env
 AmbientCapabilities=CAP_NET_BIND_SERVICE
 CapabilityBoundingSet=CAP_NET_BIND_SERVICE
 
-ExecStart=/usr/bin/java -XX:MaxRAMPercentage=50.0 -jar /opt/jachwi-sunbae/app.jar
+# GC·safepoint 로그는 dev·prod 공통이다. JVM 이 5MB 마다 순환하며 파일 3개를 유지한다.
+ExecStart=/usr/bin/java -XX:MaxRAMPercentage=50.0 -Xlog:gc*,safepoint:file=/var/log/jachwi-sunbae/gc.log:time,uptime,level,tags:filecount=3,filesize=5M -jar /opt/jachwi-sunbae/app.jar
 # 종료 이벤트 기록 실패가 애플리케이션의 종료 결과를 바꾸지 않도록 실패를 무시한다.
 ExecStopPost=-/opt/jachwi-sunbae/scripts/log_service_exit.sh
 WorkingDirectory=/opt/jachwi-sunbae
