@@ -1,6 +1,6 @@
 # 모니터링
 
-- 상태: dev·prod 애플리케이션·서비스 종료 로그 수집, 환경별 5종 경보 및 운영 대시보드 적용, 메트릭 노출 구성, dev·prod 공통 GC 로그·Thread Dump 수집 도구 배포 
+- 상태: dev·prod 애플리케이션·서비스 종료 로그 수집, 환경별 5종 경보 및 운영 대시보드 적용, 메트릭 노출 구성, dev·prod 공통 GC 로그·Thread Dump 수집 도구 배포
 
 현재 예산에서는 구조화 로그로 장애 발생 시각과 원인을 찾고, 기존 CloudWatch·ALB 지표로 서비스 상태를 확인한다. 부하 테스트용 perf 서버에서는 Prometheus로 JVM·HTTP·HikariCP 메트릭을 확인한다. dev·prod의 JVM 지표 수집은 후속 작업이다.
 

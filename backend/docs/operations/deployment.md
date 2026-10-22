@@ -92,7 +92,7 @@ SOURCE_COMMIT_ID="${REVISION}" ./backend/gradlew -p backend --no-daemon --max-wo
 printf '%s\n' "${REVISION}" > deployment-revision.txt
 ```
 
-실행 가능한 JAR를 `app.jar`로 복사하고 `backend/deploy/`를 아티팩트 최상단에 배치한다. `BuildArtifact`에는 `app.jar`, `deployment-revision.txt`, `appspec.yml`, `jachwi-sunbae.service`, `scripts/**/*`가 필요하다. `appspec.yml`의 위치나 출력 목록이 잘못되면 배포가 실패한다. 
+실행 가능한 JAR를 `app.jar`로 복사하고 `backend/deploy/`를 아티팩트 최상단에 배치한다. `BuildArtifact`에는 `app.jar`, `deployment-revision.txt`, `appspec.yml`, `jachwi-sunbae.service`, `scripts/**/*`가 필요하다. `appspec.yml`의 위치나 출력 목록이 잘못되면 배포가 실패한다.
 Thread Dump 스크립트와 logrotate 설정도 `scripts/` 아래에 두어 기존 출력 목록으로 함께 배포한다. 진단 도구 파일이 빠지면 `AfterInstall`이 파일 경로를 출력하고 실패한다.
 
 ## 3. 배포 훅과 완료 조건
