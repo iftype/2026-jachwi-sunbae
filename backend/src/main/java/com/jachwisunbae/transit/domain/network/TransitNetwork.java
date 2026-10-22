@@ -120,8 +120,7 @@ public final class TransitNetwork {
             }
         });
 
-        search(incoming, states, heap, limit, maxTransfers, (state, seconds) -> true,
-                (stop, seconds) -> bestSeconds[stop] = Math.min(bestSeconds[stop], seconds));
+        search(incoming, states, heap, limit, maxTransfers, bestSeconds, null);
         return toReachableStops(bestSeconds);
     }
 
@@ -138,8 +137,7 @@ public final class TransitNetwork {
         heap.push(origin, 0);
 
         RouteArrival arrival = new RouteArrival(states, walkSeconds, limit);
-        search(outgoing, states, heap, limit, maxTransfers, arrival, (stop, seconds) -> {
-        });
+        search(outgoing, states, heap, limit, maxTransfers, null, arrival);
         if (arrival.state() == SearchStates.NONE) {
             return Optional.empty();
         }
@@ -156,11 +154,12 @@ public final class TransitNetwork {
     }
 
     // 생활권 탐색과 경로 안내가 함께 쓰는 다익스트라다. 두 탐색은 쓰는 연결 목록(들어오는·나가는 연결)과
-    // 상태를 꺼낼 때(visit)·더 짧은 시간으로 정류장에 닿을 때(reach) 하는 일만 다르고 규칙은 같다.
+    // 기록하는 값만 다르고 규칙은 같다. 생활권 탐색은 정류장별 최단 시간을 bestSeconds에,
+    // 경로 안내는 가장 빠른 도착을 arrival에 기록한다. 쓰지 않는 쪽은 null로 넘긴다.
     // 노선에 탈 때마다 그 노선의 대기 시간을 더하고, 환승 횟수(탑승 횟수 - 1)가 maxTransfers를 넘거나
     // 제한 시간을 넘는 경로는 버린다. 상태마다 직전 상태와 따라온 연결을 기록한다.
     private void search(final StopLinks links, final SearchStates states, final StateHeap heap, final Seconds limit,
-                        final int maxTransfers, final StateVisitor visit, final StopReacher reach) {
+                        final int maxTransfers, final int[] bestSeconds, final RouteArrival arrival) {
         while (!heap.isEmpty()) {
             int state = heap.topState();
             int current = heap.topSeconds();
@@ -168,7 +167,7 @@ public final class TransitNetwork {
             if (current != states.seconds(state)) {
                 continue;
             }
-            if (!visit.visit(state, current)) {
+            if (arrival != null && !arrival.visit(state, current)) {
                 return;
             }
             int stop = states.stop(state);
@@ -190,7 +189,9 @@ public final class TransitNetwork {
                 int next = states.findOrInsert(SearchStates.key(nextStop, route, boardings));
                 if (seconds < states.seconds(next)) {
                     states.update(next, seconds, state, link, wait);
-                    reach.reach(nextStop, seconds);
+                    if (bestSeconds != null) {
+                        bestSeconds[nextStop] = Math.min(bestSeconds[nextStop], seconds);
+                    }
                     heap.push(next, seconds);
                 }
             }
