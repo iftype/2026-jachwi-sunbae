@@ -99,13 +99,13 @@ Thread Dump 스크립트와 logrotate 설정도 `scripts/` 아래에 두어 기�
 
 [appspec.yml](../../deploy/appspec.yml)이 순서와 제한 시간을 정의한다. 배포 경로는 `/opt/jachwi-sunbae`다.
 
-| 훅                 | 처리                                                                                                                                       |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ApplicationStop`  | 기존 서비스를 중지한다. 직전 리비전의 스크립트를 사용하며 첫 배포에는 실행되지 않는다                                                      |
-| `BeforeInstall`    | 배포 디렉터리를 비운다                                                                                                                     |
-| `AfterInstall`     | 환경별 Vault 도구·인증서와 `app.env`를 준비하고 사용자·권한 확인 후 [JVM 진단 도구](monitoring.md#jvm-진단-로그)와 systemd 유닛을 설치한다 |
-| `ApplicationStart` | `systemctl restart`로 새 애플리케이션을 실행한다                                                                                           |
-| `ValidateService`  | 서비스 실행, `health=UP`, 실행 SHA와 배포 SHA 일치를 확인한다                                                                              |
+| 훅                 | 처리                                                                                                        |
+| ------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `ApplicationStop`  | 기존 서비스를 중지한다. 직전 리비전의 스크립트를 사용하며 첫 배포에는 실행되지 않는다                       |
+| `BeforeInstall`    | 배포 디렉터리를 비운다                                                                                      |
+| `AfterInstall`     | 환경별 Vault 도구·인증서와 `app.env`를 준비하고 사용자·권한 확인 후 JVM 진단 도구와 systemd 유닛을 설치한다 |
+| `ApplicationStart` | `systemctl restart`로 새 애플리케이션을 실행한다                                                            |
+| `ValidateService`  | 서비스 실행, `health=UP`, 실행 SHA와 배포 SHA 일치를 확인한다                                               |
 
 과거 서비스 중지가 누락되어 `start`가 옛 프로세스를 유지하고, 그 health 응답으로 배포가 성공 처리된 경험이 있다. 이를 방지하려고 **명시적 restart와 SHA 비교**를 함께 사용한다.
 
@@ -257,5 +257,3 @@ docker run --rm -v "$PWD/backend/deploy:/deploy:ro" -e JACHWI_DIAGNOSTICS_TEST=c
   amazonlinux:2023 bash -c 'dnf install -y -q java-21-amazon-corretto-headless logrotate \
   systemd util-linux procps-ng shadow-utils findutils >/dev/null && bash /deploy/tests/diagnostics-test.sh'
 ```
-
-배포 후 진단 도구 확인 절차는 [모니터링 문서](monitoring.md#배포-후-확인)를 따른다.
