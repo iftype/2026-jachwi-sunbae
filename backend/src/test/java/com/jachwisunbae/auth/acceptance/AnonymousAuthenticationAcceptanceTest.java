@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jachwisunbae.auth.domain.RefreshToken;
 import com.jachwisunbae.auth.repository.RefreshTokenRepository;
 import com.jachwisunbae.auth.token.RefreshTokenProvider;
+import com.nimbusds.jwt.SignedJWT;
 import jakarta.servlet.http.Cookie;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.BeforeEach;
@@ -76,7 +77,7 @@ class AnonymousAuthenticationAcceptanceTest {
                 .andExpect(jsonPath("$.code").value("SUCCESS"))
                 .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
                 .andExpect(jsonPath("$.data.tokenType").value("Bearer"))
-                .andExpect(jsonPath("$.data.expiresIn").value(43_200))
+                .andExpect(jsonPath("$.data.expiresIn").value(900))
                 .andExpect(jsonPath("$.data.refreshToken").doesNotExist())
                 .andExpect(jsonPath("$.data.refreshTokenExpiresIn").doesNotExist())
                 .andExpect(jsonPath("$.data.newMember").value(true))
@@ -87,6 +88,9 @@ class AnonymousAuthenticationAcceptanceTest {
         JsonNode data = objectMapper.readTree(login.getResponse().getContentAsString()).path("data");
         long memberId = data.path("member").path("memberId").asLong();
         String token = data.path("accessToken").asText();
+        var claims = SignedJWT.parse(token).getJWTClaimsSet();
+        assertThat(claims.getExpirationTime().getTime() - claims.getIssueTime().getTime())
+                .isEqualTo(900_000L);
 
         Cookie refreshCookie = login.getResponse().getCookie("refresh_token");
         assertThat(refreshCookie).isNotNull();
@@ -255,6 +259,22 @@ class AnonymousAuthenticationAcceptanceTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("ACCESS_TOKEN_INVALID"));
         mvc.perform(get("/api/members/me").header(HttpHeaders.AUTHORIZATION, "Bearer not-a-jwt"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("ACCESS_TOKEN_INVALID"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "/api/check-items",
+            "/api/rental-transactions",
+            "/api/commute-areas",
+            "/api/commute-areas/route",
+            "/api/maps/bus-stops",
+            "/api/guest/properties"
+    })
+    @DisplayName("업무 조회 API도 Access Token 없이는 이용할 수 없다")
+    void rejectsBusinessReadWithoutAccessToken(String path) throws Exception {
+        mvc.perform(get(path))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("ACCESS_TOKEN_INVALID"));
     }

@@ -2,6 +2,7 @@ package com.jachwisunbae.rental.acceptance;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -22,6 +23,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
+import org.springframework.http.HttpHeaders;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -48,6 +50,7 @@ class RentalTransactionAcceptanceTest {
     private MockMvc mvc;
     @Autowired
     private ObjectMapper objectMapper;
+    private String accessToken;
 
     @DynamicPropertySource
     static void configureDatabase(final DynamicPropertyRegistry registry) {
@@ -58,7 +61,7 @@ class RentalTransactionAcceptanceTest {
     }
 
     @BeforeEach
-    void setUpTransactions() {
+    void setUpTransactions() throws Exception {
         jdbc.update("DELETE FROM rental_transactions");
         jdbc.update("DELETE FROM rental_datasets");
         jdbc.update("DELETE FROM legal_dongs");
@@ -74,6 +77,12 @@ class RentalTransactionAcceptanceTest {
         insert("2026-10-11", 3);
         insert("2026-10-11", 4);
         insert("2026-10-12", 5);
+
+        var login = mvc.perform(post("/api/auth/login"))
+            .andExpect(status().isOk())
+            .andReturn();
+        accessToken = objectMapper.readTree(login.getResponse().getContentAsString())
+            .path("data").path("accessToken").asText();
     }
 
     @Test
@@ -194,12 +203,10 @@ class RentalTransactionAcceptanceTest {
     }
 
     @Test
-    void returnsTransactionsWithoutAuthentication() throws Exception {
-        mvc.perform(request())
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.code").value("SUCCESS"))
-            .andExpect(jsonPath("$.data.totalCount").value(3))
-            .andExpect(jsonPath("$.data.items.length()").value(3));
+    void rejectsTransactionsWithoutAuthentication() throws Exception {
+        mvc.perform(get("/api/rental-transactions").param("legalDongCode", "1162010200"))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.code").value("ACCESS_TOKEN_INVALID"));
     }
 
     @Test
@@ -212,7 +219,8 @@ class RentalTransactionAcceptanceTest {
     }
 
     private MockHttpServletRequestBuilder baseRequest() {
-        return get("/api/rental-transactions");
+        return get("/api/rental-transactions")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken);
     }
 
     private MockHttpServletRequestBuilder request() {

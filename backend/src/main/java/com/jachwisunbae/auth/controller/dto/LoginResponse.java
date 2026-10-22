@@ -10,7 +10,7 @@ public record LoginResponse(
         @Schema(description = "토큰 타입", example = "Bearer")
         String tokenType,
 
-        @Schema(description = "Access Token 만료까지 남은 초", example = "43200")
+        @Schema(description = "Access Token 만료까지 남은 초", example = "900")
         long expiresIn,
 
         @Schema(description = "이번 요청에서 회원을 새로 만든 경우에만 true")
