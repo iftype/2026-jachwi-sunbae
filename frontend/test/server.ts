@@ -3,16 +3,18 @@ import { setupServer } from 'msw/node';
 
 const success = (data: unknown) => HttpResponse.json({ code: 'SUCCESS', message: '요청에 성공했습니다.', data });
 
+const tokenResponse = () =>
+  success({
+    accessToken: 'test-auto-login-token',
+    tokenType: 'Bearer',
+    expiresIn: 900,
+    newMember: false,
+    member: { memberId: 1 },
+  });
+
 export const server = setupServer(
-  http.post('*/api/auth/login', () =>
-    success({
-      accessToken: 'test-auto-login-token',
-      tokenType: 'Bearer',
-      expiresIn: 900,
-      newMember: false,
-      member: { memberId: 1 },
-    }),
-  ),
+  http.post('*/api/auth/login', tokenResponse),
+  http.post('*/api/auth/refresh', tokenResponse),
   http.get('*/api/members/me', () => success({ id: 1 })),
   http.get('*/api/checklists', () => success({ totalCount: 0, items: [] })),
   http.get('*/api/properties/:propertyId/memo', ({ params }) =>

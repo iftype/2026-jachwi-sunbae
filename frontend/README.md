@@ -124,8 +124,8 @@ JWT secret, 지도 Client Secret, S3 자격증명은 프론트에 넣지 않습�
 
 운영 사이트의 Maze 사용성 테스트 설치와 배포 후 검증은 [Maze 테스트 안내](docs/maze-testing.md)를 참고합니다.
 
-- Access Token은 탭 단위 `sessionStorage`에 `expiresAt`과 함께 저장해 새로고침만 복구합니다. `localStorage`에는 쓰지 않습니다.
-- 401·만료·로그아웃은 인증 Query Cache와 토큰을 함께 지웁니다.
+- Access Token은 메모리에만 둡니다. 앱을 열면 `POST /api/auth/login`이 HttpOnly Refresh 쿠키로 같은 익명 회원을 복원하거나 새 익명 회원을 만듭니다.
+- Access Token이 만료되거나 업무 API가 401을 주면 `POST /api/auth/refresh`로 갱신해 원래 요청을 한 번 다시 보냅니다. 갱신이 `401 REFRESH_TOKEN_INVALID`로 거절되면 새 회원을 만들지 않고 인증 Query Cache와 토큰을 지운 뒤 안내합니다.
 - 사진 콘텐츠는 URL을 `<img>`에 직접 주지 않고 Bearer 인증 Blob으로 조회해 Object URL을 만든 뒤 해제합니다.
 - 사진은 JPEG·PNG·WebP, 파일당 5MiB, 매물당 30장으로 선택 단계부터 검증합니다.
 - 서버 상태는 TanStack Query가 관리하고, 체크 항목 상태와 메모 저장 채널은 서로 독립적입니다.

@@ -83,19 +83,24 @@ describe('API 클라이언트', () => {
     expect(loginCredentials).toBe('include');
   });
 
-  it('Access Token이 만료돼 401이 오면 로그인을 다시 불러 같은 요청을 한 번만 다시 보내고 화면 캐시는 남긴다', async () => {
+  it('Access Token이 만료돼 401이 오면 토큰을 갱신해 같은 요청을 한 번만 다시 보내고 화면 캐시는 남긴다', async () => {
     setAuthentication({ accessToken: 'expired-token', tokenType: 'Bearer', expiresIn: 60, memberId: 1 });
     queryClient.setQueryData(propertyQueryKeys.detail(10), { name: '보던 매물' });
-    let loginCalls = 0;
+    let refreshCalls = 0;
+    let refreshCredentials: RequestCredentials | undefined;
     server.use(
       http.post(`${config.apiBaseUrl}/api/auth/login`, () => {
-        loginCalls += 1;
+        throw new Error('토큰 만료 때는 새 회원을 만들 수 있는 로그인을 부르지 않는다.');
+      }),
+      http.post(`${config.apiBaseUrl}/api/auth/refresh`, ({ request }) => {
+        refreshCalls += 1;
+        refreshCredentials = request.credentials;
         return success({ accessToken: 'fresh-token', tokenType: 'Bearer', expiresIn: 900, member: { memberId: 1 } });
       }),
       http.get(`${config.apiBaseUrl}/api/properties/:id`, ({ request, params }) =>
         request.headers.get('Authorization') === 'Bearer fresh-token'
           ? success({ propertyId: Number(params.id) })
-          : HttpResponse.json({ code: 'ACCESS_TOKEN_EXPIRED', message: '만료', errors: [] }, { status: 401 }),
+          : HttpResponse.json({ code: 'ACCESS_TOKEN_INVALID', message: '만료', errors: [] }, { status: 401 }),
       ),
     );
 
@@ -105,20 +110,24 @@ describe('API 클라이언트', () => {
     ]);
 
     expect(results).toEqual([{ propertyId: 10 }, { propertyId: 11 }]);
-    expect(loginCalls).toBe(1);
+    expect(refreshCalls).toBe(1);
+    expect(refreshCredentials).toBe('include');
     expect(getAccessToken()).toBe('fresh-token');
     expect(queryClient.getQueryData(propertyQueryKeys.detail(10))).toEqual({ name: '보던 매물' });
   });
 
-  it('로그인으로도 복원하지 못하면 새 회원 없이 인증과 Query Cache를 정리하고 오류 code를 보존한다', async () => {
+  it('토큰 갱신으로도 복원하지 못하면 새 회원 없이 인증과 Query Cache를 정리하고 오류 code를 보존한다', async () => {
     setAuthentication({ accessToken: 'expired-token', tokenType: 'Bearer', expiresIn: 60, memberId: 1 });
     queryClient.setQueryData(propertyQueryKeys.detail(10), { memo: '다음 회원에게 남으면 안 됨' });
     server.use(
-      http.post(`${config.apiBaseUrl}/api/auth/login`, () =>
+      http.post(`${config.apiBaseUrl}/api/auth/login`, () => {
+        throw new Error('갱신이 거절돼도 새 회원을 만들 수 있는 로그인을 부르지 않는다.');
+      }),
+      http.post(`${config.apiBaseUrl}/api/auth/refresh`, () =>
         HttpResponse.json({ code: 'REFRESH_TOKEN_INVALID', message: '내부 인증 상세', errors: [] }, { status: 401 }),
       ),
       http.get(`${config.apiBaseUrl}/api/properties/10`, () =>
-        HttpResponse.json({ code: 'ACCESS_TOKEN_EXPIRED', message: '만료', errors: [] }, { status: 401 }),
+        HttpResponse.json({ code: 'ACCESS_TOKEN_INVALID', message: '만료', errors: [] }, { status: 401 }),
       ),
     );
 
@@ -130,6 +139,23 @@ describe('API 클라이언트', () => {
     expect(getAuthenticationSnapshot().terminationReason).toBe('unauthorized');
     expect(queryClient.getQueryData(propertyQueryKeys.detail(10))).toBeUndefined();
     expect(String(error)).not.toContain('내부 인증 상세');
+  });
+
+  it('메모리의 Access Token이 만료됐으면 요청 전에 로그인 대신 토큰을 갱신한다', async () => {
+    setAuthentication({ accessToken: 'old-token', tokenType: 'Bearer', expiresIn: -1, memberId: 1 });
+    server.use(
+      http.post(`${config.apiBaseUrl}/api/auth/login`, () => {
+        throw new Error('이미 회원이 정해졌으면 로그인을 부르지 않는다.');
+      }),
+      http.post(`${config.apiBaseUrl}/api/auth/refresh`, () =>
+        success({ accessToken: 'refreshed-token', tokenType: 'Bearer', expiresIn: 900, member: { memberId: 1 } }),
+      ),
+      http.get(`${config.apiBaseUrl}/api/example`, ({ request }) => success(request.headers.get('Authorization'))),
+    );
+
+    await expect(apiRequest({ config, path: '/api/example', parseData: (value) => value })).resolves.toBe(
+      'Bearer refreshed-token',
+    );
   });
 
   it('통신 장애로 로그인하지 못하면 인증 상태를 바꾸지 않고 네트워크 오류로 알린다', async () => {
@@ -213,7 +239,7 @@ describe('API 클라이언트', () => {
       http.get(`${config.apiBaseUrl}/api/members/me`, async () => {
         markResponseStarted?.();
         await responseGate;
-        return HttpResponse.json({ code: 'ACCESS_TOKEN_EXPIRED', message: '만료', errors: [] }, { status: 401 });
+        return HttpResponse.json({ code: 'ACCESS_TOKEN_INVALID', message: '만료', errors: [] }, { status: 401 });
       }),
     );
 

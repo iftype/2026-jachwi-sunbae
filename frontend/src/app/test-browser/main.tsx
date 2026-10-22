@@ -234,7 +234,11 @@ const browserTestFetch: typeof fetch = async (input, init) => {
   const url = new URL(request.url);
   const path = url.pathname;
 
-  if (path === '/api/auth/login' && request.method === 'POST') {
+  if (path === '/api/auth/refresh' && request.method === 'POST' && scenario === 'unauthorized') {
+    return jsonResponse(errorEnvelope('REFRESH_TOKEN_INVALID'), 401);
+  }
+
+  if ((path === '/api/auth/login' || path === '/api/auth/refresh') && request.method === 'POST') {
     return jsonResponse(
       successEnvelope({
         accessToken: 'browser-test-auto-login-token',
@@ -247,7 +251,7 @@ const browserTestFetch: typeof fetch = async (input, init) => {
   }
 
   if (path === '/api/members/me' && request.method === 'GET') {
-    if (scenario === 'unauthorized') return jsonResponse(errorEnvelope('ACCESS_TOKEN_EXPIRED'), 401);
+    if (scenario === 'unauthorized') return jsonResponse(errorEnvelope('ACCESS_TOKEN_INVALID'), 401);
     return jsonResponse(successEnvelope(memberFixture));
   }
 

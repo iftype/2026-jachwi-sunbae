@@ -190,9 +190,9 @@ describe('익명 자동 인증 흐름', () => {
     setAuthentication({ accessToken: 'expired-token', tokenType: 'Bearer', expiresIn: 60, memberId: 1 });
     server.use(
       http.get(`${config.apiBaseUrl}/api/members/me`, () =>
-        HttpResponse.json(errorEnvelope('ACCESS_TOKEN_EXPIRED', 'expired'), { status: 401 }),
+        HttpResponse.json(errorEnvelope('ACCESS_TOKEN_INVALID', 'expired'), { status: 401 }),
       ),
-      http.post(`${config.apiBaseUrl}/api/auth/login`, () =>
+      http.post(`${config.apiBaseUrl}/api/auth/refresh`, () =>
         HttpResponse.json(errorEnvelope('REFRESH_TOKEN_INVALID', 'invalid'), { status: 401 }),
       ),
     );
