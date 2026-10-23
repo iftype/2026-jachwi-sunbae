@@ -7,12 +7,15 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import com.jachwisunbae.JachwiSunbaeBackendApplication;
+import com.jachwisunbae.weather.collector.WeatherCollectionScheduler;
 import com.jachwisunbae.weather.domain.ForecastTimes;
 import com.jachwisunbae.weather.domain.GridPoint;
 import com.jachwisunbae.weather.domain.WeatherElement;
 import com.jachwisunbae.weather.repository.JdbcWeatherForecastRepository;
 import com.jachwisunbae.weather.service.WeatherCollectionService;
 import com.jachwisunbae.weather.service.collection.WeatherCollectionPlan;
+import com.jachwisunbae.weather.service.dto.result.WeatherCollectionExecution.Source;
+import com.jachwisunbae.weather.service.dto.result.WeatherCollectionExecution.Status;
 import com.jachwisunbae.weather.service.dto.result.WeatherCollectionResult;
 import com.jachwisunbae.weather.support.ForecastTimesFixture;
 import java.nio.charset.StandardCharsets;
@@ -20,6 +23,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Timestamp;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -150,13 +154,70 @@ class WeatherCollectionIntegrationTest {
     }
 
     @Test
-    @DisplayName("수동 명령과 같은 비웹 애플리케이션이 키 없이 기동하며 자동으로 수집하지 않는다")
+    @DisplayName("빈 DB에 최신 발표분을 최초 적재한 뒤 다시 실행하면 유효 예보를 확인하고 HTTP 요청 없이 건너뛴다")
+    void initializesEmptyDatabaseOnlyOnce() {
+        Instant now = Instant.parse("2026-10-22T17:15:00Z");
+        LocalDateTime nowKst = LocalDateTime.of(2026, 10, 23, 2, 15);
+        WeatherCollectionPlan plan = WeatherCollectionPlan.forPublication(LocalDateTime.of(2026, 10, 23, 2, 0));
+        RestClient.Builder builder = RestClient.builder().baseUrl("https://apihub.kma.go.kr");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        Map<KmaForecastRequest, byte[]> raw = new LinkedHashMap<>();
+        for (KmaForecastRequest request : plan.requests()) {
+            byte[] body = raw(request).getBytes(StandardCharsets.UTF_8);
+            raw.put(request, body);
+            server.expect(queryParam("tmfc", request.tmfc()))
+                    .andExpect(queryParam("tmef", request.tmef()))
+                    .andExpect(queryParam("vars", request.element().name()))
+                    .andRespond(withSuccess(body, MediaType.TEXT_PLAIN));
+        }
+        WeatherCollectionService service = new WeatherCollectionService(new KmaForecastClient(builder.build(), "test-key"),
+                new JdbcWeatherForecastRepository(jdbc), new DataSourceTransactionManager(dataSource),
+                Clock.fixed(now, ZoneId.of("America/Los_Angeles")), true, 15);
+
+        WeatherCollectionResult result = service.initializeIfEmpty().orElseThrow();
+
+        assertThat(result.publishedAt()).isEqualTo(plan.publishedAt());
+        assertThat(result.requestCount()).isEqualTo(196);
+        assertThat(count("weather_forecasts")).isEqualTo(24L * VALID_POINTS);
+        // RAW가 홀수·짝수 시각에 TMP 격자 하나를 교체하므로 날짜별 합집합은 각각 1개 더 많다.
+        assertThat(count("weather_daily_forecasts")).isEqualTo(2L * (VALID_POINTS + 1));
+        verifyAgainstRaw(plan, raw, nowKst);
+
+        assertThat(service.initializeIfEmpty()).isEmpty();
+        server.verify();
+        verifyAgainstRaw(plan, raw, nowKst);
+    }
+
+    @Test
+    @DisplayName("자동 수집의 HTTP 200 미공개 본문은 실패로 기록하고 저장하지 않는다")
+    void recordsUnavailablePublicationAsFailure() {
+        RestClient.Builder builder = RestClient.builder().baseUrl("https://apihub.kma.go.kr");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(queryParam("tmfc", "2026102302"))
+                .andExpect(queryParam("tmef", "2026102303"))
+                .andRespond(withSuccess("# data not available", MediaType.TEXT_PLAIN));
+        Clock clock = Clock.fixed(Instant.parse("2026-10-22T17:15:00Z"), ZoneOffset.UTC);
+        WeatherCollectionService service = new WeatherCollectionService(new KmaForecastClient(builder.build(), "test-key"),
+                new JdbcWeatherForecastRepository(jdbc), new DataSourceTransactionManager(dataSource), clock, false, 15);
+
+        new WeatherCollectionScheduler(service, clock, Duration.ofMinutes(15)).collect();
+
+        server.verify();
+        assertThat(service.execution().orElseThrow().source()).isEqualTo(Source.SCHEDULED);
+        assertThat(service.execution().orElseThrow().status()).isEqualTo(Status.FAILED);
+        assertThat(count("weather_forecasts")).isZero();
+        assertThat(count("weather_daily_forecasts")).isZero();
+    }
+
+    @Test
+    @DisplayName("수동 명령과 같은 비웹 애플리케이션은 자동 수집 ON이어도 키 없이 기동하며 자동으로 수집하지 않는다")
     void startsNonWebContextWithoutCollecting() {
         try (ConfigurableApplicationContext context = new SpringApplicationBuilder(JachwiSunbaeBackendApplication.class)
                 .web(WebApplicationType.NONE).run("--spring.datasource.url=" + dataSource.getUrl(),
                         "--spring.datasource.username=" + MYSQL.getUsername(), "--spring.datasource.password=" + MYSQL.getPassword(),
-                        "--weather.kma.api-key=")) {
+                        "--weather.kma.api-key=", "--weather.collection.enabled=true")) {
             assertThat(context.getBean(WeatherCollectionService.class)).isNotNull();
+            assertThat(context.getBeansOfType(WeatherCollectionScheduler.class)).isEmpty();
             assertThat(count("weather_forecasts")).isZero();
             assertThat(count("weather_daily_forecasts")).isZero();
         }
@@ -182,7 +243,7 @@ class WeatherCollectionIntegrationTest {
                 }).build();
         Instant started = Instant.now().truncatedTo(ChronoUnit.MICROS);
         WeatherCollectionService service = new WeatherCollectionService(new KmaForecastClient(rest, System.getenv("KMA_API_KEY")),
-                new JdbcWeatherForecastRepository(jdbc), new DataSourceTransactionManager(dataSource), Clock.fixed(started, ZoneOffset.UTC));
+                new JdbcWeatherForecastRepository(jdbc), new DataSourceTransactionManager(dataSource), Clock.fixed(started, ZoneOffset.UTC), false, 15);
 
         WeatherCollectionResult result = service.collect(plan.publishedAt());
 
@@ -203,7 +264,7 @@ class WeatherCollectionIntegrationTest {
 
     private WeatherCollectionService service(final KmaForecastClient client) {
         return new WeatherCollectionService(client, new JdbcWeatherForecastRepository(jdbc),
-                new DataSourceTransactionManager(dataSource), Clock.fixed(COLLECTED_INSTANT, ZoneOffset.UTC));
+                new DataSourceTransactionManager(dataSource), Clock.fixed(COLLECTED_INSTANT, ZoneOffset.UTC), false, 15);
     }
 
     // 검증은 운영 파서·결합기를 재사용하지 않고 수신 토큰과 DB를 직접 비교한다.

@@ -6,6 +6,7 @@ import com.jachwisunbae.weather.domain.HourlyForecast;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -71,6 +72,14 @@ public class JdbcWeatherForecastRepository {
 
     public JdbcWeatherForecastRepository(final JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
+    }
+
+    public boolean hasValidHourlyForecastAtOrAfter(final LocalDateTime from) {
+        return Boolean.TRUE.equals(jdbcTemplate.queryForObject("""
+                SELECT EXISTS (
+                    SELECT 1 FROM weather_forecasts WHERE forecast_at >= ? AND tmp IS NOT NULL
+                )
+                """, Boolean.class, from));
     }
 
     public void upsertHourly(final List<HourlyForecast> forecasts) {

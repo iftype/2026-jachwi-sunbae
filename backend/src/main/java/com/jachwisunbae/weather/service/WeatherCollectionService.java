@@ -12,9 +12,15 @@ import com.jachwisunbae.weather.repository.JdbcWeatherForecastRepository;
 import com.jachwisunbae.weather.service.collection.DailyForecastAssembler;
 import com.jachwisunbae.weather.service.collection.HourlyForecastAssembler;
 import com.jachwisunbae.weather.service.collection.WeatherCollectionPlan;
+import com.jachwisunbae.weather.service.collection.WeatherPublicationSchedule;
+import com.jachwisunbae.weather.service.dto.result.WeatherCollectionExecution;
+import com.jachwisunbae.weather.service.dto.result.WeatherCollectionExecution.Source;
+import com.jachwisunbae.weather.service.dto.result.WeatherCollectionExecution.Status;
 import com.jachwisunbae.weather.service.dto.result.WeatherCollectionResult;
 import com.jachwisunbae.weather.service.dto.result.WeatherCollectionResult.RequestMeasurement;
 import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -24,10 +30,13 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -43,22 +52,102 @@ public class WeatherCollectionService {
     private final JdbcWeatherForecastRepository repository;
     private final TransactionTemplate transaction;
     private final Clock clock;
+    private final boolean initialLoadEnabled;
+    private final WeatherPublicationSchedule publicationSchedule;
     private final HourlyForecastAssembler hourlyAssembler = new HourlyForecastAssembler();
     private final DailyForecastAssembler dailyAssembler = new DailyForecastAssembler();
+    private final AtomicBoolean running = new AtomicBoolean();
+    private volatile WeatherCollectionExecution execution;
 
     public WeatherCollectionService(final KmaForecastClient client, final JdbcWeatherForecastRepository repository,
-                                    final PlatformTransactionManager transactionManager, final Clock clock) {
+                                    final PlatformTransactionManager transactionManager, final Clock clock,
+                                    @Value("${weather.initial-load.enabled:false}") final boolean initialLoadEnabled,
+                                    @Value("${weather.collection.publication-delay-minutes:15}") final long publicationDelayMinutes) {
         this.client = client;
         this.repository = repository;
         this.transaction = new TransactionTemplate(transactionManager);
         this.clock = clock;
+        this.initialLoadEnabled = initialLoadEnabled;
+        this.publicationSchedule = new WeatherPublicationSchedule(Duration.ofMinutes(publicationDelayMinutes));
+    }
+
+    public WeatherCollectionResult collectLatest() {
+        return execute(Source.MANUAL, latestPublication()).orElseThrow();
+    }
+
+    // 자동 실행은 중첩되면 기다리지 않고 건너뛴다. 실패는 그대로 전파한다.
+    public Optional<WeatherCollectionResult> collectAutomatically() {
+        return execute(Source.SCHEDULED, latestPublication());
+    }
+
+    public Optional<WeatherCollectionResult> initializeIfEmpty() {
+        if (!initialLoadEnabled) {
+            throw new IllegalStateException("최초 적재는 weather.initial-load.enabled=true 설정이 필요합니다.");
+        }
+        return execute(Source.INITIAL_LOAD, latestPublication());
     }
 
     public WeatherCollectionResult collect(final LocalDateTime publishedAt) {
+        return execute(Source.MANUAL, publishedAt).orElseThrow();
+    }
+
+    public Optional<WeatherCollectionExecution> execution() {
+        return Optional.ofNullable(execution);
+    }
+
+    private LocalDateTime latestPublication() {
+        return publicationSchedule.latestAt(LocalDateTime.ofInstant(clock.instant(), KST));
+    }
+
+    private Optional<WeatherCollectionResult> execute(final Source source, final LocalDateTime publishedAt) {
         // 외부 트랜잭션에 참여하면 HTTP 대기 중에도 DB 잠금을 유지하고 단위별 커밋을 잃는다.
-        if (TransactionSynchronizationManager.isActualTransactionActive()) {
-            throw new IllegalStateException("날씨 수집은 외부 DB 트랜잭션 없이 실행해야 합니다.");
+        validateNoTransaction(); //  사전 검증: 외부 트랜잭션 안이면 거부하고(기존과 같음), 발표시각도 검증합니다.
+        WeatherPublicationSchedule.validatePublication(publishedAt);
+        if (!running.compareAndSet(false, true)) {
+            LOG.info("weather-collection-execution status=SKIPPED_RUNNING source={} publishedAt={} checkedAt={}",
+                    source, publishedAt, clock.instant());
+            if (source == Source.SCHEDULED) {   // 자동: 조용히 건너뜀
+                return Optional.empty();
+            }
+            throw new IllegalStateException("이미 날씨 수집이 실행 중입니다.");   // 수동·최초 적재: 예외
         }
+        long start = System.nanoTime();
+        try {
+            Instant startedAt = clock.instant();
+            execution = new WeatherCollectionExecution(source, Status.RUNNING, publishedAt, startedAt, null, 0);
+            logExecution(execution);
+            try {
+                // 존재 검사도 같은 실행 구간 안에 두어 최초 적재끼리의 중첩을 막는다.
+                //지금 이후의 날씨를 보여 줄 데이터가 있나?
+                if (source == Source.INITIAL_LOAD
+                        && repository.hasValidHourlyForecastAtOrAfter(LocalDateTime.ofInstant(startedAt, KST))) {
+                    finishExecution(Status.SKIPPED_VALID_FORECAST, start);
+                    return Optional.empty();
+                }
+                WeatherCollectionResult result = collectForecasts(publishedAt);
+                finishExecution(Status.SUCCEEDED, start);
+                return Optional.of(result);
+            } catch (RuntimeException | Error exception) {
+                finishExecution(Status.FAILED, start);
+                throw exception;
+            }
+        } finally {
+            running.set(false);
+        }
+    }
+
+    private void finishExecution(final Status status, final long start) {
+        execution = new WeatherCollectionExecution(execution.source(), status, execution.publishedAt(),
+                execution.startedAt(), clock.instant(), System.nanoTime() - start);
+        logExecution(execution);
+    }
+
+    private void logExecution(final WeatherCollectionExecution state) {
+        LOG.info("weather-collection-execution source={} status={} publishedAt={} startedAt={} finishedAt={} elapsedNanos={}",
+                state.source(), state.status(), state.publishedAt(), state.startedAt(), state.finishedAt(), state.elapsedNanos());
+    }
+
+    private WeatherCollectionResult collectForecasts(final LocalDateTime publishedAt) {
         Progress progress = new Progress();
         WeatherCollectionPlan plan = WeatherCollectionPlan.forPublication(publishedAt);
         LOG.info("weather-collection-start publishedAt={} plannedRequests={} unavailableDaily={}",
@@ -77,6 +166,12 @@ public class WeatherCollectionService {
             // 경계에서 진행량을 남기고 원래 오류를 전파한다. URL·본문·외부 예외 메시지는 기록하지 않는다.
             logResult("failed", progress.attempts, progress.result(publishedAt));
             throw exception;
+        }
+    }
+
+    private void validateNoTransaction() {
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            throw new IllegalStateException("날씨 수집은 외부 DB 트랜잭션 없이 실행해야 합니다.");
         }
     }
 

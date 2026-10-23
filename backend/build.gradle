@@ -94,7 +94,7 @@ tasks.register('importTransitNetwork', JavaExec) {
 
 tasks.register('collectWeather', JavaExec) {
 	group = 'application'
-	description = '명시한 KST 발표분의 24시간 전국 예보와 일별 기온을 한 번 수집한다.'
+	description = '명시한 KST 발표분을 수집하거나 유효 예보가 없는 DB에 최신 발표분을 최초 적재한다.'
 	classpath = sourceSets.main.runtimeClasspath
 	mainClass = 'com.jachwisunbae.weather.collector.WeatherCollectionCommand'
 }

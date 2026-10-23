@@ -58,6 +58,40 @@ class JdbcWeatherForecastRepositoryTest {
         jdbcTemplate.update("DELETE FROM weather_daily_forecasts");
     }
 
+    @Test
+    @DisplayName("빈 DB나 일별 기온만 있는 DB에는 유효한 시간별 예보가 없다")
+    void ignoresDailyOnlyDataForInitialization() {
+        JdbcWeatherForecastRepository repository = repository(false);
+        assertThat(repository.hasValidHourlyForecastAtOrAfter(FORECAST_AT)).isFalse();
+
+        repository.upsertDaily(List.of(new DailyForecast(POINT, DATE, temperature(0.0, PUBLISHED_AT, COLLECTED_AT), null)));
+
+        assertThat(repository.hasValidHourlyForecastAtOrAfter(FORECAST_AT)).isFalse();
+    }
+
+    @Test
+    @DisplayName("TMP가 결측인 미래 예보는 유효하지 않으며 정상 0은 유효하다")
+    void requiresValidTemperatureIncludingZero() {
+        JdbcWeatherForecastRepository repository = repository(false);
+        repository.upsertHourly(List.of(hourly(POINT, PUBLISHED_AT, COLLECTED_AT, null)));
+        assertThat(repository.hasValidHourlyForecastAtOrAfter(FORECAST_AT.minusHours(1))).isFalse();
+
+        repository.upsertHourly(List.of(hourly(POINT, PUBLISHED_AT, COLLECTED_AT, 0.0)));
+
+        assertThat(repository.hasValidHourlyForecastAtOrAfter(FORECAST_AT.minusHours(1))).isTrue();
+    }
+
+    @Test
+    @DisplayName("KST 예보시각이 현재와 같으면 유효하고 과거이면 최초 적재 대상이다")
+    void checksCurrentTimeBoundaryWithoutTimeZoneConversion() {
+        JdbcWeatherForecastRepository repository = repository(false);
+        repository.upsertHourly(List.of(hourly(POINT, PUBLISHED_AT, COLLECTED_AT, -1.0)));
+
+        assertThat(repository.hasValidHourlyForecastAtOrAfter(FORECAST_AT.minusNanos(1000))).isTrue();
+        assertThat(repository.hasValidHourlyForecastAtOrAfter(FORECAST_AT)).isTrue();
+        assertThat(repository.hasValidHourlyForecastAtOrAfter(FORECAST_AT.plusNanos(1000))).isFalse();
+    }
+
     @ParameterizedTest
     @ValueSource(booleans = {false, true})
     @DisplayName("시간별 예보를 삽입하고 동일 발표분의 8개 값·결측·수집시각 정정을 반영한다")

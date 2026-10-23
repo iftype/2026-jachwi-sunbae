@@ -6,10 +6,8 @@ import com.jachwisunbae.weather.domain.WeatherElement;
 import com.jachwisunbae.weather.provider.kma.KmaForecastRequest;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -17,7 +15,6 @@ import java.util.stream.Stream;
 public final class WeatherCollectionPlan {
 
     private static final int FORECAST_HOURS = 24;
-    private static final Set<Integer> PUBLICATION_HOURS = Set.of(2, 5, 8, 11, 14, 17, 20, 23);
     private static final List<WeatherElement> DAILY_ELEMENTS = List.of(WeatherElement.TMN, WeatherElement.TMX);
 
     private final LocalDateTime publishedAt;
@@ -36,7 +33,7 @@ public final class WeatherCollectionPlan {
 
     //보낼 요청 목록 만들기, 시간별 요청은 스트림으로 일별 요청은 날짜 반복문과 addDailyRequests로
     public static WeatherCollectionPlan forPublication(final LocalDateTime publishedAt) {
-        validatePublication(publishedAt);
+        WeatherPublicationSchedule.validatePublication(publishedAt);
         //시간별 요청
         List<KmaForecastRequest> hourly = IntStream.rangeClosed(1, FORECAST_HOURS)   // 1, 2, ..., 24
                 .mapToObj(publishedAt::plusHours)   // 06시, 07시, ..., 익일 05시
@@ -54,13 +51,6 @@ public final class WeatherCollectionPlan {
             addDailyRequests(publishedAt, date, daily, unavailable);
         }
         return new WeatherCollectionPlan(publishedAt, hourly, daily, unavailable);
-    }
-
-    private static void validatePublication(final LocalDateTime publishedAt) {
-        if (publishedAt == null || !publishedAt.equals(publishedAt.truncatedTo(ChronoUnit.HOURS))
-                || !PUBLICATION_HOURS.contains(publishedAt.getHour())) {
-            throw new IllegalArgumentException("발표 시각은 KST 02·05·08·11·14·17·20·23시 정시여야 합니다.");
-        }
     }
 
     private static void addDailyRequests(final LocalDateTime publishedAt, final LocalDate date,

@@ -1,24 +1,27 @@
 # 전국 날씨 데이터 수집
 
-전국 단기예보 격자자료의 HTTP 수신·RAW 파싱·수집 계획·시간별 및 일별 결합·JDBC 배치 UPSERT와 수동 실행을 설명한다. 명시한 발표분의 24시간 예보와 해당 날짜의 일별 기온을 한 번 수집해 저장할 수 있다. 최신 발표분 선택·최초 적재·스케줄러·과거 자료 정리는 후속 작업에서 연결한다.
+전국 단기예보 격자자료의 HTTP 수신·RAW 파싱·수집 계획·시간별 및 일별 결합·JDBC 배치 UPSERT와 수동 실행을 설명한다. 명시한 발표분의 24시간 예보와 해당 날짜의 일별 기온을 한 번 수집해 저장할 수 있다. 유효 예보가 없는 DB의 명시적 최초 적재와 최신 발표분 선택도 같은 수집 서비스를 사용한다. 설정을 켠 서버에서는 KST 발표 주기와 공개 대기시간에 맞춰 자동 수집한다. 과거 자료 정리는 다음 작업에서 연결한다.
 
 ## 패키지와 책임
 
 외부 API 자료, 수집 절차, 저장·조회에 사용하는 날씨 모델을 나눈다. `map.provider`와 같이 기상청 전용 통신·파싱·요청·응답 모델은 `provider.kma`에 모은다.
 
-| 패키지               | 클래스                                                | 책임                                               |
-| -------------------- | ----------------------------------------------------- | -------------------------------------------------- |
-| `collector`          | `WeatherCollectionCommand`                            | CLI 인자·발표시각 문자열을 검증하고 한 번 실행     |
-| `service`            | `WeatherCollectionService`                            | 요청·결합·저장의 실행 순서, 트랜잭션과 측정값 누적 |
-| `service.collection` | `WeatherCollectionPlan`, `DailyForecastTarget`        | 수집 범위·요청 목록·미제공 대상·예상량 계산        |
-| `service.collection` | `HourlyForecastAssembler`, `DailyForecastAssembler`   | 수집 응답 검증, 대상 격자 선택, 날씨 모델 결합     |
-| `service.dto.result` | `WeatherCollectionResult`                             | 요청별 측정값과 커밋된 저장 입력량·소요시간 반환   |
-| `provider.kma`       | `KmaForecastClient`, `KmaGridParser`                  | 기상청 HTTP 요청과 RAW 파싱                        |
-| `provider.kma`       | `KmaForecastRequest`, `ForecastFetchResult`           | 외부 요청과 응답 수신 측정값 표현                  |
-| `provider.kma`       | `GridForecast`, `GridValue`                           | 결합 전의 요소별 전국 격자 응답 표현               |
-| `domain`             | `HourlyForecast`, `DailyForecast`, `DailyTemperature` | 서비스에서 사용하는 날씨·일별 기온과 출처          |
-| `domain`             | `ForecastTimes`, `GridPoint`, `WeatherElement`        | 시각·격자·요소와 각 불변 조건                      |
-| `repository`         | `JdbcWeatherForecastRepository`                       | 기존 최신성 규칙에 따른 JDBC 배치 UPSERT           |
+| 패키지               | 클래스                                                | 책임                                                                   |
+| -------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------- |
+| `collector`          | `WeatherCollectionCommand`                            | 발표분 지정 또는 최초 적재 CLI 인자를 검증하고 한 번 실행              |
+| `service`            | `WeatherCollectionService`                            | 최초 적재 판단·최신 발표분 선택, 요청·결합·저장과 트랜잭션·측정값 누적 |
+| `service.collection` | `WeatherPublicationSchedule`                          | KST 발표 주기 검증과 공개 대기시간을 적용한 최신 발표분 선택           |
+| `service.collection` | `WeatherCollectionPlan`, `DailyForecastTarget`        | 수집 범위·요청 목록·미제공 대상·예상량 계산                            |
+| `service.collection` | `HourlyForecastAssembler`, `DailyForecastAssembler`   | 수집 응답 검증, 대상 격자 선택, 날씨 모델 결합                         |
+| `service.dto.result` | `WeatherCollectionResult`                             | 요청별 측정값과 커밋된 저장 입력량·소요시간 반환                       |
+| `provider.kma`       | `KmaForecastClient`, `KmaGridParser`                  | 기상청 HTTP 요청과 RAW 파싱                                            |
+| `provider.kma`       | `KmaForecastRequest`, `ForecastFetchResult`           | 외부 요청과 응답 수신 측정값 표현                                      |
+| `provider.kma`       | `GridForecast`, `GridValue`                           | 결합 전의 요소별 전국 격자 응답 표현                                   |
+| `domain`             | `HourlyForecast`, `DailyForecast`, `DailyTemperature` | 서비스에서 사용하는 날씨·일별 기온과 출처                              |
+| `domain`             | `ForecastTimes`, `GridPoint`, `WeatherElement`        | 시각·격자·요소와 각 불변 조건                                          |
+| `repository`         | `JdbcWeatherForecastRepository`                       | 기존 최신성 규칙에 따른 JDBC 배치 UPSERT                               |
+
+`WeatherSchedulingConfig`는 웹 서버이면서 자동 수집 ON일 때만 Spring 스케줄링과 전용 스케줄러를 등록한다. `WeatherCollectionScheduler`는 다음 실행 시각 계산·자동 수집 호출·실패 경계 처리를 담당한다. `WeatherCollectionExecution`은 실행 출처·상태·시작/종료 시각을 나타낸다.
 
 서비스와 수집 협력 객체가 `provider.kma`의 요청·응답 모델을 사용하고 `domain` 모델을 만든다. `domain`은 `service`, `provider`, `collector`, `repository`를 참조하지 않는다. 수집 계획·어셈블러는 일반 Java 객체로 유지하며 Spring 빈으로 등록하지 않는다. 기상청 단일 공급자에 불필요한 Provider 인터페이스나 전달 전용 구현체는 추가하지 않는다.
 
@@ -37,7 +40,7 @@ GridForecast forecast = kmaForecastClient.fetch(request);
 
 인증키만 `KMA_API_KEY` 환경변수로 주입한다. 기본값은 비어 있으며 개인 `.env`나 서버의 비밀값 설정으로 관리한다. 연결 제한시간 3초와 읽기 제한시간 15초는 `KmaForecastClient`의 `CONNECT_TIMEOUT`, `READ_TIMEOUT` 상수로 관리한다.
 
-`KmaForecastClient`는 항상 빈으로 등록된다. 인증키 없이도 애플리케이션이 기동되며, 실제 `fetch` 호출 시 키가 비어 있으면 네트워크 요청 전에 설정 오류로 거부한다. 빈 생성만으로 요청을 보내지 않는다. 자동 수집·초기 적재·삭제 실행 플래그는 이후 해당 기능에서 별도로 추가한다.
+`KmaForecastClient`는 항상 빈으로 등록된다. 인증키 없이도 애플리케이션이 기동되며, 실제 `fetch` 호출 시 키가 비어 있으면 네트워크 요청 전에 설정 오류로 거부한다. 빈 생성만으로 요청을 보내지 않는다. 초기 적재·자동 수집·삭제는 각각 기본 OFF 설정으로 구분한다. 초기 적재는 명시적 CLI 옵션으로, 자동 수집은 설정을 켠 웹 서버의 Spring Scheduler로 실행한다. 삭제 작업은 다음 단계에서 연결한다.
 
 HTTP 200 이외의 상태는 `WEATHER_PROVIDER_UNAVAILABLE`로 처리하고 디버깅 메시지에 상태 코드만 남긴다. 연결 실패·시간 초과·본문 읽기 실패도 외부 시스템 오류로 처리하되 HTTP 상태 오류와 다른 메시지로 구분한다. HTTP 200의 빈 본문·오류 본문·불완전한 격자는 파서가 `WEATHER_RESPONSE_INVALID`로 거부한다.
 
@@ -70,7 +73,7 @@ ForecastTimes times = new ForecastTimes(LocalDateTime.of(2026, 10, 22, 14, 0),
 GridForecast forecast = new KmaGridParser().parse(raw, times, WeatherElement.TMP);
 ```
 
-`ForecastTimes`의 `LocalDateTime`은 KST 현지 시각이다. JVM 기본 시간대로 변환하지 않으며, 필수값·시간 단위·발표와 예보시각의 순서를 검증한다. 문자열 해석이나 API 파라미터 생성은 담당하지 않는다. `WeatherCollectionCommand`가 CLI의 `yyyyMMddHH` 입력을 10자리 ASCII 숫자·실재하는 날짜인지 엄격하게 검사하고, `KmaForecastRequest.tmfc()`·`tmef()`가 도메인 시각을 기상청의 10자리 문자열로 표현한다. `WeatherCollectionPlan`은 선택한 시각이 하루 8개 발표시각에 해당하는지 확인하고 요소별 요청을 만든다. 현재 시각에서 최신 공개 발표분을 자동 선택하는 기능은 스케줄러 단계에서 연결한다.
+`ForecastTimes`의 `LocalDateTime`은 KST 현지 시각이다. JVM 기본 시간대로 변환하지 않으며, 필수값·시간 단위·발표와 예보시각의 순서를 검증한다. 문자열 해석이나 API 파라미터 생성은 담당하지 않는다. `WeatherCollectionCommand`가 CLI의 `yyyyMMddHH` 입력을 10자리 ASCII 숫자·실재하는 날짜인지 엄격하게 검사하고, `KmaForecastRequest.tmfc()`·`tmef()`가 도메인 시각을 기상청의 10자리 문자열로 표현한다. `WeatherCollectionPlan`은 선택한 시각이 하루 8개 발표시각에 해당하는지 확인하고 요소별 요청을 만든다. `WeatherPublicationSchedule`은 현재 KST 시각에서 공개 대기시간을 뺀 뒤 가장 최근 발표시각을 선택한다. 실제 자료의 공개를 보장하는 조회는 아니며, 응답 검증에 실패하면 수집도 실패한다.
 
 ## RAW 파싱 규칙
 
@@ -174,7 +177,7 @@ List<HourlyForecast> hourly = new HourlyForecastAssembler().assemble(times, resp
 
 ## 수동 전국 수집
 
-`WeatherCollectionCommand`는 웹 서버 없이 애플리케이션을 열고 `WeatherCollectionService.collect(publishedAt)`을 한 번 호출한 뒤 종료한다. `bootRun` 등 일반 서버 기동 경로에는 Runner·스케줄러를 등록하지 않아 외부 요청이 발생하지 않는다. 선택한 DB에는 기존 Flyway 설정대로 마이그레이션이 적용된다.
+`WeatherCollectionCommand`는 웹 서버 없이 애플리케이션을 열고, 선택한 모드에 따라 `WeatherCollectionService.collect(publishedAt)` 또는 `initializeIfEmpty()`를 한 번 호출한 뒤 종료한다. 비웹 CLI에는 자동 수집 설정이 ON이어도 스케줄러를 등록하지 않는다. 일반 서버도 기본 OFF에서는 외부 요청이 발생하지 않으며, 자동 수집을 켰을 때만 다음 예약 시각부터 수집한다. 선택한 DB에는 기존 Flyway 설정대로 마이그레이션이 적용된다.
 
 `backend`에서 DB 연결 설정과 `KMA_API_KEY`를 환경변수로 준비한 뒤 실행한다. 개인 `.env`는 자동으로 읽지 않으므로 셸에 환경변수로 내보내야 한다. 아래 시각은 형식 예시이며 실제 API가 제공하는 발표분으로 바꾼다.
 
@@ -182,7 +185,98 @@ List<HourlyForecast> hourly = new HourlyForecastAssembler().assemble(times, resp
 ./gradlew collectWeather --args='--published-at=2026102302' --no-daemon
 ```
 
-인자는 KST `yyyyMMddHH` 형식의 `--published-at` 하나만 허용한다. 중복 인자·잘못된 날짜·정규 발표시각이 아닌 입력은 DB 접속 전에 거부한다. DB 연결과 프로필은 기존 `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD`, `SPRING_PROFILES_ACTIVE` 환경설정을 사용한다. API 키를 명령 인자로 전달하지 않는다. 수집용 ON/OFF 환경변수는 추가하지 않았다.
+발표분 지정 모드는 KST `yyyyMMddHH` 형식의 `--published-at` 하나만 허용한다. 중복 인자·잘못된 날짜·정규 발표시각이 아닌 입력은 DB 접속 전에 거부한다. DB 연결과 프로필은 기존 `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD`, `SPRING_PROFILES_ACTIVE` 환경설정을 사용한다. API 키를 명령 인자로 전달하지 않는다. 발표분을 직접 지정하는 수동 수집은 초기 적재·자동 수집 설정과 독립적이므로 기본 OFF에서도 기존처럼 실행할 수 있다.
+
+### 유효 예보가 없는 DB의 최초 적재
+
+DB 연결 설정과 `KMA_API_KEY`를 준비한 뒤 `backend`에서 실행한다.
+
+```bash
+WEATHER_INITIAL_LOAD_ENABLED=true ./gradlew collectWeather --args='--initialize' --no-daemon
+```
+
+`--initialize`는 값 없이 단독으로 사용한다. `--published-at`과 함께 쓰거나 중복 지정하면 애플리케이션 기동 전에 거부한다. 초기 적재 설정이 OFF이면 서비스가 DB 존재 조회·HTTP 요청 전에 예외를 던지고 명령은 실패한다. `--initialize`로 애플리케이션을 여는 과정의 DB 연결·Flyway 기동은 기존과 같다.
+
+1. 주입받은 `Clock`의 현재 순간을 `Asia/Seoul`의 `LocalDateTime`으로 바꾼다.
+2. `weather_forecasts`에서 `forecast_at >= 현재 KST 시각 AND tmp IS NOT NULL`인 행이 있는지 `SELECT EXISTS`로 확인한다.
+3. 한 행이라도 있으면 `weather-collection-execution status=SKIPPED_VALID_FORECAST`를 기록하고 HTTP 요청 없이 종료한다. 기온 0도 유효하다. 과거 예보·TMP 결측 행·일별 기온만 있는 DB는 이 조건을 만족하지 않는다.
+4. 유효 예보가 없으면 같은 발표분 선택 규칙으로 대상을 결정하고 공통 수집 본문을 호출한다. 요청·결합·UPSERT·트랜잭션·실패 처리·측정은 수동 수집과 같다.
+
+유효성 검사는 **미래 또는 현재의 시간별 예보가 최소 한 행 존재하는지**만 확인한다. 전국 격자나 향후 24시간의 완전성을 검사하지 않는다. 최초 적재 도중 실패해 앞선 시간대가 저장되었다면 이후 `--initialize`가 건너뛸 수 있다. 이런 부분 적재는 발표분을 지정한 수동 수집으로 다시 처리한다. 자동 복구·완전성 판단은 후속 범위다.
+
+`initializeIfEmpty()`는 수집했을 때 `Optional<WeatherCollectionResult>`를, 유효 예보가 있어 건너뛰었을 때 빈 `Optional`을 반환한다. DB 존재 조회나 수집 실패는 빈 결과로 바꾸지 않고 예외를 전파한다. 일반 서버 기동 시 이 메서드를 부르는 Runner는 없으므로, 설정을 켜 두어도 서버 재시작만으로 전국 수집하지 않는다.
+
+### 최신 발표분 선택과 실행 설정
+
+`WeatherPublicationSchedule`이 02·05·08·11·14·17·20·23시 발표 규칙을 관리한다. 계획 생성과 CLI의 발표시각 검증도 이 규칙을 공유한다. `WeatherCollectionService.collectLatest()`와 자동 실행용 `collectAutomatically()`는 주입받은 시계로 발표분을 선택한다. 수동·최초 적재·자동 실행은 모두 실행 잠금과 수집 본문을 공유한다. Spring Scheduler도 같은 발표 규칙의 `nextCollectionAfter()`로 다음 예약 시각을 계산한다.
+
+기본 공개 대기시간은 **15분이라는 검증 전 가정**이다. 현재 시각에서 설정한 대기시간을 뺀 시각 이하의 최신 발표분을 선택한다. 실제 공개 지연을 측정한 결과가 아니므로 해당 발표분의 자료가 준비되었다고 단정하지 않는다. 아직 미공개이거나 오류 응답이면 기존 HTTP·파싱 검증이 실패시키며 성공으로 기록하지 않는다. 이전 발표분으로 자동 재시도하지 않는다.
+
+| 현재 KST 시각       | 대기시간 | 선택하는 발표분  |
+| ------------------- | -------- | ---------------- |
+| 2026-10-23 02:14:59 | 15분     | 2026-10-22 23:00 |
+| 2026-10-23 02:15:00 | 15분     | 2026-10-23 02:00 |
+| 2026-10-23 02:20:00 | 30분     | 2026-10-22 23:00 |
+| 2026-10-24 00:00:00 | 15분     | 2026-10-23 23:00 |
+
+| Spring 설정                                    | 환경변수                            | 기본값  | 적용 범위                                                          |
+| ---------------------------------------------- | ----------------------------------- | ------- | ------------------------------------------------------------------ |
+| `weather.initial-load.enabled`                 | `WEATHER_INITIAL_LOAD_ENABLED`      | `false` | `--initialize` 실행 허용. 서버 기동 시 자동 실행하지 않음          |
+| `weather.collection.enabled`                   | `WEATHER_COLLECTION_ENABLED`        | `false` | 웹 서버에서 발표 주기에 따른 자동 수집을 활성화                    |
+| `weather.cleanup.enabled`                      | `WEATHER_CLEANUP_ENABLED`           | `false` | 다음 커밋의 과거 예보 정리 활성화 설정. 현재 정리 작업 미연결      |
+| `weather.collection.publication-delay-minutes` | `WEATHER_PUBLICATION_DELAY_MINUTES` | `15`    | 최신 발표분 선택의 공개 대기시간. 0 이상 정수, 음수는 기동 시 거부 |
+
+세 실행 설정은 독립적이며 공통 `application.yml`에서 모두 기본 OFF다. local·dev·prod·test 어느 프로필도 기본값을 ON으로 덮어쓰지 않는다. 한 설정을 켜도 다른 작업은 켜지지 않는다. 수동 CLI와 최초 적재는 명시적 실행이 필요하고, 자동 수집은 설정을 켠 웹 서버에서 다음 예약 시각부터 발생한다.
+
+### 발표 주기에 맞춘 자동 수집
+
+서버 실행 환경에 DB 연결과 `KMA_API_KEY`를 주입하고 `WEATHER_COLLECTION_ENABLED=true`로 실행한다. 예를 들어 `backend`에서 다음과 같이 시작한다.
+
+```bash
+WEATHER_COLLECTION_ENABLED=true ./gradlew bootRun --no-daemon
+```
+
+[Spring의 Trigger 기반 스케줄링](https://docs.spring.io/spring-framework/reference/integration/scheduling.html)을 사용한다. `WeatherSchedulingConfig`가 `SchedulingConfigurer`로 수집 작업 하나를 등록하고, `ThreadPoolTaskScheduler`에 애플리케이션의 `Clock`을 설정한다. 스레드 수는 1이며 애플리케이션 종료 시 함께 정리된다. KST 시각에서 02·05·08·11·14·17·20·23시 발표분과 공개 대기시간을 계산한 후 실제 예약 순간인 `Instant`로 변환하므로 JVM 기본 시간대에 의존하지 않는다.
+
+기본 대기시간 15분에서는 **02:15·05:15·08:15·11:15·14:15·17:15·20:15·23:15 KST**에 실행한다. 90분처럼 한 시간을 넘는 설정도 발표분에 더해서 계산한다. 예를 들어 23시 발표 + 90분은 다음 날 00:30이다. 고정 cron과 별도로 발표시각 목록을 복제하지 않도록 수집 계획·최신 발표 선택과 같은 규칙을 사용한다.
+
+기동 시 바로 수집하지 않고 현재 시각보다 뒤인 다음 실행 시각부터 예약한다. 실행이 길어져 다음 예약 시각을 넘겼다면 완료 이후의 다음 시각을 예약한다. 실패한 발표분의 즉시 재시도나 서버 중단 중 놓친 발표분의 보충 수집은 하지 않는다. 예를 들어 02:15에 시작해 06:00에 끝났다면 다음은 08:15다. 수집 실패는 서비스가 `FAILED`로 기록하고 스케줄러가 예외를 처리해 다음 예약이 유지되도록 한다.
+
+### 단일 애플리케이션의 중첩 방지와 실행 상태
+
+공통 서비스의 `AtomicBoolean.compareAndSet`으로 수집 진입을 한 번만 허용한다. 최초 적재의 DB 존재 검사부터 HTTP·결합·저장·종료 기록까지 같은 실행 구간이다. 스케줄러 스레드 수와 무관하게 모든 진입점에 적용한다.
+
+- 실행 중 자동 호출은 `SKIPPED_RUNNING` 로그를 남기고 빈 결과를 반환한다. 대기열에 쌓거나 진행 중인 작업을 중단하지 않는다.
+- 실행 중 수동·최초 적재 호출은 같은 로그를 남기고 `IllegalStateException`으로 거부한다.
+- 성공·실패·유효 예보로 건너뛰기 모두 `finally`에서 잠금을 해제한다. HTTP·파싱·DB 실패를 성공으로 바꾸지 않는다.
+- 이 잠금은 **같은 Spring 서비스 인스턴스 안에서만** 유효하다. 별도로 실행한 `collectWeather` CLI는 다른 JVM이므로 실행 중인 서버와 잠금을 공유하지 않는다. 여러 CLI·서버 인스턴스 사이의 제어는 후속 범위다.
+
+`WeatherCollectionService.execution()`은 현재 실행 또는 마지막 종료 실행의 불변 스냅샷을 반환한다. 실행 전에는 빈 값이다. 메모리 상태이므로 재시작하면 초기화되고, 조회 API나 영속 실행 이력은 추가하지 않는다. 중첩 호출이 건너뛰어져도 현재 실행의 스냅샷을 덮어쓰지 않는다.
+
+| 항목                       | 의미                                                                                        |
+| -------------------------- | ------------------------------------------------------------------------------------------- |
+| `source`                   | `MANUAL`, `INITIAL_LOAD`, `SCHEDULED`                                                       |
+| `status`                   | `RUNNING`, `SUCCEEDED`, `FAILED`, `SKIPPED_VALID_FORECAST`                                  |
+| `publishedAt`              | 수집 대상 발표시각, KST                                                                     |
+| `startedAt` / `finishedAt` | 주입한 시계로 기록한 시작·종료 순간(`Instant`, 로그는 UTC). 실행 중 종료 시각은 비어 있음   |
+| `elapsedNanos`             | 종료된 실행의 전체 경과시간. 단조 시계로 측정하며 최초 적재 존재 조회도 포함. 실행 중에는 0 |
+
+`weather-collection-execution` 로그에 위 필드를 남기고, 중첩 거부는 별도의 `SKIPPED_RUNNING` 로그로 기록한다. 다음 예약 시각은 `weather-collection-scheduled` 로그에 남긴다. 자동 실행 경계에서는 오류 타입만 기록하며 예외 메시지·원문·요청 URL·인증키를 출력하지 않는다. 기존 요청별·단계별 측정은 그대로 유지하며 `WeatherCollectionResult.totalNanos`는 수집 계획 생성부터의 시간이라 실행 전체 시간과 구분한다.
+
+### 실제 공개 여부 관측과 지연 검증
+
+DB에 쓰지 않고 **선택한 발표분의 전체 수집 계획**을 실제 클라이언트·파서로 호출하는 선택 테스트를 제공한다. 기본 테스트에서는 건너뛴다. `KMA_API_KEY`를 주입한 셸에서 발표분을 지정해 실행한다.
+
+```bash
+WEATHER_AVAILABILITY_PUBLISHED_AT=2026102314 ./gradlew test \
+  --tests 'com.jachwisunbae.weather.provider.kma.KmaPublicationAvailabilityTest' --rerun-tasks --no-daemon
+```
+
+`build/weather-availability/<발표분>/<관측 시작 시각>/requests.csv`에 요청 시각·요소·응답 관측 순간·발표 이후 경과초·정상/오류·응답량·격자 수를 남긴다. `summary.txt`에는 전체 요청의 성공 여부와 관측 구간을 기록한다. HTTP 오류나 미공개·불완전 본문은 정상으로 세지 않으며, 하나라도 실패하면 결과 파일을 남긴 뒤 테스트도 실패한다. 인증키와 RAW 본문은 저장하지 않는다.
+
+2026-10-23 **15:59:40.498~16:00:42.742 KST**에 14시 발표분을 관측했다. 계획한 **194건 모두 HTTP·파싱 검증에 성공**했고 응답 본문 합계는 **66,211,618바이트**였다. 이는 발표 후 약 **120분 43초까지 정상 자료를 관측했다는 상한**이며 최초 공개 시각 측정이 아니다. RAW 자체에 발표 메타데이터가 없어 제공자가 실제로 어떤 발표분을 반환했는지는 응답만으로 독립 검증하지 못한다.
+
+따라서 기본 대기시간 15분은 계속 **미검증 가정**으로 둔다. 정확한 공개 지연을 좁히려면 발표 직후부터 같은 발표분에 대해 일정 간격으로 위 관측을 반복해 마지막 실패·최초 전체 성공 시각을 함께 남겨야 한다. 한 번의 전체 관측에도 194~196건이 필요하므로 관측 횟수와 API 한도를 함께 확인한다. 8개 발표시각의 관측과 여유시간을 근거로 `WEATHER_PUBLICATION_DELAY_MINUTES`를 조정해야 하며 이번 작업에서 자동 수집을 운영 환경에 켜지 않았다.
 
 ### 실행 순서와 트랜잭션
 
@@ -192,7 +286,7 @@ List<HourlyForecast> hourly = new HourlyForecastAssembler().assemble(times, resp
 4. 날짜별로 계획된 TMN·TMX를 요청하고 일별 저장 모델로 결합한다. 날짜마다 별도 트랜잭션으로 저장한다.
 5. 완료된 요청·저장 행 수와 각 단계의 시간을 로그 및 `WeatherCollectionResult`로 반환한다.
 
-HTTP·파싱·결합 중에는 트랜잭션을 열지 않는다. 이미 트랜잭션을 연 호출자가 서비스를 실행하면 단위별 커밋 의미가 달라지므로 실행 전에 거부한다. 한 저장 단위 내부의 배치 오류는 해당 트랜잭션 전체를 롤백한다. HTTP·파싱·결합·DB 오류는 즉시 전파하며 다음 요청을 실행하지 않는다. 이전 시각·날짜의 커밋은 남는다. 재실행은 기존 UPSERT 최신성 규칙을 따르며, 중간 지점 재개·발표분 전체 원자성·동시 실행 제어는 이번 범위에 포함하지 않는다.
+HTTP·파싱·결합 중에는 트랜잭션을 열지 않는다. 이미 트랜잭션을 연 호출자가 서비스를 실행하면 단위별 커밋 의미가 달라지므로 실행 전에 거부한다. 한 저장 단위 내부의 배치 오류는 해당 트랜잭션 전체를 롤백한다. HTTP·파싱·결합·DB 오류는 즉시 전파하며 다음 요청을 실행하지 않는다. 이전 시각·날짜의 커밋은 남는다. 재실행은 기존 UPSERT 최신성 규칙을 따르며, 중간 지점 재개·발표분 전체 원자성·서로 다른 프로세스 사이의 동시 실행 제어는 이번 범위에 포함하지 않는다.
 
 한 시각의 8개 파싱 결과와 저장 행만 유지하고 처리 후 해제할 수 있도록 순차 실행한다. 일별 처리에 필요한 날짜별 TMP 좌표 집합과 작은 요청 측정 목록은 실행 종료까지 유지한다. 24시간 전체의 RAW·저장 행을 메모리에 모으지 않는다.
 
@@ -368,6 +462,10 @@ MySQL의 영향받은 행 수는 INSERT·UPDATE 여부와 드라이버 설정에
 
 `WeatherCollectionPlanTest`는 8개 발표시각의 192개 시간별 요청, 날짜별 일별 요청·미제공 목록, 중복 방지·불변성·요청량 계산을 검사한다. 05시 TMN·14시 TMX 제외, 23시의 다음 날 전용 계획, 월말·연말·윤년, JVM 기본 시간대가 UTC·미국 서부여도 KST를 보존하는 경우를 포함한다.
 
+`WeatherPublicationScheduleTest`는 8개 발표시각의 대기시간 직전·경계·직후와 월말·연말·윤년을 검사한다. `WeatherCollectionInitializationTest`와 `WeatherCollectionConfigurationTest`는 시계 주입, 설정 OFF/ON·프로필별 기본값·설정 독립성, DB 존재 시 건너뛰기와 오류 전파를 확인한다. MySQL 통합 테스트는 빈 DB 최초 적재 후 같은 명령 경로를 다시 실행해 HTTP 재요청 없이 건너뛰고 저장 값이 보존되는지 검증한다.
+
+`WeatherCollectionSchedulerTest`는 8개 발표시각, 날짜 경계·대기시간·긴 실행·시계 역행·실패 후 다음 실행을 확인한다. `WeatherSchedulingConfigTest`는 모든 환경의 기본 OFF, 서버 ON 등록, 비웹 CLI 제외를 검증한다. `WeatherCollectionConcurrencyTest`는 실제 두 스레드와 latch로 수동·최초 적재·자동 경로의 중첩, 최초 적재 존재 검사 중 잠금, 실패 후 해제와 상태·시각을 검증한다. MySQL 통합 테스트에서는 자동 수집의 HTTP 200 미공개 본문이 `FAILED`가 되고 저장하지 않는지 확인한다.
+
 `HourlyForecastAssemblerTest`는 순서가 뒤섞이고 유효 격자가 서로 다른 응답의 좌표 결합, TMP 기준 선택, 정상 결측·0·음수·소수, 응답 누락·중복·시각 불일치·중복 좌표 거부를 검사한다. `HourlyForecastAssemblerContractTest`는 기존 RAW 발췌 CSV를 파서와 결합기에 연이어 전달해 `(60, 127)`의 8개 값과 TMP 발췌 격자 4개의 좌표·기온을 대조한다. 발췌하지 않은 좌표를 결측으로 채운 테스트이므로 전체 실제 RAW의 유효 격자 수나 결측 분포를 재현한 결과는 아니다.
 
 ```bash
@@ -375,7 +473,8 @@ MySQL의 영향받은 행 수는 INSERT·UPDATE 여부와 드라이버 설정에
   --tests 'com.jachwisunbae.weather.provider.kma.GridForecastTest' \
   --tests 'com.jachwisunbae.weather.domain.*' \
   --tests 'com.jachwisunbae.weather.service.*' \
-  --tests 'com.jachwisunbae.weather.collector.*' --no-daemon
+  --tests 'com.jachwisunbae.weather.collector.*' \
+  --tests 'com.jachwisunbae.weather.config.*' --no-daemon
 ```
 
 `WeatherSchemaIntegrationTest`, `JdbcWeatherForecastRepositoryTest`, `WeatherForecastRecollectionIntegrationTest`, `DatabaseBaselineIntegrationTest`는 Testcontainers의 MySQL 8.4.10을 사용하므로 Docker가 필요하다. 개인 로컬 DB 대신 별도 컨테이너에서 마이그레이션, 기본키·CHECK 제약, UPSERT 최신성·정정, NULL·0과 시각 보존, 배치·재실행, 호출자 트랜잭션의 롤백을 확인한다. 저장소 테스트는 DB 세션을 UTC로 설정해도 KST `LocalDateTime`이 변환되지 않는지 검사한다. SQL 변경 후에는 인수 테스트를 포함한 전체 검사도 실행한다.

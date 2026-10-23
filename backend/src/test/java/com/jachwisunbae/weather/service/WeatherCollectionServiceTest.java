@@ -34,7 +34,7 @@ class WeatherCollectionServiceTest {
     private final JdbcWeatherForecastRepository repository = mock(JdbcWeatherForecastRepository.class);
     private final PlatformTransactionManager transactions = mock(PlatformTransactionManager.class);
     private final Clock clock = Clock.fixed(Instant.parse("2026-10-22T17:30:00.123456789Z"), ZoneOffset.UTC);
-    private final WeatherCollectionService service = new WeatherCollectionService(client, repository, transactions, clock);
+    private final WeatherCollectionService service = new WeatherCollectionService(client, repository, transactions, clock, false, 15);
     private final LocalDateTime publication = LocalDateTime.of(2026, 10, 23, 2, 0);
 
     @Test
