@@ -1,6 +1,23 @@
 # 전국 날씨 데이터 수집
 
-전국 단기예보 격자자료의 모델과 RAW 파싱 규칙을 설명한다. 현재 구현은 메모리에 전달된 RAW 문자열을 변환하는 단계이며, HTTP 호출·DB 저장·자동 실행은 후속 작업에서 연결한다.
+전국 단기예보 격자자료의 HTTP 수신·RAW 파싱·모델을 설명한다. 현재는 선택한 발표시각·예보대상시각·요소 한 개의 전국 자료를 요청하고 검증할 수 있다. DB 저장·수집 명령·자동 실행은 후속 작업에서 연결한다.
+
+## HTTP 클라이언트
+
+`KmaForecastClient.fetch(times, element)`는 기상청 `nph-dfs_shrt_grd`에 `tmfc`, `tmef`, `vars`, `authKey`를 담은 GET 요청을 보내고, `KmaGridParser`로 검증한 `GridForecast`를 반환한다. `Accept: text/plain`으로 요청하고 숫자 RAW 본문은 UTF-8로 읽는다.
+
+```java
+ForecastTimes times = ForecastTimes.parse("2026102223", "2026102300");
+GridForecast forecast = kmaForecastClient.fetch(times, WeatherElement.TMP);
+```
+
+인증키만 `KMA_API_KEY` 환경변수로 주입한다. 기본값은 비어 있으며 개인 `.env`나 서버의 비밀값 설정으로 관리한다. 연결 제한시간 3초와 읽기 제한시간 15초는 `KmaForecastClient`의 `CONNECT_TIMEOUT`, `READ_TIMEOUT` 상수로 관리한다.
+
+`KmaForecastClient`는 항상 빈으로 등록된다. 인증키 없이도 애플리케이션이 기동되며, 실제 `fetch` 호출 시 키가 비어 있으면 네트워크 요청 전에 설정 오류로 거부한다. 빈 생성만으로 요청을 보내지 않는다. 자동 수집·초기 적재·삭제 실행 플래그는 이후 해당 기능에서 별도로 추가한다.
+
+HTTP 200 이외의 상태는 `WEATHER_PROVIDER_UNAVAILABLE`로 처리하고 디버깅 메시지에 상태 코드만 남긴다. 연결 실패·시간 초과·본문 읽기 실패도 외부 시스템 오류로 처리하되 HTTP 상태 오류와 다른 메시지로 구분한다. HTTP 200의 빈 본문·오류 본문·불완전한 격자는 파서가 `WEATHER_RESPONSE_INVALID`로 거부한다.
+
+인증키는 URI 변수로 인코딩하며 리다이렉트를 따라가지 않는다. 요청 URL·오류 본문·외부 예외 메시지는 인증키를 포함할 수 있어 로그와 예외에 전달하지 않는다. 원인 예외도 같은 이유로 연결하지 않는다. 현재 클라이언트는 재시도를 수행하지 않으며 재처리 정책은 후속 작업에서 다룬다.
 
 ## 모델과 파서
 
@@ -36,7 +53,7 @@ GridForecast forecast = new KmaGridParser().parse(raw, times, WeatherElement.TMP
 
 ## 테스트와 실제 샘플 확인
 
-`backend`에서 실행한다. 테스트는 코드로 생성한 격자 데이터를 사용하므로 API 키·네트워크·DB·외부 원본 파일이 필요 없다.
+`backend`에서 실행한다. 테스트는 코드로 생성한 격자 데이터와 `MockRestServiceServer`의 가짜 HTTP 응답을 사용하므로 실제 API 키·네트워크·DB·외부 원본 파일이 필요 없다. 인증키 유무에 따른 기동과 키가 없는 상태의 요청 거부도 확인한다.
 
 ```bash
 ./gradlew test --tests 'com.jachwisunbae.weather.*' --no-daemon
@@ -57,7 +74,7 @@ GridForecast forecast = new KmaGridParser().parse(raw, times, WeatherElement.TMP
 
 `codex/weather-lab`의 `ForecastTimes`, `GridTemperature`, `KmaGridParser`를 출발점으로 시각 모델과 파싱 규칙을 이관했다. 기온에 묶여 있던 값은 `GridValue`와 `WeatherElement`로 분리하고, 실험용 기온 컬럼의 저장 범위 제한은 공통 숫자 파서에 적용하지 않는다.
 
-실험용 Runner·고정 시각·Compose·프로필·DB 마이그레이션과 저장소는 이번 모델·파서 작업에 포함하지 않았다. 현재 코드만으로 외부 호출이나 데이터 적재가 실행되지 않는다.
+실험용 `fetchTmp`는 요소를 인자로 받는 `KmaForecastClient.fetch`로 확장했다. 정상 HTTP 상태만으로 성공을 판단하지 않고 파싱을 통과한 자료를 반환한다. 실험용 Runner·고정 시각·Compose·프로필·DB 마이그레이션과 저장소는 이관하지 않았으며, 애플리케이션 기동만으로 외부 호출이나 데이터 적재가 실행되지 않는다.
 
 ## 참고 자료
 
