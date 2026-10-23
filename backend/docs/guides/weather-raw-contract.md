@@ -88,7 +88,7 @@ PCP와 SNO의 해시가 같은 이유는 이 발표분의 결측 위치와 모�
 
 ```bash
 cd backend
-./gradlew test --tests 'com.jachwisunbae.weather.*' --no-daemon
+./gradlew test --tests 'com.jachwisunbae.weather.parser.*' --no-daemon
 ```
 
 원본 보유자는 위 SHA-256을 확인한 뒤 다음 코드로 발췌 CSV를 재생성할 수 있다. 저장소 루트에서 실행하고 `RAW_DIRECTORY`에 원본 디렉터리를 지정한다. 결과는 임시 파일로 생성해 기존 fixture와 비교한다. 새로운 발표분을 쓸 때는 파일명·메타데이터·원본 대조 기준을 함께 갱신해야 한다.

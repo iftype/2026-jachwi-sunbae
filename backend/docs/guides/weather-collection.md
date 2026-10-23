@@ -1,6 +1,6 @@
 # 전국 날씨 데이터 수집
 
-전국 단기예보 격자자료의 HTTP 수신·RAW 파싱·모델을 설명한다. 현재는 선택한 발표시각·예보대상시각·요소 한 개의 전국 자료를 요청하고 검증할 수 있다. DB 저장·수집 명령·자동 실행은 후속 작업에서 연결한다.
+전국 단기예보 격자자료의 HTTP 수신·RAW 파싱·모델과 저장 스키마를 설명한다. 현재는 선택한 발표시각·예보대상시각·요소 한 개의 전국 자료를 요청하고 검증할 수 있으며, Flyway가 빈 날씨 테이블을 생성한다. JDBC 저장·수집 명령·자동 실행은 후속 작업에서 연결한다.
 
 ## HTTP 클라이언트
 
@@ -51,12 +51,79 @@ GridForecast forecast = new KmaGridParser().parse(raw, times, WeatherElement.TMP
 
 격자 인덱스와 샘플 값의 일치를 검증한 것이며, 실제 매물의 위경도 변환 검증은 조회 기능 작업에서 진행한다.
 
+## 날씨 저장 스키마
+
+`V3__create_weather_forecasts.sql`이 두 테이블을 생성한다. 기존 V1·V2는 수정하지 않으며 마이그레이션에서 날씨 데이터를 적재하거나 API를 호출하지 않는다.
+
+| 테이블                    | 한 행의 기준 / 기본키             | 저장 요소                       |
+| ------------------------- | --------------------------------- | ------------------------------- |
+| `weather_forecasts`       | `(grid_x, grid_y, forecast_at)`   | TMP·SKY·PTY·POP·PCP·SNO·REH·WSD |
+| `weather_daily_forecasts` | `(grid_x, grid_y, forecast_date)` | TMN·TMX                         |
+
+발표시각은 기본키에 포함하지 않는다. 같은 격자·대상 시각에 대한 최신 예보를 갱신하는 구조이며 발표 이력을 모두 보관하는 구조는 아니다. 날씨 격자는 매물과 독립적이므로 매물 외래 키나 별도 자동 증가 ID를 두지 않는다.
+
+### 시간별 예보
+
+| 컬럼               | 자료형 / NULL                | 의미                                                  |
+| ------------------ | ---------------------------- | ----------------------------------------------------- |
+| `grid_x`, `grid_y` | `SMALLINT UNSIGNED NOT NULL` | x는 1부터 149, y는 1부터 253인 1 기반 격자 좌표       |
+| `forecast_at`      | `DATETIME NOT NULL`          | KST 예보대상시각, 정시                                |
+| `published_at`     | `DATETIME NOT NULL`          | 시간별 8개 요소에 공통인 KST 발표시각, 정시           |
+| `tmp`              | `DOUBLE NULL`                | 원본 기온, ℃                                          |
+| `sky`, `pty`       | `DOUBLE NULL`                | 원본 하늘상태·강수형태 코드                           |
+| `pop`              | `DOUBLE NULL`                | POP 원본 숫자. 강수확률 의미는 추가 확인 필요         |
+| `pcp`, `sno`       | `DOUBLE NULL`                | 강수량·신적설 원본 숫자. 비0 값의 mm·cm 대응은 미확인 |
+| `reh`, `wsd`       | `DOUBLE NULL`                | 원본 상대습도(%), 풍속(m/s)                           |
+| `collected_at`     | `DATETIME(6) NOT NULL`       | 해당 행에 반영한 수집 결과의 KST 수집시각             |
+
+기상 값은 파서의 Java `double`에 대응하는 `DOUBLE`로 보관한다. 현재 단계에서는 정수 코드로 강제 변환하거나 소수 자릿수를 고정해 원본 숫자를 반올림하지 않는다. 표시용 정수·범주·단위 환산은 [RAW 계약](weather-raw-contract.md)을 확인한 뒤 수행한다.
+
+정상 응답에서 특정 격자가 결측이면 해당 요소를 `NULL`로 저장한다. 실제 0과 음수 기온은 그대로 저장하며 원본 결측 코드 `-99`·`-999`를 직접 저장하면 CHECK 제약으로 거부한다. SKY·PTY 코드 범위와 미확인 변수의 물리 범위는 DB에서 추가 제한하지 않는다. 요청 실패를 정상 결측으로 바꾸는 것은 허용하지 않으며 후속 수집 서비스가 이를 구분해야 한다.
+
+### 일별 기온
+
+| 컬럼                                   | 자료형 / NULL                | 의미                          |
+| -------------------------------------- | ---------------------------- | ----------------------------- |
+| `grid_x`, `grid_y`                     | `SMALLINT UNSIGNED NOT NULL` | 시간별 예보와 같은 격자 좌표  |
+| `forecast_date`                        | `DATE NOT NULL`              | KST 예보대상일                |
+| `tmn`, `tmx`                           | `DOUBLE NULL`                | 원본 일 최저·최고기온, ℃      |
+| `tmn_published_at`, `tmx_published_at` | `DATETIME NULL`              | 각 요소의 KST 발표시각, 정시  |
+| `tmn_collected_at`, `tmx_collected_at` | `DATETIME(6) NULL`           | 각 요소에 반영한 KST 수집시각 |
+
+TMN·TMX는 제공 시각이 다르고 한 요소만 갱신할 수 있으므로 출처 시각을 요소별로 둔다. 예를 들어 TMX를 더 최신 발표분으로 갱신해도 기존 TMN의 발표시각을 함께 바꾸지 않는다. 최저·최고 값을 같은 발표분이라고 가정하는 `tmn <= tmx` 제약은 두지 않는다.
+
+- 값·발표시각·수집시각이 모두 `NULL`: 해당 요소를 아직 반영하지 않음. 계획상 미제공일 수 있다.
+- 값은 `NULL`, 발표·수집시각은 존재: 정상 응답에서 해당 격자가 결측이었음.
+- 값이 0, 발표·수집시각은 존재: 실제 0℃ 예보.
+- 값이 존재하면 발표·수집시각도 필요하다. 발표·수집시각 중 하나만 저장할 수 없고, 양쪽 요소 모두 미수집인 빈 행도 만들 수 없다.
+
+요청 실패 이력을 이 테이블의 `NULL`로 표현하지 않는다. 응답 결측과 계획상 미제공을 구분할 수 있도록 후속 저장소는 값과 해당 요소의 출처 시각을 함께 갱신해야 한다.
+
+### 시각·갱신·인덱스 기준
+
+모든 시각은 KST `LocalDateTime`으로 전달한다. `DATETIME` 자체는 시간대를 저장하지 않으며 DB 세션 시간대에 의존하는 `CURRENT_TIMESTAMP` 기본값이나 자동 갱신 설정도 두지 않는다. 수집시각은 마이크로초까지 저장한다.
+
+시간별 예보는 `forecast_at >= published_at`, 일별 기온은 각 발표일이 `forecast_date` 이하인지 검사한다. 발표·시간별 예보시각의 분·초는 0이어야 한다. 하루 8개 발표시각 선택과 TMN·TMX의 제공 시각은 수집 계획에서 검증한다.
+
+최신성 비교는 시간별 행의 `published_at`, 일별 요소 각각의 `*_published_at`을 기준으로 후속 UPSERT에서 구현한다. 더 최신 발표분과 같은 발표시각의 정정·재수집을 반영할 때 수집시각도 갱신하며, 과거 발표분을 무시할 때는 기존 수집시각도 유지하는 기준이다. 이번 마이그레이션 자체가 역순 갱신을 막지는 않는다.
+
+기본키는 격자별 시각·날짜 조회를 지원한다. 보존기간 정리를 위한 시간 선두 인덱스나 추가 조회 인덱스는 실제 조회·삭제 비용을 측정한 뒤 추가한다.
+
 ## 테스트와 실제 샘플 확인
 
-`backend`에서 실행한다. 테스트는 코드로 생성한 격자 데이터, 실제 RAW에서 발췌한 소형 CSV, `MockRestServiceServer`의 가짜 HTTP 응답을 사용하므로 실제 API 키·네트워크·DB·외부 원본 파일이 필요 없다. 인증키 유무에 따른 기동과 키가 없는 상태의 요청 거부도 확인한다.
+`backend`에서 실행한다. 클라이언트·모델·파서 단위 테스트는 코드로 생성한 격자 데이터, 실제 RAW에서 발췌한 소형 CSV, `MockRestServiceServer`의 가짜 HTTP 응답을 사용하므로 실제 API 키·네트워크·DB·외부 원본 파일이 필요 없다. 인증키 유무에 따른 기동과 키가 없는 상태의 요청 거부도 확인한다.
 
 ```bash
-./gradlew test --tests 'com.jachwisunbae.weather.*' --no-daemon
+./gradlew test --tests 'com.jachwisunbae.weather.client.*' \
+  --tests 'com.jachwisunbae.weather.domain.*' --tests 'com.jachwisunbae.weather.parser.*' --no-daemon
+```
+
+`WeatherSchemaIntegrationTest`와 `DatabaseBaselineIntegrationTest`는 Testcontainers의 MySQL 8.4.10을 사용하므로 Docker가 필요하다. 개인 로컬 DB 대신 별도 컨테이너에서 빈 DB·V2 업그레이드·재적용, 기본키·CHECK 제약, 정상값·NULL과 시각 보존을 확인한다. SQL 변경 후에는 인수 테스트를 포함한 전체 검사도 실행한다.
+
+```bash
+./gradlew test --tests 'com.jachwisunbae.weather.database.*' \
+  --tests 'com.jachwisunbae.common.database.DatabaseBaselineIntegrationTest' --no-daemon
+./gradlew testAll --no-daemon
 ```
 
 로컬 실험의 `2026102214_2026102217_TMP.raw`를 사용할 때의 대조 기준은 다음과 같다. 원본은 저장소 밖에 보관하며 Git에 추가하지 않는다.
