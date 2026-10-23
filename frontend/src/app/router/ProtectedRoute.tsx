@@ -1,31 +1,56 @@
-import { Navigate, Outlet } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 
-import { ApiError, getSafeApiErrorMessage } from '@/features/auth/api/apiClient';
+import { authenticate, getSafeApiErrorMessage } from '@/features/auth/api/apiClient';
 import { useCurrentMember } from '@/features/auth/api/useCurrentMember';
 import { useAuthentication } from '@/features/auth/model/useAuthentication';
+import { usePublicConfig } from '@/shared/config/PublicConfigContext';
 import useDelayedLoading from '@/shared/lib/hooks/useDelayedLoading';
 import { Button } from '@/shared/ui/button/Button';
 import ContentState from '@/shared/ui/content-state/ContentState';
 import StatusPanel from '@/shared/ui/status-panel/StatusPanel';
 
+/**
+ * 회원 화면 입구. 회원 정보를 부르면 API 클라이언트가 먼저 자동 로그인(복원 또는 익명 회원 생성)을 마친다.
+ * 서버가 복원을 거절해도 새 회원으로 조용히 바꾸지 않는다. 새 기록으로 시작할지는 사용자가 고른다.
+ */
 const ProtectedRoute = () => {
-  const { session } = useAuthentication();
-  const currentMember = useCurrentMember(session !== null);
+  const config = usePublicConfig();
+  const navigate = useNavigate();
+  const { terminationReason } = useAuthentication();
+  const currentMember = useCurrentMember();
   const isLoadingVisible = useDelayedLoading(currentMember.isPending);
 
-  if (session === null) {
-    return <Navigate to="/login" replace />;
+  if (terminationReason === 'unauthorized') {
+    return (
+      <StatusPanel
+        title="이전 기록을 이어서 불러오지 못했어요"
+        description="이 브라우저에 남은 기록 정보가 만료됐거나 지워졌어요. 새로 시작하면 빈 기록으로 시작해요."
+        tone="error"
+        action={
+          <>
+            <Button variant="secondary" onClick={() => navigate(-1)}>
+              뒤로 가기
+            </Button>
+            <Button
+              onClick={() =>
+                void authenticate(config)
+                  .then(() => currentMember.refetch())
+                  .catch(() => undefined)
+              }
+            >
+              새 기록으로 시작하기
+            </Button>
+          </>
+        }
+      />
+    );
   }
 
   if (currentMember.isPending) {
-    return isLoadingVisible ? <ContentState loading title="인증을 확인하고 있어요." /> : null;
+    return isLoadingVisible ? <ContentState loading title="기록을 불러올 준비를 하고 있어요." /> : null;
   }
 
   if (currentMember.isError) {
-    if (currentMember.error instanceof ApiError && currentMember.error.status === 401) {
-      return <Navigate to="/login" replace />;
-    }
-
     return (
       <StatusPanel
         title="회원 정보를 불러오지 못했어요"

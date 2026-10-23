@@ -18,7 +18,7 @@ import {
 const PostHogTracker = () => {
   const config = usePublicConfig();
   const location = useLocation();
-  const { session } = useAuthentication();
+  const { session, terminationReason } = useAuthentication();
   const currentMember = useCurrentMember(session !== null);
 
   useLayoutEffect(() => {
@@ -45,15 +45,16 @@ const PostHogTracker = () => {
   }, [location.pathname, location.search, config.posthogProjectToken, config.posthogHost]);
 
   useLayoutEffect(() => {
+    // 토큰은 메모리에만 있어 새로고침 직후에는 늘 세션이 없다. 서버가 복원을 거절해 인증이 끝났을 때만 식별을 지운다.
     if (session === null) {
-      resetPostHogIdentity();
+      if (terminationReason !== null) resetPostHogIdentity();
       return;
     }
 
     if (currentMember.data !== undefined) {
-      identifyPostHogMember(currentMember.data.memberId, currentMember.data.displayName);
+      identifyPostHogMember(currentMember.data.memberId);
     }
-  }, [session, currentMember.data, config.posthogProjectToken, config.posthogHost]);
+  }, [session, terminationReason, currentMember.data, config.posthogProjectToken, config.posthogHost]);
 
   return null;
 };

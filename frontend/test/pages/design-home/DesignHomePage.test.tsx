@@ -53,7 +53,7 @@ it('기능 카드, 빠른 메뉴 2개와 내 매물로 만든 최근 기록을 �
   const quickMenu = within(screen.getByRole('navigation', { name: '빠른 메뉴' }));
   expect(quickMenu.getAllByRole('link').map((link) => link.textContent)).toEqual(['체크리스트', '방 비교']);
   expect(screen.getByRole('img', { name: '자취선배' })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: '사용방법 알아보기' })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: '사용방법 알아보기' })).toHaveAttribute('href', '/guide');
   expect(screen.getByRole('link', { name: '자취선배 홈 새로고침' })).toHaveAttribute('href', '/');
   expect(screen.getByText('계약 전, 놓친 문제는 없는지 확인해보세요.').tagName).toBe('P');
 });
@@ -99,10 +99,10 @@ it('최근 기록을 불러오지 못하면 안내와 다시 시도 버튼을 �
   expect(await screen.findByText('신림역 원룸')).toBeInTheDocument();
 });
 
-it('푸터에 서비스 소개와 개인정보 안내 링크를 둔다', () => {
+it('푸터에 사용 방법과 개인정보 안내 링크를 둔다', () => {
   renderHome();
   const footer = within(screen.getByRole('contentinfo'));
-  expect(footer.getByRole('link', { name: '서비스 소개' })).toHaveAttribute('href', '/about');
+  expect(footer.getByRole('link', { name: '사용 방법' })).toHaveAttribute('href', '/guide');
   expect(footer.getByRole('link', { name: '개인정보·광고 측정 안내' })).toHaveAttribute('href', '/privacy');
   expect(footer.getByText('© 2026 자취선배')).toBeInTheDocument();
 });

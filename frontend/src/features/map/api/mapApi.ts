@@ -68,7 +68,6 @@ export const searchAddress = (config: PublicConfig, query: string, signal?: Abor
   apiRequest({
     config,
     path: `/api/maps/geocode?query=${encodeURIComponent(query)}`,
-    requiresAuthentication: false,
     signal,
     parseData: (value) => {
       if (!Array.isArray(value)) throw new Error('주소 검색 응답이 올바르지 않습니다.');
@@ -80,7 +79,6 @@ export const reverseGeocode = (config: PublicConfig, latitude: number, longitude
   apiRequest({
     config,
     path: `/api/maps/reverse-geocode?latitude=${latitude}&longitude=${longitude}`,
-    requiresAuthentication: false,
     parseData: parseAddress,
   });
 

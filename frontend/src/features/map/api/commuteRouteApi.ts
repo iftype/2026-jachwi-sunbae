@@ -25,7 +25,6 @@ export const fetchCommuteRoute = (
   apiRequest({
     config,
     signal,
-    requiresAuthentication: false,
     path: `/api/commute-areas/route?${new URLSearchParams({ latitude: String(destination.latitude), longitude: String(destination.longitude), stopId, maxMinutes: String(maxMinutes), maxTransfers: String(maxTransfers) })}`,
     parseData: (value) => {
       const data = readRecord(value);

@@ -1,13 +1,12 @@
-.demo {
-  margin-top: 1.3rem;
-}
 .demo h2 {
-  font-size: 0.85rem;
-  text-align: center;
-  margin: 0 0 0.8rem;
+  margin: 0 0 1rem;
+  font-size: 0.95rem;
+  letter-spacing: -0.02em;
 }
 .step {
-  margin-bottom: 2.75rem;
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 2.25rem;
   opacity: 0.35;
   transform: translateY(16px);
   transition:
@@ -292,9 +291,40 @@
   top: 55%;
 }
 .caption {
-  font-size: 0.8rem;
+  margin: 0.4rem 0 0 2rem;
   color: var(--color-ink-soft);
-  margin: 0.4rem 0 0.8rem 2rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+.stepAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0.5rem 0 0 2rem;
+  color: var(--color-ink);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+.stepAction:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 3px;
+  border-radius: 0.25rem;
+}
+@media (hover: hover) {
+  .stepAction:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+/* 넓은 화면은 설명을 왼쪽, 예시 화면을 오른쪽에 두고 단계마다 좌우를 번갈아 배치하지 않는다. */
+@media (min-width: 48rem) {
+  .step {
+    grid-template-columns: minmax(0, 15rem) minmax(0, 1fr);
+    align-items: center;
+    gap: 2rem;
+    margin-bottom: 3rem;
+  }
 }
 @keyframes blink {
   50% {

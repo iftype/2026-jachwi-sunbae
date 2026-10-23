@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import styles from './HomeFooter.module.css';
 
 const FOOTER_LINKS = [
-  { label: '서비스 소개', to: '/about' },
+  { label: '사용 방법', to: '/guide' },
   { label: '개인정보·광고 측정 안내', to: '/privacy' },
 ];
 
