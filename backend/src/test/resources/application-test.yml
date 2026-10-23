@@ -3,7 +3,9 @@ auth:
     secret: test-jwt-secret-must-be-at-least-32-bytes
     issuer: jachwi-sunbae
     audience: jachwi-sunbae-api
-    access-token-seconds: 43200
+    access-token-seconds: 900
+  refresh-token:
+    validity-days: 365
 
 app:
   cors:

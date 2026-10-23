@@ -1,120 +1,106 @@
 package com.jachwisunbae.auth.service;
 
-import com.jachwisunbae.auth.domain.Password;
-import com.jachwisunbae.auth.service.dto.command.NicknameLoginCommand;
-import com.jachwisunbae.auth.service.dto.result.LoginResult;
+import com.jachwisunbae.auth.domain.RefreshToken;
+import com.jachwisunbae.auth.repository.RefreshTokenRepository;
+import com.jachwisunbae.auth.service.dto.LoginResult;
 import com.jachwisunbae.auth.token.JwtTokenProvider;
+import com.jachwisunbae.auth.token.RefreshTokenProvider;
 import com.jachwisunbae.common.exception.client.AuthenticationFailedException;
 import com.jachwisunbae.common.exception.errorcode.ErrorCode;
-import com.jachwisunbae.common.exception.server.DataInconsistencyException;
 import com.jachwisunbae.member.entity.Member;
-import com.jachwisunbae.member.entity.Nickname;
 import com.jachwisunbae.member.repository.MemberRepository;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.dao.DuplicateKeyException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-// 조회와 저장을 트랜잭션으로 묶지 않는다. 동시 가입은 DB 유니크 제약이 막고, 충돌한 뒤 다시 조회할 때
-// 먼저 저장된 회원이 보여야 하기 때문이다. 트랜잭션 안에서는 MySQL이 처음 조회한 시점의 데이터를 계속 보여준다.
 @Service
 public class AuthService {
 
     private final MemberRepository memberRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final RefreshTokenRepository refreshTokenRepository;
     private final JwtTokenProvider jwtProvider;
+    private final RefreshTokenProvider refreshTokenProvider;
     private final Clock clock;
     private final long accessTokenSeconds;
+    private final long refreshTokenValidityDays;
 
     public AuthService(
             MemberRepository memberRepository,
-            PasswordEncoder passwordEncoder,
+            RefreshTokenRepository refreshTokenRepository,
             JwtTokenProvider jwtProvider,
+            RefreshTokenProvider refreshTokenProvider,
             Clock clock,
-            @Value("${auth.jwt.access-token-seconds}") long accessTokenSeconds) {
+            @Value("${auth.jwt.access-token-seconds}") long accessTokenSeconds,
+            @Value("${auth.refresh-token.validity-days}") long refreshTokenValidityDays) {
         this.memberRepository = memberRepository;
-        this.passwordEncoder = passwordEncoder;
+        this.refreshTokenRepository = refreshTokenRepository;
         this.jwtProvider = jwtProvider;
+        this.refreshTokenProvider = refreshTokenProvider;
         this.clock = clock;
         this.accessTokenSeconds = accessTokenSeconds;
+        this.refreshTokenValidityDays = refreshTokenValidityDays;
     }
 
-    public LoginResult loginNickname(NicknameLoginCommand command) {
-        String nickname = Nickname.from(command.nickname()).value();
-        String password = password(command.password());
-
-        try {
-            return login(nickname, password);
-        } catch (DuplicateKeyException exception) {
-            // 같은 닉네임으로 동시에 가입하면 한 요청만 저장된다.
-            // 먼저 저장된 회원이 있을 때만 닉네임 충돌로 보고 다시 로그인한다.
-            // 회원이 없으면 다른 유니크 제약 위반이므로 그대로 던진다.
-            boolean passwordProtected = password != null;
-            if (memberRepository.findByNicknameAndPasswordProtected(nickname, passwordProtected).isEmpty()) {
-                throw exception;
-            }
-            return login(nickname, password);
-        }
-    }
-
-    private LoginResult login(String nickname, String password) {
-        if (password == null) {
-            return loginSharedMember(nickname);
-        }
-        return loginProtectedMember(nickname, password);
-    }
-
-    // 비밀번호 없이 시작하면 그 닉네임의 공유 회원으로 시작하고, 없으면 만든다.
-    private LoginResult loginSharedMember(String nickname) {
-        Optional<Member> sharedMember = memberRepository.findByNicknameAndPasswordProtected(nickname, false);
-        if (sharedMember.isPresent()) {
-            return createLoginResult(sharedMember.get(), false);
-        }
-        return createMember(nickname, null);
-    }
-
-    // 비밀번호와 함께 시작하면 그 닉네임의 보호 회원으로 시작한다. 없으면 만들고, 있으면 비밀번호가 맞아야 한다.
-    private LoginResult loginProtectedMember(String nickname, String password) {
-        Optional<Member> protectedMember = memberRepository.findByNicknameAndPasswordProtected(nickname, true);
-        if (protectedMember.isEmpty()) {
-            return createMember(nickname, passwordEncoder.encode(password));
-        }
-        if (!matches(password, protectedMember.get())) {
-            throw new AuthenticationFailedException(ErrorCode.NICKNAME_AUTHENTICATION_FAILED,
-                    "닉네임 또는 비밀번호가 일치하지 않습니다.");
-        }
-        return createLoginResult(protectedMember.get(), false);
-    }
-
-    private LoginResult createMember(String nickname, String passwordHash) {
+    @Transactional
+    public LoginResult startAnonymous(String rawToken) {
         LocalDateTime now = LocalDateTime.now(clock);
-        Member member = memberRepository.save(Member.create(nickname, passwordHash, now));
-        return createLoginResult(member, true);
+        return restoreAuthentication(rawToken, now).orElseGet(() -> createAnonymous(now));
     }
 
-    // 저장된 해시를 해석할 수 없으면 사용자가 올바른 비밀번호를 다시 입력해도 해결되지 않는 서버 데이터 문제다.
-    private boolean matches(String password, Member member) {
-        try {
-            return passwordEncoder.matches(password, member.getPasswordHash());
-        } catch (IllegalArgumentException exception) {
-            throw new DataInconsistencyException(ErrorCode.INTERNAL_SERVER_ERROR,
-                    "memberId=" + member.getId() + " 저장된 비밀번호 해시를 검증할 수 없습니다.", exception);
+    @Transactional
+    public LoginResult refresh(String rawToken) {
+        LocalDateTime now = LocalDateTime.now(clock);
+        return restoreAuthentication(rawToken, now).orElseThrow(() ->
+                new AuthenticationFailedException(ErrorCode.REFRESH_TOKEN_INVALID,
+                        "Refresh Token으로 정상 회원의 인증을 복원할 수 없습니다."));
+    }
+
+    private Optional<LoginResult> restoreAuthentication(String rawToken, LocalDateTime now) {
+        if (rawToken == null || rawToken.isBlank()) {
+            return Optional.empty();
         }
-    }
 
-    // 비밀번호를 생략하거나 빈 값으로 보내면 비밀번호 없이 시작한다.
-    private String password(String rawPassword) {
-        if (rawPassword == null || rawPassword.isEmpty()) {
-            return null;
+        String tokenHash = refreshTokenProvider.hash(rawToken);
+        Optional<RefreshToken> storedToken = refreshTokenRepository.findByTokenHash(tokenHash);
+        if (storedToken.isEmpty() || storedToken.get().isExpiredAt(now)) {
+            return Optional.empty();
         }
-        return Password.from(rawPassword).value();
+
+        RefreshToken refreshToken = storedToken.get();
+        Optional<Member> member = memberRepository.findById(refreshToken.getMemberId());
+        if (member.isEmpty()) {
+            return Optional.empty();
+        }
+
+        refreshToken.extendExpiry(now, refreshTokenValidityDays);
+        if (refreshTokenRepository.updateExpiry(refreshToken) == 0) {
+            return Optional.empty();
+        }
+
+        long refreshTokenExpiresIn = Duration.between(now, refreshToken.getExpiresAt()).getSeconds();
+        return Optional.of(createLoginResult(member.get(), false, rawToken, refreshTokenExpiresIn));
     }
 
-    private LoginResult createLoginResult(Member member, boolean newMember) {
-        return new LoginResult(jwtProvider.createAccessToken(member.getId()), accessTokenSeconds, newMember,
-                member.getId(), member.getNickname(), member.isPasswordProtected());
+    private LoginResult createAnonymous(LocalDateTime now) {
+        Member member = memberRepository.save(Member.create(now));
+
+        String rawToken = refreshTokenProvider.generateToken();
+        String tokenHash = refreshTokenProvider.hash(rawToken);
+        RefreshToken refreshToken = RefreshToken.create(member.getId(), tokenHash, now, refreshTokenValidityDays);
+
+        refreshTokenRepository.save(refreshToken);
+        long refreshTokenExpiresIn = Duration.between(now, refreshToken.getExpiresAt()).getSeconds();
+        return createLoginResult(member, true, rawToken, refreshTokenExpiresIn);
+    }
+
+    private LoginResult createLoginResult(Member member, boolean newMember,
+                                         String rawToken, long refreshTokenExpiresIn) {
+        return new LoginResult(member.getId(), newMember,
+                jwtProvider.createAccessToken(member.getId()), accessTokenSeconds,
+                rawToken, refreshTokenExpiresIn);
     }
 }
