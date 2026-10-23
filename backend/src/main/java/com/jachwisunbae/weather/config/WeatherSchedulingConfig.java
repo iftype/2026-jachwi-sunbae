@@ -1,13 +1,17 @@
 package com.jachwisunbae.weather.config;
 
+import com.jachwisunbae.weather.cleanup.WeatherCleanupScheduler;
 import com.jachwisunbae.weather.collector.WeatherCollectionScheduler;
+import com.jachwisunbae.weather.service.WeatherCleanupService;
 import com.jachwisunbae.weather.service.WeatherCollectionService;
 import java.time.Clock;
 import java.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.Bean;
@@ -20,7 +24,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 @Configuration(proxyBeanMethods = false)
 @EnableScheduling // SPring 내부 처리기 -
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
-@ConditionalOnProperty(name = "weather.collection.enabled", havingValue = "true")
+@ConditionalOnExpression("${weather.collection.enabled:false} or ${weather.cleanup.enabled:false}")
 public class WeatherSchedulingConfig {
 
     private static final Logger LOG = LoggerFactory.getLogger(WeatherSchedulingConfig.class);
@@ -43,20 +47,29 @@ public class WeatherSchedulingConfig {
     //빈 2. 스케줄러 객체
     //
     @Bean
+    @ConditionalOnProperty(name = "weather.collection.enabled", havingValue = "true")
     public WeatherCollectionScheduler weatherCollectionScheduler(final WeatherCollectionService service, final Clock clock,
             @Value("${weather.collection.publication-delay-minutes:15}") final long publicationDelayMinutes) {
         return new WeatherCollectionScheduler(service, clock, Duration.ofMinutes(publicationDelayMinutes));
     }
 
+    @Bean
+    @ConditionalOnProperty(name = "weather.cleanup.enabled", havingValue = "true")
+    public WeatherCleanupScheduler weatherCleanupScheduler(final WeatherCleanupService service) {
+        return new WeatherCleanupScheduler(service);
+    }
+
     //빈 3. 작업 등록
     @Bean
-    public SchedulingConfigurer weatherSchedulingConfigurer(final WeatherCollectionScheduler collector,
+    public SchedulingConfigurer weatherSchedulingConfigurer(final ObjectProvider<WeatherCollectionScheduler> collectors,
+            final ObjectProvider<WeatherCleanupScheduler> cleaners,
             @Qualifier("weatherTaskScheduler") final TaskScheduler scheduler) {
         return registrar -> {
             registrar.setTaskScheduler(scheduler);
             //1번 인자 - runnable  2번 인자 - Trigger
             //registrar가 등록된 작업을 weatherTaskScheduler에 넘겨 예약 시작
-            registrar.addTriggerTask(collector::collect, collector::nextExecution);//무엇을, 언제
+            collectors.ifAvailable(collector -> registrar.addTriggerTask(collector::collect, collector::nextExecution));
+            cleaners.ifAvailable(cleaner -> registrar.addTriggerTask(cleaner::cleanup, cleaner::nextExecution));
         };
     }
 }

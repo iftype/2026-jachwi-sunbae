@@ -98,3 +98,10 @@ tasks.register('collectWeather', JavaExec) {
 	classpath = sourceSets.main.runtimeClasspath
 	mainClass = 'com.jachwisunbae.weather.collector.WeatherCollectionCommand'
 }
+
+tasks.register('cleanupWeather', JavaExec) {
+	group = 'application'
+	description = '정리 설정이 ON일 때 KST 오늘 이전의 시간별 예보와 일별 기온을 한 번 삭제한다.'
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'com.jachwisunbae.weather.cleanup.WeatherCleanupCommand'
+}

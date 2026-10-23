@@ -6,6 +6,7 @@ import com.jachwisunbae.weather.domain.HourlyForecast;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -80,6 +81,22 @@ public class JdbcWeatherForecastRepository {
                     SELECT 1 FROM weather_forecasts WHERE forecast_at >= ? AND tmp IS NOT NULL
                 )
                 """, Boolean.class, from));
+    }
+
+    public long countHourly() {
+        return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM weather_forecasts", Long.class);
+    }
+
+    public long countDaily() {
+        return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM weather_daily_forecasts", Long.class);
+    }
+
+    public int deleteHourlyBefore(final LocalDateTime cutoff) {
+        return jdbcTemplate.update("DELETE FROM weather_forecasts WHERE forecast_at < ?", cutoff);
+    }
+
+    public int deleteDailyBefore(final LocalDate cutoff) {
+        return jdbcTemplate.update("DELETE FROM weather_daily_forecasts WHERE forecast_date < ?", cutoff);
     }
 
     public void upsertHourly(final List<HourlyForecast> forecasts) {

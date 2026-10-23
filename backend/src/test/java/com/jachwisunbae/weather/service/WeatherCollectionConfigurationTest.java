@@ -29,7 +29,7 @@ class WeatherCollectionConfigurationTest {
     private final PlatformTransactionManager transactions = mock(PlatformTransactionManager.class);
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withInitializer(new ConfigDataApplicationContextInitializer())
-            .withUserConfiguration(WeatherCollectionService.class)
+            .withUserConfiguration(WeatherCollectionService.class, WeatherCleanupService.class)
             .withBean(KmaForecastClient.class, () -> client)
             .withBean(JdbcWeatherForecastRepository.class, () -> repository)
             .withBean(PlatformTransactionManager.class, () -> transactions)
@@ -47,6 +47,8 @@ class WeatherCollectionConfigurationTest {
             }
             assertThatThrownBy(() -> context.getBean(WeatherCollectionService.class).initializeIfEmpty())
                     .isInstanceOf(IllegalStateException.class);
+            assertThatThrownBy(() -> context.getBean(WeatherCleanupService.class).cleanup())
+                    .isInstanceOf(IllegalStateException.class).hasMessageContaining("weather.cleanup.enabled=true");
             verifyNoInteractions(repository, client, transactions);
         });
     }

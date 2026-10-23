@@ -49,10 +49,10 @@ Spring Boot 애플리케이션은 CORS 허용 Origin과 인증·저장소 설정
 | `KMA_API_KEY`                       | 비움    | 기상청 API허브 인증키. 실제 수집 호출 시 필요                     |
 | `WEATHER_INITIAL_LOAD_ENABLED`      | `false` | 유효 예보가 없는 DB의 명시적 `--initialize` 실행 허용             |
 | `WEATHER_COLLECTION_ENABLED`        | `false` | 웹 서버에서 KST 발표시각 + 공개 대기시간에 자동 수집              |
-| `WEATHER_CLEANUP_ENABLED`           | `false` | 과거 데이터 정리 설정. 삭제 실행은 다음 작업에서 연결             |
+| `WEATHER_CLEANUP_ENABLED`           | `false` | 수동 정리 허용 및 웹 서버의 매일 KST 00:30 정리 활성화            |
 | `WEATHER_PUBLICATION_DELAY_MINUTES` | `15`    | 최신 발표분 선택 전 대기시간(0 이상 정수 분). 15분은 실측 전 가정 |
 
-세 실행 설정은 모든 환경에서 기본 OFF이며 각각 독립적이다. 초기 적재 설정을 켜도 서버 기동만으로 수집하지 않으며 별도 CLI 명령이 필요하다. 발표분을 지정하는 수동 수집은 이 설정들과 독립적으로 실행한다. 자동 수집은 ON인 웹 서버에서 다음 예약 시각부터 실행하며, 비웹 수동 CLI에는 ON이어도 스케줄러를 등록하지 않는다. [전국 날씨 데이터 수집](weather-collection.md#유효-예보가-없는-db의-최초-적재)의 명령과 공개 지연 가정을 확인한다.
+세 실행 설정은 모든 환경에서 기본 OFF이며 각각 독립적이다. 초기 적재 설정을 켜도 서버 기동만으로 수집하지 않으며 별도 CLI 명령이 필요하다. 발표분을 지정하는 수동 수집은 이 설정들과 독립적으로 실행한다. 자동 수집은 ON인 웹 서버에서 다음 예약 시각부터 실행하며, 비웹 수동 CLI에는 ON이어도 스케줄러를 등록하지 않는다. 정리 설정은 `cleanupWeather` 명령의 실행도 허용하며, 웹 서버에서는 다음 KST 00:30부터 정리한다. 오늘·미래 예보는 보존하며 정리만 실행할 때 기상청 API 키는 필요하지 않다. [전국 날씨 데이터 수집](weather-collection.md#유효-예보가-없는-db의-최초-적재)의 명령과 공개 지연 가정을 확인한다.
 
 로컬 Compose는 MySQL·MinIO만 실행하므로 날씨 변수를 사용하지 않는다. Spring Boot를 실행하는 셸이나 실행 환경에 주입한다. 이번 작업에서 dev·prod 설정을 활성화하지 않는다.
 

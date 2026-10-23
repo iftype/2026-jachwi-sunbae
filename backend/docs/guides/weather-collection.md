@@ -1,6 +1,6 @@
 # 전국 날씨 데이터 수집
 
-전국 단기예보 격자자료의 HTTP 수신·RAW 파싱·수집 계획·시간별 및 일별 결합·JDBC 배치 UPSERT와 수동 실행을 설명한다. 명시한 발표분의 24시간 예보와 해당 날짜의 일별 기온을 한 번 수집해 저장할 수 있다. 유효 예보가 없는 DB의 명시적 최초 적재와 최신 발표분 선택도 같은 수집 서비스를 사용한다. 설정을 켠 서버에서는 KST 발표 주기와 공개 대기시간에 맞춰 자동 수집한다. 과거 자료 정리는 다음 작업에서 연결한다.
+전국 단기예보 격자자료의 HTTP 수신·RAW 파싱·수집 계획·시간별 및 일별 결합·JDBC 배치 UPSERT와 수동 실행을 설명한다. 명시한 발표분의 24시간 예보와 해당 날짜의 일별 기온을 한 번 수집해 저장할 수 있다. 유효 예보가 없는 DB의 명시적 최초 적재와 최신 발표분 선택도 같은 수집 서비스를 사용한다. 설정을 켠 서버에서는 KST 발표 주기와 공개 대기시간에 맞춰 자동 수집한다. 과거 자료는 별도 설정을 켜서 수동으로 정리하거나 매일 KST 00:30에 정리할 수 있다.
 
 ## 패키지와 책임
 
@@ -9,6 +9,9 @@
 | 패키지               | 클래스                                                | 책임                                                                   |
 | -------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------- |
 | `collector`          | `WeatherCollectionCommand`                            | 발표분 지정 또는 최초 적재 CLI 인자를 검증하고 한 번 실행              |
+| `cleanup`            | `WeatherCleanupCommand`, `WeatherCleanupScheduler`    | 수동 정리 진입과 매일 KST 00:30 예약·호출                              |
+| `service`            | `WeatherCleanupService`                               | KST 보존 기준 결정, 정리 트랜잭션·중첩 방지·측정                       |
+| `service.dto.result` | `WeatherCleanupResult`                                | 테이블별 삭제 전후 행 수·삭제 건수, 기준일·실행 시각·소요시간          |
 | `service`            | `WeatherCollectionService`                            | 최초 적재 판단·최신 발표분 선택, 요청·결합·저장과 트랜잭션·측정값 누적 |
 | `service.collection` | `WeatherPublicationSchedule`                          | KST 발표 주기 검증과 공개 대기시간을 적용한 최신 발표분 선택           |
 | `service.collection` | `WeatherCollectionPlan`, `DailyForecastTarget`        | 수집 범위·요청 목록·미제공 대상·예상량 계산                            |
@@ -19,9 +22,9 @@
 | `provider.kma`       | `GridForecast`, `GridValue`                           | 결합 전의 요소별 전국 격자 응답 표현                                   |
 | `domain`             | `HourlyForecast`, `DailyForecast`, `DailyTemperature` | 서비스에서 사용하는 날씨·일별 기온과 출처                              |
 | `domain`             | `ForecastTimes`, `GridPoint`, `WeatherElement`        | 시각·격자·요소와 각 불변 조건                                          |
-| `repository`         | `JdbcWeatherForecastRepository`                       | 기존 최신성 규칙에 따른 JDBC 배치 UPSERT                               |
+| `repository`         | `JdbcWeatherForecastRepository`                       | JDBC 배치 UPSERT, 보존 기준 이전 삭제와 행 수 조회                     |
 
-`WeatherSchedulingConfig`는 웹 서버이면서 자동 수집 ON일 때만 Spring 스케줄링과 전용 스케줄러를 등록한다. `WeatherCollectionScheduler`는 다음 실행 시각 계산·자동 수집 호출·실패 경계 처리를 담당한다. `WeatherCollectionExecution`은 실행 출처·상태·시작/종료 시각을 나타낸다.
+`WeatherSchedulingConfig`는 웹 서버이면서 자동 수집 또는 정리 중 하나 이상이 ON일 때 Spring 스케줄링과 공통 스케줄러를 등록한다. 각 작업은 자신의 설정이 ON일 때만 등록한다. `WeatherCollectionScheduler`는 다음 실행 시각 계산·자동 수집 호출·실패 경계 처리를 담당한다. `WeatherCollectionExecution`은 실행 출처·상태·시작/종료 시각을 나타낸다.
 
 서비스와 수집 협력 객체가 `provider.kma`의 요청·응답 모델을 사용하고 `domain` 모델을 만든다. `domain`은 `service`, `provider`, `collector`, `repository`를 참조하지 않는다. 수집 계획·어셈블러는 일반 Java 객체로 유지하며 Spring 빈으로 등록하지 않는다. 기상청 단일 공급자에 불필요한 Provider 인터페이스나 전달 전용 구현체는 추가하지 않는다.
 
@@ -40,7 +43,7 @@ GridForecast forecast = kmaForecastClient.fetch(request);
 
 인증키만 `KMA_API_KEY` 환경변수로 주입한다. 기본값은 비어 있으며 개인 `.env`나 서버의 비밀값 설정으로 관리한다. 연결 제한시간 3초와 읽기 제한시간 15초는 `KmaForecastClient`의 `CONNECT_TIMEOUT`, `READ_TIMEOUT` 상수로 관리한다.
 
-`KmaForecastClient`는 항상 빈으로 등록된다. 인증키 없이도 애플리케이션이 기동되며, 실제 `fetch` 호출 시 키가 비어 있으면 네트워크 요청 전에 설정 오류로 거부한다. 빈 생성만으로 요청을 보내지 않는다. 초기 적재·자동 수집·삭제는 각각 기본 OFF 설정으로 구분한다. 초기 적재는 명시적 CLI 옵션으로, 자동 수집은 설정을 켠 웹 서버의 Spring Scheduler로 실행한다. 삭제 작업은 다음 단계에서 연결한다.
+`KmaForecastClient`는 항상 빈으로 등록된다. 인증키 없이도 애플리케이션이 기동되며, 실제 `fetch` 호출 시 키가 비어 있으면 네트워크 요청 전에 설정 오류로 거부한다. 빈 생성만으로 요청을 보내지 않는다. 초기 적재·자동 수집·삭제는 각각 기본 OFF 설정으로 구분한다. 초기 적재는 명시적 CLI 옵션으로, 자동 수집은 설정을 켠 웹 서버의 Spring Scheduler로 실행한다. 정리는 설정을 켠 수동 CLI 또는 웹 서버의 일일 예약으로 실행한다. 정리 자체는 기상청 API를 호출하지 않는다.
 
 HTTP 200 이외의 상태는 `WEATHER_PROVIDER_UNAVAILABLE`로 처리하고 디버깅 메시지에 상태 코드만 남긴다. 연결 실패·시간 초과·본문 읽기 실패도 외부 시스템 오류로 처리하되 HTTP 상태 오류와 다른 메시지로 구분한다. HTTP 200의 빈 본문·오류 본문·불완전한 격자는 파서가 `WEATHER_RESPONSE_INVALID`로 거부한다.
 
@@ -223,7 +226,7 @@ WEATHER_INITIAL_LOAD_ENABLED=true ./gradlew collectWeather --args='--initialize'
 | ---------------------------------------------- | ----------------------------------- | ------- | ------------------------------------------------------------------ |
 | `weather.initial-load.enabled`                 | `WEATHER_INITIAL_LOAD_ENABLED`      | `false` | `--initialize` 실행 허용. 서버 기동 시 자동 실행하지 않음          |
 | `weather.collection.enabled`                   | `WEATHER_COLLECTION_ENABLED`        | `false` | 웹 서버에서 발표 주기에 따른 자동 수집을 활성화                    |
-| `weather.cleanup.enabled`                      | `WEATHER_CLEANUP_ENABLED`           | `false` | 다음 커밋의 과거 예보 정리 활성화 설정. 현재 정리 작업 미연결      |
+| `weather.cleanup.enabled`                      | `WEATHER_CLEANUP_ENABLED`           | `false` | 수동 정리 허용 및 웹 서버의 매일 KST 00:30 자동 정리 활성화        |
 | `weather.collection.publication-delay-minutes` | `WEATHER_PUBLICATION_DELAY_MINUTES` | `15`    | 최신 발표분 선택의 공개 대기시간. 0 이상 정수, 음수는 기동 시 거부 |
 
 세 실행 설정은 독립적이며 공통 `application.yml`에서 모두 기본 OFF다. local·dev·prod·test 어느 프로필도 기본값을 ON으로 덮어쓰지 않는다. 한 설정을 켜도 다른 작업은 켜지지 않는다. 수동 CLI와 최초 적재는 명시적 실행이 필요하고, 자동 수집은 설정을 켠 웹 서버에서 다음 예약 시각부터 발생한다.
@@ -236,7 +239,7 @@ WEATHER_INITIAL_LOAD_ENABLED=true ./gradlew collectWeather --args='--initialize'
 WEATHER_COLLECTION_ENABLED=true ./gradlew bootRun --no-daemon
 ```
 
-[Spring의 Trigger 기반 스케줄링](https://docs.spring.io/spring-framework/reference/integration/scheduling.html)을 사용한다. `WeatherSchedulingConfig`가 `SchedulingConfigurer`로 수집 작업 하나를 등록하고, `ThreadPoolTaskScheduler`에 애플리케이션의 `Clock`을 설정한다. 스레드 수는 1이며 애플리케이션 종료 시 함께 정리된다. KST 시각에서 02·05·08·11·14·17·20·23시 발표분과 공개 대기시간을 계산한 후 실제 예약 순간인 `Instant`로 변환하므로 JVM 기본 시간대에 의존하지 않는다.
+[Spring의 Trigger 기반 스케줄링](https://docs.spring.io/spring-framework/reference/integration/scheduling.html)을 사용한다. `WeatherSchedulingConfig`가 `SchedulingConfigurer`로 활성화된 수집·정리 작업을 각각 등록하고, `ThreadPoolTaskScheduler`에 애플리케이션의 `Clock`을 설정한다. 스레드 수는 1이며 수집·정리 예약 작업이 공유하고 애플리케이션 종료 시 함께 정리된다. 한 작업이 길어지면 다른 예약 작업도 늦게 시작할 수 있다. KST 시각에서 02·05·08·11·14·17·20·23시 발표분과 공개 대기시간을 계산한 후 실제 예약 순간인 `Instant`로 변환하므로 JVM 기본 시간대에 의존하지 않는다.
 
 기본 대기시간 15분에서는 **02:15·05:15·08:15·11:15·14:15·17:15·20:15·23:15 KST**에 실행한다. 90분처럼 한 시간을 넘는 설정도 발표분에 더해서 계산한다. 예를 들어 23시 발표 + 90분은 다음 날 00:30이다. 고정 cron과 별도로 발표시각 목록을 복제하지 않도록 수집 계획·최신 발표 선택과 같은 규칙을 사용한다.
 
@@ -555,3 +558,59 @@ Docker를 실행한 뒤 `backend`에서 아래 명령으로 다시 측정한다.
 - [기상청 API허브 — 전국 단기예보 격자자료](https://apihub.kma.go.kr/apiList.do?seqApi=10&seqApiSub=286)
 - [기상기후데이터위키 — 배열 크기와 RAW 처리 예제](https://datawiki.kma.go.kr/doku.php?id=%EA%B8%B0%EC%83%81%EC%98%88%EB%B3%B4:%EB%82%A0%EC%94%A8%EC%98%88%EB%B3%B4:%EB%8B%A8%EA%B8%B0%EC%98%88%EB%B3%B4)
 - [전국 날씨 수집 구현 이슈 #431](https://github.com/woowacourse-teams/2026-jachwi-sunbae/issues/431)
+
+## 보존 기준이 지난 예보 정리
+
+`WeatherCleanupCommand`와 `WeatherCleanupScheduler`는 같은 `WeatherCleanupService.cleanup()`을 호출한다. `WEATHER_CLEANUP_ENABLED`는 모든 환경에서 기본 `false`이며 수집·최초 적재 설정과 독립적이다. OFF이면 서비스는 조회·삭제 전에 거부한다. 서버 시작 시 즉시 삭제하는 Runner는 없다.
+
+### 보존 기준과 실행 시각
+
+실행 시작 순간을 주입한 `Clock`에서 읽어 **KST 날짜를 한 번만 결정**한다. 시간별 예보는 `forecast_at < 오늘 00:00`, 일별 기온은 `forecast_date < 오늘`인 행을 삭제한다. `published_at`, `collected_at`, TMP 값의 유무는 삭제 기준이 아니다. DB의 `NOW()`나 `CURDATE()`를 사용하지 않아 DB·JVM 기본 시간대에 영향을 받지 않는다.
+
+예를 들어 2026-10-23 16:00 KST에 정리하더라도 10월 22일까지의 예보만 삭제한다. 10월 23일 00시·01시처럼 오늘 이미 지난 시간의 예보와 모든 미래 예보는 보존한다. 실행 도중 자정을 지나더라도 시작 시 정한 기준일을 두 테이블에 동일하게 적용한다. CLI로 임의의 미래 기준일을 지정할 수 없다.
+
+자동 정리는 웹 서버에서 정리 설정을 켰을 때 **매일 00:30 KST**에 실행한다. 기본 수집 예약인 23:15·02:15 사이에 배치했으며, `CronTrigger`의 `0 30 0 * * *`와 `Asia/Seoul`을 코드에 고정한다. 공개 지연과 달리 현재 운영 튜닝 요구가 없는 실행 시각은 새 환경변수로 만들지 않는다. 서버가 00:30 이후에 시작하면 다음 날 00:30부터 실행하며, 중단 중 놓친 정리는 즉시 보충하지 않는다. 필요하면 수동 명령으로 정리한다. 스케줄러가 밀리면 실제 시작 시점의 KST 날짜를 기준으로 정리한다.
+
+### 실행 명령
+
+DB 연결·프로필 등 기존 애플리케이션 기동 환경을 준비한 뒤 `backend`에서 실행한다. 개인 `.env`는 자동으로 읽지 않는다. 정리에는 기상청 API 키가 필요하지 않다.
+
+```bash
+WEATHER_CLEANUP_ENABLED=true ./gradlew cleanupWeather --no-daemon
+```
+
+수동 명령은 인자를 받지 않고 한 번 정리한 뒤 종료한다. 비웹 CLI에는 수집·정리 스케줄러가 등록되지 않는다. OFF 상태의 명령은 실패하며, 정리 서비스 호출 전에 일어나는 DB 연결·Flyway 등 애플리케이션 기동 과정은 기존과 같다.
+
+자동 정리만 켜려면 다음과 같이 실행한다. 자동 수집을 함께 켜려면 `WEATHER_COLLECTION_ENABLED=true`도 설정한다.
+
+```bash
+WEATHER_CLEANUP_ENABLED=true ./gradlew bootRun --no-daemon
+```
+
+### 트랜잭션과 기록
+
+정리 한 번은 다음 순서로 진행한다.
+
+1. 설정과 외부 트랜잭션 여부를 검사하고 같은 서비스 내 중첩 정리를 거부한다.
+2. 시작 시각·KST 보존 기준일과 `RUNNING`을 기록한다.
+3. 하나의 트랜잭션에서 두 테이블의 전체 행 수를 조회한다.
+4. 시간별 예보와 일별 기온에 각각 조건부 `DELETE`를 실행하고 JDBC 영향 행 수를 받는다.
+5. 같은 트랜잭션에서 삭제 후 전체 행 수를 다시 조회한다.
+6. 커밋이 완료된 뒤 `SUCCEEDED`와 결과를 기록한다. 조회·삭제 실패 시 두 삭제를 함께 롤백하고 `FAILED`를 기록하며 예외를 전파한다. 커밋 실패도 성공으로 기록하지 않는다.
+
+`WeatherCleanupResult`와 `weather-cleanup` 로그에는 `retainedFrom`, `startedAt`, `finishedAt`, 테이블별 `beforeRows`·`deletedRows`·`afterRows`, `elapsedNanos`를 남긴다. 로그 필드는 `hourlyBefore`·`hourlyDeleted`·`hourlyAfter`, `dailyBefore`·`dailyDeleted`·`dailyAfter`다. 시작·종료는 `Instant`로 기록하므로 로그는 UTC이며, 보존 기준일은 KST다. 전체 소요시간은 단조 시계로 측정하며 **커넥션 획득·삭제 전후 COUNT 조회·DELETE·커밋·커넥션 정리**를 포함하고 애플리케이션 기동·Flyway 시간은 제외한다. 성공 로그 출력 시간도 제외한다.
+
+중첩된 정리는 `SKIPPED_RUNNING` 로그 후 예외를 반환하며 대기열에 쌓지 않는다. 자동 실행 경계는 예외 타입을 기록하고 다음 날 예약을 유지한다. 같은 프로세스의 수집·정리 예약은 단일 스케줄러 스레드에서 순차 실행되지만, 별도 스레드의 수동 수집이나 다른 프로세스와의 공통 잠금은 없다. 행 수는 해당 트랜잭션에서 관측한 값이고 삭제 건수는 실제 DELETE 결과다. 동시 쓰기가 있으면 `beforeRows - deletedRows = afterRows`를 보장하지 않는다. 다른 프로세스에서 과거 발표분을 재수집하면 정리한 과거 행이 다시 들어올 수 있으며 다음 정리 대상이 된다.
+
+### 경계와 비용 검증
+
+격리된 MySQL 통합 테스트에서 어제 23시·오늘 00시·오늘 01시·내일의 예보, NULL·0, 과거 발표분과 최근 수집시각을 섞어 삭제 기준과 남은 모든 열의 보존을 검증한다. 빈 DB·재실행의 0건 처리와 일별 삭제 실패 시 시간별 삭제까지 롤백되는지도 확인한다. 시계 테스트는 KST 자정 전후·연말·윤년과 실행 중 날짜 변경을 다룬다.
+
+```bash
+./gradlew test --tests 'com.jachwisunbae.weather.service.WeatherCleanupIntegrationTest' \
+  --tests 'com.jachwisunbae.weather.service.WeatherCleanupServiceTest' \
+  --tests 'com.jachwisunbae.weather.cleanup.*' \
+  --tests 'com.jachwisunbae.weather.config.WeatherSchedulingConfigTest' --no-daemon
+```
+
+통합 테스트에는 1,001개 격자의 시간별 5,005행·일별 3,003행을 준비해 시간별 2,002행·일별 1,001행을 삭제하고 처리시간을 기록하는 사례가 있다. 2026-10-23 로컬 `clean build` 검증에서 이 사례의 조회·삭제·커밋 포함 소요시간은 한 차례 약 13.4ms였다. 고정 Clock은 보존 기준을 검증하는 데 사용하고 경과시간은 `System.nanoTime()`으로 측정했다. 이 소규모 단일 관측을 운영 비용으로 일반화하지 않는다. 현재는 테이블별 조건부 DELETE 한 번과 전후 COUNT를 사용하며 인덱스·분할 삭제·스키마 변경을 추가하지 않는다. 실제 누적 행 수의 로그, 실행 계획, 잠금 대기와 수집 지연을 측정한 뒤 시간 선두 인덱스나 분할 삭제 필요성을 판단한다.
