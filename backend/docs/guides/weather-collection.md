@@ -47,13 +47,13 @@ GridForecast forecast = new KmaGridParser().parse(raw, times, WeatherElement.TMP
 - `-99`·`-999`는 결과 목록에서 제외한다. 정상 0과 음수는 보존하며, 결측을 제거해도 이후 값의 좌표가 바뀌지 않는다.
 - 결과 목록은 변경할 수 없다. 유효 격자 수는 응답마다 다르며 TMP의 특정 샘플 개수를 고정하지 않는다.
 - 빈 응답·값 개수 불일치·빈 셀·숫자가 아닌 값·NaN/Infinity·전체 결측은 `UpstreamServiceException`과 `WEATHER_RESPONSE_INVALID`로 거부한다. 응답 원문과 원문을 포함하는 파싱 예외는 로그에 노출되지 않도록 예외 메시지·cause에 넣지 않는다.
-- 파서는 숫자 구조만 검증한다. SKY·PTY 코드 범위, POP의 의미, PCP·SNO의 단위·비0 값 해석은 변수별 계약 검증에서 보강한다.
+- 파서는 숫자 구조를 검증하고 원본 숫자를 보존한다. 단위 환산·범주 해석·코드 범위 제한은 수행하지 않는다. 요소별 근거와 미확인 항목은 [10개 기상 요소의 RAW 파싱 계약](weather-raw-contract.md)을 따른다.
 
 격자 인덱스와 샘플 값의 일치를 검증한 것이며, 실제 매물의 위경도 변환 검증은 조회 기능 작업에서 진행한다.
 
 ## 테스트와 실제 샘플 확인
 
-`backend`에서 실행한다. 테스트는 코드로 생성한 격자 데이터와 `MockRestServiceServer`의 가짜 HTTP 응답을 사용하므로 실제 API 키·네트워크·DB·외부 원본 파일이 필요 없다. 인증키 유무에 따른 기동과 키가 없는 상태의 요청 거부도 확인한다.
+`backend`에서 실행한다. 테스트는 코드로 생성한 격자 데이터, 실제 RAW에서 발췌한 소형 CSV, `MockRestServiceServer`의 가짜 HTTP 응답을 사용하므로 실제 API 키·네트워크·DB·외부 원본 파일이 필요 없다. 인증키 유무에 따른 기동과 키가 없는 상태의 요청 거부도 확인한다.
 
 ```bash
 ./gradlew test --tests 'com.jachwisunbae.weather.*' --no-daemon
