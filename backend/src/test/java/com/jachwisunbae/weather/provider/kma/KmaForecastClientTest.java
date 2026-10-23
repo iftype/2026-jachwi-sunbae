@@ -1,4 +1,4 @@
-package com.jachwisunbae.weather.client;
+package com.jachwisunbae.weather.provider.kma;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -13,9 +13,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import com.jachwisunbae.common.exception.errorcode.ErrorCode;
 import com.jachwisunbae.common.exception.server.UpstreamServiceException;
 import com.jachwisunbae.weather.domain.ForecastTimes;
-import com.jachwisunbae.weather.domain.GridForecast;
 import com.jachwisunbae.weather.domain.GridPoint;
-import com.jachwisunbae.weather.domain.GridValue;
 import com.jachwisunbae.weather.domain.WeatherElement;
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,6 +22,8 @@ import java.io.StringWriter;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.net.http.HttpTimeoutException;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.stream.Stream;
 import org.hamcrest.Matchers;
@@ -49,7 +49,8 @@ class KmaForecastClientTest {
 
     private static final String URL = "https://apihub.kma.go.kr/api/typ01/cgi-bin/url/nph-dfs_shrt_grd";
     private static final String API_KEY = "test-secret-key";
-    private static final ForecastTimes TIMES = ForecastTimes.parse("2026102223", "2026102300");
+    private static final ForecastTimes TIMES = new ForecastTimes(LocalDateTime.of(2026, 10, 22, 23, 0),
+            LocalDateTime.of(2026, 10, 23, 0, 0));
 
     private MockRestServiceServer server;
     private RestClient restClient;
@@ -81,7 +82,7 @@ class KmaForecastClientTest {
                 .andExpect(queryParam("authKey", API_KEY))
                 .andRespond(withSuccess(validRaw(), MediaType.TEXT_PLAIN));
 
-        GridForecast result = client.fetch(TIMES, element);
+        GridForecast result = client.fetch(new KmaForecastRequest(TIMES, element));
 
         assertThat(result.times()).isEqualTo(TIMES);
         assertThat(result.element()).isEqualTo(element);
@@ -99,7 +100,7 @@ class KmaForecastClientTest {
                 .andRespond(withSuccess(validRaw(), MediaType.TEXT_PLAIN));
 
         GridForecast result = new KmaForecastClient(restClient, "test+key/=&?%")
-                .fetch(TIMES, WeatherElement.TMP);
+                .fetch(new KmaForecastRequest(TIMES, WeatherElement.TMP));
 
         assertThat(result.validCount()).isEqualTo(2);
     }
@@ -112,7 +113,7 @@ class KmaForecastClientTest {
                 .andRespond(withStatus(HttpStatus.valueOf(status)).body("authKey=" + API_KEY)
                         .header(HttpHeaders.LOCATION, "https://example.com/?authKey=" + API_KEY));
 
-        assertThatThrownBy(() -> client.fetch(TIMES, WeatherElement.TMP))
+        assertThatThrownBy(() -> client.fetch(new KmaForecastRequest(TIMES, WeatherElement.TMP)))
                 .isInstanceOfSatisfying(UpstreamServiceException.class, exception -> {
                     assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.WEATHER_PROVIDER_UNAVAILABLE);
                     assertThat(exception).hasMessageContaining("HTTP status=" + status);
@@ -129,7 +130,7 @@ class KmaForecastClientTest {
         server.expect(requestTo(Matchers.startsWith(URL)))
                 .andRespond(withSuccess(body, MediaType.TEXT_PLAIN));
 
-        assertThatThrownBy(() -> client.fetch(TIMES, WeatherElement.TMP))
+        assertThatThrownBy(() -> client.fetch(new KmaForecastRequest(TIMES, WeatherElement.TMP)))
                 .isInstanceOfSatisfying(UpstreamServiceException.class, exception -> {
                     assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.WEATHER_RESPONSE_INVALID);
                     assertSecretIsAbsent(exception);
@@ -160,11 +161,11 @@ class KmaForecastClientTest {
     }
 
     @Test
-    @DisplayName("시각이나 요소가 없으면 외부 요청 전에 입력 오류를 알린다")
-    void rejectsMissingRequestMetadata() {
-        assertThatThrownBy(() -> client.fetch(null, WeatherElement.TMP))
+    @DisplayName("요청 객체가 없으면 외부 요청 전에 입력 오류를 알린다")
+    void rejectsMissingRequest() {
+        assertThatThrownBy(() -> client.fetch(null))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> client.fetch(TIMES, null))
+        assertThatThrownBy(() -> client.fetchMeasured(null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -175,12 +176,12 @@ class KmaForecastClientTest {
     void requiresApiKeyOnlyWhenFetching(final String apiKey) {
         KmaForecastClient clientWithoutKey = new KmaForecastClient(restClient, apiKey);
 
-        assertThatThrownBy(() -> clientWithoutKey.fetch(TIMES, WeatherElement.TMP))
+        assertThatThrownBy(() -> clientWithoutKey.fetch(new KmaForecastRequest(TIMES, WeatherElement.TMP)))
                 .isInstanceOf(IllegalStateException.class).hasMessageContaining("KMA_API_KEY가 필요합니다");
     }
 
     private void assertNetworkFailure() {
-        assertThatThrownBy(() -> client.fetch(TIMES, WeatherElement.TMP))
+        assertThatThrownBy(() -> client.fetch(new KmaForecastRequest(TIMES, WeatherElement.TMP)))
                 .isInstanceOfSatisfying(UpstreamServiceException.class, exception -> {
                     assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.WEATHER_PROVIDER_UNAVAILABLE);
                     assertThat(exception).hasMessageContaining("네트워크 오류 또는 시간 초과");
@@ -208,5 +209,20 @@ class KmaForecastClientTest {
         values[1] = "-999.00";
         values[18833] = "1.00";
         return String.join(",", values) + ",\n";
+    }
+
+    @Test
+    @DisplayName("문자 수가 아닌 수신 바이트 수와 HTTP·파싱 소요시간을 반환한다")
+    void measuresReceivedBytesAndDurations() {
+        String raw = "\uFEFF" + validRaw();
+        server.expect(requestTo(Matchers.startsWith(URL))).andRespond(withSuccess(raw, MediaType.TEXT_PLAIN));
+
+        ForecastFetchResult result = client.fetchMeasured(new KmaForecastRequest(TIMES, WeatherElement.TMP));
+
+        assertThat(result.responseBytes()).isEqualTo(raw.getBytes(StandardCharsets.UTF_8).length);
+        assertThat(result.responseBytes()).isGreaterThan(raw.length());
+        assertThat(result.httpNanos()).isPositive();
+        assertThat(result.parseNanos()).isPositive();
+        assertThat(result.forecast().validCount()).isEqualTo(2);
     }
 }

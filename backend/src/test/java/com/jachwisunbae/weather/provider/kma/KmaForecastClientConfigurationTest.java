@@ -1,4 +1,4 @@
-package com.jachwisunbae.weather.client;
+package com.jachwisunbae.weather.provider.kma;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

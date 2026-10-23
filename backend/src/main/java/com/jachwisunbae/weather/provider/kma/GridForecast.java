@@ -1,5 +1,8 @@
-package com.jachwisunbae.weather.domain;
+package com.jachwisunbae.weather.provider.kma;
 
+import com.jachwisunbae.weather.domain.ForecastTimes;
+import com.jachwisunbae.weather.domain.GridPoint;
+import com.jachwisunbae.weather.domain.WeatherElement;
 import java.util.List;
 
 // 한 번의 RAW 응답에서 얻은 유효 격자와 요청에 사용한 시각·요소를 함께 보관한다.

@@ -17,7 +17,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 class StoredForecastTest {
 
     private static final GridPoint POINT = new GridPoint(60, 127);
-    private static final ForecastTimes TIMES = ForecastTimes.parse("2026102223", "2026102300");
+    private static final ForecastTimes TIMES = new ForecastTimes(LocalDateTime.of(2026, 10, 22, 23, 0),
+            LocalDateTime.of(2026, 10, 23, 0, 0));
     private static final LocalDateTime COLLECTED_AT = TIMES.publishedAt().plusMinutes(15);
     private static final LocalDate DATE = LocalDate.of(2026, 10, 23);
 

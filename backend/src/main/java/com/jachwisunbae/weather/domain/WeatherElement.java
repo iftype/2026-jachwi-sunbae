@@ -1,5 +1,7 @@
 package com.jachwisunbae.weather.domain;
 
+import java.util.List;
+
 // API의 vars와 대응한다. 값의 단위·코드 해석은 RAW 파싱과 분리한다.
 public enum WeatherElement {
     TMP, // 기온(℃)
@@ -11,5 +13,11 @@ public enum WeatherElement {
     REH, // 상대습도(%)
     WSD, // 풍속(m/s)
     TMN, // 일 최저기온(℃)
-    TMX  // 일 최고기온(℃)
+    TMX; // 일 최고기온(℃)
+
+    private static final List<WeatherElement> HOURLY_ELEMENTS = List.of(TMP, SKY, PTY, POP, PCP, SNO, REH, WSD);
+
+    public static List<WeatherElement> hourlyElements() {
+        return HOURLY_ELEMENTS;
+    }
 }

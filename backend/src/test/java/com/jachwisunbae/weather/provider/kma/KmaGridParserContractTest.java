@@ -1,16 +1,16 @@
-package com.jachwisunbae.weather.parser;
+package com.jachwisunbae.weather.provider.kma;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.jachwisunbae.weather.domain.ForecastTimes;
-import com.jachwisunbae.weather.domain.GridForecast;
 import com.jachwisunbae.weather.domain.GridPoint;
-import com.jachwisunbae.weather.domain.GridValue;
 import com.jachwisunbae.weather.domain.WeatherElement;
+import com.jachwisunbae.weather.support.ForecastTimesFixture;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -34,7 +34,8 @@ class KmaGridParserContractTest {
         String[] tokens = new String[CELL_COUNT];
         Arrays.fill(tokens, "-99.00");
         tokens[18833] = Double.toString(code);
-        ForecastTimes times = ForecastTimes.parse("2026102217", "2026102220");
+        ForecastTimes times = new ForecastTimes(LocalDateTime.of(2026, 10, 22, 17, 0),
+                LocalDateTime.of(2026, 10, 22, 20, 0));
 
         GridForecast result = parser.parse(String.join(",", tokens), times, element);
 
@@ -89,7 +90,7 @@ class KmaGridParserContractTest {
                 CSVParser csv = CSVFormat.DEFAULT.builder().setHeader().setSkipHeaderRecord(true).get().parse(reader)) {
             List<SampleCell> cells = csv.getRecords().stream()
                     .filter(row -> row.get("element").equals(element.name()))
-                    .map(row -> new SampleCell(ForecastTimes.parse(row.get("tmfc"), row.get("tmef")),
+                    .map(row -> new SampleCell(ForecastTimesFixture.times(row.get("tmfc"), row.get("tmef")),
                             Integer.parseInt(row.get("index")), Integer.parseInt(row.get("nx")),
                             Integer.parseInt(row.get("ny")), row.get("raw_value")))
                     .toList();

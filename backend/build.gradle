@@ -91,3 +91,10 @@ tasks.register('importTransitNetwork', JavaExec) {
 	classpath = sourceSets.main.runtimeClasspath
 	mainClass = 'com.jachwisunbae.transit.importer.TransitImportCommand'
 }
+
+tasks.register('collectWeather', JavaExec) {
+	group = 'application'
+	description = '명시한 KST 발표분의 24시간 전국 예보와 일별 기온을 한 번 수집한다.'
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'com.jachwisunbae.weather.collector.WeatherCollectionCommand'
+}

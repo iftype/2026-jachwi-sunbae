@@ -1,11 +1,9 @@
-package com.jachwisunbae.weather.parser;
+package com.jachwisunbae.weather.provider.kma;
 
 import com.jachwisunbae.common.exception.errorcode.ErrorCode;
 import com.jachwisunbae.common.exception.server.UpstreamServiceException;
 import com.jachwisunbae.weather.domain.ForecastTimes;
-import com.jachwisunbae.weather.domain.GridForecast;
 import com.jachwisunbae.weather.domain.GridPoint;
-import com.jachwisunbae.weather.domain.GridValue;
 import com.jachwisunbae.weather.domain.WeatherElement;
 import java.util.ArrayList;
 import java.util.List;

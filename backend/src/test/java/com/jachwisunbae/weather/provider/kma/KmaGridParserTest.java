@@ -1,4 +1,4 @@
-package com.jachwisunbae.weather.parser;
+package com.jachwisunbae.weather.provider.kma;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -6,10 +6,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.jachwisunbae.common.exception.errorcode.ErrorCode;
 import com.jachwisunbae.common.exception.server.UpstreamServiceException;
 import com.jachwisunbae.weather.domain.ForecastTimes;
-import com.jachwisunbae.weather.domain.GridForecast;
 import com.jachwisunbae.weather.domain.GridPoint;
-import com.jachwisunbae.weather.domain.GridValue;
 import com.jachwisunbae.weather.domain.WeatherElement;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
@@ -21,7 +20,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 class KmaGridParserTest {
 
-    private static final ForecastTimes TIMES = ForecastTimes.parse("2026102214", "2026102217");
+    private static final ForecastTimes TIMES = new ForecastTimes(LocalDateTime.of(2026, 10, 22, 14, 0),
+            LocalDateTime.of(2026, 10, 22, 17, 0));
 
     private final KmaGridParser parser = new KmaGridParser();
 

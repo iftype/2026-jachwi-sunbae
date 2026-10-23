@@ -1,11 +1,7 @@
-package com.jachwisunbae.weather.client;
+package com.jachwisunbae.weather.provider.kma;
 
 import com.jachwisunbae.common.exception.errorcode.ErrorCode;
 import com.jachwisunbae.common.exception.server.UpstreamServiceException;
-import com.jachwisunbae.weather.domain.ForecastTimes;
-import com.jachwisunbae.weather.domain.GridForecast;
-import com.jachwisunbae.weather.domain.WeatherElement;
-import com.jachwisunbae.weather.parser.KmaGridParser;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -42,23 +38,31 @@ public class KmaForecastClient {
         this.apiKey = apiKey;
     }
 
-    public GridForecast fetch(final ForecastTimes times, final WeatherElement element) {
-        if (times == null || element == null) {
+    public GridForecast fetch(final KmaForecastRequest request) {
+        return fetchMeasured(request).forecast();
+    }
+
+    public ForecastFetchResult fetchMeasured(final KmaForecastRequest request) {
+        if (request == null) {
             throw new IllegalArgumentException("요청할 발표·예보 시각과 기상 요소가 필요합니다.");
         }
         validateApiKey(apiKey);
-        String raw = request(times, element);
+        long httpStart = System.nanoTime();
+        byte[] body = request(request);
+        long httpNanos = System.nanoTime() - httpStart;
+        long parseStart = System.nanoTime();
         // HTTP 200의 오류 본문도 기존 RAW 파싱 계약으로 거부한다.
-        return parser.parse(raw, times, element);
+        GridForecast forecast = parser.parse(new String(body, StandardCharsets.UTF_8), request.times(), request.element());
+        return new ForecastFetchResult(forecast, body.length, httpNanos, System.nanoTime() - parseStart);
     }
 
-    private String request(final ForecastTimes times, final WeatherElement element) {
+    private byte[] request(final KmaForecastRequest forecastRequest) {
         try {
             return client.get()
                     .uri(uri -> uri.path(FORECAST_PATH)
-                            .queryParam("tmfc", times.tmfc())
-                            .queryParam("tmef", times.tmef())
-                            .queryParam("vars", element.name())
+                            .queryParam("tmfc", forecastRequest.tmfc())
+                            .queryParam("tmef", forecastRequest.tmef())
+                            .queryParam("vars", forecastRequest.element().name())
                             .queryParam("authKey", "{apiKey}")
                             .build(apiKey))
                     .accept(MediaType.TEXT_PLAIN)
@@ -69,7 +73,7 @@ public class KmaForecastClient {
                             throw new UpstreamServiceException(ErrorCode.WEATHER_PROVIDER_UNAVAILABLE,
                                     "기상청 예보 요청에 실패했습니다. HTTP status=" + status);
                         }
-                        return StreamUtils.copyToString(response.getBody(), StandardCharsets.UTF_8);
+                        return StreamUtils.copyToByteArray(response.getBody());
                     });
         } catch (ResourceAccessException exception) {
             // 원래 예외의 URL·메시지·cause에 authKey가 포함될 수 있어 전달하지 않는다.
@@ -81,7 +85,7 @@ public class KmaForecastClient {
         }
     }
 
-    private static RestClient createClient() {
+    static RestClient createClient() {
         HttpClient httpClient = HttpClient.newBuilder()
                 .connectTimeout(CONNECT_TIMEOUT)
                 .followRedirects(HttpClient.Redirect.NEVER)
