@@ -3,10 +3,15 @@ package com.jachwisunbae.property.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
+import com.jachwisunbae.property.entity.Property;
 import com.jachwisunbae.property.repository.query.PropertyListItemQuery;
+import com.jachwisunbae.property.type.RoomOption;
+import com.jachwisunbae.property.type.UtilityOption;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import javax.sql.DataSource;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeAll;
@@ -44,6 +49,8 @@ class JdbcPropertyRepositoryTest {
     void clearProperties() {
         jdbcTemplate.update("DELETE FROM property_checklist_items");
         jdbcTemplate.update("DELETE FROM property_checklists");
+        jdbcTemplate.update("DELETE FROM property_room_options");
+        jdbcTemplate.update("DELETE FROM property_utility_options");
         jdbcTemplate.update("DELETE FROM property_details");
         jdbcTemplate.update("DELETE FROM properties");
         jdbcTemplate.update("DELETE FROM members");
@@ -86,6 +93,23 @@ class JdbcPropertyRepositoryTest {
         jdbcTemplate.update("UPDATE properties SET deleted_at = NOW(6) WHERE id = ?", deleted);
 
         assertThat(propertyRepository.findListByMemberId(member)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("매물을 만들 때 옵션을 저장하고, 수정하면 옵션을 새 값으로 바꾼다")
+    void savesAndReplacesOptions() {
+        long member = insertMember("me");
+        LocalDateTime now = LocalDateTime.parse("2026-10-20T00:00:00");
+        Property saved = propertyRepository.save(Property.create(member, "옵션 있는 집", 1000L, 50L, null, null, null,
+                null, 0L, null, List.of("BED", "DESK"), List.of("WATER"), null, now));
+
+        propertyRepository.update(Property.reconstruct(saved.getId(), member, "옵션 있는 집", 1000L, 50L, null, null,
+                null, null, 0L, null, Set.of(RoomOption.BED), Set.of(UtilityOption.INTERNET), null, "", now, now));
+
+        Property updated = propertyRepository.findByIdAndMemberId(saved.getId(), member).orElseThrow();
+        assertThat(saved.getRoomOptions()).containsExactlyInAnyOrder(RoomOption.BED, RoomOption.DESK);
+        assertThat(updated.getRoomOptions()).containsExactly(RoomOption.BED);
+        assertThat(updated.getUtilityOptions()).containsExactly(UtilityOption.INTERNET);
     }
 
     private long insertMember(final String nickname) {

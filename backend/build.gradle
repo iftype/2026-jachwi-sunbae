@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'com.jachwisunbae'
-version = '2.0.1'
+version = '2.1.0'
 description = 'Jachwi Sunbae MVP2 backend application'
 
 def sourceCommitId = providers.environmentVariable('SOURCE_COMMIT_ID')
@@ -83,4 +83,11 @@ tasks.register('importRentalTransactions', JavaExec) {
 	description = '소형 주택 월세 CSV를 법정동 코드에 매핑하고 검증 또는 적재한다.'
 	classpath = sourceSets.main.runtimeClasspath
 	mainClass = 'com.jachwisunbae.rental.importer.RentalImportCommand'
+}
+
+tasks.register('importTransitNetwork', JavaExec) {
+	group = 'application'
+	description = '행정동 경계와 GTFS 파일을 목적지 탐색용 노선망으로 적재한다.'
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'com.jachwisunbae.transit.importer.TransitImportCommand'
 }

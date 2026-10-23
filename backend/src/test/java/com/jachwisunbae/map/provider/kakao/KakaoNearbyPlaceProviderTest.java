@@ -27,7 +27,7 @@ class KakaoNearbyPlaceProviderTest {
     void mapsDocumentsToNearbyPlaces() {
         client.respond("CS2", 1, true, new KakaoCategorySearchResponse.Document("123", "이마트24 KT판교사옥점",
                 "경기 성남시 수정구 금토로 32", "경기 성남시 수정구 금토동 696",
-                new BigDecimal("37.4066144"), new BigDecimal("127.0908479"), 250));
+                new BigDecimal("37.4066144"), new BigDecimal("127.0908479"), 250, null, null));
 
         List<NearbyPlace> places = provider.nearby(LATITUDE, LONGITUDE, 500, EnumSet.of(MapCategory.CONVENIENCE));
 
@@ -52,9 +52,9 @@ class KakaoNearbyPlaceProviderTest {
         client.respond("CS2", 1, true,
                 document("1", "도로명 1", "지번 1"),
                 new KakaoCategorySearchResponse.Document("2", null, "도로명 2", "지번 2",
-                        new BigDecimal("37.4064"), new BigDecimal("127.0888"), 100),
+                        new BigDecimal("37.4064"), new BigDecimal("127.0888"), 100, null, null),
                 new KakaoCategorySearchResponse.Document("3", "좌표 없는 편의점", "도로명 3", "지번 3",
-                        null, null, 100),
+                        null, null, 100, null, null),
                 document("4", "도로명 4", "지번 4"));
 
         List<NearbyPlace> places = provider.nearby(LATITUDE, LONGITUDE, 500, EnumSet.of(MapCategory.CONVENIENCE));
@@ -114,7 +114,7 @@ class KakaoNearbyPlaceProviderTest {
 
     private static KakaoCategorySearchResponse.Document document(String id, String roadAddress, String address) {
         return new KakaoCategorySearchResponse.Document(id, "장소 " + id, roadAddress, address,
-                new BigDecimal("37.4064"), new BigDecimal("127.0888"), 100);
+                new BigDecimal("37.4064"), new BigDecimal("127.0888"), 100, null, null);
     }
 
     private static class FakeKakaoPlaceClient extends KakaoPlaceClient {

@@ -122,7 +122,8 @@
 - WebView 지도 마커 위치 갱신을 `transform` 기반으로 최적화한다.
 - 매물 사진 Object URL을 재사용해 지도 확대·이동 중 불필요한 재생성을 줄인다.
 
-[Unreleased]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/compare/v2.0.1...HEAD
+[Unreleased]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/releases/tag/v2.1.0
 [2.0.1]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/releases/tag/v2.0.1
 [2.0.0]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/releases/tag/v2.0.0
 [1.1.0]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/releases/tag/v1.1.0
