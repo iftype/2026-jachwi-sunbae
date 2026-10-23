@@ -1,6 +1,6 @@
 # 전국 날씨 데이터 수집
 
-전국 단기예보 격자자료의 HTTP 수신·RAW 파싱·모델과 저장 스키마를 설명한다. 현재는 선택한 발표시각·예보대상시각·요소 한 개의 전국 자료를 요청하고 검증할 수 있으며, Flyway가 빈 날씨 테이블을 생성한다. JDBC 저장·수집 명령·자동 실행은 후속 작업에서 연결한다.
+전국 단기예보 격자자료의 HTTP 수신·RAW 파싱·모델·저장 스키마와 JDBC 배치 UPSERT를 설명한다. 현재는 요소 한 개의 전국 자료를 요청하고 검증할 수 있으며, 결합된 시간별·일별 예보를 저장할 수 있다. 요소 결합·수집 명령·자동 실행은 후속 작업에서 연결한다.
 
 ## HTTP 클라이언트
 
@@ -21,14 +21,17 @@ HTTP 200 이외의 상태는 `WEATHER_PROVIDER_UNAVAILABLE`로 처리하고 디�
 
 ## 모델과 파서
 
-| 클래스           | 역할                                                |
-| ---------------- | --------------------------------------------------- |
-| `WeatherElement` | 수집 대상 10개 요소의 API 식별자                    |
-| `ForecastTimes`  | KST 발표시각과 예보대상시각, `tmfc`·`tmef` 변환     |
-| `GridPoint`      | 1부터 시작하는 격자 좌표와 원본 인덱스 변환         |
-| `GridValue`      | 결측을 제외한 격자 한 곳의 원본 숫자                |
-| `GridForecast`   | 요청 시각·기상 요소·유효 격자 목록과 유효·결측 개수 |
-| `KmaGridParser`  | 응답 구조 검증, 숫자 파싱과 결측 제외               |
+| 클래스             | 역할                                                |
+| ------------------ | --------------------------------------------------- |
+| `WeatherElement`   | 수집 대상 10개 요소의 API 식별자                    |
+| `ForecastTimes`    | KST 발표시각과 예보대상시각, `tmfc`·`tmef` 변환     |
+| `GridPoint`        | 1부터 시작하는 격자 좌표와 원본 인덱스 변환         |
+| `GridValue`        | 결측을 제외한 격자 한 곳의 원본 숫자                |
+| `GridForecast`     | 요청 시각·기상 요소·유효 격자 목록과 유효·결측 개수 |
+| `KmaGridParser`    | 응답 구조 검증, 숫자 파싱과 결측 제외               |
+| `HourlyForecast`   | 같은 격자·발표·대상 시각의 시간별 8개 값과 수집시각 |
+| `DailyTemperature` | 일별 기온 한 요소의 값·발표시각·수집시각            |
+| `DailyForecast`    | 같은 격자·대상 날짜의 TMN·TMX 수집 결과             |
 
 파서는 Spring·HTTP·DB에 의존하지 않는다. RAW 본문에는 발표시각·예보대상시각·요소가 없으므로 호출자가 실제 요청에 사용한 메타데이터를 전달해야 한다.
 
@@ -105,9 +108,44 @@ TMN·TMX는 제공 시각이 다르고 한 요소만 갱신할 수 있으므로 
 
 시간별 예보는 `forecast_at >= published_at`, 일별 기온은 각 발표일이 `forecast_date` 이하인지 검사한다. 발표·시간별 예보시각의 분·초는 0이어야 한다. 하루 8개 발표시각 선택과 TMN·TMX의 제공 시각은 수집 계획에서 검증한다.
 
-최신성 비교는 시간별 행의 `published_at`, 일별 요소 각각의 `*_published_at`을 기준으로 후속 UPSERT에서 구현한다. 더 최신 발표분과 같은 발표시각의 정정·재수집을 반영할 때 수집시각도 갱신하며, 과거 발표분을 무시할 때는 기존 수집시각도 유지하는 기준이다. 이번 마이그레이션 자체가 역순 갱신을 막지는 않는다.
+최신성 비교는 시간별 행의 `published_at`, 일별 요소 각각의 `*_published_at`을 기준으로 JDBC 저장소의 UPSERT에서 수행한다. 더 최신 발표분과 같은 발표시각의 정정·재수집을 반영할 때 수집시각도 갱신하며, 과거 발표분을 무시할 때는 기존 수집시각도 유지한다. DB에 직접 UPDATE하면 이 보호가 적용되지 않는다.
 
 기본키는 격자별 시각·날짜 조회를 지원한다. 보존기간 정리를 위한 시간 선두 인덱스나 추가 조회 인덱스는 실제 조회·삭제 비용을 측정한 뒤 추가한다.
+
+## JDBC 배치 UPSERT
+
+`JdbcWeatherForecastRepository`는 `JdbcTemplate.batchUpdate`로 최대 1,000행씩 실행한다. `upsertHourly(List<HourlyForecast>)`와 `upsertDaily(List<DailyForecast>)`를 제공하고 빈 목록은 아무 작업도 하지 않는다. 목록과 행은 null일 수 없으며, 입력 목록의 null 행은 쓰기 전에 거부한다.
+
+입력 모델은 필수 메타데이터, 유한한 숫자, `-99`·`-999` 금지를 생성 시 검증한다. `HourlyForecast`는 8개 요소가 같은 발표·대상 시각에 속한다고 가정한다. 실제 `GridForecast`들을 검증하고 결합하는 과정은 후속 수집 서비스에서 구현한다.
+
+| 입력과 기존 발표시각의 관계 | 반영 결과                             |
+| --------------------------- | ------------------------------------- |
+| 기본키에 해당하는 행 없음   | 새 행 삽입                            |
+| 입력이 더 최신              | 값·발표시각·수집시각 갱신             |
+| 발표시각 같음               | 정정·재수집으로 보고 값·수집시각 갱신 |
+| 입력이 과거                 | 기존 값·발표시각·수집시각 모두 유지   |
+
+비교는 사전 SELECT 없이 `INSERT ... ON DUPLICATE KEY UPDATE` 안에서 수행한다. 입력 행은 `AS incoming` 별칭으로 참조한다. 이 방식은 [MySQL 8.4의 행 별칭 문법](https://dev.mysql.com/doc/refman/8.4/en/insert-on-duplicate.html)을 사용하며, 폐기 예정인 `VALUES(column)` 함수는 사용하지 않는다. 값·수집시각을 비교한 뒤 발표시각을 마지막에 갱신한다.
+
+동일 발표시각은 나중에 저장한 입력을 반영하며, `collected_at`을 추가적인 최신성 조건으로 쓰지 않는다. 수집시각은 호출자가 전달한 KST 시각을 저장한다. 최신·동일 발표분의 정상 결측은 기존 숫자를 `NULL`로 바꾸고, 반대로 정상 0은 기존 `NULL`을 0으로 바꾼다.
+
+일별 입력은 다음처럼 구분한다.
+
+- `DailyForecast.tmn()` 또는 `tmx()`가 `null`: 해당 요소를 이번에 수집하지 않았으므로 기존 세 컬럼을 모두 유지한다.
+- `DailyTemperature.value()`가 `null`: 정상 응답의 결측이다. 해당 요소의 발표시각이 최신·동일이면 값은 `NULL`로, 출처 시각은 입력값으로 갱신한다.
+- 기존 일별 행에 한 요소만 있으면 다른 요소를 나중에 채울 수 있다. 상대 요소의 발표시각과는 비교하지 않는다.
+
+예를 들어 아래 호출은 TMN의 결측 결과만 반영하고 기존 TMX는 유지한다.
+
+```java
+DailyTemperature minimum = new DailyTemperature(null, publishedAt, collectedAt);
+DailyForecast forecast = new DailyForecast(point, forecastDate, minimum, null);
+repository.upsertDaily(List.of(forecast));
+```
+
+저장소는 호출자가 연 Spring 트랜잭션에 참여하며 별도 트랜잭션을 시작하거나 커밋하지 않는다. 트랜잭션이 없으면 자동 커밋 설정에 따라 앞서 실행한 배치가 남을 수 있다. 후속 수집 서비스가 저장 단위의 트랜잭션 경계를 정해야 하며, 현재 구현이 발표분 전체의 원자적 갱신·실패 재시도를 보장하지는 않는다. DB 오류는 숨기지 않고 호출자에게 전달한다.
+
+MySQL의 영향받은 행 수는 INSERT·UPDATE 여부와 드라이버 설정에 따라 다르므로 메서드는 삽입·갱신 건수로 환산한 값을 반환하지 않는다. 테스트는 실제 저장된 행과 값을 조회해 검증한다. JDBC URL의 `rewriteBatchedStatements` 설정은 변경하지 않았으며, 테스트는 OFF·ON 모두에서 같은 결과를 확인한다.
 
 ## 테스트와 실제 샘플 확인
 
@@ -118,10 +156,11 @@ TMN·TMX는 제공 시각이 다르고 한 요소만 갱신할 수 있으므로 
   --tests 'com.jachwisunbae.weather.domain.*' --tests 'com.jachwisunbae.weather.parser.*' --no-daemon
 ```
 
-`WeatherSchemaIntegrationTest`와 `DatabaseBaselineIntegrationTest`는 Testcontainers의 MySQL 8.4.10을 사용하므로 Docker가 필요하다. 개인 로컬 DB 대신 별도 컨테이너에서 빈 DB·V2 업그레이드·재적용, 기본키·CHECK 제약, 정상값·NULL과 시각 보존을 확인한다. SQL 변경 후에는 인수 테스트를 포함한 전체 검사도 실행한다.
+`WeatherSchemaIntegrationTest`, `JdbcWeatherForecastRepositoryTest`, `DatabaseBaselineIntegrationTest`는 Testcontainers의 MySQL 8.4.10을 사용하므로 Docker가 필요하다. 개인 로컬 DB 대신 별도 컨테이너에서 마이그레이션, 기본키·CHECK 제약, UPSERT 최신성·정정, NULL·0과 시각 보존, 1,001행 배치·재실행, 호출자 트랜잭션의 롤백을 확인한다. 저장소 테스트는 DB 세션을 UTC로 설정해도 KST `LocalDateTime`이 변환되지 않는지 검사한다. SQL 변경 후에는 인수 테스트를 포함한 전체 검사도 실행한다.
 
 ```bash
 ./gradlew test --tests 'com.jachwisunbae.weather.database.*' \
+  --tests 'com.jachwisunbae.weather.repository.*' \
   --tests 'com.jachwisunbae.common.database.DatabaseBaselineIntegrationTest' --no-daemon
 ./gradlew testAll --no-daemon
 ```
