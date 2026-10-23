@@ -6,10 +6,6 @@
 
 아직 릴리스하지 않은 변경을 기록한다.
 
-### Deprecated
-
-- 생활권 탐색 응답 정류장의 방향(`direction`, 8방위) 표시를 중단한다. 필드는 남겨 두고 항상 `null`을 보낸다.
-
 ## [2.0.1] - 2026-10-15
 
 ### Added
@@ -126,7 +122,8 @@
 - WebView 지도 마커 위치 갱신을 `transform` 기반으로 최적화한다.
 - 매물 사진 Object URL을 재사용해 지도 확대·이동 중 불필요한 재생성을 줄인다.
 
-[Unreleased]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/compare/v2.0.1...HEAD
+[Unreleased]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/releases/tag/v2.1.0
 [2.0.1]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/releases/tag/v2.0.1
 [2.0.0]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/releases/tag/v2.0.0
 [1.1.0]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/releases/tag/v1.1.0

@@ -17,13 +17,10 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
-// KTDB(국가교통DB) GTFS 디렉터리를 읽어 버스·지하철 노선망으로 정리한다. 어떤 행을 적재할지는 여기서 판단한다.
 @Component
 public class GtfsFeedReader {
 
-    // route_type 1은 지하철·도시철도, 3은 GTFS 표준 버스이고 KTDB 데이터는 버스에 0도 쓴다. 2(일반철도) 등은 뺀다.
     private static final Set<String> TRANSIT_ROUTE_TYPES = Set.of("0", "1", "3");
-    // GTFS transfer_type 3은 환승할 수 없는 정류장 쌍이다.
     private static final String TRANSFER_NOT_POSSIBLE = "3";
 
     public GtfsFeed read(final Path directory) {
