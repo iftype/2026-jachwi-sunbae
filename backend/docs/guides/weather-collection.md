@@ -156,7 +156,7 @@ MySQL의 영향받은 행 수는 INSERT·UPDATE 여부와 드라이버 설정에
   --tests 'com.jachwisunbae.weather.domain.*' --tests 'com.jachwisunbae.weather.parser.*' --no-daemon
 ```
 
-`WeatherSchemaIntegrationTest`, `JdbcWeatherForecastRepositoryTest`, `DatabaseBaselineIntegrationTest`는 Testcontainers의 MySQL 8.4.10을 사용하므로 Docker가 필요하다. 개인 로컬 DB 대신 별도 컨테이너에서 마이그레이션, 기본키·CHECK 제약, UPSERT 최신성·정정, NULL·0과 시각 보존, 1,001행 배치·재실행, 호출자 트랜잭션의 롤백을 확인한다. 저장소 테스트는 DB 세션을 UTC로 설정해도 KST `LocalDateTime`이 변환되지 않는지 검사한다. SQL 변경 후에는 인수 테스트를 포함한 전체 검사도 실행한다.
+`WeatherSchemaIntegrationTest`, `JdbcWeatherForecastRepositoryTest`, `WeatherForecastRecollectionIntegrationTest`, `DatabaseBaselineIntegrationTest`는 Testcontainers의 MySQL 8.4.10을 사용하므로 Docker가 필요하다. 개인 로컬 DB 대신 별도 컨테이너에서 마이그레이션, 기본키·CHECK 제약, UPSERT 최신성·정정, NULL·0과 시각 보존, 배치·재실행, 호출자 트랜잭션의 롤백을 확인한다. 저장소 테스트는 DB 세션을 UTC로 설정해도 KST `LocalDateTime`이 변환되지 않는지 검사한다. SQL 변경 후에는 인수 테스트를 포함한 전체 검사도 실행한다.
 
 ```bash
 ./gradlew test --tests 'com.jachwisunbae.weather.database.*' \
@@ -164,6 +164,53 @@ MySQL의 영향받은 행 수는 INSERT·UPDATE 여부와 드라이버 설정에
   --tests 'com.jachwisunbae.common.database.DatabaseBaselineIntegrationTest' --no-daemon
 ./gradlew testAll --no-daemon
 ```
+
+### 최초 적재·재수집 재현
+
+`WeatherForecastRecollectionIntegrationTest`는 1,001개 격자에 여러 예보시각·날짜를 붙인 저장 입력을 코드로 생성한다. 1,001은 1,000행 배치 경계를 넘기기 위한 테스트 크기이며 실제 유효 격자 수가 아니다. HTTP 호출·RAW 파싱·요소 결합을 거치지 않는 저장소 통합 테스트로, 실제 전국 수집의 검증은 수집 서비스 연결 단계에서 진행한다.
+
+- 시간별 대상은 KST `2026-10-22 23:00`, `2026-10-23 00:00`, `2026-10-23 01:00`이다. 일별 대상은 10월 22·23·24일이다.
+- 17시 발표분을 먼저 적재한 뒤 20시 최신 발표분, 같은 발표시각의 정정, 수집시각만 늦은 과거 발표분을 차례로 전달한다.
+- 재수집 입력에 없는 기존 행도 포함해 **DB 전체 행의 기본키·10개 요소·발표시각·수집시각**을 단계마다 대조한다. 기대 결과는 UPSERT 비교식을 다시 구현해 계산하지 않고 시나리오에서 명시한다.
+- TMN만 수집했을 때 기존 TMX를 유지하고, 미수집 TMX를 TMN보다 과거인 발표분으로도 채울 수 있는지 확인한다. 한 행의 과거 TMN은 무시하면서 최신 TMX의 결측 정정은 반영한다.
+- 값·발표시각·수집시각까지 같은 입력의 재실행과, 값은 같아도 수집시각이 달라지는 재수집을 구분한다. 정상 결측 `NULL`과 0의 양방향 정정, 음수·소수와 마이크로초 보존도 확인한다.
+
+Docker를 실행한 뒤 `backend`에서 아래 명령으로 다시 측정한다. 외부 API 키와 저장소 밖의 원본 파일은 필요 없다. `--rerun-tasks`는 Gradle이 이전 테스트 결과를 재사용하지 않도록 한다.
+
+```bash
+./gradlew test --tests 'com.jachwisunbae.weather.repository.WeatherForecastRecollectionIntegrationTest' \
+  --rerun-tasks --no-daemon
+```
+
+테스트는 `rewriteBatchedStatements=false`와 `true`에서 각각 실행한다. `build/reports/tests/test/index.html`의 해당 클래스 Standard output과 `build/test-results/test/TEST-com.jachwisunbae.weather.repository.WeatherForecastRecollectionIntegrationTest.xml`의 `system-out`에 `weather-storage-check` 기록을 남긴다.
+
+`inserted`는 새 기본키, `updated`는 기존 행의 값 또는 출처 시각이 바뀐 행, `unchanged`는 변하지 않은 기존 행의 수다. **검증용 DB 전후 조회를 비교한 논리적 행 수**이며 JDBC 영향 행 수를 변환한 값이 아니다. `unchanged`에는 해당 단계의 입력에서 빠진 기존 행도 포함한다. `dbMicros`는 트랜잭션 실행 전부터 커밋·커넥션 정리가 끝날 때까지의 마이크로초다. 커넥션 생성, JDBC 바인딩과 배치 실행을 포함하고 컨테이너 기동·Flyway·입력 생성·전후 검증 조회는 제외한다. 단계마다 별도 트랜잭션을 사용한다.
+
+2026-10-23 로컬 Java 21·MySQL 8.4.10에서 4개 시나리오 테스트가 모두 통과했다. 아래 각 행은 단계 하나의 결과이며, 두 드라이버 설정에서 같은 저장 결과를 확인했다. 삽입/갱신/유지는 모두 행 단위다.
+
+| 단계                                                                                 | 테이블별 입력 행 | 테이블별 예상 / 실제 총행 | 시간별 삽입 / 갱신 / 유지 | 일별 삽입 / 갱신 / 유지 |
+| ------------------------------------------------------------------------------------ | ---------------: | ------------------------- | ------------------------- | ----------------------- |
+| 최초 적재 (`initial`)                                                                |            2,002 | 2,002 / 2,002             | 2,002 / 0 / 0             | 2,002 / 0 / 0           |
+| 동일 입력 재실행 (`replay`)                                                          |            2,002 | 2,002 / 2,002             | 0 / 0 / 2,002             | 0 / 0 / 2,002           |
+| 수집시각 갱신 (`recollect`)                                                          |            2,002 | 2,002 / 2,002             | 0 / 2,002 / 0             | 0 / 2,002 / 0           |
+| 최신 발표와 새 대상 (`new-publication`)                                              |            2,002 | 3,003 / 3,003             | 1,001 / 1,001 / 1,001     | 1,001 / 1,001 / 1,001   |
+| 정정과 과거 입력 / 미수집 요소 보충 (`correction-and-stale` / `correction-and-fill`) |            2,002 | 3,003 / 3,003             | 0 / 1,001 / 2,002         | 0 / 2,002 / 1,001       |
+| 과거 발표 재수집 (`stale`)                                                           |            3,003 | 3,003 / 3,003             | 0 / 0 / 3,003             | 0 / 0 / 3,003           |
+| NULL·0 정정 (`zero-correction`)                                                      |            1,001 | 3,003 / 3,003             | 0 / 1,001 / 2,002         | 0 / 1,001 / 2,002       |
+
+같은 실행에서 기록한 DB 처리 시간이다. 표는 `dbMicros`를 밀리초로 환산했다. 단일 실행의 참고값으로, 워밍업·반복 측정을 거친 성능 비교나 통과 기준으로 사용하지 않는다. 애플리케이션의 JDBC URL 설정은 변경하지 않았다.
+
+| 단계                                | 시간별 OFF (ms) | 시간별 ON (ms) | 일별 OFF (ms) | 일별 ON (ms) |
+| ----------------------------------- | --------------: | -------------: | ------------: | -----------: |
+| 최초 적재                           |         460.032 |         23.716 |       466.908 |       93.368 |
+| 동일 입력 재실행                    |         350.730 |         20.502 |       368.535 |       48.167 |
+| 수집시각 갱신                       |         390.998 |         34.332 |       350.617 |       43.769 |
+| 최신 발표와 새 대상                 |         373.137 |         26.092 |       348.949 |       39.378 |
+| 정정과 과거 입력 / 미수집 요소 보충 |         370.302 |         32.230 |       353.174 |       27.867 |
+| 과거 발표 재수집                    |         521.960 |         32.422 |       516.871 |       28.532 |
+| NULL·0 정정                         |         177.779 |         19.949 |       238.080 |       21.951 |
+
+### 실제 RAW 샘플 대조
 
 로컬 실험의 `2026102214_2026102217_TMP.raw`를 사용할 때의 대조 기준은 다음과 같다. 원본은 저장소 밖에 보관하며 Git에 추가하지 않는다.
 
