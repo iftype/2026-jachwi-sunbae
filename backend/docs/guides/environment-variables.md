@@ -56,6 +56,17 @@ Spring Boot 애플리케이션은 CORS 허용 Origin과 인증·저장소 설정
 
 로컬 Compose는 MySQL·MinIO만 실행하므로 날씨 변수를 사용하지 않는다. Spring Boot를 실행하는 셸이나 실행 환경에 주입한다. 이번 작업에서 dev·prod 설정을 활성화하지 않는다.
 
+## 날씨 알림용 환경변수
+
+| 환경변수                                  | 기본값  | 용도                                                                                 |
+| ----------------------------------------- | ------- | ------------------------------------------------------------------------------------ |
+| `WEATHER_NOTIFICATION_ENABLED`            | `false` | 웹 서버에서 KST 07시·22시 정기 알림과 시간대 내 재시도 활성화                        |
+| `WEATHER_PRECIPITATION_CONTRACT_VERIFIED` | `false` | POP·PCP·SNO 실제 의미 검증 이후에만 관련 확률·양수·무강수 판정 허용                  |
+| `WEATHER_FIREBASE_PROJECT_ID`             | 비움    | 알림 ON일 때 Firebase 프로젝트 ID 필수                                               |
+| `GOOGLE_APPLICATION_CREDENTIALS`          | 미설정  | 파일 기반 ADC 사용 시 저장소 밖 자격증명 파일 경로. 워크로드 자격증명 사용 시 불필요 |
+
+알림 OFF이면 Firebase 자격증명 없이 기동하며 외부 푸시를 보내지 않는다. 회원 수신 동의도 기본 OFF다. 알림 변수는 로컬 인프라 Compose에 필요하지 않으며 Spring Boot 실행 환경에만 주입한다. 실제 수신 검증·모바일 연결과 RAW 의미 검증 전에는 활성화하지 않는다. 자세한 정책과 테스트는 [정기 생활 날씨 알림](weather-notifications.md)을 참고한다.
+
 ## 사용 방법
 
 `backend`에서 개인 파일을 생성한다.

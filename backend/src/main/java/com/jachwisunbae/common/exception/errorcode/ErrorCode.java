@@ -61,6 +61,13 @@ public enum ErrorCode {
     WEATHER_DATE_UNSUPPORTED("오늘과 내일의 날씨만 조회할 수 있습니다."),
     WEATHER_LOCATION_TIME_INVALID("위치를 새로 확인한 뒤 다시 시도해 주세요."),
 
+    WEATHER_DEVICE_INVALID("기기 등록 정보를 확인해 주세요."),
+    WEATHER_DEVICE_NOT_FOUND("등록된 기기를 찾을 수 없습니다."),
+    WEATHER_DEVICE_CONFLICT("기기 등록 상태를 확인하고 다시 시도해 주세요."),
+    WEATHER_DEVICE_LIMIT_EXCEEDED("등록할 수 있는 알림 기기 수를 초과했습니다."),
+    WEATHER_NOTIFICATION_NOT_FOUND("알림을 찾을 수 없습니다."),
+    WEATHER_NOTIFICATION_RECEIPT_INVALID("알림 수신 상태를 확인해 주세요."),
+
     // 대중교통
     TRANSIT_FEED_READ_FAILURE("대중교통 데이터를 불러오지 못했습니다."),
     ADMIN_DONG_READ_FAILURE("행정동 경계 데이터를 불러오지 못했습니다."),

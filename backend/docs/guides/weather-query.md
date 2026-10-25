@@ -1,6 +1,6 @@
 # 현재 위치 날씨 조회와 위치 동기화
 
-EPIC 06의 백엔드 구현과 검증 방법을 설명한다. 공개 요청·응답 계약은 `WeatherForecastController`, `MemberWeatherLocationController`의 Swagger/OpenAPI에서 관리한다. 모바일 권한 요청·GPS 획득·WebView 전달·화면 연결은 후속 작업이다. EPIC 07의 정기 알림과 위치 유효기간도 아직 구현하지 않는다.
+EPIC 06의 백엔드 구현과 검증 방법을 설명한다. 공개 요청·응답 계약은 `WeatherForecastController`, `MemberWeatherLocationController`의 Swagger/OpenAPI에서 관리한다. 모바일 권한 요청·GPS 획득·WebView 전달·화면 연결은 후속 작업이다. EPIC 07의 백엔드 정기 알림과 24시간 위치 유효기간은 [정기 생활 날씨 알림](weather-notifications.md)에서 설명한다.
 
 ## 조회 흐름과 책임
 
@@ -12,7 +12,7 @@ EPIC 06의 백엔드 구현과 검증 방법을 설명한다. 공개 요청·응
 
 예를 들어 서울 시청 좌표 `(37.5665, 126.978)`는 `(60, 127)`에 대응한다. 같은 격자로 변환되는 다른 위치도 동일한 DB 행을 읽는다. 조회 요청은 위치를 저장하지 않으며 외부 기상청 API를 호출하거나 전국 격자를 순회하지 않는다. 별도 캐시는 아직 없다.
 
-정기 알림은 이후 `WeatherForecastQueryService.findByGrid(grid, date)`를 재사용할 수 있다. 위치를 다시 위경도로 복원할 필요가 없다. 조회의 가용 상태만으로 발송을 결정하지 않고, 필요한 시간대·요소의 충족 여부와 알림용 위치 유효기간을 EPIC 07에서 추가 판단해야 한다.
+정기 알림은 `WeatherForecastQueryService.findByGrid(grid, date)`를 재사용한다. 위치를 다시 위경도로 복원할 필요가 없다. 조회의 가용 상태만으로 발송을 결정하지 않고, 필요한 시간대·요소의 충족 여부와 알림용 위치 유효기간을 EPIC 07의 판정·발송 서비스에서 추가 검사한다.
 
 ## 좌표와 범위
 
