@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -72,15 +74,19 @@ class WeatherCollectionInitializationTest {
         WeatherCollectionResult result = service(true, ZoneId.of(clockZone)).initializeIfEmpty().orElseThrow();
 
         assertThat(result.publishedAt()).isEqualTo(PUBLICATION);
-        assertThat(result.requestCount()).isEqualTo(196);
-        assertThat(result.hourlyRows()).isEqualTo(24);
-        assertThat(result.dailyRows()).isEqualTo(2);
+        assertThat(result.requestCount()).isEqualTo(390);
+        assertThat(result.hourlyRows()).isEqualTo(48);
+        assertThat(result.dailyRows()).isEqualTo(3);
         assertThat(result.requests()).allSatisfy(measurement ->
                 assertThat(measurement.request().times().publishedAt()).isEqualTo(PUBLICATION));
         verify(repository).hasValidHourlyForecastAtOrAfter(NOW_KST);
-        verify(repository, times(24)).upsertHourly(any());
-        verify(repository, times(2)).upsertDaily(any());
-        verify(transactions, times(26)).commit(any());
+        verify(repository, times(48)).upsertHourly(any());
+        verify(repository, times(3)).upsertDaily(any());
+        verify(transactions, times(51)).commit(any());
+        var completionOrder = inOrder(repository, transactions);
+        completionOrder.verify(repository).startCollection(PUBLICATION, NOW_KST);
+        completionOrder.verify(transactions, times(51)).commit(any());
+        completionOrder.verify(repository).completeCollection(PUBLICATION, NOW_KST);
     }
 
     @Test
@@ -91,7 +97,7 @@ class WeatherCollectionInitializationTest {
         WeatherCollectionResult result = service(false, ZoneOffset.UTC).collectLatest();
 
         assertThat(result.publishedAt()).isEqualTo(PUBLICATION);
-        assertThat(result.requestCount()).isEqualTo(196);
+        assertThat(result.requestCount()).isEqualTo(390);
         verify(repository, never()).hasValidHourlyForecastAtOrAfter(any());
     }
 
@@ -105,7 +111,18 @@ class WeatherCollectionInitializationTest {
 
         verify(repository, never()).upsertHourly(any());
         verify(repository, never()).upsertDaily(any());
+        verify(repository, never()).completeCollection(any(), any());
         verifyNoInteractions(transactions);
+    }
+
+    @Test
+    @DisplayName("완료 기록 저장에 실패하면 모든 예보가 저장되어도 실행 성공으로 처리하지 않는다")
+    void completionFailureIsNotSuccessfulCollection() {
+        respondSuccessfully();
+        doThrow(new IllegalStateException("completion write failed")).when(repository).completeCollection(any(), any());
+        WeatherCollectionService service = service(true, ZoneOffset.UTC);
+        assertThatThrownBy(service::initializeIfEmpty).isInstanceOf(IllegalStateException.class);
+        assertThat(service.execution().orElseThrow().status().name()).isEqualTo("FAILED");
     }
 
     @Test

@@ -75,12 +75,30 @@ public class JdbcWeatherForecastRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    public void startCollection(final LocalDateTime publishedAt, final LocalDateTime startedAt) {
+        jdbcTemplate.update("""
+                INSERT INTO weather_collection_publications (published_at, started_at, completed_at)
+                VALUES (?, ?, NULL) AS incoming
+                ON DUPLICATE KEY UPDATE started_at = incoming.started_at, completed_at = NULL
+                """, publishedAt, startedAt);
+    }
+
+    public void completeCollection(final LocalDateTime publishedAt, final LocalDateTime completedAt) {
+        jdbcTemplate.update("UPDATE weather_collection_publications SET completed_at = ? WHERE published_at = ?",
+                completedAt, publishedAt);
+    }
+
     public boolean hasValidHourlyForecastAtOrAfter(final LocalDateTime from) {
         return Boolean.TRUE.equals(jdbcTemplate.queryForObject("""
                 SELECT EXISTS (
-                    SELECT 1 FROM weather_forecasts WHERE forecast_at >= ? AND tmp IS NOT NULL
+                    SELECT 1 FROM weather_forecasts f
+                    JOIN weather_collection_publications p ON p.published_at = f.published_at
+                    WHERE f.forecast_at >= ? AND f.tmp IS NOT NULL
+                        AND f.published_at <= ? AND f.collected_at >= f.published_at
+                        AND f.collected_at BETWEEN p.started_at AND p.completed_at
+                        AND p.completed_at <= ?
                 )
-                """, Boolean.class, from));
+                """, Boolean.class, from, from, from));
     }
 
     public long countHourly() {

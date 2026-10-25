@@ -124,6 +124,7 @@ public class WeatherCollectionService {
                     finishExecution(Status.SKIPPED_VALID_FORECAST, start);
                     return Optional.empty();
                 }
+                repository.startCollection(publishedAt, collectedAt());
                 WeatherCollectionResult result = collectForecasts(publishedAt);
                 finishExecution(Status.SUCCEEDED, start);
                 return Optional.of(result);
@@ -153,11 +154,17 @@ public class WeatherCollectionService {
         LOG.info("weather-collection-start publishedAt={} plannedRequests={} unavailableDaily={}",
                 publishedAt, plan.requestCount(), plan.unavailableDailyForecasts());
         try {
-            // 1. 시간별 예보를 수집 및 저장을 24번 하고 날짜별 격자집합을 반환
+            // 1. 시간별 예보를 수집 및 저장을 48번 하고 날짜별 격자집합을 반환
             // 반환값 : "날짜 → 그 날짜에 저장된 시간별 행들의 격자 좌표 집합"
             Map<LocalDate, Set<GridPoint>> dailyPoints = collectHourly(plan, progress);
             //2. 일별 수집
             collectDaily(plan, dailyPoints, progress);
+            long completionStart = System.nanoTime();
+            try {
+                repository.completeCollection(publishedAt, collectedAt());
+            } finally {
+                progress.dbNanos += System.nanoTime() - completionStart;
+            }
             //3. 결과 정리 -  progress에 쌓인 값을 불변 결과 객체로 바꿈
             WeatherCollectionResult result = progress.result(publishedAt);
             logResult("success", progress.attempts, result);
@@ -175,7 +182,7 @@ public class WeatherCollectionService {
         }
     }
 
-    //시간별 수집 전체(24개 예보시각 × 8요소)를 실행하고, 각 시각을 DB에 저장 및 커밋
+    //시간별 수집 전체(48개 예보시각 × 8요소)를 실행하고, 각 시각을 DB에 저장 및 커밋
     //요청별 측정값, 결합·DB 시간, 저장 행 수를 progress에 계속 누적
     private Map<LocalDate, Set<GridPoint>> collectHourly(final WeatherCollectionPlan plan, final Progress progress) {
 

@@ -91,11 +91,12 @@ class WeatherCollectionIntegrationTest {
     void clear() {
         jdbc.update("DELETE FROM weather_forecasts");
         jdbc.update("DELETE FROM weather_daily_forecasts");
+        jdbc.update("DELETE FROM weather_collection_publications");
     }
 
     @ParameterizedTest
     @ValueSource(ints = {2, 5, 14, 23})
-    @DisplayName("전국 크기의 RAW를 24시간·일별 계획대로 요청하고 원본의 모든 값·시각을 MySQL과 대조한다")
+    @DisplayName("전국 크기의 RAW를 48시간·일별 계획대로 요청하고 원본의 모든 값·시각을 MySQL과 대조한다")
     void collectsAndVerifiesFullPlan(final int hour) {
         WeatherCollectionPlan plan = WeatherCollectionPlan.forPublication(LocalDate.of(2026, 10, 23).atTime(hour, 0));
         Map<KmaForecastRequest, byte[]> raw = new LinkedHashMap<>();
@@ -120,7 +121,7 @@ class WeatherCollectionIntegrationTest {
         assertThat(result.requestCount()).isEqualTo(plan.requestCount());
         assertThat(result.responseBytes()).isEqualTo(raw.values().stream().mapToLong(bytes -> bytes.length).sum());
         assertThat(result.validValues() + result.missingValues()).isEqualTo(plan.expectedRawValueCount());
-        assertThat(result.hourlyRows()).isEqualTo(24L * VALID_POINTS);
+        assertThat(result.hourlyRows()).isEqualTo(48L * VALID_POINTS);
         assertThat(result.hourlyRows()).isEqualTo(count("weather_forecasts"));
         assertThat(result.dailyRows()).isEqualTo(count("weather_daily_forecasts"));
         assertThat(result.httpNanos()).isPositive();
@@ -130,6 +131,8 @@ class WeatherCollectionIntegrationTest {
         assertThat(result.totalNanos()).isGreaterThanOrEqualTo(result.httpNanos() + result.parseNanos()
                 + result.mergeNanos() + result.dbNanos());
         verifyAgainstRaw(plan, raw, COLLECTED_AT);
+        assertThat(jdbc.queryForObject("SELECT completed_at FROM weather_collection_publications WHERE published_at = ?",
+                LocalDateTime.class, plan.publishedAt())).isEqualTo(COLLECTED_AT);
     }
 
     @Test
@@ -151,6 +154,8 @@ class WeatherCollectionIntegrationTest {
         assertThat(count("weather_daily_forecasts")).isZero();
         assertThat(jdbc.queryForObject("SELECT MAX(forecast_at) FROM weather_forecasts", LocalDateTime.class))
                 .isEqualTo(plan.publishedAt().plusHours(1));
+        assertThat(jdbc.queryForObject("SELECT completed_at FROM weather_collection_publications WHERE published_at = ?",
+                LocalDateTime.class, plan.publishedAt())).isNull();
     }
 
     @Test
@@ -177,10 +182,10 @@ class WeatherCollectionIntegrationTest {
         WeatherCollectionResult result = service.initializeIfEmpty().orElseThrow();
 
         assertThat(result.publishedAt()).isEqualTo(plan.publishedAt());
-        assertThat(result.requestCount()).isEqualTo(196);
-        assertThat(count("weather_forecasts")).isEqualTo(24L * VALID_POINTS);
+        assertThat(result.requestCount()).isEqualTo(390);
+        assertThat(count("weather_forecasts")).isEqualTo(48L * VALID_POINTS);
         // RAW가 홀수·짝수 시각에 TMP 격자 하나를 교체하므로 날짜별 합집합은 각각 1개 더 많다.
-        assertThat(count("weather_daily_forecasts")).isEqualTo(2L * (VALID_POINTS + 1));
+        assertThat(count("weather_daily_forecasts")).isEqualTo(3L * (VALID_POINTS + 1));
         verifyAgainstRaw(plan, raw, nowKst);
 
         assertThat(service.initializeIfEmpty()).isEmpty();
@@ -272,7 +277,7 @@ class WeatherCollectionIntegrationTest {
                                   final LocalDateTime collectedAt) {
         Map<LocalDate, Set<Integer>> dailyPoints = new HashMap<>();
         long hourlyCount = 0;
-        for (int hour = 1; hour <= 24; hour++) {
+        for (int hour = 1; hour <= 48; hour++) {
             ForecastTimes times = new ForecastTimes(plan.publishedAt(), plan.publishedAt().plusHours(hour));
             Map<WeatherElement, double[]> elements = new EnumMap<>(WeatherElement.class);
             WeatherElement.hourlyElements().forEach(element -> elements.put(element, tokens(raw.get(new KmaForecastRequest(times, element)))));

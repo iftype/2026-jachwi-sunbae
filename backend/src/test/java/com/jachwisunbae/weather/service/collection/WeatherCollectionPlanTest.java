@@ -26,28 +26,28 @@ class WeatherCollectionPlanTest {
 
     @ParameterizedTest
     @CsvSource({
-            "2, 2026102203, 2026102302",
-            "5, 2026102206, 2026102305",
-            "8, 2026102209, 2026102308",
-            "11, 2026102212, 2026102311",
-            "14, 2026102215, 2026102314",
-            "17, 2026102218, 2026102317",
-            "20, 2026102221, 2026102320",
-            "23, 2026102300, 2026102323"
+            "2, 2026102203, 2026102402",
+            "5, 2026102206, 2026102405",
+            "8, 2026102209, 2026102408",
+            "11, 2026102212, 2026102411",
+            "14, 2026102215, 2026102414",
+            "17, 2026102218, 2026102417",
+            "20, 2026102221, 2026102420",
+            "23, 2026102300, 2026102423"
     })
-    @DisplayName("8개 발표시각마다 다음 정시부터 연속 24시간의 8개 요소를 중복 없이 계획한다")
+    @DisplayName("8개 발표시각마다 다음 정시부터 연속 48시간의 8개 요소를 중복 없이 계획한다")
     void plansHourlyRequests(final int publicationHour, final String firstTarget, final String lastTarget) {
         LocalDateTime publishedAt = DATE.atTime(publicationHour, 0);
 
         WeatherCollectionPlan plan = WeatherCollectionPlan.forPublication(publishedAt);
 
         assertThat(plan.publishedAt()).isEqualTo(publishedAt);
-        assertThat(plan.hourlyRequests()).hasSize(192).doesNotHaveDuplicates();
+        assertThat(plan.hourlyRequests()).hasSize(384).doesNotHaveDuplicates();
         assertThat(plan.hourlyRequests()).allSatisfy(request ->
                 assertThat(request.times().publishedAt()).isEqualTo(publishedAt));
         assertThat(plan.hourlyRequests().getFirst().tmef()).isEqualTo(firstTarget);
         assertThat(plan.hourlyRequests().getLast().tmef()).isEqualTo(lastTarget);
-        for (int offset = 0; offset < 24; offset++) {
+        for (int offset = 0; offset < 48; offset++) {
             List<KmaForecastRequest> hour = plan.hourlyRequests().subList(offset * 8, (offset + 1) * 8);
             assertThat(hour).extracting(KmaForecastRequest::element).containsExactly(
                     WeatherElement.TMP, WeatherElement.SKY, WeatherElement.PTY, WeatherElement.POP,
@@ -59,14 +59,14 @@ class WeatherCollectionPlanTest {
 
     @ParameterizedTest
     @CsvSource({
-            "2, TMN@2026102206;TMX@2026102215;TMN@2026102306;TMX@2026102315, -, 196",
-            "5, TMX@2026102215;TMN@2026102306;TMX@2026102315, TMN, 195",
-            "8, TMX@2026102215;TMN@2026102306;TMX@2026102315, TMN, 195",
-            "11, TMX@2026102215;TMN@2026102306;TMX@2026102315, TMN, 195",
-            "14, TMN@2026102306;TMX@2026102315, TMN;TMX, 194",
-            "17, TMN@2026102306;TMX@2026102315, TMN;TMX, 194",
-            "20, TMN@2026102306;TMX@2026102315, TMN;TMX, 194",
-            "23, TMN@2026102306;TMX@2026102315, -, 194"
+            "2, TMN@2026102206;TMX@2026102215;TMN@2026102306;TMX@2026102315;TMN@2026102406;TMX@2026102415, -, 390",
+            "5, TMX@2026102215;TMN@2026102306;TMX@2026102315;TMN@2026102406;TMX@2026102415, TMN, 389",
+            "8, TMX@2026102215;TMN@2026102306;TMX@2026102315;TMN@2026102406;TMX@2026102415, TMN, 389",
+            "11, TMX@2026102215;TMN@2026102306;TMX@2026102315;TMN@2026102406;TMX@2026102415, TMN, 389",
+            "14, TMN@2026102306;TMX@2026102315;TMN@2026102406;TMX@2026102415, TMN;TMX, 388",
+            "17, TMN@2026102306;TMX@2026102315;TMN@2026102406;TMX@2026102415, TMN;TMX, 388",
+            "20, TMN@2026102306;TMX@2026102315;TMN@2026102406;TMX@2026102415, TMN;TMX, 388",
+            "23, TMN@2026102306;TMX@2026102315;TMN@2026102406;TMX@2026102415, -, 388"
     })
     @DisplayName("대상 날짜별 TMN·TMX 제공 규칙에 따라 요청과 미제공 목록을 구분한다")
     void plansDailyRequests(final int publicationHour, final String expectedRequests,
@@ -96,21 +96,21 @@ class WeatherCollectionPlanTest {
     void plansDailyTemperaturesForWholeTargetDate() {
         WeatherCollectionPlan plan = WeatherCollectionPlan.forPublication(DATE.atTime(2, 0));
 
-        assertThat(plan.hourlyRequests().getLast().tmef()).isEqualTo("2026102302");
+        assertThat(plan.hourlyRequests().getLast().tmef()).isEqualTo("2026102402");
         assertThat(plan.dailyRequests()).contains(
                 new KmaForecastRequest(new ForecastTimes(LocalDateTime.of(2026, 10, 22, 2, 0),
-                LocalDateTime.of(2026, 10, 23, 6, 0)), WeatherElement.TMN),
+                LocalDateTime.of(2026, 10, 24, 6, 0)), WeatherElement.TMN),
                 new KmaForecastRequest(new ForecastTimes(LocalDateTime.of(2026, 10, 22, 2, 0),
-                LocalDateTime.of(2026, 10, 23, 15, 0)), WeatherElement.TMX));
+                LocalDateTime.of(2026, 10, 24, 15, 0)), WeatherElement.TMX));
     }
 
     @ParameterizedTest
     @CsvSource({
-            "2026123123, 2027010100, 2027010123, 2027010106, 2027010115",
-            "2026113020, 2026113021, 2026120120, 2026120106, 2026120115",
-            "2028022823, 2028022900, 2028022923, 2028022906, 2028022915",
-            "2028022923, 2028030100, 2028030123, 2028030106, 2028030115",
-            "2027022823, 2027030100, 2027030123, 2027030106, 2027030115"
+            "2026123123, 2027010100, 2027010223, 2027010106, 2027010115",
+            "2026113020, 2026113021, 2026120220, 2026120106, 2026120115",
+            "2028022823, 2028022900, 2028030123, 2028022906, 2028022915",
+            "2028022923, 2028030100, 2028030223, 2028030106, 2028030115",
+            "2027022823, 2027030100, 2027030223, 2027030106, 2027030115"
     })
     @DisplayName("KST 연말·월말·윤년의 시간별 구간과 일별 대상 날짜를 보존한다")
     void crossesCalendarBoundaries(final String publication, final String first, final String last,
@@ -123,7 +123,9 @@ class WeatherCollectionPlanTest {
         assertThat(plan.hourlyRequests().getLast().tmef()).isEqualTo(last);
         assertThat(plan.dailyRequests()).containsExactly(
                 new KmaForecastRequest(ForecastTimesFixture.times(publication, minimum), WeatherElement.TMN),
-                new KmaForecastRequest(ForecastTimesFixture.times(publication, maximum), WeatherElement.TMX));
+                new KmaForecastRequest(ForecastTimesFixture.times(publication, maximum), WeatherElement.TMX),
+                new KmaForecastRequest(new ForecastTimes(publishedAt, ForecastTimesFixture.times(publication, minimum).forecastAt().plusDays(1)), WeatherElement.TMN),
+                new KmaForecastRequest(new ForecastTimes(publishedAt, ForecastTimesFixture.times(publication, maximum).forecastAt().plusDays(1)), WeatherElement.TMX));
     }
 
     @ParameterizedTest
@@ -138,9 +140,9 @@ class WeatherCollectionPlanTest {
 
             assertThat(plan.requests()).allSatisfy(request -> assertThat(request.tmfc()).isEqualTo("2026102223"));
             assertThat(plan.hourlyRequests().getFirst().tmef()).isEqualTo("2026102300");
-            assertThat(plan.hourlyRequests().getLast().tmef()).isEqualTo("2026102323");
+            assertThat(plan.hourlyRequests().getLast().tmef()).isEqualTo("2026102423");
             assertThat(plan.dailyRequests()).extracting(request -> request.tmef())
-                    .containsExactly("2026102306", "2026102315");
+                    .containsExactly("2026102306", "2026102315", "2026102406", "2026102415");
         } finally {
             TimeZone.setDefault(previous);
         }
@@ -175,7 +177,7 @@ class WeatherCollectionPlanTest {
         assertThatThrownBy(() -> plan.dailyRequests().clear()).isInstanceOf(UnsupportedOperationException.class);
         assertThatThrownBy(() -> plan.unavailableDailyForecasts().clear()).isInstanceOf(UnsupportedOperationException.class);
         assertThatThrownBy(() -> plan.requests().clear()).isInstanceOf(UnsupportedOperationException.class);
-        assertThat(plan.requestCount()).isEqualTo(194);
+        assertThat(plan.requestCount()).isEqualTo(388);
     }
 
     @Test
@@ -184,10 +186,10 @@ class WeatherCollectionPlanTest {
         List<WeatherCollectionPlan> plans = IntStream.of(2, 5, 8, 11, 14, 17, 20, 23)
                 .mapToObj(hour -> WeatherCollectionPlan.forPublication(DATE.atTime(hour, 0))).toList();
 
-        assertThat(plans.stream().mapToInt(WeatherCollectionPlan::requestCount).sum()).isEqualTo(1557);
-        assertThat(plans.stream().mapToLong(WeatherCollectionPlan::expectedRawValueCount).sum()).isEqualTo(58694229);
-        assertThat(plans.stream().mapToLong(plan -> plan.estimatedResponseBytes(341297)).sum()).isEqualTo(531399429);
-        assertThat(plans.getFirst().estimatedResponseBytes(400000)).isEqualTo(78400000);
+        assertThat(plans.stream().mapToInt(WeatherCollectionPlan::requestCount).sum()).isEqualTo(3109);
+        assertThat(plans.stream().mapToLong(WeatherCollectionPlan::expectedRawValueCount).sum()).isEqualTo(117199973);
+        assertThat(plans.stream().mapToLong(plan -> plan.estimatedResponseBytes(341297)).sum()).isEqualTo(1061092373);
+        assertThat(plans.getFirst().estimatedResponseBytes(400000)).isEqualTo(156000000);
     }
 
     @Test

@@ -56,6 +56,10 @@ public enum ErrorCode {
     // 날씨
     WEATHER_PROVIDER_UNAVAILABLE("날씨 정보를 불러오지 못했습니다."),
     WEATHER_RESPONSE_INVALID("날씨 정보를 불러오지 못했습니다."),
+    WEATHER_COORDINATE_INVALID("위도와 경도를 확인해 주세요."),
+    WEATHER_LOCATION_UNSUPPORTED("날씨를 제공하지 않는 위치입니다."),
+    WEATHER_DATE_UNSUPPORTED("오늘과 내일의 날씨만 조회할 수 있습니다."),
+    WEATHER_LOCATION_TIME_INVALID("위치를 새로 확인한 뒤 다시 시도해 주세요."),
 
     // 대중교통
     TRANSIT_FEED_READ_FAILURE("대중교통 데이터를 불러오지 못했습니다."),

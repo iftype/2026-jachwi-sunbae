@@ -56,6 +56,7 @@ class JdbcWeatherForecastRepositoryTest {
     void clearForecasts() {
         jdbcTemplate.update("DELETE FROM weather_forecasts");
         jdbcTemplate.update("DELETE FROM weather_daily_forecasts");
+        jdbcTemplate.update("DELETE FROM weather_collection_publications");
     }
 
     @Test
@@ -73,6 +74,8 @@ class JdbcWeatherForecastRepositoryTest {
     @DisplayName("TMP가 결측인 미래 예보는 유효하지 않으며 정상 0은 유효하다")
     void requiresValidTemperatureIncludingZero() {
         JdbcWeatherForecastRepository repository = repository(false);
+        repository.startCollection(PUBLISHED_AT, COLLECTED_AT);
+        repository.completeCollection(PUBLISHED_AT, COLLECTED_AT);
         repository.upsertHourly(List.of(hourly(POINT, PUBLISHED_AT, COLLECTED_AT, null)));
         assertThat(repository.hasValidHourlyForecastAtOrAfter(FORECAST_AT.minusHours(1))).isFalse();
 
@@ -85,11 +88,28 @@ class JdbcWeatherForecastRepositoryTest {
     @DisplayName("KST 예보시각이 현재와 같으면 유효하고 과거이면 최초 적재 대상이다")
     void checksCurrentTimeBoundaryWithoutTimeZoneConversion() {
         JdbcWeatherForecastRepository repository = repository(false);
+        repository.startCollection(PUBLISHED_AT, COLLECTED_AT);
+        repository.completeCollection(PUBLISHED_AT, COLLECTED_AT);
         repository.upsertHourly(List.of(hourly(POINT, PUBLISHED_AT, COLLECTED_AT, -1.0)));
 
         assertThat(repository.hasValidHourlyForecastAtOrAfter(FORECAST_AT.minusNanos(1000))).isTrue();
         assertThat(repository.hasValidHourlyForecastAtOrAfter(FORECAST_AT)).isTrue();
         assertThat(repository.hasValidHourlyForecastAtOrAfter(FORECAST_AT.plusNanos(1000))).isFalse();
+    }
+
+    @Test
+    @DisplayName("완료 기록 없는 기존 행과 실패한 재수집의 행은 최초 적재를 막지 않는다")
+    void unverifiedRowsDoNotPreventInitialization() {
+        JdbcWeatherForecastRepository repository = repository(false);
+        repository.upsertHourly(List.of(hourly(POINT, PUBLISHED_AT, COLLECTED_AT, 10.0)));
+        assertThat(repository.hasValidHourlyForecastAtOrAfter(FORECAST_AT)).isFalse();
+        repository.startCollection(PUBLISHED_AT, COLLECTED_AT);
+        assertThat(repository.hasValidHourlyForecastAtOrAfter(FORECAST_AT)).isFalse();
+        repository.completeCollection(PUBLISHED_AT, COLLECTED_AT);
+        assertThat(repository.hasValidHourlyForecastAtOrAfter(FORECAST_AT)).isTrue();
+        repository.startCollection(PUBLISHED_AT, COLLECTED_AT.plusMinutes(1));
+        repository.completeCollection(PUBLISHED_AT, COLLECTED_AT.plusMinutes(2));
+        assertThat(repository.hasValidHourlyForecastAtOrAfter(FORECAST_AT)).isFalse();
     }
 
     @ParameterizedTest

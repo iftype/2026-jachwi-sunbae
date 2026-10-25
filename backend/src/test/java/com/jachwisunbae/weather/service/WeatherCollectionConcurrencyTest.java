@@ -93,7 +93,7 @@ class WeatherCollectionConcurrencyTest {
                 release.countDown();
             }
             WeatherCollectionResult result = collection.get(5, TimeUnit.SECONDS);
-            assertThat(result.requestCount()).isEqualTo(196);
+            assertThat(result.requestCount()).isEqualTo(390);
             assertThat(service.execution().orElseThrow()).satisfies(completed -> {
                 assertThat(completed.status()).isEqualTo(Status.SUCCEEDED);
                 assertThat(completed.source()).isEqualTo(source);
