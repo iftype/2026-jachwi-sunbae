@@ -191,14 +191,18 @@ public final class TransitNetwork {
             if (current != states.seconds(state)) {
                 continue;
             }
-            if (arrival != null && !arrival.visit(state, current)) {
+            int currentRoute = states.route(state);
+            boolean walked = walked(states, state, arrival != null);
+            if (arrival != null && !arrival.visit(state, current, walked)) {
                 return;
             }
             int stop = states.stop(state);
-            int currentRoute = states.route(state);
             int currentBoardings = states.boardings(state);
             for (int link = links.start(stop); link < links.end(stop); link++) {
                 int route = links.route(link);
+                if (route == TRANSFER && walked) {
+                    continue;
+                }
                 boolean boarding = route != TRANSFER && route != currentRoute;
                 int boardings = currentBoardings + (boarding ? 1 : 0);
                 if (boardings - 1 > maxTransfers) {
@@ -220,6 +224,16 @@ public final class TransitNetwork {
                 }
             }
         }
+    }
+
+    // 걷기는 이어 붙이지 않는다. 걸어서 온 상태에서는 다시 도보 환승하거나 목적지까지 걷지 않는다.
+    // 걸어서 온 상태는 도보 환승으로 온 상태와, 생활권 탐색에서 목적지에서 도착 정류장까지 걸어온 시작 상태다.
+    // 경로 안내의 출발 정류장은 걸어온 것이 아니므로 바로 도보 환승하거나 목적지까지 걸을 수 있다.
+    private static boolean walked(final SearchStates states, final int state, final boolean forward) {
+        if (states.route(state) != TRANSFER) {
+            return false;
+        }
+        return !forward || states.previous(state) != SearchStates.NONE;
     }
 
     // 도착한 상태에서 지나온 구간을 거꾸로 따라간 뒤, 같은 노선으로 이어진 구간과 이어진 도보 환승을 하나로 묶는다.
