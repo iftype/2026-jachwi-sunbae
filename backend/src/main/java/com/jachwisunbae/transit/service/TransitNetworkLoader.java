@@ -3,7 +3,8 @@ package com.jachwisunbae.transit.service;
 import com.jachwisunbae.common.exception.errorcode.ErrorCode;
 import com.jachwisunbae.common.exception.server.ServiceUnavailableException;
 import com.jachwisunbae.transit.domain.GtfsStop;
-import com.jachwisunbae.transit.domain.collection.TransitNetwork;
+import com.jachwisunbae.transit.domain.network.TransitNetwork;
+import com.jachwisunbae.transit.domain.network.TransitNetworkBuilder;
 import com.jachwisunbae.transit.repository.GtfsNetworkRepository;
 import java.util.List;
 import org.springframework.stereotype.Component;
@@ -28,7 +29,7 @@ public class TransitNetworkLoader {
             throw new ServiceUnavailableException(ErrorCode.TRANSIT_NETWORK_UNAVAILABLE,
                     "대중교통 노선망이 적재되지 않았습니다.");
         }
-        TransitNetwork.Builder builder = TransitNetwork.builder(stops, gtfsNetworkRepository.findRoutes());
+        TransitNetworkBuilder builder = TransitNetwork.builder(stops, gtfsNetworkRepository.findRoutes());
         gtfsNetworkRepository.forEachEdge(builder::addEdge);
         gtfsNetworkRepository.findTransfers().forEach(builder::addTransfer);
         return builder.build();

@@ -7,7 +7,7 @@ import com.jachwisunbae.common.exception.server.ServiceUnavailableException;
 import com.jachwisunbae.transit.domain.GtfsFeed;
 import com.jachwisunbae.transit.domain.GtfsRoute;
 import com.jachwisunbae.transit.domain.GtfsStop;
-import com.jachwisunbae.transit.domain.collection.TransitNetwork;
+import com.jachwisunbae.transit.domain.network.TransitNetwork;
 import com.jachwisunbae.transit.domain.vo.Coordinate;
 import com.jachwisunbae.transit.domain.vo.Seconds;
 import java.time.Clock;

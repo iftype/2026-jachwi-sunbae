@@ -19,11 +19,11 @@ class CommuteAreaSearchResponseTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
-    @DisplayName("동네는 행정동 코드와 통근 시간, 정류장만 내보내고 정류장 통근 시간은 분 단위로 내보낸다")
+    @DisplayName("동네는 행정동 코드와 통근 시간, 정류장만 내보내고 정류장 통근 시간은 분 단위로, 사용을 중단한 방향은 null로 내보낸다")
     void serializes() throws Exception {
         GtfsStop station = new GtfsStop("S1", "역삼역", new Coordinate(37.55, 127.05), "11230640");
         CommuteAreaSearchResult result = new CommuteAreaSearchResult(40, List.of(new CommuteArea("11230640",
-                List.of(new ReachableStop(station, new Seconds(150), null)))));
+                List.of(new ReachableStop(station, new Seconds(150))))));
 
         JsonNode json = objectMapper.readTree(objectMapper.writeValueAsString(CommuteAreaSearchResponse.from(result)));
 
