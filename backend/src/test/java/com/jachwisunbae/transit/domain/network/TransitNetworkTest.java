@@ -15,6 +15,7 @@ import com.jachwisunbae.transit.domain.vo.Coordinate;
 import com.jachwisunbae.transit.domain.vo.Seconds;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -165,6 +166,45 @@ class TransitNetworkTest {
 
         assertThat(route.legs()).extracting(RouteLeg::type).containsExactly(RouteLeg.Type.WALK);
         assertThat(route.totalMinutes()).isEqualTo(4);
+    }
+
+    @Test
+    @DisplayName("출발지에서 걸어서 10분 안의 정류장까지 걷는 시간을 정류장의 통근 시간에 더한다")
+    void addsWalkFromOrigin() {
+        Coordinate nearB = new Coordinate(37.5100, 127.0040);
+
+        List<Optional<Seconds>> times = network.travelTimes(DESTINATION, List.of(nearB), new Seconds(3600), 2);
+
+        assertThat(times).containsExactly(Optional.of(new Seconds(walkSeconds(nearB, B) + 221 + 120 + 300)));
+    }
+
+    @Test
+    @DisplayName("목적지까지 걸어서 10분 안이면 정류장을 거치는 것보다 빠를 때 걷는 시간을 쓴다")
+    void walksDirectlyToDestination() {
+        Coordinate nearDestination = new Coordinate(37.5000, 127.0010);
+
+        List<Optional<Seconds>> times = network.travelTimes(DESTINATION, List.of(nearDestination),
+                new Seconds(3600), 2);
+
+        assertThat(times).containsExactly(Optional.of(new Seconds(
+                (int) Math.ceil(nearDestination.metersTo(DESTINATION) / TransitNetwork.WALKING_METERS_PER_SECOND))));
+    }
+
+    @Test
+    @DisplayName("제한 시간 안에 닿지 못하는 출발지는 비워 두고 출발지 순서를 지킨다")
+    void leavesUnreachableOriginsEmpty() {
+        Coordinate nearB = new Coordinate(37.5100, 127.0040);
+        Coordinate nearFar = new Coordinate(37.6000, 127.0010);
+        int nearBSeconds = walkSeconds(nearB, B) + 221 + 120 + 300;
+
+        assertThat(network.travelTimes(DESTINATION, List.of(nearFar, nearB), new Seconds(3600), 2))
+                .containsExactly(Optional.empty(), Optional.of(new Seconds(nearBSeconds)));
+        assertThat(network.travelTimes(DESTINATION, List.of(nearB), new Seconds(nearBSeconds - 1), 2))
+                .containsExactly(Optional.empty());
+    }
+
+    private static int walkSeconds(final Coordinate origin, final GtfsStop stop) {
+        return (int) Math.ceil(origin.metersTo(stop.coordinate()) / TransitNetwork.WALKING_METERS_PER_SECOND);
     }
 
     private static Map<String, Integer> travelSeconds(final List<ReachableStop> stops) {

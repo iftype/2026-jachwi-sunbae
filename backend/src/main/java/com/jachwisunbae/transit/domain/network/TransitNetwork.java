@@ -100,6 +100,35 @@ public final class TransitNetwork {
     // 목적지에서 걸어서 10분 안의 정류장을 도착 정류장으로 보고, 그곳에서 들어오는 연결을 거꾸로 따라간다.
     public List<ReachableStop> reachableStops(final Coordinate destination, final Seconds limit,
                                               final int maxTransfers) {
+        return toReachableStops(bestSeconds(destination, limit, maxTransfers));
+    }
+
+    // 출발지마다 목적지까지 걸리는 가장 짧은 시간이다. 목적지에서 한 번만 거꾸로 탐색한 뒤,
+    // 출발지에서 걸어서 10분 안의 정류장마다 걷는 시간을 더해 고른다. 목적지까지 걸어서 10분 안이면 걷는 시간도 후보다.
+    // 제한 시간 안에 닿지 못하는 출발지는 비워 둔다.
+    public List<Optional<Seconds>> travelTimes(final Coordinate destination, final List<Coordinate> origins,
+                                               final Seconds limit, final int maxTransfers) {
+        int[] bestSeconds = bestSeconds(destination, limit, maxTransfers);
+        return origins.stream().map(origin -> travelTime(origin, destination, bestSeconds, limit)).toList();
+    }
+
+    private Optional<Seconds> travelTime(final Coordinate origin, final Coordinate destination,
+                                         final int[] bestSeconds, final Seconds limit) {
+        int directWalkSeconds = walkSeconds(origin, destination);
+        int[] best = {directWalkSeconds <= MAX_ARRIVAL_WALK_TIME.value() ? directWalkSeconds : Integer.MAX_VALUE};
+        stopGrid.forEachNear(origin, stop -> {
+            int walkSeconds = walkSeconds(origin, stops.get(stop).coordinate());
+            if (walkSeconds <= MAX_ARRIVAL_WALK_TIME.value() && bestSeconds[stop] != Integer.MAX_VALUE) {
+                best[0] = Math.min(best[0], walkSeconds + bestSeconds[stop]);
+            }
+        });
+        if (best[0] > limit.value()) {
+            return Optional.empty();
+        }
+        return Optional.of(new Seconds(best[0]));
+    }
+
+    private int[] bestSeconds(final Coordinate destination, final Seconds limit, final int maxTransfers) {
         validateTransfers(maxTransfers);
         SearchStates states = new SearchStates();
         StateHeap heap = new StateHeap();
@@ -116,7 +145,7 @@ public final class TransitNetwork {
         });
 
         search(incoming, states, heap, limit, maxTransfers, bestSeconds, null);
-        return toReachableStops(bestSeconds);
+        return bestSeconds;
     }
 
     // 출발 정류장에서 목적지 쪽으로 생활권 탐색과 같은 규칙(대기 시간, 최대 환승 횟수, 도착 정류장 도보)으로 따라가,
@@ -241,13 +270,16 @@ public final class TransitNetwork {
     private Map<Integer, Integer> arrivalWalkSeconds(final Coordinate destination) {
         Map<Integer, Integer> walkSeconds = new HashMap<>();
         stopGrid.forEachNear(destination, stop -> {
-            double meters = destination.metersTo(stops.get(stop).coordinate());
-            int seconds = (int) Math.ceil(meters / WALKING_METERS_PER_SECOND);
+            int seconds = walkSeconds(destination, stops.get(stop).coordinate());
             if (seconds <= MAX_ARRIVAL_WALK_TIME.value()) {
                 walkSeconds.put(stop, seconds);
             }
         });
         return walkSeconds;
+    }
+
+    private static int walkSeconds(final Coordinate from, final Coordinate to) {
+        return (int) Math.ceil(from.metersTo(to) / WALKING_METERS_PER_SECOND);
     }
 
     private static void validateTransfers(final int maxTransfers) {

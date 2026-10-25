@@ -5,6 +5,7 @@ import com.jachwisunbae.common.exception.errorcode.ErrorCode;
 import com.jachwisunbae.common.exception.server.DataInconsistencyException;
 import com.jachwisunbae.property.entity.Property;
 import com.jachwisunbae.property.repository.query.PropertyListItemQuery;
+import com.jachwisunbae.property.repository.query.PropertyLocationQuery;
 import com.jachwisunbae.property.type.RoomOption;
 import com.jachwisunbae.property.type.UtilityOption;
 import java.sql.Date;
@@ -86,6 +87,17 @@ public class JdbcPropertyRepository implements PropertyRepository {
                 ORDER BY p.id DESC
                 """;
         return jdbcTemplate.query(sql, propertyListRowMapper, memberId, memberId);
+    }
+
+    @Override
+    public List<PropertyLocationQuery> findLocationsByMemberId(final long memberId) {
+        return jdbcTemplate.query("""
+                SELECT id, name, latitude, longitude
+                FROM properties
+                WHERE member_id = ? AND deleted_at IS NULL
+                ORDER BY id DESC
+                """, (rs, row) -> new PropertyLocationQuery(rs.getLong("id"), rs.getString("name"),
+                rs.getBigDecimal("latitude"), rs.getBigDecimal("longitude")), memberId);
     }
 
     @Override
