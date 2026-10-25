@@ -1,36 +1,29 @@
 package com.jachwisunbae.weather.cleanup;
 
 import com.jachwisunbae.weather.service.WeatherCleanupService;
-import java.time.Instant;
-import java.time.ZoneId;
-import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.scheduling.TriggerContext;
-import org.springframework.scheduling.support.CronTrigger;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
 
+@Component
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
+@ConditionalOnProperty(name = "weather.cleanup.enabled", havingValue = "true")
 public class WeatherCleanupScheduler {
-
-    private static final Logger LOG = LoggerFactory.getLogger(WeatherCleanupScheduler.class);
-    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
-    private final CronTrigger trigger = new CronTrigger("0 30 0 * * *", KST);
     private final WeatherCleanupService service;
 
     public WeatherCleanupScheduler(final WeatherCleanupService service) {
         this.service = service;
     }
 
-    public Instant nextExecution(final TriggerContext context) {
-        // TriggerContext에는 공통 TaskScheduler에 주입한 Clock과 직전 완료 시각이 들어 있다.
-        Instant next = trigger.nextExecution(context);
-        LOG.info("weather-cleanup-scheduled nextExecutionAt={} zone={}", next, KST);
-        return next;
-    }
-
+    @Scheduled(cron = "0 30 0 * * *", zone = "Asia/Seoul")
     public void cleanup() {
         try {
             service.cleanup();
         } catch (RuntimeException exception) {
-            LOG.warn("weather-scheduled-cleanup-failed exceptionType={}", exception.getClass().getSimpleName());
+            LoggerFactory.getLogger(getClass()).warn("weather-scheduled-cleanup-failed exceptionType={}",
+                    exception.getClass().getSimpleName());
         }
     }
 }

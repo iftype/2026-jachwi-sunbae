@@ -14,7 +14,6 @@ import com.jachwisunbae.weather.service.dto.result.WeatherForecastResult.Coverag
 import com.jachwisunbae.weather.service.dto.result.WeatherForecastResult.Hour;
 import com.jachwisunbae.weather.service.dto.result.WeatherForecastResult.Reading;
 import java.time.Clock;
-import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -25,7 +24,6 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,15 +35,12 @@ public class WeatherForecastQueryService {
     private final WeatherForecastQueryRepository repository;
     private final KmaGridConverter converter;
     private final Clock clock;
-    private final WeatherPublicationSchedule schedule;
 
     public WeatherForecastQueryService(final WeatherForecastQueryRepository repository, final KmaGridConverter converter,
-                                       final Clock clock,
-                                       @Value("${weather.collection.publication-delay-minutes:15}") final long delayMinutes) {
+                                       final Clock clock) {
         this.repository = repository;
         this.converter = converter;
         this.clock = clock;
-        this.schedule = new WeatherPublicationSchedule(Duration.ofMinutes(delayMinutes));
     }
 
     public WeatherForecastResult find(final double latitude, final double longitude, final LocalDate date) {
@@ -64,11 +59,11 @@ public class WeatherForecastQueryService {
                         Collectors.toMap(StoredReading::element, Function.identity())));
         List<Hour> hours = IntStream.range(0, 24).mapToObj(hour -> {
             LocalDateTime target = date.atTime(hour, 0);
-            LocalDateTime expected = schedule.latestAt(target.isBefore(now) ? target : now);
+            LocalDateTime expected = WeatherPublicationSchedule.latestAt(target.isBefore(now) ? target : now);
             Map<WeatherElement, Reading> values = new EnumMap<>(WeatherElement.class);
             for (WeatherElement element : WeatherElement.hourlyElements()) {
                 StoredReading stored = hourly.getOrDefault(target, Map.of()).get(element);
-                values.put(element, reading(stored, expected, now, ForecastValueStatus.NOT_COLLECTED));
+                values.put(element, reading(stored, expected, now));
             }
             return new Hour(target, values);
         }).toList();
@@ -85,23 +80,19 @@ public class WeatherForecastQueryService {
     }
 
     private Reading dailyReading(final StoredReading stored, final LocalDateTime lastPublication, final LocalDateTime now) {
-        LocalDateTime latest = schedule.latestAt(now);
+        LocalDateTime latest = WeatherPublicationSchedule.latestAt(now);
         LocalDateTime expected = latest.isAfter(lastPublication) ? lastPublication : latest;
-        ForecastValueStatus absent = latest.isAfter(lastPublication)
-                ? ForecastValueStatus.NOT_PROVIDED : ForecastValueStatus.NOT_COLLECTED;
-        return reading(stored, expected, now, absent);
+        return reading(stored, expected, now);
     }
 
     private Reading reading(final StoredReading stored, final LocalDateTime expected,
-                            final LocalDateTime now, final ForecastValueStatus absent) {
+                            final LocalDateTime now) {
         if (stored == null || stored.publishedAt() == null) {
-            return new Reading(null, absent, null, null);
+            return new Reading(null, ForecastValueStatus.UNAVAILABLE, null, null);
         }
         ForecastValueStatus status;
-        if (!stored.isVerified(now)) {
-            status = ForecastValueStatus.UNVERIFIED;
-        } else if (stored.publishedAt().isBefore(expected.minusHours(MAX_PUBLICATION_LAG_HOURS))) {
-            status = ForecastValueStatus.STALE;
+        if (!stored.isVerified(now) || stored.publishedAt().isBefore(expected.minusHours(MAX_PUBLICATION_LAG_HOURS))) {
+            status = ForecastValueStatus.UNAVAILABLE;
         } else if (stored.value() == null) {
             status = ForecastValueStatus.MISSING;
         } else {

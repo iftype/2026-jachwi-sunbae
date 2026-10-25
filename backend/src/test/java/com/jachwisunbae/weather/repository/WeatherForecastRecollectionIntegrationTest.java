@@ -26,8 +26,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
@@ -39,7 +37,6 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @Testcontainers
 class WeatherForecastRecollectionIntegrationTest {
 
-    private static final Logger log = LoggerFactory.getLogger(WeatherForecastRecollectionIntegrationTest.class);
     private static final int GRID_COUNT = 1001;
     private static final LocalDateTime PUBLISHED_AT = LocalDateTime.of(2026, 10, 22, 17, 0);
     private static final LocalDateTime LATEST_PUBLISHED_AT = PUBLISHED_AT.plusHours(3);
@@ -235,9 +232,7 @@ class WeatherForecastRecollectionIntegrationTest {
                                  final Changes expectedChanges, final Consumer<List<T>> save,
                                  final Supplier<List<T>> read, final Function<T, List<?>> key) {
         Map<List<?>, T> before = read.get().stream().collect(Collectors.toMap(key, Function.identity()));
-        long start = System.nanoTime();
         transaction.executeWithoutResult(status -> save.accept(input));
-        long elapsedNanos = System.nanoTime() - start;
         List<T> stored = read.get();
 
         // 기대 결과를 발표시각 비교 로직으로 계산하지 않고 단계별로 명시한 전체 행과 대조한다.
@@ -251,10 +246,6 @@ class WeatherForecastRecollectionIntegrationTest {
         Changes actualChanges = new Changes(inserted, updated, before.size() - updated);
         assertThat(actualChanges).as("%s/%s 실제 저장 결과의 변화", table, phase).isEqualTo(expectedChanges);
 
-        log.info("weather-storage-check table={} phase={} rewrite={} input={} expected={} actual={} "
-                        + "inserted={} updated={} unchanged={} dbMicros={}",
-                table, phase, rewriteBatches, input.size(), expected.size(), stored.size(),
-                inserted, updated, actualChanges.unchanged(), elapsedNanos / 1000);
     }
 
     private List<HourlyForecast> readHourly() {

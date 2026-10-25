@@ -108,7 +108,7 @@ class WeatherApiIntegrationTest {
                 .andExpect(jsonPath("$.data.hourly[23].values.TMP.value").value(0.0))
                 .andExpect(jsonPath("$.data.hourly[23].values.TMP.status").value("AVAILABLE"))
                 .andExpect(jsonPath("$.data.hourly[23].values.TMP.publishedAt").value("2026-10-25T20:00:00+09:00"))
-                .andExpect(jsonPath("$.data.hourly[0].values.TMP.status").value("NOT_COLLECTED"))
+                .andExpect(jsonPath("$.data.hourly[0].values.TMP.status").value("UNAVAILABLE"))
                 .andExpect(jsonPath("$.data.tmn.value").value(0.0))
                 .andExpect(jsonPath("$.data.tmx.status").value("MISSING"));
     }
@@ -192,7 +192,7 @@ class WeatherApiIntegrationTest {
     private void assertUnverified() throws Exception {
         mvc.perform(get("/api/weather/forecasts").header("Authorization", bearer(1))
                 .param("latitude", "37.5665").param("longitude", "126.978"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.data.hourly[23].values.TMP.status").value("UNVERIFIED"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.hourly[23].values.TMP.status").value("UNAVAILABLE"))
                 .andExpect(jsonPath("$.data.hourly[23].values.TMP.value").isEmpty());
     }
 

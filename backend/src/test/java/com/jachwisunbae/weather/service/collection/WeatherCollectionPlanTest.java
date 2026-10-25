@@ -9,10 +9,8 @@ import com.jachwisunbae.weather.provider.kma.KmaForecastRequest;
 import com.jachwisunbae.weather.support.ForecastTimesFixture;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.List;
 import java.util.TimeZone;
-import java.util.stream.IntStream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.ResourceLock;
@@ -41,7 +39,6 @@ class WeatherCollectionPlanTest {
 
         WeatherCollectionPlan plan = WeatherCollectionPlan.forPublication(publishedAt);
 
-        assertThat(plan.publishedAt()).isEqualTo(publishedAt);
         assertThat(plan.hourlyRequests()).hasSize(384).doesNotHaveDuplicates();
         assertThat(plan.hourlyRequests()).allSatisfy(request ->
                 assertThat(request.times().publishedAt()).isEqualTo(publishedAt));
@@ -59,18 +56,17 @@ class WeatherCollectionPlanTest {
 
     @ParameterizedTest
     @CsvSource({
-            "2, TMN@2026102206;TMX@2026102215;TMN@2026102306;TMX@2026102315;TMN@2026102406;TMX@2026102415, -, 390",
-            "5, TMX@2026102215;TMN@2026102306;TMX@2026102315;TMN@2026102406;TMX@2026102415, TMN, 389",
-            "8, TMX@2026102215;TMN@2026102306;TMX@2026102315;TMN@2026102406;TMX@2026102415, TMN, 389",
-            "11, TMX@2026102215;TMN@2026102306;TMX@2026102315;TMN@2026102406;TMX@2026102415, TMN, 389",
-            "14, TMN@2026102306;TMX@2026102315;TMN@2026102406;TMX@2026102415, TMN;TMX, 388",
-            "17, TMN@2026102306;TMX@2026102315;TMN@2026102406;TMX@2026102415, TMN;TMX, 388",
-            "20, TMN@2026102306;TMX@2026102315;TMN@2026102406;TMX@2026102415, TMN;TMX, 388",
-            "23, TMN@2026102306;TMX@2026102315;TMN@2026102406;TMX@2026102415, -, 388"
+            "2, TMN@2026102206;TMX@2026102215;TMN@2026102306;TMX@2026102315;TMN@2026102406;TMX@2026102415",
+            "5, TMX@2026102215;TMN@2026102306;TMX@2026102315;TMN@2026102406;TMX@2026102415",
+            "8, TMX@2026102215;TMN@2026102306;TMX@2026102315;TMN@2026102406;TMX@2026102415",
+            "11, TMX@2026102215;TMN@2026102306;TMX@2026102315;TMN@2026102406;TMX@2026102415",
+            "14, TMN@2026102306;TMX@2026102315;TMN@2026102406;TMX@2026102415",
+            "17, TMN@2026102306;TMX@2026102315;TMN@2026102406;TMX@2026102415",
+            "20, TMN@2026102306;TMX@2026102315;TMN@2026102406;TMX@2026102415",
+            "23, TMN@2026102306;TMX@2026102315;TMN@2026102406;TMX@2026102415"
     })
-    @DisplayName("대상 날짜별 TMN·TMX 제공 규칙에 따라 요청과 미제공 목록을 구분한다")
-    void plansDailyRequests(final int publicationHour, final String expectedRequests,
-                            final String unavailableElements, final int expectedCount) {
+    @DisplayName("대상 날짜별 TMN·TMX 제공 규칙에 따라 실제 요청 목록을 생성한다")
+    void plansDailyRequests(final int publicationHour, final String expectedRequests) {
         LocalDateTime publishedAt = DATE.atTime(publicationHour, 0);
 
         WeatherCollectionPlan plan = WeatherCollectionPlan.forPublication(publishedAt);
@@ -79,16 +75,6 @@ class WeatherCollectionPlanTest {
                 .containsExactly(expectedRequests.split(";"));
         assertThat(plan.dailyRequests()).allSatisfy(request ->
                 assertThat(request.times().publishedAt()).isEqualTo(publishedAt));
-        List<DailyForecastTarget> expectedUnavailable = unavailableElements.equals("-") ? List.of()
-                : Arrays.stream(unavailableElements.split(";"))
-                        .map(element -> new DailyForecastTarget(DATE, WeatherElement.valueOf(element))).toList();
-        assertThat(plan.unavailableDailyForecasts()).containsExactlyElementsOf(expectedUnavailable);
-        assertThat(plan.requests()).hasSize(expectedCount).doesNotHaveDuplicates()
-                .startsWith(plan.hourlyRequests().toArray(KmaForecastRequest[]::new))
-                .endsWith(plan.dailyRequests().toArray(KmaForecastRequest[]::new));
-        assertThat(plan.requestCount()).isEqualTo(expectedCount);
-        assertThat(plan.expectedRawValueCount()).isEqualTo((long) expectedCount * 37697);
-        assertThat(plan.estimatedResponseBytes(341297)).isEqualTo((long) expectedCount * 341297);
     }
 
     @Test
@@ -138,7 +124,7 @@ class WeatherCollectionPlanTest {
             TimeZone.setDefault(TimeZone.getTimeZone(zone));
             WeatherCollectionPlan plan = WeatherCollectionPlan.forPublication(DATE.atTime(23, 0));
 
-            assertThat(plan.requests()).allSatisfy(request -> assertThat(request.tmfc()).isEqualTo("2026102223"));
+            assertThat(java.util.stream.Stream.concat(plan.hourlyRequests().stream(), plan.dailyRequests().stream()).toList()).allSatisfy(request -> assertThat(request.tmfc()).isEqualTo("2026102223"));
             assertThat(plan.hourlyRequests().getFirst().tmef()).isEqualTo("2026102300");
             assertThat(plan.hourlyRequests().getLast().tmef()).isEqualTo("2026102423");
             assertThat(plan.dailyRequests()).extracting(request -> request.tmef())
@@ -169,44 +155,12 @@ class WeatherCollectionPlanTest {
     }
 
     @Test
-    @DisplayName("계획의 요청·미제공 목록을 외부에서 변경할 수 없다")
+    @DisplayName("계획의 요청 목록을 외부에서 변경할 수 없다")
     void keepsPlanImmutable() {
         WeatherCollectionPlan plan = WeatherCollectionPlan.forPublication(DATE.atTime(17, 0));
 
         assertThatThrownBy(() -> plan.hourlyRequests().clear()).isInstanceOf(UnsupportedOperationException.class);
         assertThatThrownBy(() -> plan.dailyRequests().clear()).isInstanceOf(UnsupportedOperationException.class);
-        assertThatThrownBy(() -> plan.unavailableDailyForecasts().clear()).isInstanceOf(UnsupportedOperationException.class);
-        assertThatThrownBy(() -> plan.requests().clear()).isInstanceOf(UnsupportedOperationException.class);
-        assertThat(plan.requestCount()).isEqualTo(388);
     }
 
-    @Test
-    @DisplayName("일 8개 발표분의 요청 수와 실측 크기 기준 응답량을 합산한다")
-    void estimatesEightCollectionsPerDay() {
-        List<WeatherCollectionPlan> plans = IntStream.of(2, 5, 8, 11, 14, 17, 20, 23)
-                .mapToObj(hour -> WeatherCollectionPlan.forPublication(DATE.atTime(hour, 0))).toList();
-
-        assertThat(plans.stream().mapToInt(WeatherCollectionPlan::requestCount).sum()).isEqualTo(3109);
-        assertThat(plans.stream().mapToLong(WeatherCollectionPlan::expectedRawValueCount).sum()).isEqualTo(117199973);
-        assertThat(plans.stream().mapToLong(plan -> plan.estimatedResponseBytes(341297)).sum()).isEqualTo(1061092373);
-        assertThat(plans.getFirst().estimatedResponseBytes(400000)).isEqualTo(156000000);
-    }
-
-    @Test
-    @DisplayName("응답량을 알 수 없는 0·음수 추정치와 long 범위를 넘는 응답량을 거부한다")
-    void rejectsInvalidResponseSizeEstimate() {
-        WeatherCollectionPlan plan = WeatherCollectionPlan.forPublication(DATE.atTime(17, 0));
-
-        assertThatThrownBy(() -> plan.estimatedResponseBytes(0)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> plan.estimatedResponseBytes(-1)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> plan.estimatedResponseBytes(Long.MAX_VALUE)).isInstanceOf(ArithmeticException.class);
-    }
-
-    @Test
-    @DisplayName("일별 대상의 날짜·요소 누락과 시간별 요소 혼입을 거부한다")
-    void rejectsInvalidDailyTarget() {
-        assertThatThrownBy(() -> new DailyForecastTarget(null, WeatherElement.TMN)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new DailyForecastTarget(DATE, null)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new DailyForecastTarget(DATE, WeatherElement.TMP)).isInstanceOf(IllegalArgumentException.class);
-    }
 }

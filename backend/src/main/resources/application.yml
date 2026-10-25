@@ -58,12 +58,8 @@ weather:
     # POP의 확률 의미와 PCP/SNO의 0·양수 계약을 대조하기 전에는 켜지 않는다.
     precipitation-contract-verified: ${WEATHER_PRECIPITATION_CONTRACT_VERIFIED:false}
     firebase-project-id: ${WEATHER_FIREBASE_PROJECT_ID:}
-  initial-load:
-    enabled: ${WEATHER_INITIAL_LOAD_ENABLED:false}
   collection:
     enabled: ${WEATHER_COLLECTION_ENABLED:false}
-    # 15분은 공개 지연 실측 전의 초기 가정이다.
-    publication-delay-minutes: ${WEATHER_PUBLICATION_DELAY_MINUTES:15}
   cleanup:
     enabled: ${WEATHER_CLEANUP_ENABLED:false}
 

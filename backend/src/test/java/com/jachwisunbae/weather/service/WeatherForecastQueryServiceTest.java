@@ -30,7 +30,7 @@ class WeatherForecastQueryServiceTest {
     private static final GridPoint GRID = new GridPoint(60, 127);
     private final WeatherForecastQueryRepository repository = mock(WeatherForecastQueryRepository.class);
     private final WeatherForecastQueryService service = new WeatherForecastQueryService(repository, new KmaGridConverter(),
-            Clock.fixed(Instant.parse("2026-10-25T13:00:00Z"), ZoneOffset.UTC), 15);
+            Clock.fixed(Instant.parse("2026-10-25T13:00:00Z"), ZoneOffset.UTC));
 
     @Test
     void fillsMissingHoursWithoutInventingZeroOrLandCoverage() {
@@ -40,8 +40,8 @@ class WeatherForecastQueryServiceTest {
         assertThat(result.hourly()).hasSize(24);
         assertThat(result.coverage()).isEqualTo(Coverage.UNAVAILABLE);
         assertThat(result.hourly().getFirst().values().get(WeatherElement.TMP).status())
-                .isEqualTo(ForecastValueStatus.NOT_COLLECTED);
-        assertThat(result.tmn().status()).isEqualTo(ForecastValueStatus.NOT_PROVIDED);
+                .isEqualTo(ForecastValueStatus.UNAVAILABLE);
+        assertThat(result.tmn().status()).isEqualTo(ForecastValueStatus.UNAVAILABLE);
         verify(repository).findHourly(GRID, TODAY);
         verify(repository).findDaily(GRID, TODAY);
     }
@@ -76,10 +76,10 @@ class WeatherForecastQueryServiceTest {
                         published.plusMinutes(30), published.plusMinutes(40)),
                 reading(target, WeatherElement.REH, 30.0, TODAY.atTime(11, 0))));
         var hour = service.findByGrid(GRID, TODAY).hourly().getLast();
-        assertThat(hour.values().get(WeatherElement.TMP).status()).isEqualTo(ForecastValueStatus.UNVERIFIED);
-        assertThat(hour.values().get(WeatherElement.SKY).status()).isEqualTo(ForecastValueStatus.UNVERIFIED);
-        assertThat(hour.values().get(WeatherElement.PTY).status()).isEqualTo(ForecastValueStatus.UNVERIFIED);
-        assertThat(hour.values().get(WeatherElement.REH).status()).isEqualTo(ForecastValueStatus.STALE);
+        assertThat(hour.values().get(WeatherElement.TMP).status()).isEqualTo(ForecastValueStatus.UNAVAILABLE);
+        assertThat(hour.values().get(WeatherElement.SKY).status()).isEqualTo(ForecastValueStatus.UNAVAILABLE);
+        assertThat(hour.values().get(WeatherElement.PTY).status()).isEqualTo(ForecastValueStatus.UNAVAILABLE);
+        assertThat(hour.values().get(WeatherElement.REH).status()).isEqualTo(ForecastValueStatus.UNAVAILABLE);
         assertThat(hour.values().values()).allSatisfy(value -> assertThat(value.value()).isNull());
     }
 
@@ -95,7 +95,7 @@ class WeatherForecastQueryServiceTest {
     @Test
     void usesKstDateAtUtcDateBoundary() {
         var boundary = new WeatherForecastQueryService(repository, new KmaGridConverter(),
-                Clock.fixed(Instant.parse("2026-12-31T15:00:00Z"), ZoneOffset.UTC), 15);
+                Clock.fixed(Instant.parse("2026-12-31T15:00:00Z"), ZoneOffset.UTC));
         assertThat(boundary.findByGrid(GRID, null).date()).isEqualTo(LocalDate.of(2027, 1, 1));
         assertThat(boundary.findByGrid(GRID, LocalDate.of(2027, 1, 2)).hourly()).hasSize(24);
     }
@@ -130,9 +130,9 @@ class WeatherForecastQueryServiceTest {
                         TODAY.atTime(20, 15), TODAY.atTime(22, 1))));
         var values = service.findByGrid(GRID, TODAY).hourly().getLast().values();
         assertThat(values.get(WeatherElement.TMP).status()).isEqualTo(ForecastValueStatus.AVAILABLE);
-        assertThat(values.get(WeatherElement.REH).status()).isEqualTo(ForecastValueStatus.STALE);
-        assertThat(values.get(WeatherElement.SKY).status()).isEqualTo(ForecastValueStatus.UNVERIFIED);
-        assertThat(values.get(WeatherElement.PTY).status()).isEqualTo(ForecastValueStatus.UNVERIFIED);
+        assertThat(values.get(WeatherElement.REH).status()).isEqualTo(ForecastValueStatus.UNAVAILABLE);
+        assertThat(values.get(WeatherElement.SKY).status()).isEqualTo(ForecastValueStatus.UNAVAILABLE);
+        assertThat(values.get(WeatherElement.PTY).status()).isEqualTo(ForecastValueStatus.UNAVAILABLE);
     }
 
     @Test

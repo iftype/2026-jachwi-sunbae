@@ -31,9 +31,8 @@ import java.util.Locale;
 import java.util.function.Predicate;
 import java.util.stream.IntStream;
 
-// 공식 기상특보가 아닌 초기 생활 안내 정책이다. 임계값과 적용 범위는 가이드의 v1 정책으로 관리한다.
+// 공식 기상특보가 아닌 초기 생활 안내 정책이다. 임계값과 적용 범위는 날씨 알림 가이드를 따른다.
 public final class LifeWeatherRules {
-    public static final String VERSION = "life-weather-v1";
     private static final List<Condition> PRIORITY = List.of(SNOW, RAIN, FREEZE, TEMPERATURE_SWING, DRY, LAUNDRY, VENTILATION);
     private final boolean precipitationContractVerified;
 
@@ -55,7 +54,8 @@ public final class LifeWeatherRules {
         if (!sendable) {
             return new LifeWeatherReport(false, "ESSENTIAL_VALUES_MISSING", null, null, results);
         }
-        List<Assessment> cautions = results.stream().filter(value -> value.verdict() == CAUTION)
+        List<Assessment> cautions = results.stream().filter(value -> value.verdict() == CAUTION
+                        && List.of(SNOW, RAIN, FREEZE, TEMPERATURE_SWING).contains(value.condition()))
                 .sorted(Comparator.comparingInt(value -> PRIORITY.indexOf(value.condition()))).toList();
         String prefix = forecast.slot() == NotificationSlot.MORNING ? "오늘 " : "내일 ";
         String title;

@@ -6,7 +6,7 @@ import com.jachwisunbae.weather.domain.WeatherElement;
 import com.jachwisunbae.weather.notification.domain.LifeWeatherForecast;
 import com.jachwisunbae.weather.notification.domain.LifeWeatherRules;
 import com.jachwisunbae.weather.notification.domain.NotificationSlot;
-import com.jachwisunbae.weather.notification.service.dto.WeatherNotificationSnapshot;
+import com.jachwisunbae.weather.notification.domain.LifeWeatherReport;
 import com.jachwisunbae.weather.service.WeatherForecastQueryService;
 import com.jachwisunbae.weather.service.dto.result.WeatherForecastResult.Reading;
 import java.time.LocalDate;
@@ -20,17 +20,15 @@ import org.springframework.stereotype.Service;
 @Service
 public class LifeWeatherAnalysisService {
     private final WeatherForecastQueryService forecasts;
-    private final boolean precipitationContractVerified;
     private final LifeWeatherRules rules;
 
     public LifeWeatherAnalysisService(final WeatherForecastQueryService forecasts,
             @Value("${weather.notification.precipitation-contract-verified:false}") final boolean precipitationContractVerified) {
         this.forecasts = forecasts;
-        this.precipitationContractVerified = precipitationContractVerified;
         this.rules = new LifeWeatherRules(precipitationContractVerified);
     }
 
-    public WeatherNotificationSnapshot analyze(final GridPoint grid, final LocalDate sendDate, final NotificationSlot slot) {
+    public LifeWeatherReport analyze(final GridPoint grid, final LocalDate sendDate, final NotificationSlot slot) {
         var forecast = forecasts.findByGrid(grid, slot.targetDate(sendDate));
         var hours = forecast.hourly().stream().filter(hour -> hour.forecastAt().getHour() >= slot.firstForecastHour()).toList();
         LocalDateTime required = slot.requiredPublication(sendDate);
@@ -44,9 +42,8 @@ public class LifeWeatherAnalysisService {
             }
             return new LifeWeatherForecast.Hour(hour.forecastAt(), values);
         }).toList();
-        var report = rules.evaluate(new LifeWeatherForecast(forecast.date(), slot, input,
+        return rules.evaluate(new LifeWeatherForecast(forecast.date(), slot, input,
                 available(forecast.tmn()), available(forecast.tmx()), verified));
-        return new WeatherNotificationSnapshot(LifeWeatherRules.VERSION, precipitationContractVerified, forecast, report);
     }
 
     private boolean usable(final Reading reading, final LocalDateTime required) {

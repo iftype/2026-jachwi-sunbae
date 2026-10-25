@@ -39,21 +39,11 @@ public class KmaForecastClient {
     }
 
     public GridForecast fetch(final KmaForecastRequest request) {
-        return fetchMeasured(request).forecast();
-    }
-
-    public ForecastFetchResult fetchMeasured(final KmaForecastRequest request) {
         if (request == null) {
             throw new IllegalArgumentException("요청할 발표·예보 시각과 기상 요소가 필요합니다.");
         }
         validateApiKey(apiKey);
-        long httpStart = System.nanoTime();
-        byte[] body = request(request);
-        long httpNanos = System.nanoTime() - httpStart;
-        long parseStart = System.nanoTime();
-        // HTTP 200의 오류 본문도 기존 RAW 파싱 계약으로 거부한다.
-        GridForecast forecast = parser.parse(new String(body, StandardCharsets.UTF_8), request.times(), request.element());
-        return new ForecastFetchResult(forecast, body.length, httpNanos, System.nanoTime() - parseStart);
+        return parser.parse(new String(request(request), StandardCharsets.UTF_8), request.times(), request.element());
     }
 
     private byte[] request(final KmaForecastRequest forecastRequest) {

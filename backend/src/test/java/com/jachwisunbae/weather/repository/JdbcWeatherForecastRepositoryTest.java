@@ -59,59 +59,6 @@ class JdbcWeatherForecastRepositoryTest {
         jdbcTemplate.update("DELETE FROM weather_collection_publications");
     }
 
-    @Test
-    @DisplayName("빈 DB나 일별 기온만 있는 DB에는 유효한 시간별 예보가 없다")
-    void ignoresDailyOnlyDataForInitialization() {
-        JdbcWeatherForecastRepository repository = repository(false);
-        assertThat(repository.hasValidHourlyForecastAtOrAfter(FORECAST_AT)).isFalse();
-
-        repository.upsertDaily(List.of(new DailyForecast(POINT, DATE, temperature(0.0, PUBLISHED_AT, COLLECTED_AT), null)));
-
-        assertThat(repository.hasValidHourlyForecastAtOrAfter(FORECAST_AT)).isFalse();
-    }
-
-    @Test
-    @DisplayName("TMP가 결측인 미래 예보는 유효하지 않으며 정상 0은 유효하다")
-    void requiresValidTemperatureIncludingZero() {
-        JdbcWeatherForecastRepository repository = repository(false);
-        repository.startCollection(PUBLISHED_AT, COLLECTED_AT);
-        repository.completeCollection(PUBLISHED_AT, COLLECTED_AT);
-        repository.upsertHourly(List.of(hourly(POINT, PUBLISHED_AT, COLLECTED_AT, null)));
-        assertThat(repository.hasValidHourlyForecastAtOrAfter(FORECAST_AT.minusHours(1))).isFalse();
-
-        repository.upsertHourly(List.of(hourly(POINT, PUBLISHED_AT, COLLECTED_AT, 0.0)));
-
-        assertThat(repository.hasValidHourlyForecastAtOrAfter(FORECAST_AT.minusHours(1))).isTrue();
-    }
-
-    @Test
-    @DisplayName("KST 예보시각이 현재와 같으면 유효하고 과거이면 최초 적재 대상이다")
-    void checksCurrentTimeBoundaryWithoutTimeZoneConversion() {
-        JdbcWeatherForecastRepository repository = repository(false);
-        repository.startCollection(PUBLISHED_AT, COLLECTED_AT);
-        repository.completeCollection(PUBLISHED_AT, COLLECTED_AT);
-        repository.upsertHourly(List.of(hourly(POINT, PUBLISHED_AT, COLLECTED_AT, -1.0)));
-
-        assertThat(repository.hasValidHourlyForecastAtOrAfter(FORECAST_AT.minusNanos(1000))).isTrue();
-        assertThat(repository.hasValidHourlyForecastAtOrAfter(FORECAST_AT)).isTrue();
-        assertThat(repository.hasValidHourlyForecastAtOrAfter(FORECAST_AT.plusNanos(1000))).isFalse();
-    }
-
-    @Test
-    @DisplayName("완료 기록 없는 기존 행과 실패한 재수집의 행은 최초 적재를 막지 않는다")
-    void unverifiedRowsDoNotPreventInitialization() {
-        JdbcWeatherForecastRepository repository = repository(false);
-        repository.upsertHourly(List.of(hourly(POINT, PUBLISHED_AT, COLLECTED_AT, 10.0)));
-        assertThat(repository.hasValidHourlyForecastAtOrAfter(FORECAST_AT)).isFalse();
-        repository.startCollection(PUBLISHED_AT, COLLECTED_AT);
-        assertThat(repository.hasValidHourlyForecastAtOrAfter(FORECAST_AT)).isFalse();
-        repository.completeCollection(PUBLISHED_AT, COLLECTED_AT);
-        assertThat(repository.hasValidHourlyForecastAtOrAfter(FORECAST_AT)).isTrue();
-        repository.startCollection(PUBLISHED_AT, COLLECTED_AT.plusMinutes(1));
-        repository.completeCollection(PUBLISHED_AT, COLLECTED_AT.plusMinutes(2));
-        assertThat(repository.hasValidHourlyForecastAtOrAfter(FORECAST_AT)).isFalse();
-    }
-
     @ParameterizedTest
     @ValueSource(booleans = {false, true})
     @DisplayName("시간별 예보를 삽입하고 동일 발표분의 8개 값·결측·수집시각 정정을 반영한다")
@@ -285,6 +232,33 @@ class JdbcWeatherForecastRepositoryTest {
                 .isInstanceOf(NullPointerException.class);
         assertThat(count("weather_forecasts")).isZero();
         assertThat(count("weather_daily_forecasts")).isZero();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    @DisplayName("한 시각·날짜의 두 번째 JDBC 배치가 실패하면 첫 배치도 롤백한다")
+    void annotationTransactionRollsBackEveryBatch(final boolean daily) {
+        DataSource source = dataSource(false);
+        JdbcTemplate jdbc = new JdbcTemplate(source);
+        var target = com.jachwisunbae.weather.support.WeatherTransactionTestSupport.transactional(
+                new JdbcWeatherForecastRepository(jdbc), source);
+        String table = daily ? "weather_daily_forecasts" : "weather_forecasts";
+        jdbc.execute("ALTER TABLE " + table + " ADD CONSTRAINT fail_weather_batch CHECK (NOT (grid_x = 107 AND grid_y = 7))");
+        try {
+            assertThatThrownBy(() -> {
+                if (daily) {
+                    target.upsertDaily(IntStream.range(0, 1001).mapToObj(index -> new DailyForecast(
+                            new GridPoint(index % 149 + 1, index / 149 + 1), DATE,
+                            temperature(1.0, PUBLISHED_AT, COLLECTED_AT), null)).toList());
+                } else {
+                    target.upsertHourly(IntStream.range(0, 1001).mapToObj(index -> hourly(
+                            new GridPoint(index % 149 + 1, index / 149 + 1), PUBLISHED_AT, COLLECTED_AT, 1.0)).toList());
+                }
+            }).isInstanceOf(org.springframework.dao.DataAccessException.class);
+            assertThat(count(table)).isZero();
+        } finally {
+            jdbc.execute("ALTER TABLE " + table + " DROP CHECK fail_weather_batch");
+        }
     }
 
     private static DataSource dataSource(final boolean rewriteBatches) {

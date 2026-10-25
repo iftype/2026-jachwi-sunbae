@@ -6,24 +6,15 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
-import com.jachwisunbae.JachwiSunbaeBackendApplication;
-import com.jachwisunbae.weather.collector.WeatherCollectionScheduler;
 import com.jachwisunbae.weather.domain.ForecastTimes;
 import com.jachwisunbae.weather.domain.GridPoint;
 import com.jachwisunbae.weather.domain.WeatherElement;
 import com.jachwisunbae.weather.repository.JdbcWeatherForecastRepository;
 import com.jachwisunbae.weather.service.WeatherCollectionService;
 import com.jachwisunbae.weather.service.collection.WeatherCollectionPlan;
-import com.jachwisunbae.weather.service.dto.result.WeatherCollectionExecution.Source;
-import com.jachwisunbae.weather.service.dto.result.WeatherCollectionExecution.Status;
-import com.jachwisunbae.weather.service.dto.result.WeatherCollectionResult;
-import com.jachwisunbae.weather.support.ForecastTimesFixture;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.sql.Timestamp;
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -43,24 +34,16 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.springframework.boot.WebApplicationType;
-import org.springframework.boot.builder.SpringApplicationBuilder;
-import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.mock.http.client.MockClientHttpResponse;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
-import org.springframework.util.StreamUtils;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.util.UriComponentsBuilder;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -102,7 +85,7 @@ class WeatherCollectionIntegrationTest {
         Map<KmaForecastRequest, byte[]> raw = new LinkedHashMap<>();
         RestClient.Builder builder = RestClient.builder().baseUrl("https://apihub.kma.go.kr");
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        for (KmaForecastRequest request : plan.requests()) {
+        for (KmaForecastRequest request : java.util.stream.Stream.concat(plan.hourlyRequests().stream(), plan.dailyRequests().stream()).toList()) {
             byte[] body = raw(request).getBytes(StandardCharsets.UTF_8);
             raw.put(request, body);
             server.expect(queryParam("tmfc", request.tmfc()))
@@ -115,24 +98,13 @@ class WeatherCollectionIntegrationTest {
         }
         WeatherCollectionService service = service(new KmaForecastClient(builder.build(), "test-key"));
 
-        WeatherCollectionResult result = service.collect(plan.publishedAt());
+        service.collect(plan.hourlyRequests().getFirst().times().publishedAt());
 
         server.verify();
-        assertThat(result.requestCount()).isEqualTo(plan.requestCount());
-        assertThat(result.responseBytes()).isEqualTo(raw.values().stream().mapToLong(bytes -> bytes.length).sum());
-        assertThat(result.validValues() + result.missingValues()).isEqualTo(plan.expectedRawValueCount());
-        assertThat(result.hourlyRows()).isEqualTo(48L * VALID_POINTS);
-        assertThat(result.hourlyRows()).isEqualTo(count("weather_forecasts"));
-        assertThat(result.dailyRows()).isEqualTo(count("weather_daily_forecasts"));
-        assertThat(result.httpNanos()).isPositive();
-        assertThat(result.parseNanos()).isPositive();
-        assertThat(result.mergeNanos()).isPositive();
-        assertThat(result.dbNanos()).isPositive();
-        assertThat(result.totalNanos()).isGreaterThanOrEqualTo(result.httpNanos() + result.parseNanos()
-                + result.mergeNanos() + result.dbNanos());
+        assertThat(count("weather_forecasts")).isEqualTo(48L * VALID_POINTS);
         verifyAgainstRaw(plan, raw, COLLECTED_AT);
         assertThat(jdbc.queryForObject("SELECT completed_at FROM weather_collection_publications WHERE published_at = ?",
-                LocalDateTime.class, plan.publishedAt())).isEqualTo(COLLECTED_AT);
+                LocalDateTime.class, plan.hourlyRequests().getFirst().times().publishedAt())).isEqualTo(COLLECTED_AT);
     }
 
     @Test
@@ -146,130 +118,21 @@ class WeatherCollectionIntegrationTest {
         }
         server.expect(queryParam("tmef", "2026102304")).andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE));
 
-        assertThatThrownBy(() -> service(new KmaForecastClient(builder.build(), "test-key")).collect(plan.publishedAt()))
+        assertThatThrownBy(() -> service(new KmaForecastClient(builder.build(), "test-key")).collect(plan.hourlyRequests().getFirst().times().publishedAt()))
                 .isInstanceOf(com.jachwisunbae.common.exception.server.UpstreamServiceException.class);
 
         server.verify();
         assertThat(count("weather_forecasts")).isEqualTo(VALID_POINTS);
         assertThat(count("weather_daily_forecasts")).isZero();
         assertThat(jdbc.queryForObject("SELECT MAX(forecast_at) FROM weather_forecasts", LocalDateTime.class))
-                .isEqualTo(plan.publishedAt().plusHours(1));
+                .isEqualTo(plan.hourlyRequests().getFirst().times().publishedAt().plusHours(1));
         assertThat(jdbc.queryForObject("SELECT completed_at FROM weather_collection_publications WHERE published_at = ?",
-                LocalDateTime.class, plan.publishedAt())).isNull();
-    }
-
-    @Test
-    @DisplayName("빈 DB에 최신 발표분을 최초 적재한 뒤 다시 실행하면 유효 예보를 확인하고 HTTP 요청 없이 건너뛴다")
-    void initializesEmptyDatabaseOnlyOnce() {
-        Instant now = Instant.parse("2026-10-22T17:15:00Z");
-        LocalDateTime nowKst = LocalDateTime.of(2026, 10, 23, 2, 15);
-        WeatherCollectionPlan plan = WeatherCollectionPlan.forPublication(LocalDateTime.of(2026, 10, 23, 2, 0));
-        RestClient.Builder builder = RestClient.builder().baseUrl("https://apihub.kma.go.kr");
-        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        Map<KmaForecastRequest, byte[]> raw = new LinkedHashMap<>();
-        for (KmaForecastRequest request : plan.requests()) {
-            byte[] body = raw(request).getBytes(StandardCharsets.UTF_8);
-            raw.put(request, body);
-            server.expect(queryParam("tmfc", request.tmfc()))
-                    .andExpect(queryParam("tmef", request.tmef()))
-                    .andExpect(queryParam("vars", request.element().name()))
-                    .andRespond(withSuccess(body, MediaType.TEXT_PLAIN));
-        }
-        WeatherCollectionService service = new WeatherCollectionService(new KmaForecastClient(builder.build(), "test-key"),
-                new JdbcWeatherForecastRepository(jdbc), new DataSourceTransactionManager(dataSource),
-                Clock.fixed(now, ZoneId.of("America/Los_Angeles")), true, 15);
-
-        WeatherCollectionResult result = service.initializeIfEmpty().orElseThrow();
-
-        assertThat(result.publishedAt()).isEqualTo(plan.publishedAt());
-        assertThat(result.requestCount()).isEqualTo(390);
-        assertThat(count("weather_forecasts")).isEqualTo(48L * VALID_POINTS);
-        // RAW가 홀수·짝수 시각에 TMP 격자 하나를 교체하므로 날짜별 합집합은 각각 1개 더 많다.
-        assertThat(count("weather_daily_forecasts")).isEqualTo(3L * (VALID_POINTS + 1));
-        verifyAgainstRaw(plan, raw, nowKst);
-
-        assertThat(service.initializeIfEmpty()).isEmpty();
-        server.verify();
-        verifyAgainstRaw(plan, raw, nowKst);
-    }
-
-    @Test
-    @DisplayName("자동 수집의 HTTP 200 미공개 본문은 실패로 기록하고 저장하지 않는다")
-    void recordsUnavailablePublicationAsFailure() {
-        RestClient.Builder builder = RestClient.builder().baseUrl("https://apihub.kma.go.kr");
-        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        server.expect(queryParam("tmfc", "2026102302"))
-                .andExpect(queryParam("tmef", "2026102303"))
-                .andRespond(withSuccess("# data not available", MediaType.TEXT_PLAIN));
-        Clock clock = Clock.fixed(Instant.parse("2026-10-22T17:15:00Z"), ZoneOffset.UTC);
-        WeatherCollectionService service = new WeatherCollectionService(new KmaForecastClient(builder.build(), "test-key"),
-                new JdbcWeatherForecastRepository(jdbc), new DataSourceTransactionManager(dataSource), clock, false, 15);
-
-        new WeatherCollectionScheduler(service, clock, Duration.ofMinutes(15)).collect();
-
-        server.verify();
-        assertThat(service.execution().orElseThrow().source()).isEqualTo(Source.SCHEDULED);
-        assertThat(service.execution().orElseThrow().status()).isEqualTo(Status.FAILED);
-        assertThat(count("weather_forecasts")).isZero();
-        assertThat(count("weather_daily_forecasts")).isZero();
-    }
-
-    @Test
-    @DisplayName("수동 명령과 같은 비웹 애플리케이션은 자동 수집 ON이어도 키 없이 기동하며 자동으로 수집하지 않는다")
-    void startsNonWebContextWithoutCollecting() {
-        try (ConfigurableApplicationContext context = new SpringApplicationBuilder(JachwiSunbaeBackendApplication.class)
-                .web(WebApplicationType.NONE).run("--spring.datasource.url=" + dataSource.getUrl(),
-                        "--spring.datasource.username=" + MYSQL.getUsername(), "--spring.datasource.password=" + MYSQL.getPassword(),
-                        "--weather.kma.api-key=", "--weather.collection.enabled=true")) {
-            assertThat(context.getBean(WeatherCollectionService.class)).isNotNull();
-            assertThat(context.getBeansOfType(WeatherCollectionScheduler.class)).isEmpty();
-            assertThat(count("weather_forecasts")).isZero();
-            assertThat(count("weather_daily_forecasts")).isZero();
-        }
-    }
-
-    @Test
-    @EnabledIfEnvironmentVariable(named = "WEATHER_LIVE_PUBLISHED_AT", matches = "[0-9]{10}")
-    @DisplayName("명시적으로 켠 실제 API 수집을 격리 MySQL에 저장하고 수신 원본 전체와 대조한다")
-    void verifiesLiveCollection() throws Exception {
-        String publication = System.getenv("WEATHER_LIVE_PUBLISHED_AT");
-        WeatherCollectionPlan plan = WeatherCollectionPlan.forPublication(ForecastTimesFixture.times(publication, publication).publishedAt());
-        Map<KmaForecastRequest, byte[]> raw = new LinkedHashMap<>();
-        RestClient rest = KmaForecastClient.createClient().mutate()
-                .requestInterceptor((request, body, execution) -> {
-                    var query = UriComponentsBuilder.fromUri(request.getURI()).build().getQueryParams();
-                    KmaForecastRequest key = new KmaForecastRequest(ForecastTimesFixture.times(query.getFirst("tmfc"), query.getFirst("tmef")),
-                            WeatherElement.valueOf(query.getFirst("vars")));
-                    try (ClientHttpResponse response = execution.execute(request, body)) {
-                        byte[] received = StreamUtils.copyToByteArray(response.getBody());
-                        raw.put(key, received);
-                        return new MockClientHttpResponse(received, response.getStatusCode());
-                    }
-                }).build();
-        Instant started = Instant.now().truncatedTo(ChronoUnit.MICROS);
-        WeatherCollectionService service = new WeatherCollectionService(new KmaForecastClient(rest, System.getenv("KMA_API_KEY")),
-                new JdbcWeatherForecastRepository(jdbc), new DataSourceTransactionManager(dataSource), Clock.fixed(started, ZoneOffset.UTC), false, 15);
-
-        WeatherCollectionResult result = service.collect(plan.publishedAt());
-
-        verifyAgainstRaw(plan, raw, LocalDateTime.ofInstant(started, ZoneId.of("Asia/Seoul")));
-        assertThat(result.requestCount()).isEqualTo(plan.requestCount());
-        assertThat(result.hourlyRows()).isEqualTo(count("weather_forecasts"));
-        assertThat(result.dailyRows()).isEqualTo(count("weather_daily_forecasts"));
-        Path directory = Path.of("build/weather-live", publication);
-        Files.createDirectories(directory);
-        for (var entry : raw.entrySet()) {
-            KmaForecastRequest request = entry.getKey();
-            Files.write(directory.resolve(request.tmfc() + "_" + request.tmef() + "_" + request.element() + ".raw"), entry.getValue());
-        }
-        Files.writeString(directory.resolve("verification.txt"), result + "\nallStoredValuesAndTimesMatched=true\n");
-        System.out.printf("weather-live-verification publication=%s hourlyRows=%d dailyRows=%d requests=%d bytes=%d allValuesMatched=true%n",
-                publication, result.hourlyRows(), result.dailyRows(), result.requestCount(), result.responseBytes());
+                LocalDateTime.class, plan.hourlyRequests().getFirst().times().publishedAt())).isNull();
     }
 
     private WeatherCollectionService service(final KmaForecastClient client) {
-        return new WeatherCollectionService(client, new JdbcWeatherForecastRepository(jdbc),
-                new DataSourceTransactionManager(dataSource), Clock.fixed(COLLECTED_INSTANT, ZoneOffset.UTC), false, 15);
+        return new WeatherCollectionService(client, com.jachwisunbae.weather.support.WeatherTransactionTestSupport.transactional(new JdbcWeatherForecastRepository(jdbc), dataSource),
+                Clock.fixed(COLLECTED_INSTANT, ZoneOffset.UTC));
     }
 
     // 검증은 운영 파서·결합기를 재사용하지 않고 수신 토큰과 DB를 직접 비교한다.
@@ -278,7 +141,7 @@ class WeatherCollectionIntegrationTest {
         Map<LocalDate, Set<Integer>> dailyPoints = new HashMap<>();
         long hourlyCount = 0;
         for (int hour = 1; hour <= 48; hour++) {
-            ForecastTimes times = new ForecastTimes(plan.publishedAt(), plan.publishedAt().plusHours(hour));
+            ForecastTimes times = new ForecastTimes(plan.hourlyRequests().getFirst().times().publishedAt(), plan.hourlyRequests().getFirst().times().publishedAt().plusHours(hour));
             Map<WeatherElement, double[]> elements = new EnumMap<>(WeatherElement.class);
             WeatherElement.hourlyElements().forEach(element -> elements.put(element, tokens(raw.get(new KmaForecastRequest(times, element)))));
             Set<Integer> points = validIndices(elements.get(WeatherElement.TMP));
@@ -289,7 +152,7 @@ class WeatherCollectionIntegrationTest {
             for (Map<String, Object> row : rows) {
                 int index = index(row);
                 assertThat(points).contains(index);
-                assertTime(row, "published_at", plan.publishedAt());
+                assertTime(row, "published_at", plan.hourlyRequests().getFirst().times().publishedAt());
                 assertTime(row, "forecast_at", times.forecastAt());
                 assertTime(row, "collected_at", collectedAt);
                 elements.forEach((element, values) -> assertThat(row.get(element.name().toLowerCase(java.util.Locale.ROOT)))
@@ -312,7 +175,7 @@ class WeatherCollectionIntegrationTest {
                     String column = element.name().toLowerCase(java.util.Locale.ROOT);
                     double[] values = elements.get(element);
                     assertThat(row.get(column)).isEqualTo(values == null ? null : nullable(values[index]));
-                    assertTime(row, column + "_published_at", values == null ? null : plan.publishedAt());
+                    assertTime(row, column + "_published_at", values == null ? null : plan.hourlyRequests().getFirst().times().publishedAt());
                     assertTime(row, column + "_collected_at", values == null ? null : collectedAt);
                 }
             }

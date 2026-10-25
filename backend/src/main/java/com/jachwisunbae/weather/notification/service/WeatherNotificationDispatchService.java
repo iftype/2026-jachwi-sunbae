@@ -1,149 +1,99 @@
 package com.jachwisunbae.weather.notification.service;
 
+import com.jachwisunbae.weather.domain.MemberWeatherLocation;
 import com.jachwisunbae.weather.notification.domain.NotificationSlot;
-import com.jachwisunbae.weather.notification.domain.PreparedWeatherNotification;
-import com.jachwisunbae.weather.notification.domain.WeatherDelivery;
-import com.jachwisunbae.weather.notification.domain.WeatherDelivery.Status;
+import com.jachwisunbae.weather.notification.domain.WeatherDevice;
+import com.jachwisunbae.weather.notification.domain.WeatherNotification;
+import com.jachwisunbae.weather.notification.domain.WeatherNotification.SendResult;
 import com.jachwisunbae.weather.notification.provider.WeatherPushSender;
-import com.jachwisunbae.weather.notification.provider.WeatherPushSender.Outcome;
 import com.jachwisunbae.weather.notification.provider.WeatherPushSender.Push;
-import com.jachwisunbae.weather.notification.provider.WeatherPushSender.Result;
 import com.jachwisunbae.weather.notification.repository.WeatherNotificationRepository;
 import com.jachwisunbae.weather.notification.repository.WeatherNotificationSettingsRepository;
+import com.jachwisunbae.weather.service.MemberWeatherLocationService;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Objects;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 public class WeatherNotificationDispatchService {
     private static final Logger LOG = LoggerFactory.getLogger(WeatherNotificationDispatchService.class);
     private final WeatherNotificationSettingsRepository settings;
-    private final WeatherNotificationRepository repository;
-    private final WeatherNotificationPreparationService preparation;
-    private final WeatherNotificationSnapshotCodec codec;
+    private final WeatherNotificationRepository notifications;
+    private final MemberWeatherLocationService locations;
+    private final LifeWeatherAnalysisService analysis;
     private final WeatherPushSender sender;
     private final Clock clock;
     private final boolean enabled;
-    private final AtomicBoolean running = new AtomicBoolean();
 
     public WeatherNotificationDispatchService(final WeatherNotificationSettingsRepository settings,
-            final WeatherNotificationRepository repository, final WeatherNotificationPreparationService preparation,
-            final WeatherNotificationSnapshotCodec codec, final WeatherPushSender sender, final Clock clock,
+            final WeatherNotificationRepository notifications, final MemberWeatherLocationService locations,
+            final LifeWeatherAnalysisService analysis, final WeatherPushSender sender, final Clock clock,
             @Value("${weather.notification.enabled:false}") final boolean enabled) {
         this.settings = settings;
-        this.repository = repository;
-        this.preparation = preparation;
-        this.codec = codec;
+        this.notifications = notifications;
+        this.locations = locations;
+        this.analysis = analysis;
         this.sender = sender;
         this.clock = clock;
         this.enabled = enabled;
     }
 
-    public RunResult dispatchCurrentSlot() {
+    public void dispatch(final NotificationSlot slot) {
         if (!enabled) {
-            return new RunResult("DISABLED", 0, 0, 0, 0);
+            return;
         }
-        if (TransactionSynchronizationManager.isActualTransactionActive()) {
-            throw new IllegalStateException("날씨 알림 발송은 외부 트랜잭션 없이 실행해야 합니다.");
-        }
-        var selected = NotificationSlot.activeAt(clock.instant());
-        if (selected.isEmpty()) {
-            return new RunResult("OUTSIDE_WINDOW", 0, 0, 0, 0);
-        }
-        if (!running.compareAndSet(false, true)) {
-            return new RunResult("ALREADY_RUNNING", 0, 0, 0, 0);
-        }
-        long start = System.nanoTime();
-        int members = 0;
-        int attempts = 0;
-        int accepted = 0;
-        int skipped = 0;
-        try {
-            repository.recover(clock.instant());
-            NotificationSlot slot = selected.orElseThrow();
-            LocalDate date = clock.instant().atZone(NotificationSlot.KST).toLocalDate();
-            long cursor = 0;
-            while (clock.instant().isBefore(slot.expiresAt(date))) {
-                List<Long> page = settings.enabledMemberIdsAfter(cursor, 100);
-                if (page.isEmpty()) {
-                    break;
-                }
-                for (long memberId : page) {
-                    cursor = memberId;
-                    members++;
-                    try {
-                        var notification = preparation.prepare(memberId, date, slot);
-                        if (notification.isEmpty()) {
-                            skipped++;
-                            continue;
-                        }
-                        for (WeatherDelivery delivery : repository.deliveries(notification.get().notificationId())) {
-                            Status outcome = deliver(notification.get(), delivery);
-                            if (outcome != null) {
-                                attempts++;
-                                if (outcome == Status.ACCEPTED) {
-                                    accepted++;
-                                }
-                            }
-                        }
-                    } catch (RuntimeException exception) {
-                        skipped++;
-                        LOG.error("weather-notification-member-failed exceptionType={}", exception.getClass().getSimpleName());
-                    }
-                }
+        LocalDate date = LocalDate.ofInstant(clock.instant(), NotificationSlot.KST);
+        for (long memberId : settings.enabledMemberIds()) {
+            try {
+                send(memberId, date, slot);
+            } catch (RuntimeException exception) {
+                LOG.warn("weather-notification-failed exceptionType={}", exception.getClass().getSimpleName());
             }
-            return new RunResult("COMPLETED", members, attempts, accepted, skipped);
-        } finally {
-            running.set(false);
-            LOG.info("weather-notification-run members={} attempts={} accepted={} skipped={} elapsedNanos={}",
-                    members, attempts, accepted, skipped, System.nanoTime() - start);
         }
     }
 
-    private Status deliver(final PreparedWeatherNotification notification, final WeatherDelivery delivery) {
-        Instant now = clock.instant();
-        if (delivery.status() != Status.PENDING && delivery.status() != Status.RETRY || delivery.nextAttemptAt().isAfter(now)) {
-            return null;
+    private void send(final long memberId, final LocalDate date, final NotificationSlot slot) {
+        WeatherDevice device = settings.findByMember(memberId).filter(WeatherDevice::active).orElse(null);
+        MemberWeatherLocation location = locations.find(memberId);
+        if (device == null || !valid(location, clock.instant())) {
+            return;
         }
-        var device = settings.device(delivery.installationId());
-        // 발송권을 얻기 전 토큰을 읽어 등록 변경 전후의 정보를 섞지 않는다.
-        if (device.isEmpty() || device.get().version() != delivery.registrationVersion()
-                || !repository.claim(delivery, now, now.minus(WeatherNotificationPreparationService.LOCATION_MAX_AGE))) {
-            repository.cancelUnclaimed(delivery, now);
-            return null;
+        var report = analysis.analyze(location.grid(), date, slot);
+        if (!report.sendable()) {
+            return;
         }
-        var snapshot = codec.read(notification.snapshot());
-        Result result;
+        var notification = new WeatherNotification(UUID.randomUUID(), memberId, date, slot, slot.targetDate(date),
+                location.grid(), report.title(), report.body(), report.assessments(), null, clock.instant());
+        // 유니크 키 삽입에 성공한 호출만 한 번 전송한다. 저장 후 중단된 작업을 복구하지 않는다.
+        if (!notifications.saveIfAbsent(notification)) {
+            return;
+        }
+        boolean success = false;
         try {
-            result = sender.send(new Push(notification.notificationId(), device.get().token(), snapshot.report().title(),
-                    snapshot.report().body(), notification.targetDate().toString(), notification.slot().name(), notification.expiresAt()));
+            WeatherDevice current = settings.findByMember(memberId).orElse(null);
+            MemberWeatherLocation currentLocation = locations.find(memberId);
+            if (settings.enabled(memberId) && current != null && current.active()
+                    && current.installationId().equals(device.installationId()) && Objects.equals(current.token(), device.token())
+                    && valid(currentLocation, clock.instant()) && currentLocation.grid().equals(location.grid())) {
+                success = sender.send(new Push(notification.notificationId(), current.token(), report.title(), report.body(),
+                        notification.targetDate().toString(), slot.name()));
+            }
         } catch (RuntimeException exception) {
-            result = Result.failed(Outcome.UNKNOWN, "PROVIDER_RUNTIME_ERROR");
+            LOG.warn("weather-push-failed notificationId={} exceptionType={}", notification.notificationId(), exception.getClass().getSimpleName());
         }
-        Instant finished = clock.instant();
-        Instant next = finished.plus(result.retryAfter());
-        Status status = switch (result.outcome()) {
-            case ACCEPTED -> Status.ACCEPTED;
-            case INVALID_TOKEN, REJECTED -> Status.FAILED;
-            case UNKNOWN -> Status.UNKNOWN;
-            case DISABLED -> Status.CANCELLED;
-            case RETRYABLE -> delivery.attempts() + 1 < 3 && next.isBefore(notification.expiresAt()) ? Status.RETRY : Status.FAILED;
-        };
-        if (result.outcome() == Outcome.INVALID_TOKEN) {
-            settings.invalidateToken(delivery.installationId(), delivery.registrationVersion(), finished);
-        }
-        repository.finish(delivery, status, finished, next, result.providerMessageId(), result.errorCode());
-        LOG.info("weather-notification-delivery notificationId={} status={} attempt={} code={}",
-                notification.notificationId(), status, delivery.attempts() + 1, result.errorCode());
-        return status;
+        notifications.recordResult(notification.notificationId(), success ? SendResult.SUCCESS : SendResult.FAILED);
+        LOG.info("weather-notification notificationId={} success={}", notification.notificationId(), success);
     }
 
-    public record RunResult(String status, int members, int attempts, int accepted, int skipped) { }
+    private boolean valid(final MemberWeatherLocation location, final Instant now) {
+        return location.isAvailable() && location.observedAt() != null
+                && !location.observedAt().isBefore(now.minus(Duration.ofHours(24))) && !location.observedAt().isAfter(now.plusSeconds(60));
+    }
 }

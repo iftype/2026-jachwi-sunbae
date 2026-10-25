@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public class JdbcWeatherForecastRepository {
@@ -88,27 +89,6 @@ public class JdbcWeatherForecastRepository {
                 completedAt, publishedAt);
     }
 
-    public boolean hasValidHourlyForecastAtOrAfter(final LocalDateTime from) {
-        return Boolean.TRUE.equals(jdbcTemplate.queryForObject("""
-                SELECT EXISTS (
-                    SELECT 1 FROM weather_forecasts f
-                    JOIN weather_collection_publications p ON p.published_at = f.published_at
-                    WHERE f.forecast_at >= ? AND f.tmp IS NOT NULL
-                        AND f.published_at <= ? AND f.collected_at >= f.published_at
-                        AND f.collected_at BETWEEN p.started_at AND p.completed_at
-                        AND p.completed_at <= ?
-                )
-                """, Boolean.class, from, from, from));
-    }
-
-    public long countHourly() {
-        return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM weather_forecasts", Long.class);
-    }
-
-    public long countDaily() {
-        return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM weather_daily_forecasts", Long.class);
-    }
-
     public int deleteHourlyBefore(final LocalDateTime cutoff) {
         return jdbcTemplate.update("DELETE FROM weather_forecasts WHERE forecast_at < ?", cutoff);
     }
@@ -117,6 +97,7 @@ public class JdbcWeatherForecastRepository {
         return jdbcTemplate.update("DELETE FROM weather_daily_forecasts WHERE forecast_date < ?", cutoff);
     }
 
+    @Transactional
     public void upsertHourly(final List<HourlyForecast> forecasts) {
         List<HourlyForecast> batch = List.copyOf(forecasts);
         if (batch.isEmpty()) {
@@ -139,6 +120,7 @@ public class JdbcWeatherForecastRepository {
         });
     }
 
+    @Transactional
     public void upsertDaily(final List<DailyForecast> forecasts) {
         List<DailyForecast> batch = List.copyOf(forecasts);
         if (batch.isEmpty()) {

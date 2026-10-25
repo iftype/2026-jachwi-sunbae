@@ -26,7 +26,7 @@ public record WeatherForecastResponse(int gridX, int gridY, LocalDate date, Stri
     public record Hour(OffsetDateTime forecastAt, Map<String, Value> values) { }
 
     public record Value(Double value,
-                        @Schema(description = "AVAILABLE, MISSING, NOT_COLLECTED, NOT_PROVIDED, STALE, UNVERIFIED") String status,
+                        @Schema(description = "AVAILABLE, MISSING, UNAVAILABLE") String status,
                         OffsetDateTime publishedAt, OffsetDateTime collectedAt) {
         static Value from(final WeatherForecastResult.Reading reading) {
             return new Value(reading.value(), reading.status().name(),

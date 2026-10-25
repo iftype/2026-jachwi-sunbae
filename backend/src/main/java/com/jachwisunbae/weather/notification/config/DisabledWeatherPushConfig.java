@@ -12,6 +12,6 @@ public class DisabledWeatherPushConfig {
     @Bean
     @ConditionalOnMissingBean(WeatherPushSender.class)
     public WeatherPushSender disabledWeatherPushSender() {
-        return push -> WeatherPushSender.Result.failed(WeatherPushSender.Outcome.DISABLED, "DISABLED");
+        return push -> false;
     }
 }

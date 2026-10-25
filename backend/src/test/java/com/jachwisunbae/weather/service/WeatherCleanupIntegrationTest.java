@@ -21,7 +21,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -65,22 +64,12 @@ class WeatherCleanupIntegrationTest {
         var expectedHourly = jdbc.queryForList("SELECT * FROM weather_forecasts WHERE forecast_at >= ? ORDER BY forecast_at", MIDNIGHT);
         var expectedDaily = jdbc.queryForList("SELECT * FROM weather_daily_forecasts WHERE forecast_date >= ? ORDER BY forecast_date", TODAY);
 
-        var result = service(repository).cleanup();
+        service(repository).cleanup();
 
-        assertThat(result.hourly().beforeRows()).isEqualTo(5);
-        assertThat(result.hourly().deletedRows()).isEqualTo(2);
-        assertThat(result.hourly().afterRows()).isEqualTo(3);
-        assertThat(result.daily().beforeRows()).isEqualTo(3);
-        assertThat(result.daily().deletedRows()).isOne();
-        assertThat(result.daily().afterRows()).isEqualTo(2);
         assertThat(jdbc.queryForList("SELECT * FROM weather_forecasts ORDER BY forecast_at")).isEqualTo(expectedHourly);
         assertThat(jdbc.queryForList("SELECT * FROM weather_daily_forecasts ORDER BY forecast_date")).isEqualTo(expectedDaily);
 
-        var repeat = service(repository).cleanup();
-        assertThat(repeat.hourly().deletedRows()).isZero();
-        assertThat(repeat.daily().deletedRows()).isZero();
-        assertThat(repeat.hourly().afterRows()).isEqualTo(3);
-        assertThat(repeat.daily().afterRows()).isEqualTo(2);
+        service(repository).cleanup();
     }
 
     @Test
@@ -98,37 +87,18 @@ class WeatherCleanupIntegrationTest {
 
         assertThat(jdbc.queryForList("SELECT * FROM weather_forecasts ORDER BY forecast_at")).isEqualTo(hourlyBefore);
         assertThat(jdbc.queryForList("SELECT * FROM weather_daily_forecasts ORDER BY forecast_date")).isEqualTo(dailyBefore);
-        assertThat(service.cleanup().hourly().deletedRows()).isEqualTo(2);
+        service.cleanup();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM weather_forecasts", Integer.class)).isEqualTo(3);
     }
 
     @Test
     @DisplayName("빈 DB의 정리는 두 테이블 모두 0건으로 정상 종료한다")
     void cleansEmptyDatabase() {
-        var result = service(repository).cleanup();
-        assertThat(result.hourly().beforeRows()).isZero();
-        assertThat(result.hourly().deletedRows()).isZero();
-        assertThat(result.hourly().afterRows()).isZero();
-        assertThat(result.daily().beforeRows()).isZero();
-        assertThat(result.daily().deletedRows()).isZero();
-        assertThat(result.daily().afterRows()).isZero();
-    }
-
-    @Test
-    @DisplayName("여러 격자의 삭제 건수는 JDBC 영향 행 수로 집계하고 조회·삭제·커밋 비용을 기록한다")
-    void measuresMultipleGrids() {
-        seed(1001);
-        var result = service(repository).cleanup();
-        assertThat(result.hourly().beforeRows()).isEqualTo(5005);
-        assertThat(result.hourly().deletedRows()).isEqualTo(2002);
-        assertThat(result.hourly().afterRows()).isEqualTo(3003);
-        assertThat(result.daily().beforeRows()).isEqualTo(3003);
-        assertThat(result.daily().deletedRows()).isEqualTo(1001);
-        assertThat(result.daily().afterRows()).isEqualTo(2002);
-        assertThat(result.elapsedNanos()).isPositive();
+        service(repository).cleanup();
     }
 
     private WeatherCleanupService service(final JdbcWeatherForecastRepository target) {
-        return new WeatherCleanupService(target, new DataSourceTransactionManager(dataSource), CLOCK, true);
+        return com.jachwisunbae.weather.support.WeatherTransactionTestSupport.transactional(new WeatherCleanupService(target, CLOCK), dataSource);
     }
 
     private void seed(final int grids) {

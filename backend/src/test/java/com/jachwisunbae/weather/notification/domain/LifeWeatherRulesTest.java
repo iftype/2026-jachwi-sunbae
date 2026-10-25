@@ -187,6 +187,16 @@ class LifeWeatherRulesTest {
         assertThat(report.title()).contains("10~10℃").doesNotContain("강수확률");
     }
 
+    @Test
+    void drynessRemainsInDetailsButDoesNotReplaceRecommendationOrSummary() {
+        var dry = change(hours(), 9, WeatherElement.REH, 20.0);
+        var recommendation = verified.evaluate(forecast(dry, 10.0, 18.0));
+        assertThat(assessment(recommendation, Condition.DRY).verdict()).isEqualTo(Verdict.CAUTION);
+        assertThat(recommendation.title()).contains("바깥 건조");
+        var summary = new LifeWeatherRules(false).evaluate(forecast(dry, 10.0, 18.0));
+        assertThat(summary.title()).contains("예보기온").doesNotContain("실내 습도");
+    }
+
     private LifeWeatherForecast forecast(final List<Hour> hours, final Double low, final Double high) {
         return new LifeWeatherForecast(DATE, NotificationSlot.MORNING, hours, low, high, true);
     }

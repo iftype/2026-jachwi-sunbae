@@ -22,7 +22,6 @@ import java.io.StringWriter;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.net.http.HttpTimeoutException;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.stream.Stream;
@@ -165,8 +164,6 @@ class KmaForecastClientTest {
     void rejectsMissingRequest() {
         assertThatThrownBy(() -> client.fetch(null))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> client.fetchMeasured(null))
-                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @ParameterizedTest
@@ -211,18 +208,4 @@ class KmaForecastClientTest {
         return String.join(",", values) + ",\n";
     }
 
-    @Test
-    @DisplayName("문자 수가 아닌 수신 바이트 수와 HTTP·파싱 소요시간을 반환한다")
-    void measuresReceivedBytesAndDurations() {
-        String raw = "\uFEFF" + validRaw();
-        server.expect(requestTo(Matchers.startsWith(URL))).andRespond(withSuccess(raw, MediaType.TEXT_PLAIN));
-
-        ForecastFetchResult result = client.fetchMeasured(new KmaForecastRequest(TIMES, WeatherElement.TMP));
-
-        assertThat(result.responseBytes()).isEqualTo(raw.getBytes(StandardCharsets.UTF_8).length);
-        assertThat(result.responseBytes()).isGreaterThan(raw.length());
-        assertThat(result.httpNanos()).isPositive();
-        assertThat(result.parseNanos()).isPositive();
-        assertThat(result.forecast().validCount()).isEqualTo(2);
-    }
 }
