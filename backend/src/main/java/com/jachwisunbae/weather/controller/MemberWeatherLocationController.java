@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/members/me/weather-location")
-@Tag(name = "Weather locations", description = "익명 인증 회원 자신의 마지막 위치 동기화")
+@Tag(name = "Weather locations", description = "익명 인증 회원 자신의 마지막 저장 위치")
 @SecurityRequirement(name = "bearerAuth")
 public class MemberWeatherLocationController {
     private final MemberWeatherLocationService service;
@@ -30,29 +30,28 @@ public class MemberWeatherLocationController {
     }
 
     @GetMapping
-    @Operation(summary = "마지막 동기화 위치 조회", description = "200: 등록된 격자·실제 확인시각·서버 동기화시각. "
-            + "미등록·해제는 available=false. 401 ACCESS_TOKEN_INVALID, 404 MEMBER_NOT_FOUND.")
+    @Operation(summary = "마지막 저장 위치 조회", description = "200: 저장된 격자와 서버 저장시각. "
+            + "미등록·삭제 후에는 available=false이며 격자와 updatedAt은 null입니다. 401 ACCESS_TOKEN_INVALID, 404 MEMBER_NOT_FOUND.")
     public ApiResponse<WeatherLocationResponse> find(@AuthenticatedMemberId final Long memberId) {
         return ApiResponse.of(WeatherLocationResponse.from(service.find(memberId)));
     }
 
     @PutMapping
     @Operation(summary = "현재 위치 동기화", description = "위경도를 격자로 변환하고 정확한 좌표는 보관하지 않습니다. "
-            + "최근 5분 내 위치와 최대 1분 미래의 기기 시각 오차를 허용합니다. "
-            + "동일·이전 확인시각의 재전송은 갱신하지 않고 최종 저장 상태를 반환합니다. "
-            + "200 성공, 400 INVALID_REQUEST/WEATHER_COORDINATE_INVALID/WEATHER_LOCATION_UNSUPPORTED/WEATHER_LOCATION_TIME_INVALID, "
+            + "회원의 기존 격자를 요청한 격자로 갱신합니다. 정기 알림은 저장시각과 관계없이 마지막 저장 위치를 사용합니다. "
+            + "200 성공, 400 INVALID_REQUEST/WEATHER_COORDINATE_INVALID/WEATHER_LOCATION_UNSUPPORTED, "
             + "401 ACCESS_TOKEN_INVALID, 404 MEMBER_NOT_FOUND.")
     public ApiResponse<WeatherLocationResponse> sync(@AuthenticatedMemberId final Long memberId,
                                                     @Valid @RequestBody final WeatherLocationRequest request) {
-        return ApiResponse.of(WeatherLocationResponse.from(service.sync(memberId, request.latitude(), request.longitude(), request.observedAt())));
+        return ApiResponse.of(WeatherLocationResponse.from(service.sync(memberId, request.latitude(), request.longitude())));
     }
 
     @DeleteMapping
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "날씨 위치 사용 해제", description = "위치 권한 철회·위치 사용 중단 시 호출합니다. "
-            + "204: 격자 제거 및 해제 시각 보존. 이전에 획득한 지연 요청은 위치를 복원하지 않습니다. "
+            + "204: 본인의 위치 행을 삭제합니다. 이후 PUT 요청이 오면 다시 등록됩니다. "
             + "401 ACCESS_TOKEN_INVALID, 404 MEMBER_NOT_FOUND.")
-    public void invalidate(@AuthenticatedMemberId final Long memberId) {
-        service.invalidate(memberId);
+    public void delete(@AuthenticatedMemberId final Long memberId) {
+        service.delete(memberId);
     }
 }

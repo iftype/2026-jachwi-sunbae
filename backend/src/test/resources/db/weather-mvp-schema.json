@@ -1,19 +1,16 @@
 {
-  "sourceCommit": "fd5e74dd3d27f39c2bc1899017ddab741bb3de85",
-  "sourceMigrations": "V1-V7 applied sequentially to an empty database; final schema only",
+  "sourceMigrations": "Six unchanged tables use the final V1-V7 schema; member_weather_locations uses the simplified four-column contract.",
   "mysqlVersion": "8.4.10",
   "tables": {
     "member_weather_locations": [
       "CREATE TABLE `member_weather_locations` (",
       "  `member_id` bigint NOT NULL,",
-      "  `grid_x` smallint unsigned DEFAULT NULL,",
-      "  `grid_y` smallint unsigned DEFAULT NULL,",
-      "  `location_observed_at` datetime(6) DEFAULT NULL COMMENT '기기의 실제 위치 확인시각 (UTC)',",
-      "  `synced_at` datetime(6) NOT NULL COMMENT '서버 동기화 또는 해제시각 (UTC)',",
-      "  `invalidated_at` datetime(6) DEFAULT NULL COMMENT '해제 이전에 획득한 위치의 재등록 방지 기준 (UTC)',",
+      "  `grid_x` smallint unsigned NOT NULL,",
+      "  `grid_y` smallint unsigned NOT NULL,",
+      "  `updated_at` datetime(6) NOT NULL COMMENT '서버의 마지막 위치 저장시각 (UTC)',",
       "  PRIMARY KEY (`member_id`),",
       "  CONSTRAINT `fk_member_weather_location_member` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`) ON DELETE CASCADE,",
-      "  CONSTRAINT `chk_member_weather_location_grid` CHECK ((((`grid_x` is null) and (`grid_y` is null)) or ((`grid_x` is not null) and (`grid_y` is not null) and (`location_observed_at` is not null) and (`grid_x` between 1 and 149) and (`grid_y` between 1 and 253))))",
+      "  CONSTRAINT `chk_member_weather_location_grid` CHECK (((`grid_x` between 1 and 149) and (`grid_y` between 1 and 253)))",
       ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     ],
     "member_weather_notification_settings": [
@@ -129,5 +126,6 @@
       "  CONSTRAINT `chk_weather_notification_slot` CHECK ((`slot` in (_utf8mb4'MORNING',_utf8mb4'EVENING')))",
       ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     ]
-  }
+  },
+  "unchangedTablesSourceCommit": "fd5e74dd3d27f39c2bc1899017ddab741bb3de85"
 }

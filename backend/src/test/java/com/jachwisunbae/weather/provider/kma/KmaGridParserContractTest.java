@@ -18,6 +18,7 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvFileSource;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 
@@ -26,6 +27,26 @@ class KmaGridParserContractTest {
     private static final int CELL_COUNT = 37697;
 
     private final KmaGridParser parser = new KmaGridParser();
+
+    @ParameterizedTest
+    @CsvFileSource(resources = "/weather/kma-precipitation-samples.csv", numLinesToSkip = 1)
+    @DisplayName("실제 비·눈 RAW의 정상 0과 양수를 같은 격자·발표·예보시각으로 보존한다")
+    void preservesActualPrecipitationSamples(final String scenario, final String publishedAt, final String forecastAt,
+            final int nx, final int ny, final double pty, final double pop, final double pcp, final double sno,
+            final String expectedRain, final String expectedSnow) {
+        ForecastTimes times = ForecastTimesFixture.times(publishedAt, forecastAt);
+        GridPoint point = new GridPoint(nx, ny);
+        List<WeatherElement> elements = List.of(WeatherElement.PTY, WeatherElement.POP, WeatherElement.PCP, WeatherElement.SNO);
+        List<Double> values = List.of(pty, pop, pcp, sno);
+        for (int i = 0; i < elements.size(); i++) {
+            String[] tokens = new String[CELL_COUNT];
+            Arrays.fill(tokens, "-99");
+            tokens[(ny - 1) * 149 + nx - 1] = Double.toString(values.get(i));
+            GridForecast parsed = parser.parse(formatRaw(tokens), times, elements.get(i));
+            assertThat(parsed.times()).isEqualTo(times);
+            assertThat(parsed.values()).as(scenario).containsExactly(new GridValue(point, values.get(i)));
+        }
+    }
 
     @ParameterizedTest
     @CsvSource({"SKY, 1", "SKY, 3", "SKY, 4", "PTY, 0", "PTY, 1", "PTY, 2", "PTY, 3", "PTY, 4"})

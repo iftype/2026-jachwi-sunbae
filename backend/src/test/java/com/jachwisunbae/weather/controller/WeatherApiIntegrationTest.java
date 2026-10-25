@@ -145,48 +145,64 @@ class WeatherApiIntegrationTest {
     @Test
     void synchronizesOnlyAuthenticatedMemberWithoutPersistingExactCoordinates() throws Exception {
         mvc.perform(put("/api/members/me/weather-location").header("Authorization", bearer(1))
-                .contentType(MediaType.APPLICATION_JSON).content(locationBody("2026-10-25T12:59:00Z")))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.data.gridX").value(60))
-                .andExpect(jsonPath("$.data.observedAt").value("2026-10-25T12:59:00Z"));
-        mvc.perform(get("/api/members/me/weather-location").header("Authorization", bearer(2)))
+                .contentType(MediaType.APPLICATION_JSON).content(locationBody(37.5665, 126.978)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.available").value(true))
+                .andExpect(jsonPath("$.data.gridX").value(60)).andExpect(jsonPath("$.data.gridY").value(127))
+                .andExpect(jsonPath("$.data.updatedAt").value("2026-10-25T13:00:00Z"))
+                .andExpect(jsonPath("$.data.length()").value(4));
+        mvc.perform(get("/api/members/me/weather-location").header("Authorization", bearer(2)).param("memberId", "1"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.available").value(false));
         assertThat(locations.find(1).orElseThrow().grid()).isEqualTo(new GridPoint(60, 127));
         assertThat(locations.find(2)).isEmpty();
-        assertThat(jdbc.queryForList("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'member_weather_locations'", String.class))
-                .doesNotContain("latitude", "longitude");
+        assertThat(jdbc.queryForList("""
+                SELECT column_name FROM information_schema.columns
+                WHERE table_schema = DATABASE() AND table_name = 'member_weather_locations' ORDER BY ordinal_position
+                """, String.class)).containsExactly("member_id", "grid_x", "grid_y", "updated_at");
         mvc.perform(put("/api/members/me/weather-location").contentType(MediaType.APPLICATION_JSON)
-                .content(locationBody("2026-10-25T12:59:00Z"))).andExpect(status().isUnauthorized());
+                .content(locationBody(37.5665, 126.978))).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/members/me/weather-location")).andExpect(status().isUnauthorized());
+        mvc.perform(delete("/api/members/me/weather-location")).andExpect(status().isUnauthorized());
     }
 
     @Test
-    void rejectsOldAndFutureCacheAndKeepsObservedTimeOnReplay() throws Exception {
-        for (String time : List.of("2026-10-25T12:54:59Z", "2026-10-25T13:01:01Z")) {
-            String body = mvc.perform(put("/api/members/me/weather-location").header("Authorization", bearer(1))
-                    .contentType(MediaType.APPLICATION_JSON).content(locationBody(time)))
-                    .andExpect(status().isBadRequest()).andReturn().getResponse().getContentAsString();
-            assertThat(body).doesNotContain("37.5665", "126.978");
-        }
-        locations.sync(1, new GridPoint(60, 127), CLOCK.instant().minusSeconds(60), CLOCK.instant().minusSeconds(30));
-        locations.sync(1, new GridPoint(98, 76), CLOCK.instant().minusSeconds(61), CLOCK.instant());
-        locations.sync(1, new GridPoint(98, 76), CLOCK.instant().minusSeconds(60), CLOCK.instant());
-        assertThat(locations.find(1).orElseThrow().grid()).isEqualTo(new GridPoint(60, 127));
-        assertThat(locations.find(1).orElseThrow().syncedAt()).isEqualTo(CLOCK.instant().minusSeconds(30));
-        locations.sync(1, new GridPoint(60, 127), CLOCK.instant().minusSeconds(1), CLOCK.instant());
-        assertThat(locations.find(1).orElseThrow().observedAt()).isEqualTo(CLOCK.instant().minusSeconds(1));
-    }
-
-    @Test
-    void revocationPreventsAnInFlightOldPositionFromRestoringTheGrid() throws Exception {
-        mvc.perform(delete("/api/members/me/weather-location").header("Authorization", bearer(1)))
-                .andExpect(status().isNoContent());
+    void replacesTheMembersGridEvenWhenTheServerTimestampIsUnchanged() throws Exception {
+        locations.sync(1, new GridPoint(98, 76), CLOCK.instant().minusSeconds(7 * 86400));
         mvc.perform(put("/api/members/me/weather-location").header("Authorization", bearer(1))
-                .contentType(MediaType.APPLICATION_JSON).content(locationBody("2026-10-25T12:59:00Z")))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.data.available").value(false));
-        locations.sync(1, new GridPoint(98, 76), CLOCK.instant().plusSeconds(1), CLOCK.instant().plusSeconds(2));
-        assertThat(locations.find(1).orElseThrow().grid()).isEqualTo(new GridPoint(98, 76));
+                        .contentType(MediaType.APPLICATION_JSON).content(locationBody(37.5665, 126.978)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.gridX").value(60));
+        mvc.perform(put("/api/members/me/weather-location").header("Authorization", bearer(1))
+                        .contentType(MediaType.APPLICATION_JSON).content(locationBody(35.1796, 129.0756)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.gridX").value(98))
+                .andExpect(jsonPath("$.data.gridY").value(76));
+        mvc.perform(get("/api/members/me/weather-location").header("Authorization", bearer(1)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.gridX").value(98))
+                .andExpect(jsonPath("$.data.updatedAt").value("2026-10-25T13:00:00Z"));
+        assertThat(locations.find(1).orElseThrow().updatedAt()).isEqualTo(CLOCK.instant());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM member_weather_locations WHERE member_id = 1", Integer.class)).isOne();
+    }
+
+    @Test
+    void deletesOnlyTheMembersRowAndAllowsTheSameRequestToRegisterAgain() throws Exception {
+        String request = locationBody(37.5665, 126.978);
+        mvc.perform(put("/api/members/me/weather-location").header("Authorization", bearer(1))
+                        .contentType(MediaType.APPLICATION_JSON).content(request)).andExpect(status().isOk());
         mvc.perform(delete("/api/members/me/weather-location").header("Authorization", bearer(2)))
                 .andExpect(status().isNoContent());
-        assertThat(locations.find(1).orElseThrow().isAvailable()).isTrue();
+        assertThat(locations.find(1)).isPresent();
+        for (int attempt = 0; attempt < 2; attempt++) {
+            mvc.perform(delete("/api/members/me/weather-location").header("Authorization", bearer(1)))
+                    .andExpect(status().isNoContent());
+        }
+        assertThat(locations.find(1)).isEmpty();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM member_weather_locations", Integer.class)).isZero();
+        mvc.perform(get("/api/members/me/weather-location").header("Authorization", bearer(1)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.available").value(false))
+                .andExpect(jsonPath("$.data.gridX").isEmpty()).andExpect(jsonPath("$.data.gridY").isEmpty())
+                .andExpect(jsonPath("$.data.updatedAt").isEmpty()).andExpect(jsonPath("$.data.length()").value(4));
+        mvc.perform(put("/api/members/me/weather-location").header("Authorization", bearer(1))
+                        .contentType(MediaType.APPLICATION_JSON).content(request))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.available").value(true));
+        assertThat(locations.find(1).orElseThrow().grid()).isEqualTo(new GridPoint(60, 127));
     }
 
     private void assertUnverified() throws Exception {
@@ -197,17 +213,21 @@ class WeatherApiIntegrationTest {
     }
 
     @Test
-    void rejectsMissingObservationAndUnknownMembersAndAllowsExactTimeBoundaries() throws Exception {
-        mvc.perform(put("/api/members/me/weather-location").header("Authorization", bearer(1))
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"latitude\":37,\"longitude\":127}"))
-                .andExpect(status().isBadRequest());
+    void rejectsInvalidLocationCoordinatesAndUnknownMembers() throws Exception {
+        for (String body : List.of("{}", "{\"latitude\":37}", "{\"longitude\":127}",
+                locationBody(91, 127), locationBody(37, 181), locationBody(0, 0),
+                "{\"latitude\":\"NaN\",\"longitude\":127}")) {
+            mvc.perform(put("/api/members/me/weather-location").header("Authorization", bearer(1))
+                            .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isBadRequest());
+        }
+        assertThat(locations.find(1)).isEmpty();
         mvc.perform(get("/api/members/me/weather-location").header("Authorization", bearer(999)))
                 .andExpect(status().isNotFound());
-        for (String observed : List.of("2026-10-25T12:55:00Z", "2026-10-25T13:01:00Z")) {
-            mvc.perform(put("/api/members/me/weather-location").header("Authorization", bearer(1))
-                            .contentType(MediaType.APPLICATION_JSON).content(locationBody(observed)))
-                    .andExpect(status().isOk());
-        }
+        mvc.perform(put("/api/members/me/weather-location").header("Authorization", bearer(999))
+                        .contentType(MediaType.APPLICATION_JSON).content(locationBody(37.5665, 126.978)))
+                .andExpect(status().isNotFound());
+        mvc.perform(delete("/api/members/me/weather-location").header("Authorization", bearer(999)))
+                .andExpect(status().isNotFound());
     }
 
     @Test
@@ -216,15 +236,21 @@ class WeatherApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.paths['/api/weather/forecasts'].get.security[0].bearerAuth").isArray())
                 .andExpect(jsonPath("$.paths['/api/members/me/weather-location'].put.requestBody.required").value(true))
-                .andExpect(jsonPath("$.paths['/api/members/me/weather-location'].delete.responses['204']").exists());
+                .andExpect(jsonPath("$.paths['/api/members/me/weather-location'].delete.responses['204']").exists())
+                .andExpect(jsonPath("$.components.schemas.WeatherLocationRequest.properties.length()").value(2))
+                .andExpect(jsonPath("$.components.schemas.WeatherLocationRequest.properties.observedAt").doesNotExist())
+                .andExpect(jsonPath("$.components.schemas.WeatherLocationResponse.properties.updatedAt").exists())
+                .andExpect(jsonPath("$.components.schemas.WeatherLocationResponse.properties.length()").value(4));
     }
 
     private String bearer(final long memberId) {
         return "Bearer " + tokens.createAccessToken(memberId);
     }
 
-    private String locationBody(final String observedAt) {
-        return "{\"latitude\":37.5665,\"longitude\":126.978,\"observedAt\":\"" + observedAt + "\",\"memberId\":2}";
+    private String locationBody(final double latitude, final double longitude) {
+        return """
+                {"latitude": %s, "longitude": %s, "memberId": 2}
+                """.formatted(latitude, longitude);
     }
 
     private void complete(final LocalDateTime published) {

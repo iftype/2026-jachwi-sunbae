@@ -34,11 +34,6 @@ import java.util.stream.IntStream;
 // 공식 기상특보가 아닌 초기 생활 안내 정책이다. 임계값과 적용 범위는 날씨 알림 가이드를 따른다.
 public final class LifeWeatherRules {
     private static final List<Condition> PRIORITY = List.of(SNOW, RAIN, FREEZE, TEMPERATURE_SWING, DRY, LAUNDRY, VENTILATION);
-    private final boolean precipitationContractVerified;
-
-    public LifeWeatherRules(final boolean precipitationContractVerified) {
-        this.precipitationContractVerified = precipitationContractVerified;
-    }
 
     public LifeWeatherReport evaluate(final LifeWeatherForecast forecast) {
         List<Hour> hours = forecast.hours().stream().sorted(Comparator.comparing(Hour::at)).toList();
@@ -90,24 +85,26 @@ public final class LifeWeatherRules {
             return result(type, CAUTION, "PRECIPITATION_TYPE", time(matches.getFirst())
                     + (snow ? "눈 예보가 있어요. 이동에 주의하세요" : "비 예보가 있어요. 우산을 준비하세요"), matches);
         }
-        if (!precipitationContractVerified) {
-            return unknown(type, "PRECIPITATION_CONTRACT_UNVERIFIED");
+        if (!allValid(hours, PTY)) {
+            return unknown(type, "VALUES_MISSING_OR_INVALID");
         }
         WeatherElement amount = snow ? SNO : PCP;
-        List<Hour> amounts = hours.stream().filter(hour -> valid(hour, amount) && hour.value(amount) > 0).toList();
-        if (!amounts.isEmpty()) {
-            return result(type, CAUTION, "PRECIPITATION_PRESENT", time(amounts.getFirst())
-                    + (snow ? "적설 예보가 있어요. 이동에 주의하세요" : "강수 예보가 있어요. 우산을 준비하세요"), amounts);
+        // 눈 형태의 PCP 양수도 비로 분류하지 않는다. 형태 없음·불일치는 양만으로 보완하지 않는다.
+        if (hours.stream().anyMatch(hour -> valid(hour, amount) && hour.value(amount) > 0
+                && (snow || hour.value(PTY) == 0))) {
+            return unknown(type, "PRECIPITATION_TYPE_CONFLICT");
         }
         if (!snow) {
-            List<Hour> probability = hours.stream().filter(hour -> valid(hour, POP) && hour.value(POP) >= 60).toList();
+            // POP는 강수확률이다. 눈 예보의 높은 POP를 비 예보로 중복 분류하지 않는다.
+            List<Hour> probability = hours.stream().filter(hour -> allValid(List.of(hour), PTY, POP, PCP, SNO))
+                    .filter(this::noPrecipitation).filter(hour -> hour.value(POP) >= 60).toList();
             if (!probability.isEmpty()) {
                 Hour first = probability.getFirst();
                 return result(type, CAUTION, "PROBABILITY_THRESHOLD", time(first)
                         + String.format(Locale.ROOT, "예보 강수확률 %.0f%%, 우산을 준비하세요", first.value(POP)), probability);
             }
         }
-        return allValid(hours, snow ? List.of(PTY, SNO) : List.of(PTY, POP, PCP))
+        return allValid(hours, snow ? List.of(PTY, SNO) : List.of(PTY, POP, PCP, SNO))
                 ? result(type, NOT_APPLICABLE, "BELOW_THRESHOLD", "주의 기준에 해당하지 않아요", List.of())
                 : unknown(type, "VALUES_MISSING_OR_INVALID");
     }
@@ -147,9 +144,6 @@ public final class LifeWeatherRules {
         if (daytime.stream().anyMatch(hour -> valid(hour, PTY) && hour.value(PTY) != 0)) {
             return result(LAUNDRY, CAUTION, "DAYTIME_PRECIPITATION", "낮에 강수 예보가 있어요. 실내 건조를 고려하세요", daytime);
         }
-        if (!precipitationContractVerified) {
-            return unknown(LAUNDRY, "PRECIPITATION_CONTRACT_UNVERIFIED");
-        }
         if (daytime.size() != 10 || !allValid(daytime, PTY, POP, PCP, SNO, REH, WSD)) {
             return unknown(LAUNDRY, "VALUES_MISSING_OR_INVALID");
         }
@@ -160,9 +154,6 @@ public final class LifeWeatherRules {
     }
 
     private Assessment ventilation(final List<Hour> hours) {
-        if (!precipitationContractVerified) {
-            return unknown(VENTILATION, "PRECIPITATION_CONTRACT_UNVERIFIED");
-        }
         List<Hour> daytime = hours.stream().filter(hour -> hour.at().getHour() >= 10 && hour.at().getHour() <= 17).toList();
         Predicate<Hour> usable = hour -> allValid(List.of(hour), PTY, PCP, SNO, REH, WSD, TMP);
         List<Hour> favorable = daytime.stream().filter(usable).filter(hour -> noPrecipitation(hour)

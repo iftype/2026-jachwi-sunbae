@@ -10,3 +10,11 @@ photo:
     endpoint: ${PHOTO_STORAGE_ENDPOINT:http://localhost:9000}
     access-key: ${PHOTO_STORAGE_ACCESS_KEY:local-photo-access-key}
     secret-key: ${PHOTO_STORAGE_SECRET_KEY:local-photo-secret-key}
+
+weather:
+  collection:
+    enabled: false
+  cleanup:
+    enabled: false
+  notification:
+    enabled: false

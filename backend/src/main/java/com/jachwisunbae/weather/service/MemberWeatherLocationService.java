@@ -1,14 +1,11 @@
 package com.jachwisunbae.weather.service;
 
-import com.jachwisunbae.common.exception.client.InvalidInputException;
-import com.jachwisunbae.common.exception.errorcode.ErrorCode;
 import com.jachwisunbae.member.service.MemberService;
 import com.jachwisunbae.weather.domain.GridPoint;
 import com.jachwisunbae.weather.domain.MemberWeatherLocation;
 import com.jachwisunbae.weather.provider.kma.KmaGridConverter;
 import com.jachwisunbae.weather.repository.MemberWeatherLocationRepository;
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import org.springframework.stereotype.Service;
@@ -17,8 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional(readOnly = true)
 public class MemberWeatherLocationService {
-    private static final Duration MAX_SYNC_AGE = Duration.ofMinutes(5);
-    private static final Duration MAX_FUTURE_SKEW = Duration.ofMinutes(1);
     private final MemberService members;
     private final MemberWeatherLocationRepository repository;
     private final KmaGridConverter converter;
@@ -34,26 +29,21 @@ public class MemberWeatherLocationService {
 
     public MemberWeatherLocation find(final long memberId) {
         members.findProfileById(memberId);
-        return repository.find(memberId).orElse(new MemberWeatherLocation(null, null, null));
+        return repository.find(memberId).orElse(new MemberWeatherLocation(null, null));
     }
 
     @Transactional
-    public MemberWeatherLocation sync(final long memberId, final double latitude, final double longitude,
-                                      final Instant observedAt) {
+    public MemberWeatherLocation sync(final long memberId, final double latitude, final double longitude) {
         members.findProfileById(memberId);
-        Instant now = clock.instant().truncatedTo(ChronoUnit.MICROS);
-        if (observedAt == null || observedAt.isBefore(now.minus(MAX_SYNC_AGE))
-                || observedAt.isAfter(now.plus(MAX_FUTURE_SKEW))) {
-            throw new InvalidInputException(ErrorCode.WEATHER_LOCATION_TIME_INVALID, "위치 확인시각이 동기화 허용 범위 밖입니다.");
-        }
         GridPoint grid = converter.convert(latitude, longitude);
-        repository.sync(memberId, grid, observedAt.truncatedTo(ChronoUnit.MICROS), now);
-        return repository.find(memberId).orElseThrow();
+        Instant now = clock.instant().truncatedTo(ChronoUnit.MICROS);
+        repository.sync(memberId, grid, now);
+        return new MemberWeatherLocation(grid, now);
     }
 
     @Transactional
-    public void invalidate(final long memberId) {
+    public void delete(final long memberId) {
         members.findProfileById(memberId);
-        repository.invalidate(memberId, clock.instant().truncatedTo(ChronoUnit.MICROS));
+        repository.delete(memberId);
     }
 }

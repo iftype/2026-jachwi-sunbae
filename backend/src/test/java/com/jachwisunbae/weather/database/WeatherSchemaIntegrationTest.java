@@ -20,9 +20,9 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DuplicateKeyException;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.testcontainers.containers.MySQLContainer;
@@ -56,12 +56,13 @@ class WeatherSchemaIntegrationTest {
     void clearForecasts() {
         jdbcTemplate.update("DELETE FROM weather_forecasts");
         jdbcTemplate.update("DELETE FROM weather_daily_forecasts");
+        jdbcTemplate.update("DELETE FROM members");
     }
 
     @Test
-    @DisplayName("통합한 7개 날씨 테이블의 최종 DDL이 기존 V1–V7 적용 결과와 같다")
-    void matchesFinalSchemaBeforeConsolidation() throws IOException {
-        // 통합 전 실제 MySQL의 SHOW CREATE TABLE을 고정했다. 중간 마이그레이션을 다시 실행하는 파일이 아니다.
+    @DisplayName("위치의 4개 컬럼 계약과 나머지 6개 날씨 테이블의 기존 DDL을 유지한다")
+    void matchesFinalMvpSchemaContract() throws IOException {
+        // 나머지 6개 테이블은 통합 전 실제 DDL, 위치 테이블은 명시적으로 변경한 4개 컬럼 계약이다.
         try (var input = new ClassPathResource("db/weather-mvp-schema.json").getInputStream()) {
             var expected = new ObjectMapper().readTree(input).get("tables");
             var names = new ArrayList<String>();
@@ -79,6 +80,29 @@ class WeatherSchemaIntegrationTest {
                         .isEqualTo(String.join("\n", lines));
             }
         }
+    }
+
+    @ParameterizedTest
+    @CsvSource({"NULL, 127", "60, NULL", "0, 127", "150, 127", "60, 0", "60, 254"})
+    @DisplayName("저장된 회원 위치의 격자는 NULL이거나 기상청 격자 범위 밖일 수 없다")
+    void rejectsMissingOrOutOfRangeMemberGrid(final String x, final String y) {
+        jdbcTemplate.update("INSERT INTO members (id, nickname, created_at, updated_at) VALUES (1, '위치 회원', NOW(), NOW())");
+        assertThatThrownBy(() -> jdbcTemplate.update("""
+                INSERT INTO member_weather_locations (member_id, grid_x, grid_y, updated_at)
+                VALUES (1, %s, %s, NOW(6))
+                """.formatted(x, y))).isInstanceOf(DataAccessException.class);
+    }
+
+    @Test
+    @DisplayName("회원 위치는 존재하는 회원만 참조하며 회원 삭제 시 함께 삭제된다")
+    void enforcesMemberLocationForeignKeyAndCascade() {
+        String insert = "INSERT INTO member_weather_locations (member_id, grid_x, grid_y, updated_at) VALUES (1, 60, 127, NOW(6))";
+        assertThatThrownBy(() -> jdbcTemplate.update(insert))
+                .isInstanceOf(DataAccessException.class).hasMessageContaining("fk_member_weather_location_member");
+        jdbcTemplate.update("INSERT INTO members (id, nickname, created_at, updated_at) VALUES (1, '위치 회원', NOW(), NOW())");
+        jdbcTemplate.update(insert);
+        jdbcTemplate.update("DELETE FROM members WHERE id = 1");
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM member_weather_locations", Integer.class)).isZero();
     }
 
     @Test

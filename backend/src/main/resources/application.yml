@@ -54,14 +54,11 @@ weather:
   kma:
     api-key: ${KMA_API_KEY:}
   notification:
-    enabled: ${WEATHER_NOTIFICATION_ENABLED:false}
-    # POP의 확률 의미와 PCP/SNO의 0·양수 계약을 대조하기 전에는 켜지 않는다.
-    precipitation-contract-verified: ${WEATHER_PRECIPITATION_CONTRACT_VERIFIED:false}
-    firebase-project-id: ${WEATHER_FIREBASE_PROJECT_ID:}
+    enabled: false
   collection:
-    enabled: ${WEATHER_COLLECTION_ENABLED:false}
+    enabled: false
   cleanup:
-    enabled: ${WEATHER_CLEANUP_ENABLED:false}
+    enabled: false
 
 management:
   endpoints:

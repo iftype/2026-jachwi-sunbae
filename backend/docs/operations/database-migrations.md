@@ -85,6 +85,14 @@ sudo systemctl restart jachwi-sunbae.service
 
 빈 DB에서는 V1이 실제 실행되므로 이력 유형이 `SQL`이다.
 
+## 현재 날씨 위치 스키마
+
+[V4__create_weather_user_features.sql](../../src/main/resources/db/migration/V4__create_weather_user_features.sql)의 `member_weather_locations`는 `member_id`, `grid_x`, `grid_y`, `updated_at` 네 컬럼을 생성한다. 격자는 NOT NULL이고 회원 FK·격자 범위 CHECK를 유지한다. UTC `updated_at DATETIME(6)`은 기록용이며 위치 삭제는 행 DELETE로 처리한다. 다른 날씨·알림 테이블의 구조는 변경하지 않았다.
+
+이 정의는 V4가 적용되지 않은 DB를 위한 것이다. 이미 V4가 적용된 영구 DB에서는 변경 파일을 그대로 사용하거나 이력을 고치지 않고 별도 추가 마이그레이션 전략을 정해야 한다. 변경·배포 전에 해당 DB의 `flyway_schema_history`를 확인한다.
+
+[스키마 기준 데이터](../../src/test/resources/db/weather-mvp-schema.json)는 위치의 4개 컬럼 계약과 나머지 6개 테이블의 기존 최종 DDL을 구분한다. 스키마 테스트가 현재 DDL과 비교하고, 위치 격자의 NOT NULL·범위·회원 FK·연쇄 삭제를 검증한다. 위치를 제외한 기존 예보·알림 스키마는 그대로 유지한다.
+
 ## 이후 변경 SQL 작성
 
 현재 이 브랜치의 최종 버전은 V4다. 다음 변경의 버전은 실제 배포 이력과 다른 브랜치의 파일을 확인한 뒤 정한다. 파일명은 `V<버전>__<설명>.sql` 형식이며 밑줄 두 개를 사용한다.

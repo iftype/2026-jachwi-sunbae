@@ -26,17 +26,63 @@
 
 조회하는 시간별·일별 예보와 완료 기록은 [V3](../../src/main/resources/db/migration/V3__create_weather_forecasts.sql)에 정의되어 있다. 위치 저장용 `member_weather_locations`는 [V4](../../src/main/resources/db/migration/V4__create_weather_user_features.sql)가 생성한다. 위치 테이블은 `member_id` PK·회원 FK와 격자 범위 CHECK를 유지한다.
 
-## 위치 동기화
+## 위치 저장·조회·삭제
 
-`MemberWeatherLocationController → MemberWeatherLocationService → MemberWeatherLocationRepository`가 본인 위치만 다룬다. `GET / PUT / DELETE /api/members/me/weather-location`으로 조회·동기화·해제한다.
+`MemberWeatherLocationController → MemberWeatherLocationService → MemberWeatherLocationRepository`가 본인 위치만 다룬다. `GET / PUT / DELETE /api/members/me/weather-location`은 기존 익명 회원 JWT의 회원 ID를 사용한다.
 
-- 저장 값은 격자, 실제 위치 확인시각(`location_observed_at`), 서버 저장시각(`synced_at`), 해제시각(`invalidated_at`)이다.
-- 동기화에는 최근 5분 이내의 실제 확인시각을 요구하고 미래 기기 시각 오차는 최대 1분 허용한다. 캐시 위치의 확인시각을 현재로 바꾸면 안 된다.
-- SQL 조건부 UPSERT로 이전·동일 확인시각은 무시한다. 해제 전 요청이 뒤늦게 도착해도 위치를 복구하지 않는다.
-- 조회의 `available`은 위치 등록 여부다. 알림에서는 별도로 실제 확인 후 24시간 이내인지 검사한다.
-- 위치 시각은 UTC `Instant`, 예보시각·대상 날짜는 KST 계약이다. 쿼리·본문을 배포 프록시 로그에도 노출하지 않도록 한다.
+앱을 실행하거나 새 위치를 획득하면 다음 두 필드만 PUT으로 전달한다.
+
+```json
+{
+  "latitude": 37.5665,
+  "longitude": 126.978
+}
+```
+
+서버는 회원과 좌표를 확인하고 KMA 격자로 변환한 뒤 `member_id` 기준으로 INSERT 또는 UPDATE한다. 같은 회원의 기존 격자는 새 요청의 격자로 갱신한다. 정확한 위경도는 저장하지 않는다.
+
+위치 테이블은 `member_id`, `grid_x`, `grid_y`, `updated_at` 네 컬럼만 가진다. 격자는 NOT NULL이며 `updated_at`은 서버 시계의 UTC 저장시각이다. 저장시각을 비교해 요청을 무시하거나 알림을 차단하지 않는다.
+
+PUT과 GET의 응답은 다음과 같다.
+
+```json
+{
+  "data": {
+    "available": true,
+    "gridX": 60,
+    "gridY": 127,
+    "updatedAt": "2026-10-25T13:00:00Z"
+  }
+}
+```
+
+`available`은 저장된 격자가 존재한다는 의미다. DELETE는 본인의 위치 행을 삭제하고 204를 반환한다. 미등록 상태의 DELETE도 204이며, 삭제 후 같은 PUT이 오면 다시 등록된다. 위치가 없을 때 GET은 다음 응답을 반환한다.
+
+```json
+{
+  "data": {
+    "available": false,
+    "gridX": null,
+    "gridY": null,
+    "updatedAt": null
+  }
+}
+```
+
+## 정기 알림의 위치 정책과 한계
+
+07시·22시 알림은 판정을 시작할 때 조회한 **마지막 저장 격자**를 사용한다. 발송 시점의 실시간 GPS를 조회하지 않는다. 위치가 하루 전이나 일주일 전에 저장됐더라도 사용하며, 저장된 격자가 없으면 발송하지 않는다. 위치 저장시각과 별개로 수신 동의·FCM 등록정보·정상 예보·중복 방지 검사는 유지한다.
+
+아래 문제는 이번 MVP에서 해결하지 않는다.
+
+- 장기간 앱을 실행하지 않으면 과거 위치를 기준으로 알림이 발송될 수 있다.
+- 실제로 이동했어도 앱에서 위치를 다시 동기화하지 않으면 이전 지역의 날씨가 발송된다.
+- 위치 삭제 후 오래된 PUT 요청이 늦게 도착하면 위치가 다시 등록될 수 있다. 요청의 획득 순서나 삭제 시각은 보존하지 않는다.
+- 휴대폰 OS에서 위치 권한을 철회해도 서버가 자동으로 감지하지 못한다. 앱이 DELETE를 호출해야 한다.
 
 ## API 변경과 후속 연결
+
+위치 PUT에서 `observedAt`을 제거했고, 응답의 `observedAt`·`syncedAt`은 `updatedAt`으로 대체했다. 클라이언트는 위도·경도만 전송하고 위치 등록 여부와 서버 저장시각을 사용한다. 쿼리·본문의 좌표를 배포 프록시 로그에 노출하지 않도록 한다.
 
 기존 값별 `NOT_COLLECTED / NOT_PROVIDED / STALE / UNVERIFIED`는 `UNAVAILABLE`로 합쳤다. 클라이언트는 원인별 화면 분기 대신 값의 사용 가능 여부를 처리한다. 날짜·격자·출처·정상 0·결측의 의미는 유지한다.
 

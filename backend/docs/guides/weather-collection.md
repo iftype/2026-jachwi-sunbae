@@ -1,14 +1,14 @@
 # 전국 날씨 수집 MVP
 
-전국 예보를 미리 MySQL에 저장하고, 사용자 조회와 알림은 이 DB를 사용한다. 시간별 8개 요소와 일별 최저·최고기온을 수집하며, 발표 다음 정시부터 48시간을 유지한다.
+전국 예보를 미리 MySQL에 저장하고, 사용자 조회와 알림은 이 DB를 사용한다. 정기 알림의 지역은 회원의 마지막 저장 격자이며 [위치 저장 정책](weather-query.md#위치-저장조회삭제)을 따른다. 시간별 8개 요소와 일별 최저·최고기온을 수집하며, 발표 다음 정시부터 48시간을 유지한다.
 
 ## 스키마
 
-[V3__create_weather_forecasts.sql](../../src/main/resources/db/migration/V3__create_weather_forecasts.sql)이 `weather_forecasts`, `weather_daily_forecasts`, `weather_collection_publications`를 생성한다. 시간별·일별 예보와 수집 완료 기록의 최종 구조를 한 번에 만든다. 기존 날씨 버전이 적용된 DB에는 통합 파일을 그대로 적용하지 않는다. [적용 이력과 통합 정책](../operations/database-migrations.md#날씨-마이그레이션-통합)을 먼저 확인한다.
+[V3__create_weather_forecasts.sql](../../src/main/resources/db/migration/V3__create_weather_forecasts.sql)이 `weather_forecasts`, `weather_daily_forecasts`, `weather_collection_publications`를 생성한다. 시간별·일별 예보와 수집 완료 기록의 최종 구조를 한 번에 만든다. 기존 날씨 버전이 적용된 DB에는 통합 파일을 그대로 적용하지 않는다. [적용 이력과 통합 정책](../operations/database-migrations.md)을 먼저 확인한다.
 
 ## 실행
 
-Spring Boot 실행 환경에 `KMA_API_KEY`와 `WEATHER_COLLECTION_ENABLED=true`를 주입한다. `WeatherCollectionScheduler`의 표준 `@Scheduled`가 KST 02:15·05:15·08:15·11:15·14:15·17:15·20:15·23:15에 실행한다. 15분은 실제 공개 지연을 측정하기 전의 초기 가정이며 cron과 발표분 선택 규칙에 고정했다.
+`application-dev.yml`·`application-prod.yml`에서 `weather.collection.enabled=true`로 활성화하며 실행 환경에는 `KMA_API_KEY`를 주입한다. 공통·Local 설정은 OFF다. `WeatherCollectionScheduler`의 표준 `@Scheduled`가 KST 02:15·05:15·08:15·11:15·14:15·17:15·20:15·23:15에 실행한다. 15분은 실제 공개 지연을 측정하기 전의 초기 가정이며 cron과 발표분 선택 규칙에 고정했다.
 
 빈 DB도 같은 수집 경로로 적재한다. 서버 시작 직후 적재, 최초 적재 검사·플래그, 수동 CLI는 없다. 첫 예약 수집이 끝나기 전에는 조회가 사용 불가를 반환하고 알림을 보내지 않는다. 서버 중단 중 놓친 예약은 보충하지 않는다.
 
@@ -48,7 +48,7 @@ POP·PCP·SNO의 비0 값과 의미는 [RAW 계약 기록](weather-raw-contract.
 
 ## 과거 예보 정리
 
-`WEATHER_CLEANUP_ENABLED=true`이면 `WeatherCleanupScheduler`가 매일 KST 00:30에 `WeatherCleanupService.cleanup()`을 호출한다. 한 번 읽은 시계에서 오늘 날짜를 계산하고, 같은 트랜잭션에서 `forecast_at < 오늘 00:00`과 `forecast_date < 오늘`을 삭제한다. 오늘·미래 자료는 보존한다.
+`weather.cleanup.enabled=true`인 Dev·Prod에서는 `WeatherCleanupScheduler`가 매일 KST 00:30에 `WeatherCleanupService.cleanup()`을 호출한다. 한 번 읽은 시계에서 오늘 날짜를 계산하고, 같은 트랜잭션에서 `forecast_at < 오늘 00:00`과 `forecast_date < 오늘`을 삭제한다. 오늘·미래 자료는 보존한다.
 
 전체 COUNT와 실행시간 측정 없이 두 DELETE의 영향 행 수만 로그에 남긴다. 분할 삭제·별도 인덱스·파티셔닝은 추가하지 않았다. 완료 기록과 알림 이력은 이 작업의 삭제 대상이 아니다.
 

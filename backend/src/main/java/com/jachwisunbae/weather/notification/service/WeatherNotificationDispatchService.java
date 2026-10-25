@@ -11,8 +11,6 @@ import com.jachwisunbae.weather.notification.repository.WeatherNotificationRepos
 import com.jachwisunbae.weather.notification.repository.WeatherNotificationSettingsRepository;
 import com.jachwisunbae.weather.service.MemberWeatherLocationService;
 import java.time.Clock;
-import java.time.Duration;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Objects;
 import java.util.UUID;
@@ -62,7 +60,7 @@ public class WeatherNotificationDispatchService {
     private void send(final long memberId, final LocalDate date, final NotificationSlot slot) {
         WeatherDevice device = settings.findByMember(memberId).filter(WeatherDevice::active).orElse(null);
         MemberWeatherLocation location = locations.find(memberId);
-        if (device == null || !valid(location, clock.instant())) {
+        if (device == null || !location.isAvailable()) {
             return;
         }
         var report = analysis.analyze(location.grid(), date, slot);
@@ -81,7 +79,7 @@ public class WeatherNotificationDispatchService {
             MemberWeatherLocation currentLocation = locations.find(memberId);
             if (settings.enabled(memberId) && current != null && current.active()
                     && current.installationId().equals(device.installationId()) && Objects.equals(current.token(), device.token())
-                    && valid(currentLocation, clock.instant()) && currentLocation.grid().equals(location.grid())) {
+                    && currentLocation.isAvailable()) {
                 success = sender.send(new Push(notification.notificationId(), current.token(), report.title(), report.body(),
                         notification.targetDate().toString(), slot.name()));
             }
@@ -90,10 +88,5 @@ public class WeatherNotificationDispatchService {
         }
         notifications.recordResult(notification.notificationId(), success ? SendResult.SUCCESS : SendResult.FAILED);
         LOG.info("weather-notification notificationId={} success={}", notification.notificationId(), success);
-    }
-
-    private boolean valid(final MemberWeatherLocation location, final Instant now) {
-        return location.isAvailable() && location.observedAt() != null
-                && !location.observedAt().isBefore(now.minus(Duration.ofHours(24))) && !location.observedAt().isAfter(now.plusSeconds(60));
     }
 }

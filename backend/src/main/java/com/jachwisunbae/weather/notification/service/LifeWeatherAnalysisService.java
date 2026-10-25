@@ -14,18 +14,15 @@ import java.time.LocalDateTime;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 public class LifeWeatherAnalysisService {
     private final WeatherForecastQueryService forecasts;
-    private final LifeWeatherRules rules;
+    private final LifeWeatherRules rules = new LifeWeatherRules();
 
-    public LifeWeatherAnalysisService(final WeatherForecastQueryService forecasts,
-            @Value("${weather.notification.precipitation-contract-verified:false}") final boolean precipitationContractVerified) {
+    public LifeWeatherAnalysisService(final WeatherForecastQueryService forecasts) {
         this.forecasts = forecasts;
-        this.rules = new LifeWeatherRules(precipitationContractVerified);
     }
 
     public LifeWeatherReport analyze(final GridPoint grid, final LocalDate sendDate, final NotificationSlot slot) {

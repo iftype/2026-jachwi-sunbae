@@ -12,7 +12,11 @@ import com.jachwisunbae.weather.service.WeatherCleanupService;
 import com.jachwisunbae.weather.service.WeatherCollectionService;
 import java.time.Clock;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.boot.test.context.ConfigDataApplicationContextInitializer;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
+import org.springframework.core.env.StandardEnvironment;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.scheduling.annotation.ScheduledAnnotationBeanPostProcessor;
 
@@ -34,6 +38,43 @@ class WeatherSchedulingConfigTest {
             assertThat(context).hasNotFailed().doesNotHaveBean(WeatherCollectionScheduler.class)
                     .doesNotHaveBean(WeatherCleanupScheduler.class).doesNotHaveBean(WeatherNotificationScheduler.class);
             assertThat(context.getBean(ScheduledAnnotationBeanPostProcessor.class).getScheduledTasks()).isEmpty();
+            verifyNoInteractions(collection, cleanup, notification);
+        });
+    }
+
+    @Test
+    void localProfileRegistersNoJobsWithoutExternalCredentials() {
+        profile("local").run(context -> {
+            assertThat(context).hasNotFailed().doesNotHaveBean(WeatherCollectionScheduler.class)
+                    .doesNotHaveBean(WeatherCleanupScheduler.class).doesNotHaveBean(WeatherNotificationScheduler.class);
+            assertThat(context.getBean(ScheduledAnnotationBeanPostProcessor.class).getScheduledTasks()).isEmpty();
+            assertThat(context.getEnvironment().getProperty("weather.kma.api-key")).isEmpty();
+            verifyNoInteractions(collection, cleanup, notification);
+        });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"dev", "prod"})
+    void serverProfilesCollectAndCleanButKeepUnprovisionedFirebaseOff(final String profile) {
+        profile(profile).run(context -> {
+            assertThat(context).hasNotFailed().hasSingleBean(WeatherCollectionScheduler.class)
+                    .hasSingleBean(WeatherCleanupScheduler.class).doesNotHaveBean(WeatherNotificationScheduler.class);
+            assertThat(context.getBean(ScheduledAnnotationBeanPostProcessor.class).getScheduledTasks()).hasSize(2);
+            assertThat(context.getEnvironment().getProperty("weather.notification.enabled", Boolean.class)).isFalse();
+            assertThat(context.getEnvironment().getProperty("weather.notification.firebase-project-id")).isEmpty();
+            assertThat(context.getEnvironment().getProperty("server.port", Integer.class)).isEqualTo(80);
+            verifyNoInteractions(collection, cleanup, notification);
+        });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"dev", "prod"})
+    void enablingPreparedNotificationsRegistersAllThreeSchedulers(final String profile) {
+        // 실제 프로젝트는 아직 없다. 서비스 대역으로 향후 YAML의 enabled=true 전환만 검증한다.
+        profile(profile).withPropertyValues("weather.notification.enabled=true").run(context -> {
+            assertThat(context).hasNotFailed().hasSingleBean(WeatherCollectionScheduler.class)
+                    .hasSingleBean(WeatherCleanupScheduler.class).hasSingleBean(WeatherNotificationScheduler.class);
+            assertThat(context.getBean(ScheduledAnnotationBeanPostProcessor.class).getScheduledTasks()).hasSize(4);
             verifyNoInteractions(collection, cleanup, notification);
         });
     }
@@ -62,5 +103,13 @@ class WeatherSchedulingConfigTest {
         Scheduled schedule = type.getMethod(method).getAnnotation(Scheduled.class);
         assertThat(schedule.cron()).isEqualTo(expected);
         assertThat(schedule.zone()).isEqualTo("Asia/Seoul");
+    }
+
+    private WebApplicationContextRunner profile(final String name) {
+        return runner.withInitializer(context -> {
+            context.getEnvironment().getPropertySources().remove(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME);
+            context.getEnvironment().setActiveProfiles(name);
+            new ConfigDataApplicationContextInitializer().initialize(context);
+        });
     }
 }

@@ -47,6 +47,7 @@ import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -119,7 +120,7 @@ class WeatherNotificationIntegrationTest {
         dispatch = newDispatch(analysis);
         device = register(1);
         settings.setEnabled(1, true);
-        locations.sync(1, GRID, MORNING.minusSeconds(60), MORNING);
+        locations.sync(1, GRID, MORNING);
         seedForecasts(NotificationSlot.MORNING, DATE.atTime(5, 0));
     }
 
@@ -133,9 +134,9 @@ class WeatherNotificationIntegrationTest {
         assertThat(saved.assessments()).hasSize(7);
         assertThat(pushes.getFirst().notificationId()).isEqualTo(saved.notificationId());
         String json = jdbc.queryForObject("SELECT assessments FROM weather_notifications", String.class);
-        assertThat(json).doesNotContain("policyVersion", "precipitationContractVerified", "collectedAt", "hourly", "token");
+        assertThat(json).doesNotContain("policyVersion", "collectedAt", "hourly", "token");
         jdbc.update("DELETE FROM weather_forecasts");
-        locations.sync(1, new GridPoint(61, 120), MORNING.plusSeconds(1), MORNING.plusSeconds(1));
+        locations.sync(1, new GridPoint(61, 120), MORNING.plusSeconds(1));
         mvc.perform(get("/api/members/me/weather-notifications/" + saved.notificationId()).header("Authorization", bearer(1)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.gridX").value(60))
                 .andExpect(jsonPath("$.data.assessments.length()").value(7)).andExpect(jsonPath("$.data.result").value("SUCCESS"))
@@ -172,13 +173,12 @@ class WeatherNotificationIntegrationTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"off", "permission", "location", "old-location", "incomplete", "stale", "missing"})
+    @ValueSource(strings = {"off", "permission", "location", "incomplete", "stale", "missing"})
     void doesNotSendWithoutConsentLocationOrUsableForecasts(final String cause) {
         switch (cause) {
             case "off" -> settings.setEnabled(1, false);
             case "permission" -> settings.revoke(1);
-            case "location" -> locationService.invalidate(1);
-            case "old-location" -> jdbc.update("UPDATE member_weather_locations SET location_observed_at = ?", LocalDateTime.ofInstant(MORNING.minusSeconds(86401), ZoneOffset.UTC));
+            case "location" -> locationService.delete(1);
             case "incomplete" -> jdbc.update("UPDATE weather_collection_publications SET completed_at = NULL");
             case "stale" -> { jdbc.update("DELETE FROM weather_forecasts"); seedForecasts(NotificationSlot.MORNING, DATE.atTime(2, 0)); }
             case "missing" -> jdbc.update("UPDATE weather_forecasts SET pty = NULL");
@@ -187,6 +187,22 @@ class WeatherNotificationIntegrationTest {
         dispatch.dispatch(NotificationSlot.MORNING);
         assertThat(pushes).isEmpty();
         assertThat(notifications.recent(1, 10)).isEmpty();
+    }
+
+    @ParameterizedTest
+    @CsvSource({"MORNING, 1", "MORNING, 7", "EVENING, 7", "MORNING, -1"})
+    void usesTheSavedGridWithoutCheckingItsTimestamp(final NotificationSlot slot, final int daysAgo) {
+        Instant storedAt = MORNING.minusSeconds(daysAgo * 86400L);
+        locations.sync(1, GRID, storedAt);
+        if (slot == NotificationSlot.EVENING) {
+            CLOCK.now.set(Instant.parse("2026-10-25T13:00:00Z"));
+            seedForecasts(slot, DATE.atTime(20, 0));
+        }
+        dispatch.dispatch(slot);
+        assertThat(pushes).hasSize(1);
+        assertThat(notification().result()).isEqualTo(SendResult.SUCCESS);
+        assertThat(notification().grid()).isEqualTo(GRID);
+        assertThat(locations.find(1).orElseThrow().updatedAt()).isEqualTo(storedAt);
     }
 
     @Test
@@ -205,7 +221,7 @@ class WeatherNotificationIntegrationTest {
                 case "consent" -> settings.setEnabled(1, false);
                 case "member-transfer" -> settings.register(2, device.installationId(), SECRET, device.token(), Platform.ANDROID, Permission.GRANTED);
                 case "permission" -> settings.revoke(1);
-                case "location" -> locationService.invalidate(1);
+                case "location" -> locationService.delete(1);
                 case "token" -> settings.register(1, device.installationId(), SECRET, "replacement-fcm-token-1234567890", Platform.ANDROID, Permission.GRANTED);
                 default -> throw new IllegalArgumentException();
             }
