@@ -2,6 +2,10 @@
 
 전국 예보를 미리 MySQL에 저장하고, 사용자 조회와 알림은 이 DB를 사용한다. 시간별 8개 요소와 일별 최저·최고기온을 수집하며, 발표 다음 정시부터 48시간을 유지한다.
 
+## 스키마
+
+[V3__create_weather_forecasts.sql](../../src/main/resources/db/migration/V3__create_weather_forecasts.sql)이 `weather_forecasts`, `weather_daily_forecasts`, `weather_collection_publications`를 생성한다. 시간별·일별 예보와 수집 완료 기록의 최종 구조를 한 번에 만든다. 기존 날씨 버전이 적용된 DB에는 통합 파일을 그대로 적용하지 않는다. [적용 이력과 통합 정책](../operations/database-migrations.md#날씨-마이그레이션-통합)을 먼저 확인한다.
+
 ## 실행
 
 Spring Boot 실행 환경에 `KMA_API_KEY`와 `WEATHER_COLLECTION_ENABLED=true`를 주입한다. `WeatherCollectionScheduler`의 표준 `@Scheduled`가 KST 02:15·05:15·08:15·11:15·14:15·17:15·20:15·23:15에 실행한다. 15분은 실제 공개 지연을 측정하기 전의 초기 가정이며 cron과 발표분 선택 규칙에 고정했다.
@@ -57,4 +61,4 @@ cd backend
 
 Docker의 MySQL을 사용한다. KMA HTTP는 모의 RAW로 검증하며 실제 외부 API를 호출하지 않는다. 기존 24시간 실험의 원본 검증 기록은 RAW 계약 문서에 남아 있지만 현재 48시간 전체의 실제 제공 지연을 확인한 결과는 아니다.
 
-수집·정리·알림은 Spring의 기본 예약 실행기를 사용한다. 장시간 수집이 다른 예약을 지연시키는 문제, 다중 인스턴스 중첩, 실패한 발표분의 재처리·원자적 교체는 구현하지 않았다. [후속 학습 과제](weather-mvp-followups.md)에 재현 방법을 정리했다.
+수집·정리·알림은 Spring의 기본 예약 실행기를 사용한다. 장시간 수집이 다른 예약을 지연시키는 문제, 다중 인스턴스 중첩, 실패한 발표분의 재처리·원자적 교체는 구현하지 않았다.

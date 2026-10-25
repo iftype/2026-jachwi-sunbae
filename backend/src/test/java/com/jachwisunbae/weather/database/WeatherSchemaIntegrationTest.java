@@ -3,8 +3,11 @@ package com.jachwisunbae.weather.database;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.stream.Stream;
 import javax.sql.DataSource;
 import org.flywaydb.core.Flyway;
@@ -19,6 +22,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.testcontainers.containers.MySQLContainer;
@@ -41,7 +45,10 @@ class WeatherSchemaIntegrationTest {
     @BeforeAll
     static void setUpSchema() {
         DataSource dataSource = new DriverManagerDataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword());
-        Flyway.configure().dataSource(dataSource).load().migrate();
+        Flyway flyway = Flyway.configure().dataSource(dataSource).load();
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(4);
+        flyway.validate();
+        assertThat(flyway.migrate().migrationsExecuted).isZero();
         jdbcTemplate = new JdbcTemplate(dataSource);
     }
 
@@ -49,6 +56,29 @@ class WeatherSchemaIntegrationTest {
     void clearForecasts() {
         jdbcTemplate.update("DELETE FROM weather_forecasts");
         jdbcTemplate.update("DELETE FROM weather_daily_forecasts");
+    }
+
+    @Test
+    @DisplayName("통합한 7개 날씨 테이블의 최종 DDL이 기존 V1–V7 적용 결과와 같다")
+    void matchesFinalSchemaBeforeConsolidation() throws IOException {
+        // 통합 전 실제 MySQL의 SHOW CREATE TABLE을 고정했다. 중간 마이그레이션을 다시 실행하는 파일이 아니다.
+        try (var input = new ClassPathResource("db/weather-mvp-schema.json").getInputStream()) {
+            var expected = new ObjectMapper().readTree(input).get("tables");
+            var names = new ArrayList<String>();
+            expected.fieldNames().forEachRemaining(names::add);
+            assertThat(names).hasSize(7);
+            assertThat(jdbcTemplate.queryForList("""
+                    SELECT table_name FROM information_schema.tables
+                    WHERE table_schema = DATABASE() AND table_name LIKE '%weather%'
+                    """, String.class)).containsExactlyInAnyOrderElementsOf(names);
+            for (String table : names) {
+                var lines = new ArrayList<String>();
+                expected.get(table).forEach(line -> lines.add(line.asText()));
+                String actual = jdbcTemplate.queryForObject("SHOW CREATE TABLE `" + table + "`", (rs, row) -> rs.getString(2));
+                assertThat(actual).as("columns, defaults, precision, PK/FK/UNIQUE/INDEX/CHECK and collation: %s", table)
+                        .isEqualTo(String.join("\n", lines));
+            }
+        }
     }
 
     @Test

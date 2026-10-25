@@ -62,8 +62,10 @@
 
 ## 마이그레이션과 설정
 
-V3–V6를 수정하지 않고 V7을 추가했다. 기존 알림의 문구·7가지 판정과 전송 수락 여부를 옮긴 후 전체 스냅샷과 `weather_notification_deliveries`를 제거한다. 기존 다중 등록은 `updated_at`이 가장 최근인 하나만 유지하며 동률이면 설치 ID로 결정한다. 나머지 등록과 수신·열람·시도 이력은 제거된다. 배포 전 기존 데이터 백업과 이 전환 정책 확인이 필요하다. 다른 브랜치와의 V3 버전 충돌은 이 작업에서 해결하지 않았다.
+[V4__create_weather_user_features.sql](../../src/main/resources/db/migration/V4__create_weather_user_features.sql)이 `member_weather_locations`, `member_weather_notification_settings`, `weather_notification_devices`, `weather_notifications`의 최종 MVP 구조를 처음부터 생성한다. 기기는 `UNIQUE(member_id)`와 토큰 해시 유니크 제약을, 알림은 회원·발송일·슬롯 유니크 제약을 유지한다. `assessments`는 JSON, `result`는 `SUCCESS`·`FAILED` 또는 NULL이다.
+
+기기 등록 버전·전송 작업 테이블·전체 예보 스냅샷을 생성하거나 과거 JSON을 변환하는 중간 SQL은 없다. 통합 전 날씨 마이그레이션이 적용된 DB의 업그레이드 경로는 제공하지 않는다. [적용 이력과 통합 정책](../operations/database-migrations.md#날씨-마이그레이션-통합)을 확인하며, 다른 브랜치의 V3 충돌 조정은 별도 작업이다.
 
 `WEATHER_NOTIFICATION_ENABLED=false`가 기본이며 OFF에서는 Firebase 자격증명 없이 기동한다. ON에는 `WEATHER_FIREBASE_PROJECT_ID`와 Google Application Default Credentials가 필요하다. 파일 자격증명을 사용하면 `GOOGLE_APPLICATION_CREDENTIALS`에 저장소 밖 경로를 넣는다. 실제 키와 토큰은 Git에 넣지 않는다.
 
-Firebase Admin 연동은 유지하며 테스트에서는 전송 대역을 사용한다. Android TTL·APNs 만료는 요청부터 1시간으로 설정하지만 예약 누락·지연을 복구하지 않는다. 실기기 전송과 모바일 권한·토큰 갱신은 아직 검증하지 않았다. 후속 실험은 [MVP 개선 과제](weather-mvp-followups.md)에 정리했다.
+Firebase Admin 연동은 유지하며 테스트에서는 전송 대역을 사용한다. Android TTL·APNs 만료는 요청부터 1시간으로 설정하지만 예약 누락·지연을 복구하지 않는다. 실기기 전송과 모바일 권한·토큰 갱신은 아직 검증하지 않았다.

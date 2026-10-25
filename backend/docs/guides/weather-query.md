@@ -24,6 +24,8 @@
 
 `weather_collection_publications`의 `started_at`·`completed_at`과 행의 `collected_at`을 함께 검사한다. 완료 기록 없는 기존 자료나 실패 중인 발표분을 정상값으로 반환하지 않는다. 최신 실패분이 이전 성공값을 덮어쓴 경우 이전 값 복원은 지원하지 않는다.
 
+조회하는 시간별·일별 예보와 완료 기록은 [V3](../../src/main/resources/db/migration/V3__create_weather_forecasts.sql)에 정의되어 있다. 위치 저장용 `member_weather_locations`는 [V4](../../src/main/resources/db/migration/V4__create_weather_user_features.sql)가 생성한다. 위치 테이블은 `member_id` PK·회원 FK와 격자 범위 CHECK를 유지한다.
+
 ## 위치 동기화
 
 `MemberWeatherLocationController → MemberWeatherLocationService → MemberWeatherLocationRepository`가 본인 위치만 다룬다. `GET / PUT / DELETE /api/members/me/weather-location`으로 조회·동기화·해제한다.
