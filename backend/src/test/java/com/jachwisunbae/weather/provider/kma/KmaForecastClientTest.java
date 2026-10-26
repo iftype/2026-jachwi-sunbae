@@ -13,7 +13,6 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import com.jachwisunbae.common.exception.errorcode.ErrorCode;
 import com.jachwisunbae.common.exception.server.UpstreamServiceException;
 import com.jachwisunbae.weather.domain.ForecastTimes;
-import com.jachwisunbae.weather.domain.GridPoint;
 import com.jachwisunbae.weather.domain.WeatherElement;
 import java.io.IOException;
 import java.io.InputStream;
@@ -85,8 +84,9 @@ class KmaForecastClientTest {
 
         assertThat(result.times()).isEqualTo(TIMES);
         assertThat(result.element()).isEqualTo(element);
-        assertThat(result.values()).containsExactly(
-                new GridValue(new GridPoint(1, 1), 0), new GridValue(new GridPoint(60, 127), 1));
+        assertThat(result.values()[0]).isZero();
+        assertThat(result.values()[18833]).isEqualTo(1.0);
+        assertThat(result.validCount()).isEqualTo(2);
         assertThat(result.validCount()).isEqualTo(2);
         assertThat(result.missingCount()).isEqualTo(37695);
     }
@@ -159,12 +159,6 @@ class KmaForecastClientTest {
         assertNetworkFailure();
     }
 
-    @Test
-    @DisplayName("요청 객체가 없으면 외부 요청 전에 입력 오류를 알린다")
-    void rejectsMissingRequest() {
-        assertThatThrownBy(() -> client.fetch(null))
-                .isInstanceOf(IllegalArgumentException.class);
-    }
 
     @ParameterizedTest
     @NullAndEmptySource

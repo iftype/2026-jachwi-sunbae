@@ -1,14 +1,12 @@
 package com.jachwisunbae.weather.provider.kma;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.jachwisunbae.weather.domain.ForecastTimes;
 import com.jachwisunbae.weather.domain.WeatherElement;
 import java.time.LocalDateTime;
 import java.util.TimeZone;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.ResourceLock;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -35,15 +33,4 @@ class KmaForecastRequestTest {
         }
     }
 
-    @Test
-    @DisplayName("요청 시각과 기상 요소의 누락을 거부한다")
-    void rejectsMissingRequestMetadata() {
-        LocalDateTime publication = LocalDateTime.of(2026, 10, 23, 2, 0);
-        ForecastTimes times = new ForecastTimes(publication, publication.plusHours(1));
-
-        assertThatThrownBy(() -> new KmaForecastRequest(null, WeatherElement.TMP))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new KmaForecastRequest(times, null))
-                .isInstanceOf(IllegalArgumentException.class);
-    }
 }

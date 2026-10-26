@@ -17,7 +17,7 @@ Spring Boot가 기동 시 Flyway로 미적용 마이그레이션을 실행한다
 
 ## 로컬 실행
 
-빈 DB에서는 [로컬 개발 가이드](../guides/local-development.md#4-백엔드-실행)에 따라 앱을 실행하면 V1–V4와 이력 테이블이 생성된다.
+빈 DB에서는 [로컬 개발 가이드](../guides/local-development.md#4-백엔드-실행)에 따라 앱을 실행하면 V1–V5와 이력 테이블이 생성된다.
 기존 DB에 Flyway 이력이 없다면 아래 최초 전환이 필요하다.
 
 `local` 프로필에서는 Flyway 실행 후 비어 있는 버스정류장·착한가격업소·CCTV 테이블에만 샘플을 자동 적재한다.
@@ -87,23 +87,29 @@ sudo systemctl restart jachwi-sunbae.service
 
 ## 현재 날씨 위치 스키마
 
-[V4__create_weather_user_features.sql](../../src/main/resources/db/migration/V4__create_weather_user_features.sql)의 `member_weather_locations`는 `member_id`, `grid_x`, `grid_y`, `updated_at` 네 컬럼을 생성한다. 격자는 NOT NULL이고 회원 FK·격자 범위 CHECK를 유지한다. UTC `updated_at DATETIME(6)`은 기록용이며 위치 삭제는 행 DELETE로 처리한다. 위치 정의는 유지하며 생활 안내 단순화에서는 알림 JSON 컬럼만 변경했다.
+[V4__create_weather_user_features.sql](../../src/main/resources/db/migration/V4__create_weather_user_features.sql)의 `member_weather_locations`는 `member_id`, `grid_x`, `grid_y`, `updated_at` 네 컬럼을 생성한다. 격자는 NOT NULL이고 회원 FK·격자 범위 CHECK를 유지한다. UTC `updated_at DATETIME(6)`은 기록용이며 위치 삭제는 행 DELETE로 처리한다. 위치 정의는 유지한다.
 
 이 정의는 V4가 적용되지 않은 DB를 위한 것이다. 이미 V4가 적용된 영구 DB에서는 변경 파일을 그대로 사용하거나 이력을 고치지 않고 별도 추가 마이그레이션 전략을 정해야 한다. 변경·배포 전에 해당 DB의 `flyway_schema_history`를 확인한다.
 
-[스키마 기준 데이터](../../src/test/resources/db/weather-mvp-schema.json)는 위치의 4개 컬럼 계약과 알림의 `notices` 계약, 나머지 5개 테이블의 기존 최종 DDL을 구분한다. 스키마 테스트가 현재 DDL과 비교하고, 위치 격자의 NOT NULL·범위·회원 FK·연쇄 삭제를 검증한다. 위치·알림을 제외한 기존 예보·설정·기기 스키마는 그대로 유지한다.
+[스키마 기준 데이터](../../src/test/resources/db/weather-mvp-schema.json)는 V5까지 적용한 7개 날씨 테이블의 최종 DDL을 기록한다. 스키마 테스트가 현재 DDL과 비교하고, 위치 격자의 NOT NULL·범위·회원 FK·연쇄 삭제를 검증한다.
 
 ## 생활 안내 JSON 컬럼
 
-2026-10-26 확인한 로컬 DB 두 곳(`jachwi-sunbae-backend-mysql-1`, `jachwi-weather-lab-mysql-1`)은 Flyway V3까지만 적용되어 있었다. 담당자도 Dev·Prod를 포함해 V4를 적용한 영구 DB가 없다고 확인했다. 이에 V4의 `weather_notifications.assessments`를 최종 정의인 `notices JSON NOT NULL`로 변경했다. 다른 테이블 DDL과 회원·발송일·슬롯 유니크 제약은 유지한다.
+2026-10-26 확인한 로컬 DB 두 곳(`jachwi-sunbae-backend-mysql-1`, `jachwi-weather-lab-mysql-1`)은 Flyway V3까지만 적용되어 있었다. 담당자도 Dev·Prod를 포함해 V4를 적용한 영구 DB가 없다고 확인했다. 이에 V4의 `weather_notifications.assessments`를 최종 정의인 `notices JSON NOT NULL`로 변경했다. 추가 단순화로 기기의 `platform`·`permission`·`active`, 알림의 `result`도 제거했다. 회원·발송일·슬롯 유니크 제약은 유지한다.
 
-DB에는 실제 안내의 `condition`, `message`만 가진 JSON 배열을 저장한다. 기존 판정 상태·상세 사유·시각 목록은 저장하지 않는다. 이번 작업은 영구 DB에 SQL을 실행하거나 DB를 초기화하지 않았다. 테스트는 별도 MySQL 컨테이너의 빈 DB에 V1–V4를 적용하고 재적용이 없는지 검증한다.
+DB에는 실제 안내의 `condition`, `message`만 가진 JSON 배열을 저장한다. 기존 판정 상태·상세 사유·시각 목록은 저장하지 않는다. 이번 작업은 영구 DB에 SQL을 실행하거나 DB를 초기화하지 않았다. 테스트는 별도 MySQL 컨테이너의 빈 DB에 V1–V5를 적용하고 재적용이 없는지 검증한다.
 
 이전 V4가 적용된 DB를 추후 발견하면 이 파일을 그대로 적용하거나 Flyway 이력을 수정하지 않는다. 기존 JSON 데이터 보존·변환 정책과 컬럼 변경을 위한 후속 마이그레이션이 필요하다.
 
+## 적용된 V3의 후속 변경
+
+V3는 로컬 영구 DB에 이미 적용되어 있으므로 수정하지 않았다. [V5__simplify_weather_collection_metadata.sql](../../src/main/resources/db/migration/V5__simplify_weather_collection_metadata.sql)이 발표분의 `started_at`과 완료시각 교차 CHECK, 예보의 원본 결측·세부 요청시각 CHECK를 제거한다. PK·격자 범위·시간별 시각 순서·일별 출처 조합 제약은 유지한다.
+
+스키마 통합 테스트는 임시 MySQL에 V4까지 적용하고 시간별·일별 값과 완료 기록을 넣은 다음 V5를 적용해 보존 여부를 확인한다. 영구 DB에는 이번 작업의 SQL을 실행하지 않았다. 두 로컬 DB에는 서로 다른 V3 체크섬이 기록되어 있어 자동으로 `repair`하지 않았다. 실제 배포는 적용 이력이 현재 V3와 일치하는지 확인해야 한다.
+
 ## 이후 변경 SQL 작성
 
-현재 이 브랜치의 최종 버전은 V4다. 다음 변경의 버전은 실제 배포 이력과 다른 브랜치의 파일을 확인한 뒤 정한다. 파일명은 `V<버전>__<설명>.sql` 형식이며 밑줄 두 개를 사용한다.
+현재 이 브랜치의 최종 버전은 V5다. 다음 변경의 버전은 실제 배포 이력과 다른 브랜치의 파일을 확인한 뒤 정한다. 파일명은 `V<버전>__<설명>.sql` 형식이며 밑줄 두 개를 사용한다.
 
 - 버전이 겹치지 않도록 적용 순서를 조율한다. DB 변경이 없으면 새 SQL을 만들지 않는다.
 - 적용된 V1과 이후 SQL은 수정·이동·삭제하지 않고 다음 버전을 추가한다.

@@ -76,12 +76,12 @@ public class JdbcWeatherForecastRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public void startCollection(final LocalDateTime publishedAt, final LocalDateTime startedAt) {
+    public void startCollection(final LocalDateTime publishedAt) {
         jdbcTemplate.update("""
-                INSERT INTO weather_collection_publications (published_at, started_at, completed_at)
-                VALUES (?, ?, NULL) AS incoming
-                ON DUPLICATE KEY UPDATE started_at = incoming.started_at, completed_at = NULL
-                """, publishedAt, startedAt);
+                INSERT INTO weather_collection_publications (published_at, completed_at)
+                VALUES (?, NULL)
+                ON DUPLICATE KEY UPDATE completed_at = NULL
+                """, publishedAt);
     }
 
     public void completeCollection(final LocalDateTime publishedAt, final LocalDateTime completedAt) {
@@ -99,11 +99,10 @@ public class JdbcWeatherForecastRepository {
 
     @Transactional
     public void upsertHourly(final List<HourlyForecast> forecasts) {
-        List<HourlyForecast> batch = List.copyOf(forecasts);
-        if (batch.isEmpty()) {
+        if (forecasts.isEmpty()) {
             return;
         }
-        jdbcTemplate.batchUpdate(UPSERT_HOURLY, batch, BATCH_SIZE, (statement, forecast) -> {
+        jdbcTemplate.batchUpdate(UPSERT_HOURLY, forecasts, BATCH_SIZE, (statement, forecast) -> {
             statement.setInt(1, forecast.point().nx());
             statement.setInt(2, forecast.point().ny());
             statement.setObject(3, forecast.times().forecastAt());
@@ -122,11 +121,10 @@ public class JdbcWeatherForecastRepository {
 
     @Transactional
     public void upsertDaily(final List<DailyForecast> forecasts) {
-        List<DailyForecast> batch = List.copyOf(forecasts);
-        if (batch.isEmpty()) {
+        if (forecasts.isEmpty()) {
             return;
         }
-        jdbcTemplate.batchUpdate(UPSERT_DAILY, batch, BATCH_SIZE, (statement, forecast) -> {
+        jdbcTemplate.batchUpdate(UPSERT_DAILY, forecasts, BATCH_SIZE, (statement, forecast) -> {
             statement.setInt(1, forecast.point().nx());
             statement.setInt(2, forecast.point().ny());
             statement.setObject(3, forecast.forecastDate());

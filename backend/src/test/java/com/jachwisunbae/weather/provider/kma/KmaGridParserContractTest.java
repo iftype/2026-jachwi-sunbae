@@ -44,7 +44,8 @@ class KmaGridParserContractTest {
             tokens[(ny - 1) * 149 + nx - 1] = Double.toString(values.get(i));
             GridForecast parsed = parser.parse(formatRaw(tokens), times, elements.get(i));
             assertThat(parsed.times()).isEqualTo(times);
-            assertThat(parsed.values()).as(scenario).containsExactly(new GridValue(point, values.get(i)));
+            assertThat(parsed.values()[point.toIndex()]).as(scenario).isEqualTo(values.get(i));
+            assertThat(parsed.validCount()).isOne();
         }
     }
 
@@ -60,7 +61,8 @@ class KmaGridParserContractTest {
 
         GridForecast result = parser.parse(String.join(",", tokens), times, element);
 
-        assertThat(result.values()).containsExactly(new GridValue(new GridPoint(60, 127), code));
+        assertThat(result.values()[18833]).isEqualTo(code);
+        assertThat(result.validCount()).isOne();
     }
 
     @ParameterizedTest
@@ -75,16 +77,16 @@ class KmaGridParserContractTest {
 
         GridForecast result = parser.parse(formatRaw(tokens), times, element);
 
-        List<GridValue> expected = cells.stream()
-                .filter(cell -> !cell.isMissing())
-                .map(cell -> new GridValue(new GridPoint(cell.nx(), cell.ny()), cell.value()))
-                .toList();
+        long expectedCount = cells.stream().filter(cell -> !cell.isMissing()).count();
         assertThat(cells).allSatisfy(cell -> assertThat(cell.times()).isEqualTo(times));
         assertThat(result.times()).isEqualTo(times);
         assertThat(result.element()).isEqualTo(element);
-        assertThat(result.values()).containsExactlyElementsOf(expected);
-        assertThat(result.validCount()).isEqualTo(expected.size());
-        assertThat(result.missingCount()).isEqualTo(CELL_COUNT - expected.size());
+        assertThat(cells).allSatisfy(cell -> {
+            assertThat(new GridPoint(cell.nx(), cell.ny()).toIndex()).isEqualTo(cell.index());
+            assertThat(result.values()[cell.index()]).isEqualTo(cell.isMissing() ? null : cell.value());
+        });
+        assertThat(result.validCount()).isEqualTo(expectedCount);
+        assertThat(result.missingCount()).isEqualTo(CELL_COUNT - expectedCount);
     }
 
     @ParameterizedTest
@@ -101,8 +103,8 @@ class KmaGridParserContractTest {
 
         assertThat(result.validCount()).isEqualTo(CELL_COUNT);
         assertThat(result.missingCount()).isZero();
-        assertThat(result.values().getFirst()).isEqualTo(new GridValue(new GridPoint(1, 1), sample.value()));
-        assertThat(result.values().getLast()).isEqualTo(new GridValue(new GridPoint(149, 253), sample.value()));
+        assertThat(result.values()[0]).isEqualTo(sample.value());
+        assertThat(result.values()[CELL_COUNT - 1]).isEqualTo(sample.value());
     }
 
     private List<SampleCell> readSampleCells(final WeatherElement element) throws IOException {

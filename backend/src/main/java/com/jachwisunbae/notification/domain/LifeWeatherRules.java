@@ -43,14 +43,12 @@ public final class LifeWeatherRules {
         return readyReport(forecast, hours, notices);
     }
 
-    // 출처와 모든 대상 시각의 TMP·PTY는 필수다. 선택 요소가 없어도 전체 알림은 만들 수 있다.
+    // 모든 대상 시각의 TMP·PTY는 필수다. 선택 요소가 없어도 전체 알림은 만들 수 있다.
     private boolean isReady(final LifeWeatherForecast forecast, final List<Hour> hours) {
         List<LocalDateTime> expected = IntStream.range(forecast.slot().firstForecastHour(), 24)
                 .mapToObj(hour -> forecast.date().atTime(hour, 0)).toList();
-        return forecast.sourceVerified() && hours.stream().map(Hour::at).toList().equals(expected)
-                && hours.stream().allMatch(hour -> validTemperature(hour.temperature())
-                        && finiteBetween(hour.precipitationType(), 0, 4)
-                        && hour.precipitationType() == Math.rint(hour.precipitationType()));
+        return hours.stream().map(Hour::at).toList().equals(expected)
+                && hours.stream().allMatch(hour -> hour.temperature() != null && hour.precipitationType() != null);
     }
 
     private LifeWeatherReport readyReport(final LifeWeatherForecast forecast, final List<Hour> hours,
@@ -74,17 +72,17 @@ public final class LifeWeatherRules {
 
     private boolean needsColdPrecaution(final List<Hour> hours, final Double minimum) {
         return hours.stream().anyMatch(hour -> hour.temperature() <= -5)
-                || validTemperature(minimum) && minimum <= -5;
+                || minimum != null && minimum <= -5;
     }
 
     private boolean hasLargeTemperatureSwing(final Double minimum, final Double maximum) {
-        return validTemperature(minimum) && validTemperature(maximum) && maximum - minimum >= 10;
+        return minimum != null && maximum != null && maximum - minimum >= 10;
     }
 
     private boolean canRecommendLaundry(final List<Hour> hours) {
         List<Hour> daytime = hours.stream().filter(hour -> hour.at().getHour() >= 9 && hour.at().getHour() <= 18).toList();
         return daytime.size() == 10
-                && daytime.stream().allMatch(hour -> hour.precipitationType() == 0 && finiteBetween(hour.humidity(), 0, 100))
+                && daytime.stream().allMatch(hour -> hour.precipitationType() == 0 && hour.humidity() != null)
                 && daytime.stream().mapToDouble(Hour::humidity).average().orElseThrow() <= 60;
     }
 
@@ -94,11 +92,4 @@ public final class LifeWeatherRules {
         return String.format(Locale.ROOT, "%02d~23시 예보기온 %.0f~%.0f℃", slot.firstForecastHour(), low, high);
     }
 
-    private boolean validTemperature(final Double value) {
-        return finiteBetween(value, -80, 60);
-    }
-
-    private boolean finiteBetween(final Double value, final double low, final double high) {
-        return value != null && Double.isFinite(value) && value >= low && value <= high;
-    }
 }

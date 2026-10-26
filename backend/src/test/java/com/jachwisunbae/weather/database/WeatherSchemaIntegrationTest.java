@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.stream.Stream;
 import javax.sql.DataSource;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeAll;
@@ -16,9 +15,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.dao.DataAccessException;
@@ -45,8 +42,24 @@ class WeatherSchemaIntegrationTest {
     @BeforeAll
     static void setUpSchema() {
         DataSource dataSource = new DriverManagerDataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword());
+        assertThat(Flyway.configure().dataSource(dataSource).target("4").load().migrate().migrationsExecuted).isEqualTo(4);
+        JdbcTemplate before = new JdbcTemplate(dataSource);
+        before.update("INSERT INTO weather_collection_publications VALUES (?, ?, ?)", PUBLISHED_AT, COLLECTED_AT, COLLECTED_AT);
+        before.update("""
+                INSERT INTO weather_forecasts (grid_x, grid_y, forecast_at, published_at, collected_at, tmp)
+                VALUES (60, 127, ?, ?, ?, -7.25)
+                """, FORECAST_AT, PUBLISHED_AT, COLLECTED_AT);
+        before.update("""
+                INSERT INTO weather_daily_forecasts
+                    (grid_x, grid_y, forecast_date, tmn, tmn_published_at, tmn_collected_at)
+                VALUES (60, 127, ?, 0, ?, ?)
+                """, FORECAST_DATE, PUBLISHED_AT, COLLECTED_AT);
         Flyway flyway = Flyway.configure().dataSource(dataSource).load();
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(4);
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
+        assertThat(before.queryForObject("SELECT tmp FROM weather_forecasts", Double.class)).isEqualTo(-7.25);
+        assertThat(before.queryForObject("SELECT tmn FROM weather_daily_forecasts", Double.class)).isZero();
+        assertThat(before.queryForObject("SELECT completed_at FROM weather_collection_publications", LocalDateTime.class))
+                .isEqualTo(COLLECTED_AT);
         flyway.validate();
         assertThat(flyway.migrate().migrationsExecuted).isZero();
         jdbcTemplate = new JdbcTemplate(dataSource);
@@ -60,9 +73,8 @@ class WeatherSchemaIntegrationTest {
     }
 
     @Test
-    @DisplayName("위치·알림의 최종 계약과 나머지 5개 날씨 테이블의 기존 DDL을 유지한다")
+    @DisplayName("단순화된 7개 날씨 테이블의 최종 DDL 계약을 유지한다")
     void matchesFinalMvpSchemaContract() throws IOException {
-        // 위치 4개 컬럼과 알림 notices 계약 외의 5개 테이블은 기존 DDL을 유지한다.
         try (var input = new ClassPathResource("db/weather-mvp-schema.json").getInputStream()) {
             var expected = new ObjectMapper().readTree(input).get("tables");
             var names = new ArrayList<String>();
@@ -212,31 +224,13 @@ class WeatherSchemaIntegrationTest {
                 .isInstanceOf(DataAccessException.class).hasMessageContaining("chk_weather_daily_forecasts_grid");
     }
 
-    @ParameterizedTest
-    @MethodSource("missingSentinelCases")
-    @DisplayName("10개 요소에서 결측 코드의 직접 저장을 거부하고 NULL은 허용한다")
-    void rejectsMissingSentinels(final String table, final String column, final double sentinel) {
-        insertForecast(table, 60, 127);
-
-        assertThatThrownBy(() -> jdbcTemplate.update("UPDATE " + table + " SET " + column + " = ?", sentinel))
-                .isInstanceOf(DataAccessException.class).hasMessageContaining("chk_" + table + "_" + column);
-        jdbcTemplate.update("UPDATE " + table + " SET " + column + " = NULL");
-
-        assertThat(jdbcTemplate.queryForObject("SELECT " + column + " FROM " + table, Double.class)).isNull();
-    }
 
     @ParameterizedTest
     @CsvSource({
             "weather_forecasts, forecast_at, 2026-10-22 16:00:00, chk_weather_forecasts_time_order",
-            "weather_forecasts, published_at, 2026-10-22 23:00:00, chk_weather_forecasts_time_order",
-            "weather_forecasts, forecast_at, 2026-10-22 20:01:00, chk_weather_forecasts_hours",
-            "weather_forecasts, published_at, 2026-10-22 17:00:01, chk_weather_forecasts_hours",
-            "weather_daily_forecasts, tmn_published_at, 2026-10-24 02:00:00, chk_weather_daily_forecasts_tmn_date",
-            "weather_daily_forecasts, tmx_published_at, 2026-10-24 02:00:00, chk_weather_daily_forecasts_tmx_date",
-            "weather_daily_forecasts, tmn_published_at, 2026-10-22 17:01:00, chk_weather_daily_forecasts_tmn_hour",
-            "weather_daily_forecasts, tmx_published_at, 2026-10-22 17:00:01, chk_weather_daily_forecasts_tmx_hour"
+            "weather_forecasts, published_at, 2026-10-22 23:00:00, chk_weather_forecasts_time_order"
     })
-    @DisplayName("발표보다 이른 대상 시각·날짜와 시간 단위가 아닌 발표·예보시각을 거부한다")
+    @DisplayName("발표보다 이른 시간별 예보대상시각은 거부한다")
     void rejectsInvalidTimes(final String table, final String column, final String value, final String constraint) {
         insertForecast(table, 60, 127);
 
@@ -287,10 +281,4 @@ class WeatherSchemaIntegrationTest {
                 """, nx, ny, FORECAST_DATE, PUBLISHED_AT, COLLECTED_AT, PUBLISHED_AT, COLLECTED_AT);
     }
 
-    private static Stream<Arguments> missingSentinelCases() {
-        return Stream.of("tmp", "sky", "pty", "pop", "pcp", "sno", "reh", "wsd", "tmn", "tmx")
-                .flatMap(column -> Stream.of(-99.0, -999.0)
-                        .map(value -> Arguments.of(column.equals("tmn") || column.equals("tmx")
-                                ? "weather_daily_forecasts" : "weather_forecasts", column, value)));
-    }
 }

@@ -3,21 +3,13 @@ package com.jachwisunbae.weather.provider.kma;
 import com.jachwisunbae.weather.domain.ForecastTimes;
 import com.jachwisunbae.weather.domain.GridPoint;
 import com.jachwisunbae.weather.domain.WeatherElement;
-import java.util.List;
+import java.util.Arrays;
+import java.util.Objects;
 
-// 한 번의 RAW 응답에서 얻은 유효 격자와 요청에 사용한 시각·요소를 함께 보관한다.
-public record GridForecast(ForecastTimes times, WeatherElement element, List<GridValue> values) {
-
-    public GridForecast {
-        if (times == null || element == null || values == null
-                || values.isEmpty() || values.size() > GridPoint.CELL_COUNT) {
-            throw new IllegalArgumentException("요청 시각·기상 요소와 유효한 격자 값이 필요합니다.");
-        }
-        values = List.copyOf(values);
-    }
-
+// 파서가 확인한 원본 순서의 37,697칸이다. null은 기상청 결측이며 내부 조립 과정에서는 배열을 변경하지 않는다.
+public record GridForecast(ForecastTimes times, WeatherElement element, Double[] values) {
     public int validCount() {
-        return values.size();
+        return (int) Arrays.stream(values).filter(Objects::nonNull).count();
     }
 
     public int missingCount() {

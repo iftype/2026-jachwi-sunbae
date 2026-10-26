@@ -12,6 +12,10 @@ public record GridPoint(int nx, int ny) {
         }
     }
 
+    public int toIndex() {
+        return (ny - 1) * WIDTH + nx - 1;
+    }
+
     public static GridPoint fromIndex(final int index) {
         if (index < 0 || index >= CELL_COUNT) {
             throw new IllegalArgumentException("기상청 격자 인덱스 범위를 벗어났습니다.");

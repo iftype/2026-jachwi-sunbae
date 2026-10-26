@@ -1,7 +1,6 @@
 package com.jachwisunbae.notification.domain;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 
 public enum NotificationSlot {
@@ -17,7 +16,4 @@ public enum NotificationSlot {
         return this == MORNING ? 7 : 0;
     }
 
-    public LocalDateTime requiredPublication(final LocalDate sendDate) {
-        return sendDate.atTime(this == MORNING ? 5 : 20, 0);
-    }
 }

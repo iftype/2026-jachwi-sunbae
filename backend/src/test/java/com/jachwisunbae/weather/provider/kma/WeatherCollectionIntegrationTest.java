@@ -53,8 +53,9 @@ class WeatherCollectionIntegrationTest {
 
     private static final int VALID_POINTS = 1001;
     private static final Instant COLLECTED_INSTANT = Instant.parse("2026-10-23T14:30:00.123456789Z");
+    // MySQL DATETIME(6)은 나노초 입력을 마이크로초로 반올림한다.
     private static final LocalDateTime COLLECTED_AT = LocalDateTime.ofInstant(COLLECTED_INSTANT, ZoneId.of("Asia/Seoul"))
-            .truncatedTo(ChronoUnit.MICROS);
+            .plusNanos(500).truncatedTo(ChronoUnit.MICROS);
     @Container
     private static final MySQLContainer<?> MYSQL = new MySQLContainer<>("mysql:8.4.10");
     private static DriverManagerDataSource dataSource;

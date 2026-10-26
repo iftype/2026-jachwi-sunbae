@@ -11,9 +11,7 @@ class NotificationSlotTest {
         LocalDate date = LocalDate.of(2026, 12, 31);
         assertThat(NotificationSlot.MORNING.targetDate(date)).isEqualTo(date);
         assertThat(NotificationSlot.MORNING.firstForecastHour()).isEqualTo(7);
-        assertThat(NotificationSlot.MORNING.requiredPublication(date)).isEqualTo(date.atTime(5, 0));
         assertThat(NotificationSlot.EVENING.targetDate(date)).isEqualTo(LocalDate.of(2027, 1, 1));
         assertThat(NotificationSlot.EVENING.firstForecastHour()).isZero();
-        assertThat(NotificationSlot.EVENING.requiredPublication(date)).isEqualTo(date.atTime(20, 0));
     }
 }

@@ -105,12 +105,11 @@ class WeatherApiIntegrationTest {
                         .param("latitude", "37.5665").param("longitude", "126.978"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.gridX").value(60))
                 .andExpect(jsonPath("$.data.hourly.length()").value(24))
-                .andExpect(jsonPath("$.data.hourly[23].values.TMP.value").value(0.0))
-                .andExpect(jsonPath("$.data.hourly[23].values.TMP.status").value("AVAILABLE"))
-                .andExpect(jsonPath("$.data.hourly[23].values.TMP.publishedAt").value("2026-10-25T20:00:00+09:00"))
-                .andExpect(jsonPath("$.data.hourly[0].values.TMP.status").value("UNAVAILABLE"))
-                .andExpect(jsonPath("$.data.tmn.value").value(0.0))
-                .andExpect(jsonPath("$.data.tmx.status").value("MISSING"));
+                .andExpect(jsonPath("$.data.hourly[23].tmp").value(0.0))
+                .andExpect(jsonPath("$.data.hourly[23].publishedAt").value("2026-10-25T20:00:00+09:00"))
+                .andExpect(jsonPath("$.data.hourly[0].tmp").isEmpty())
+                .andExpect(jsonPath("$.data.tmn").value(0.0))
+                .andExpect(jsonPath("$.data.tmx").isEmpty());
     }
 
     @Test
@@ -118,10 +117,28 @@ class WeatherApiIntegrationTest {
         var publication = TODAY.atTime(20, 0);
         complete(publication);
         forecasts.upsertHourly(List.of(hourly(new GridPoint(60, 127), TODAY.atTime(23, 0), publication, 22.0)));
-        forecasts.startCollection(publication, publication.plusHours(1));
+        forecasts.startCollection(publication);
         assertUnverified();
         forecasts.completeCollection(publication, publication.plusMinutes(90));
-        assertUnverified(); // 이전 시도에 저장된 행은 이번 완료 범위에 들어가지 않는다.
+        mvc.perform(get("/api/weather/forecasts").header("Authorization", bearer(1))
+                        .param("latitude", "37.5665").param("longitude", "126.978"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.hourly[23].tmp").value(22.0));
+    }
+
+    @Test
+    void dailyValuesRequireTheirOwnCompletedPublication() throws Exception {
+        var minimumPublication = TODAY.atTime(2, 0);
+        var maximumPublication = TODAY.atTime(11, 0);
+        complete(minimumPublication);
+        forecasts.startCollection(maximumPublication);
+        forecasts.upsertDaily(List.of(new DailyForecast(new GridPoint(60, 127), TODAY,
+                new DailyTemperature(-5.0, minimumPublication, minimumPublication.plusMinutes(20)),
+                new DailyTemperature(20.0, maximumPublication, maximumPublication.plusMinutes(20)))));
+        mvc.perform(get("/api/weather/forecasts").header("Authorization", bearer(1))
+                        .param("latitude", "37.5665").param("longitude", "126.978"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.tmn").value(-5.0))
+                .andExpect(jsonPath("$.data.tmnPublishedAt").value("2026-10-25T02:00:00+09:00"))
+                .andExpect(jsonPath("$.data.tmx").isEmpty()).andExpect(jsonPath("$.data.tmxPublishedAt").isEmpty());
     }
 
     @Test
@@ -136,7 +153,7 @@ class WeatherApiIntegrationTest {
                 .andExpect(status().isBadRequest());
         mvc.perform(get("/api/weather/forecasts").header("Authorization", bearer(1))
                 .param("latitude", "34").param("longitude", "125").param("date", "2026-10-26"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.data.coverage").value("UNAVAILABLE"));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.hourly[0].tmp").isEmpty());
     }
 
     @Test
@@ -205,8 +222,8 @@ class WeatherApiIntegrationTest {
     private void assertUnverified() throws Exception {
         mvc.perform(get("/api/weather/forecasts").header("Authorization", bearer(1))
                 .param("latitude", "37.5665").param("longitude", "126.978"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.data.hourly[23].values.TMP.status").value("UNAVAILABLE"))
-                .andExpect(jsonPath("$.data.hourly[23].values.TMP.value").isEmpty());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.hourly[23].tmp").isEmpty());
     }
 
     @Test
@@ -251,7 +268,7 @@ class WeatherApiIntegrationTest {
     }
 
     private void complete(final LocalDateTime published) {
-        forecasts.startCollection(published, published.plusMinutes(15));
+        forecasts.startCollection(published);
         forecasts.completeCollection(published, published.plusMinutes(30));
     }
 

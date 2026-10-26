@@ -30,4 +30,4 @@ weather:
   notification:
     # 운영 Firebase 프로젝트·ADC·운영 앱의 등록정보를 준비한 뒤 true로 변경한다.
     enabled: false
-    firebase-project-id: ""
+    firebase-project-id: "jachwi-sunbae-prod"

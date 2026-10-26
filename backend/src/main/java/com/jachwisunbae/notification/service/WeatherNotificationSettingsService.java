@@ -4,14 +4,11 @@ import com.jachwisunbae.common.exception.client.InvalidInputException;
 import com.jachwisunbae.common.exception.errorcode.ErrorCode;
 import com.jachwisunbae.member.service.MemberService;
 import com.jachwisunbae.notification.domain.WeatherDevice;
-import com.jachwisunbae.notification.domain.WeatherDevice.Permission;
-import com.jachwisunbae.notification.domain.WeatherDevice.Platform;
 import com.jachwisunbae.notification.repository.WeatherNotificationSettingsRepository;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
-import java.time.temporal.ChronoUnit;
 import java.util.HexFormat;
 import java.util.Optional;
 import java.util.UUID;
@@ -46,28 +43,22 @@ public class WeatherNotificationSettingsService {
 
     public Optional<WeatherDevice> device(final long memberId) {
         members.findProfileById(memberId);
-        return repository.findByMember(memberId);
+        return repository.findByMember(memberId).filter(device -> device.token() != null);
     }
 
     @Transactional
     public WeatherDevice register(final long memberId, final UUID installationId, final String installationSecret,
-                                   final String token, final Platform platform, final Permission permission) {
+                                   final String token) {
         members.findProfileById(memberId);
-        if (permission == Permission.GRANTED && (token == null || !token.matches("[\\x21-\\x7E]{20,4096}"))) {
-            throw new InvalidInputException(ErrorCode.WEATHER_DEVICE_INVALID, "알림 기기 입력 형식 오류");
-        }
         String secretHash = hash(installationSecret);
-        WeatherDevice previous = repository.findInstallationForUpdate(installationId).orElse(null);
+        WeatherDevice previous = repository.findInstallation(installationId).orElse(null);
         if (previous != null && !MessageDigest.isEqual(previous.secretHash().getBytes(StandardCharsets.US_ASCII),
                 secretHash.getBytes(StandardCharsets.US_ASCII))) {
             throw conflict();
         }
-        String storedToken = permission == Permission.GRANTED ? token : null;
-        boolean active = permission == Permission.GRANTED;
-        WeatherDevice device = new WeatherDevice(installationId, memberId, secretHash, storedToken, platform, permission,
-                active, clock.instant().truncatedTo(ChronoUnit.MICROS));
+        WeatherDevice device = new WeatherDevice(installationId, memberId, secretHash, token, clock.instant());
         try {
-            repository.save(device, storedToken == null ? null : hash(storedToken));
+            repository.save(device, hash(token));
         } catch (DuplicateKeyException exception) {
             throw conflict();
         }

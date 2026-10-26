@@ -41,7 +41,7 @@ class LifeWeatherRulesTest {
         LocalDateTime at = LocalDateTime.parse(forecastAt, DateTimeFormatter.ofPattern("yyyyMMddHH"));
         List<Hour> hours = hours(at.toLocalDate(), NotificationSlot.MORNING);
         var input = new LifeWeatherForecast(at.toLocalDate(), NotificationSlot.MORNING,
-                replace(hours, at.getHour(), h -> new Hour(h.at(), h.temperature(), pty, h.humidity())), null, null, true);
+                replace(hours, at.getHour(), h -> new Hour(h.at(), h.temperature(), pty, h.humidity())), null, null);
         var report = rules.evaluate(input);
         assertThat(has(report, Condition.RAIN)).as(scenario).isEqualTo(expectedRain);
         assertThat(has(report, Condition.SNOW)).as(scenario).isEqualTo(expectedSnow);
@@ -55,7 +55,7 @@ class LifeWeatherRulesTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"-5.1,true", "-5,true", "-4.9,false", "NULL,false", "-99,false", "NaN,false", "Infinity,false"})
+    @CsvSource({"-5.1,true", "-5,true", "-4.9,false", "NULL,false"})
     void dailyMinimumCanIndependentlyCreateColdNotice(final String minimum, final boolean expected) {
         var report = evaluate(hours(), number(minimum), null);
         assertThat(report.sendable()).isTrue();
@@ -65,7 +65,7 @@ class LifeWeatherRulesTest {
 
     @ParameterizedTest
     @CsvSource({"0,9.9,false", "0,10,true", "0,10.1,true", "NULL,20,false", "10,NULL,false",
-            "20,10,false", "-99,20,false", "10,NaN,false", "10,Infinity,false"})
+            "20,10,false"})
     void dailyRangeRequiresValidDailyTemperatures(final String minimum, final String maximum, final boolean expected) {
         var report = evaluate(hours(), number(minimum), number(maximum));
         assertThat(report.sendable()).isTrue();
@@ -83,8 +83,7 @@ class LifeWeatherRulesTest {
 
     @ParameterizedTest
     @NullSource
-    @ValueSource(doubles = {-1, 101, Double.NaN, Double.POSITIVE_INFINITY})
-    void missingOrInvalidDaytimeHumidityOnlyOmitsLaundry(final Double humidity) {
+    void missingDaytimeHumidityOnlyOmitsLaundry(final Double humidity) {
         var report = evaluate(replace(hours(), 9, h -> new Hour(h.at(), h.temperature(), 0.0, humidity)), null, null);
         assertThat(report.sendable()).isTrue();
         assertThat(report.notices()).isEmpty();
@@ -130,7 +129,7 @@ class LifeWeatherRulesTest {
         var hours = hours(date, slot).stream().map(h -> new Hour(h.at(), 15.0, 0.0, null)).toList();
         hours = replace(hours, slot.firstForecastHour(), h -> new Hour(h.at(), 5.0, 0.0, null));
         hours = replace(hours, 23, h -> new Hour(h.at(), 20.0, 0.0, null));
-        var report = rules.evaluate(new LifeWeatherForecast(date, slot, hours, null, null, true));
+        var report = rules.evaluate(new LifeWeatherForecast(date, slot, hours, null, null));
         assertThat(report.sendable()).isTrue();
         assertThat(report.notices()).isEmpty();
         assertThat(report.title()).isEqualTo(slot == NotificationSlot.MORNING
@@ -138,16 +137,15 @@ class LifeWeatherRulesTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"NULL,0", "NaN,0", "Infinity,0", "-99,0", "61,0", "15,NULL", "15,NaN", "15,Infinity",
-            "15,-1", "15,5", "15,1.5"})
+    @CsvSource({"NULL,0", "15,NULL"})
     void anyInvalidEssentialValuePreventsTheWholeNotification(final String temperature, final String pty) {
         var hours = replace(hours(), 23, h -> new Hour(h.at(), number(temperature), number(pty), h.humidity()));
         assertUnsendable(evaluate(hours, -5.0, 10.0));
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"missing", "duplicate", "wrong-date", "wrong-minute", "extra", "empty", "unverified"})
-    void incompleteWindowOrUnverifiedSourcePreventsNotification(final String cause) {
+    @ValueSource(strings = {"missing", "duplicate", "wrong-date", "wrong-minute", "extra", "empty"})
+    void incompleteWindowPreventsNotification(final String cause) {
         var hours = new ArrayList<>(hours());
         switch (cause) {
             case "missing" -> hours.removeFirst();
@@ -156,11 +154,9 @@ class LifeWeatherRulesTest {
             case "wrong-minute" -> hours.set(0, new Hour(DATE.atTime(7, 1), 15.0, 0.0, 55.0));
             case "extra" -> hours.add(new Hour(DATE.atTime(6, 0), 15.0, 0.0, 55.0));
             case "empty" -> hours.clear();
-            case "unverified" -> { }
             default -> throw new IllegalArgumentException();
         }
-        assertUnsendable(rules.evaluate(new LifeWeatherForecast(DATE, NotificationSlot.MORNING, hours, null, null,
-                !cause.equals("unverified"))));
+        assertUnsendable(rules.evaluate(new LifeWeatherForecast(DATE, NotificationSlot.MORNING, hours, null, null)));
     }
 
     @Test
@@ -178,7 +174,7 @@ class LifeWeatherRulesTest {
     }
 
     private LifeWeatherReport evaluate(final List<Hour> hours, final Double minimum, final Double maximum) {
-        return rules.evaluate(new LifeWeatherForecast(DATE, NotificationSlot.MORNING, hours, minimum, maximum, true));
+        return rules.evaluate(new LifeWeatherForecast(DATE, NotificationSlot.MORNING, hours, minimum, maximum));
     }
 
     private List<Hour> hours() { return hours(DATE, NotificationSlot.MORNING); }

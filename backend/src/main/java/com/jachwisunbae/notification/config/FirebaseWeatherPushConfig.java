@@ -7,7 +7,6 @@ import com.google.firebase.messaging.FirebaseMessaging;
 import com.jachwisunbae.notification.provider.WeatherPushSender;
 import com.jachwisunbae.notification.provider.fcm.FirebaseWeatherPushSender;
 import java.io.IOException;
-import java.time.Clock;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -30,7 +29,7 @@ public class FirebaseWeatherPushConfig {
     }
 
     @Bean
-    public WeatherPushSender firebaseWeatherPushSender(final FirebaseApp weatherFirebaseApp, final Clock clock) {
-        return new FirebaseWeatherPushSender(FirebaseMessaging.getInstance(weatherFirebaseApp), clock);
+    public WeatherPushSender firebaseWeatherPushSender(final FirebaseApp weatherFirebaseApp) {
+        return new FirebaseWeatherPushSender(FirebaseMessaging.getInstance(weatherFirebaseApp));
     }
 }

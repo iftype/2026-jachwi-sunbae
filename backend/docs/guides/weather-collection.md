@@ -4,7 +4,7 @@
 
 ## 스키마
 
-[V3__create_weather_forecasts.sql](../../src/main/resources/db/migration/V3__create_weather_forecasts.sql)이 `weather_forecasts`, `weather_daily_forecasts`, `weather_collection_publications`를 생성한다. 시간별·일별 예보와 수집 완료 기록의 최종 구조를 한 번에 만든다. 기존 날씨 버전이 적용된 DB에는 통합 파일을 그대로 적용하지 않는다. [적용 이력과 통합 정책](../operations/database-migrations.md)을 먼저 확인한다.
+[V3__create_weather_forecasts.sql](../../src/main/resources/db/migration/V3__create_weather_forecasts.sql)이 `weather_forecasts`, `weather_daily_forecasts`, `weather_collection_publications`를 생성한다. 적용된 V3는 보존하고 [V5](../../src/main/resources/db/migration/V5__simplify_weather_collection_metadata.sql)에서 `started_at`과 파서·계획에 중복된 세부 CHECK를 제거한다. PK와 격자 범위·시간 순서·일별 출처 조합 제약은 유지한다. 기존 날씨 버전이 적용된 DB에는 통합 파일을 그대로 적용하지 않는다. [적용 이력과 통합 정책](../operations/database-migrations.md)을 먼저 확인한다.
 
 ## 실행
 
@@ -24,10 +24,10 @@
 | `WeatherCollectionService`                          | 요청 → 결합 → 저장 순서와 최소 완료 기록                      |
 | `JdbcWeatherForecastRepository`                     | JDBC 배치 UPSERT, 완료 기록, 과거 예보 DELETE                 |
 
-1. `collect(publishedAt)`이 계획을 만들고 해당 발표분의 `started_at`을 기록하며 `completed_at`을 비운다.
+1. `collect(publishedAt)`이 계획을 만들고 해당 발표분의 `completed_at`을 비운다.
 2. 한 예보시각의 TMP·SKY·PTY·POP·PCP·SNO·REH·WSD를 요청한다. HTTP·파싱·결합은 DB 트랜잭션 밖에서 실행한다.
-3. 그 시각의 TMP 유효 격자를 기준으로 결합하고, 저장소의 `@Transactional upsertHourly`에서 전국 행을 배치 저장한다. 이 과정을 48번 반복한다.
-4. 시간별로 사용한 격자의 날짜별 합집합에 TMN·TMX를 결합한다. 날짜마다 `@Transactional upsertDaily`를 호출한다.
+3. 파서가 만든 37,697칸 `Double[]`를 그대로 받아 같은 인덱스의 8개 값을 결합한다. 별도 `GridValue` 목록은 없다. 그 시각의 TMP 유효 격자를 기준으로, 저장소의 `@Transactional upsertHourly`에서 전국 행을 배치 저장한다. 이 과정을 48번 반복한다.
+4. 시간별로 사용한 격자의 날짜별 합집합에 TMN·TMX를 결합한다. TMP 유효 격자가 시각마다 달라질 수 있으므로 합집합을 유지하고, 일별 결합은 이 격자들만 읽는다. 날짜마다 `@Transactional upsertDaily`를 호출한다.
 5. 모든 저장 메서드가 커밋된 뒤 발표분의 `completed_at`을 기록한다. 시작·종료 로그에는 발표시각, 성공 여부, 저장 입력 행 수를 남긴다. 같은 PK를 갱신한 행도 저장 입력 행 수에 포함한다.
 
 `@Transactional`은 서비스가 호출하는 별도 저장소 빈의 공개 메서드에 있으므로 self-invocation으로 우회되지 않는다. 하나의 저장 단위에서 두 번째 JDBC 배치가 실패해도 첫 배치까지 롤백한다. 전체 48시간은 하나의 트랜잭션이 아니다.
@@ -40,7 +40,7 @@
 - 필수 요소의 요청 실패는 수집 실패다. 실패를 NULL로 바꿔 성공 처리하지 않는다.
 - 시간별 PK는 격자·예보시각, 일별 PK는 격자·날짜다. 이전 발표분은 최신 값을 덮어쓰지 않으며 동일 발표분의 정정은 반영한다. 일별 TMN·TMX는 각각의 발표·수집시각을 보존한다.
 - 당일 TMN은 02시 발표까지, TMX는 11시 발표까지 요청한다. 날짜 경계·제공 시각은 요청 계획 테스트로 확인한다.
-- 수집을 다시 시작하면 기존 완료 기록을 비우고, 조회는 행의 수집시각이 최근 완료 시도의 시작·완료 사이에 있는지도 검사한다. 실패 전에 커밋한 일부 행은 DB에 남지만 정상 수치로 노출하지 않는다.
+- 수집을 다시 시작하면 기존 완료 기록을 비우고, 조회는 발표분의 `completed_at IS NOT NULL`만 확인한다. 실패 전에 커밋한 일부 행은 DB에 남지만 정상 수치로 노출하지 않는다.
 
 연결·읽기 제한시간은 클라이언트 상수인 3초·15초다. 키 없이 서버는 기동할 수 있지만 실제 수집은 실패한다. 요청 URL·인증키·RAW 오류 본문·외부 예외 cause는 로그에 남기지 않는다. 상세 성능 측정과 자동 재시도는 없다.
 

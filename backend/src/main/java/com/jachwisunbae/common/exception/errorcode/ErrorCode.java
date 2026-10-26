@@ -59,7 +59,6 @@ public enum ErrorCode {
     WEATHER_COORDINATE_INVALID("위도와 경도를 확인해 주세요."),
     WEATHER_LOCATION_UNSUPPORTED("날씨를 제공하지 않는 위치입니다."),
 
-    WEATHER_DEVICE_INVALID("기기 등록 정보를 확인해 주세요."),
     WEATHER_DEVICE_CONFLICT("기기 등록 상태를 확인하고 다시 시도해 주세요."),
     WEATHER_NOTIFICATION_NOT_FOUND("알림을 찾을 수 없습니다."),
 

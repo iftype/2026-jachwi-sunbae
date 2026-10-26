@@ -18,10 +18,7 @@ import com.jachwisunbae.weather.domain.GridPoint;
 import com.jachwisunbae.weather.domain.HourlyForecast;
 import com.jachwisunbae.notification.domain.NotificationSlot;
 import com.jachwisunbae.notification.domain.WeatherDevice;
-import com.jachwisunbae.notification.domain.WeatherDevice.Permission;
-import com.jachwisunbae.notification.domain.WeatherDevice.Platform;
 import com.jachwisunbae.notification.domain.WeatherNotification;
-import com.jachwisunbae.notification.domain.WeatherNotification.SendResult;
 import com.jachwisunbae.notification.provider.WeatherPushSender;
 import com.jachwisunbae.notification.provider.WeatherPushSender.Push;
 import com.jachwisunbae.notification.repository.WeatherNotificationRepository;
@@ -92,7 +89,6 @@ class WeatherNotificationIntegrationTest {
     @Autowired private WeatherNotificationSettingsRepository settingsRepository;
     @Autowired private WeatherNotificationRepository notifications;
     @Autowired private LifeWeatherAnalysisService analysis;
-    @Autowired private WeatherNotificationDispatchService disabledDispatch;
     private final List<Push> pushes = new CopyOnWriteArrayList<>();
     private Function<Push, Boolean> outcome;
     private WeatherNotificationDispatchService dispatch;
@@ -133,7 +129,6 @@ class WeatherNotificationIntegrationTest {
         dispatch.dispatch(NotificationSlot.MORNING);
         assertThat(pushes).hasSize(1);
         var saved = notification();
-        assertThat(saved.result()).isEqualTo(SendResult.SUCCESS);
         assertThat(saved.notices()).extracting(Notice::condition).containsExactly(Condition.LAUNDRY);
         assertThat(pushes.getFirst().notificationId()).isEqualTo(saved.notificationId());
         String json = jdbc.queryForObject("SELECT notices FROM weather_notifications", String.class);
@@ -144,7 +139,7 @@ class WeatherNotificationIntegrationTest {
         locations.sync(1, new GridPoint(61, 120), MORNING.plusSeconds(1));
         mvc.perform(get("/api/members/me/weather-notifications/" + saved.notificationId()).header("Authorization", bearer(1)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.gridX").value(60))
-                .andExpect(jsonPath("$.data.notices.length()").value(1)).andExpect(jsonPath("$.data.result").value("SUCCESS"))
+                .andExpect(jsonPath("$.data.notices.length()").value(1)).andExpect(jsonPath("$.data.result").doesNotExist())
                 .andExpect(jsonPath("$.data.notices[0].condition").value("LAUNDRY"))
                 .andExpect(jsonPath("$.data.notices[0].message").value("09~18시 예보상 바깥 건조를 고려할 수 있어요"))
                 .andExpect(jsonPath("$.data.assessments").doesNotExist())
@@ -165,8 +160,6 @@ class WeatherNotificationIntegrationTest {
         assertThat(jdbc.queryForObject("SELECT notices FROM weather_notifications", String.class)).isEqualTo("[]");
         mvc.perform(get("/api/members/me/weather-notifications/" + saved.notificationId()).header("Authorization", bearer(1)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.notices").isEmpty());
-        mvc.perform(get("/api/members/me/weather-notifications").header("Authorization", bearer(1)))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.data[0].title").value(saved.title()));
     }
 
     @ParameterizedTest
@@ -184,7 +177,7 @@ class WeatherNotificationIntegrationTest {
         seedForecasts(NotificationSlot.EVENING, DATE.atTime(20, 0));
         dispatch.dispatch(NotificationSlot.EVENING);
         assertThat(pushes).hasSize(1);
-        assertThat(pushes.getFirst().targetDate()).isEqualTo("2026-10-26");
+        assertThat(notification().targetDate()).isEqualTo(DATE.plusDays(1));
         assertThat(notification().slot()).isEqualTo(NotificationSlot.EVENING);
     }
 
@@ -194,7 +187,6 @@ class WeatherNotificationIntegrationTest {
         dispatch.dispatch(NotificationSlot.MORNING);
         dispatch.dispatch(NotificationSlot.MORNING);
         assertThat(pushes).hasSize(1);
-        assertThat(notification().result()).isEqualTo(SendResult.FAILED);
     }
 
     @Test
@@ -202,19 +194,17 @@ class WeatherNotificationIntegrationTest {
         outcome = push -> { throw new IllegalStateException("sensitive-provider-message"); };
         dispatch.dispatch(NotificationSlot.MORNING);
         dispatch.dispatch(NotificationSlot.MORNING);
-        assertThat(notification().result()).isEqualTo(SendResult.FAILED);
         assertThat(pushes).hasSize(1);
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"off", "permission", "location", "incomplete", "stale", "missing", "temperature", "hour"})
+    @ValueSource(strings = {"off", "permission", "location", "incomplete", "missing", "temperature", "hour"})
     void doesNotSendWithoutConsentLocationOrUsableForecasts(final String cause) {
         switch (cause) {
             case "off" -> settings.setEnabled(1, false);
             case "permission" -> settings.revoke(1);
             case "location" -> locationService.delete(1);
             case "incomplete" -> jdbc.update("UPDATE weather_collection_publications SET completed_at = NULL");
-            case "stale" -> { jdbc.update("DELETE FROM weather_forecasts"); seedForecasts(NotificationSlot.MORNING, DATE.atTime(2, 0)); }
             case "missing" -> jdbc.update("UPDATE weather_forecasts SET pty = NULL WHERE HOUR(forecast_at) = 23");
             case "temperature" -> jdbc.update("UPDATE weather_forecasts SET tmp = NULL WHERE HOUR(forecast_at) = 23");
             case "hour" -> jdbc.update("DELETE FROM weather_forecasts WHERE HOUR(forecast_at) = 18");
@@ -222,7 +212,7 @@ class WeatherNotificationIntegrationTest {
         }
         dispatch.dispatch(NotificationSlot.MORNING);
         assertThat(pushes).isEmpty();
-        assertThat(notifications.recent(1, 10)).isEmpty();
+        assertThat(notificationCount()).isZero();
     }
 
     @ParameterizedTest
@@ -236,36 +226,29 @@ class WeatherNotificationIntegrationTest {
         }
         dispatch.dispatch(slot);
         assertThat(pushes).hasSize(1);
-        assertThat(notification().result()).isEqualTo(SendResult.SUCCESS);
         assertThat(notification().grid()).isEqualTo(GRID);
         assertThat(locations.find(1).orElseThrow().updatedAt()).isEqualTo(storedAt);
     }
 
-    @Test
-    void globalFlagDefaultsOff() {
-        disabledDispatch.dispatch(NotificationSlot.MORNING);
-        assertThat(notifications.recent(1, 10)).isEmpty();
-    }
 
     @ParameterizedTest
-    @ValueSource(strings = {"consent", "member-transfer", "permission", "location", "token"})
+    @ValueSource(strings = {"consent", "member-transfer", "permission", "token"})
     void eligibilityIsRecheckedAfterAnalysisBeforeSending(final String change) {
         var changed = org.mockito.Mockito.spy(analysis);
         org.mockito.Mockito.doAnswer(call -> {
             var report = analysis.analyze(GRID, DATE, NotificationSlot.MORNING);
             switch (change) {
                 case "consent" -> settings.setEnabled(1, false);
-                case "member-transfer" -> settings.register(2, device.installationId(), SECRET, device.token(), Platform.ANDROID, Permission.GRANTED);
+                case "member-transfer" -> settings.register(2, device.installationId(), SECRET, device.token());
                 case "permission" -> settings.revoke(1);
                 case "location" -> locationService.delete(1);
-                case "token" -> settings.register(1, device.installationId(), SECRET, "replacement-fcm-token-1234567890", Platform.ANDROID, Permission.GRANTED);
+                case "token" -> settings.register(1, device.installationId(), SECRET, "replacement-fcm-token-1234567890");
                 default -> throw new IllegalArgumentException();
             }
             return report;
         }).when(changed).analyze(GRID, DATE, NotificationSlot.MORNING);
         newDispatch(changed).dispatch(NotificationSlot.MORNING);
         assertThat(pushes).isEmpty();
-        assertThat(notification().result()).isEqualTo(SendResult.FAILED);
     }
 
     @Test
@@ -273,28 +256,27 @@ class WeatherNotificationIntegrationTest {
         WeatherDevice replacement = register(1);
         assertThat(settings.device(1).orElseThrow().installationId()).isEqualTo(replacement.installationId());
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM weather_notification_devices WHERE member_id=1", Integer.class)).isOne();
-        settings.register(1, replacement.installationId(), SECRET, "new-fcm-token-1234567890", Platform.IOS, Permission.GRANTED);
-        settings.register(1, replacement.installationId(), SECRET, "new-fcm-token-1234567890", Platform.IOS, Permission.GRANTED);
+        settings.register(1, replacement.installationId(), SECRET, "new-fcm-token-1234567890");
+        settings.register(1, replacement.installationId(), SECRET, "new-fcm-token-1234567890");
         assertThat(settings.device(1).orElseThrow().token()).isEqualTo("new-fcm-token-1234567890");
         settings.revoke(1);
-        assertThat(settings.device(1).orElseThrow().active()).isFalse();
-        assertThat(settings.device(1).orElseThrow().token()).isNull();
+        assertThat(settings.device(1)).isEmpty();
     }
 
     @Test
     void tokenAloneCannotTakeAnotherMembersRegistrationAndFailureRollsBackReplacement() {
         WeatherDevice second = register(2);
-        assertThatThrownBy(() -> settings.register(2, UUID.randomUUID(), SECRET, device.token(), Platform.ANDROID, Permission.GRANTED))
+        assertThatThrownBy(() -> settings.register(2, UUID.randomUUID(), SECRET, device.token()))
                 .isInstanceOf(InvalidInputException.class);
         assertThat(settings.device(1).orElseThrow().installationId()).isEqualTo(device.installationId());
         assertThat(settings.device(2).orElseThrow().installationId()).isEqualTo(second.installationId());
-        assertThatThrownBy(() -> settings.register(2, device.installationId(), "different-installation-secret-with-at-least-43-characters", device.token(), Platform.ANDROID, Permission.GRANTED))
+        assertThatThrownBy(() -> settings.register(2, device.installationId(), "different-installation-secret-with-at-least-43-characters", device.token()))
                 .isInstanceOf(InvalidInputException.class);
     }
 
     @Test
     void anonymousMemberTransferRequiresProofAndDisconnectsThePreviousMember() {
-        settings.register(2, device.installationId(), SECRET, device.token(), Platform.ANDROID, Permission.GRANTED);
+        settings.register(2, device.installationId(), SECRET, device.token());
         assertThat(settings.device(1)).isEmpty();
         assertThat(settings.device(2).orElseThrow().memberId()).isEqualTo(2);
         assertThat(settings.enabled(2)).isFalse();
@@ -313,13 +295,13 @@ class WeatherNotificationIntegrationTest {
             second.get(20, TimeUnit.SECONDS);
         }
         assertThat(pushes).hasSize(1);
-        assertThat(notifications.recent(1, 10)).hasSize(1);
+        assertThat(notificationCount()).isOne();
     }
 
     @Test
     void apiUsesOnePrivateRegistrationAndOwnedNotificationDetails() throws Exception {
         String body = "{\"installationId\":\"" + device.installationId() + "\",\"installationSecret\":\"" + SECRET
-                + "\",\"token\":\"updated-fcm-token-1234567890\",\"platform\":\"ANDROID\",\"permission\":\"GRANTED\"}";
+                + "\",\"token\":\"updated-fcm-token-1234567890\"}";
         mvc.perform(put("/api/members/me/weather-devices/current").header("Authorization", bearer(1)).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.token").doesNotExist()).andExpect(jsonPath("$.data.installationSecret").doesNotExist());
         mvc.perform(get("/api/members/me/weather-devices/current")).andExpect(status().isUnauthorized());
@@ -327,10 +309,11 @@ class WeatherNotificationIntegrationTest {
         mvc.perform(get("/api/members/me/weather-notifications/" + notification().notificationId()).header("Authorization", bearer(2)))
                 .andExpect(status().isNotFound());
         mvc.perform(delete("/api/members/me/weather-devices/current").header("Authorization", bearer(1))).andExpect(status().isNoContent());
-        assertThat(settings.device(1).orElseThrow().active()).isFalse();
+        assertThat(settings.device(1)).isEmpty();
         mvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.paths['/api/members/me/weather-devices/current']").exists())
                 .andExpect(jsonPath("$.paths['/api/members/me/weather-notifications/{notificationId}/receipts/{installationId}']").doesNotExist())
+                .andExpect(jsonPath("$.paths['/api/members/me/weather-notifications']").doesNotExist())
                 .andExpect(jsonPath("$.components.schemas.WeatherNotificationResponse.properties.notices").exists())
                 .andExpect(jsonPath("$.components.schemas.WeatherNotificationResponse.properties.assessments").doesNotExist())
                 .andExpect(jsonPath("$.components.schemas.WeatherNotice.properties.condition.enum.length()").value(5))
@@ -345,14 +328,64 @@ class WeatherNotificationIntegrationTest {
         String secret = invalidField.equals("installationSecret") ? "short" : SECRET;
         String token = invalidField.equals("token") ? "null" : "\"updated-fcm-token-1234567890\"";
         String body = """
-                {"installationId": %s, "installationSecret": "%s", "token": %s,
-                 "platform": "ANDROID", "permission": "GRANTED"}
+                {"installationId": %s, "installationSecret": "%s", "token": %s}
                 """.formatted(id, secret, token);
         mvc.perform(put("/api/members/me/weather-devices/current").header("Authorization", bearer(1))
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value(invalidField.equals("token") ? "WEATHER_DEVICE_INVALID" : "INVALID_REQUEST"));
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
         assertThat(settings.device(1)).contains(device);
+    }
+
+    @Test
+    void completedOlderPublicationCanBeUsedForMorningNotification() {
+        jdbc.update("DELETE FROM weather_forecasts");
+        seedForecasts(NotificationSlot.MORNING, DATE.minusDays(1).atTime(23, 0));
+        dispatch.dispatch(NotificationSlot.MORNING);
+        assertThat(pushes).hasSize(1);
+    }
+
+    @Test
+    void usesInitiallyReadLocationWhenItChangesDuringAnalysis() {
+        var changed = org.mockito.Mockito.spy(analysis);
+        org.mockito.Mockito.doAnswer(call -> {
+            var report = analysis.analyze(GRID, DATE, NotificationSlot.MORNING);
+            locations.delete(1);
+            return report;
+        }).when(changed).analyze(GRID, DATE, NotificationSlot.MORNING);
+        newDispatch(changed).dispatch(NotificationSlot.MORNING);
+        assertThat(pushes).hasSize(1);
+        assertThat(notification().grid()).isEqualTo(GRID);
+    }
+
+    @Test
+    void sensitiveObjectsDoNotExposeCredentialsOrLocation() {
+        String token = "sensitive-fcm-token";
+        var request = new com.jachwisunbae.notification.controller.dto.WeatherDeviceRequest(device.installationId(), SECRET, token);
+        assertThat(request.toString()).doesNotContain(SECRET, token);
+        assertThat(device.toString()).doesNotContain(SECRET, device.secretHash(), device.token());
+        var push = new Push(UUID.randomUUID(), token, "제목", "본문");
+        assertThat(push.toString()).doesNotContain(token);
+        dispatch.dispatch(NotificationSlot.MORNING);
+        assertThat(notification().toString()).isEqualTo("WeatherNotification[notificationId=" + notification().notificationId() + "]");
+    }
+
+    @Test
+    void tokenValidationUsesOnlyBlankAndLengthLimits() throws Exception {
+        for (String token : List.of("", " ", "x".repeat(4097))) {
+            String body = new ObjectMapper().writeValueAsString(java.util.Map.of(
+                    "installationId", device.installationId(), "installationSecret", SECRET, "token", token));
+            mvc.perform(put("/api/members/me/weather-devices/current").header("Authorization", bearer(1))
+                            .contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+        }
+        for (String token : List.of("x", "토큰", "x".repeat(4096))) {
+            String body = new ObjectMapper().writeValueAsString(java.util.Map.of(
+                    "installationId", device.installationId(), "installationSecret", SECRET, "token", token));
+            mvc.perform(put("/api/members/me/weather-devices/current").header("Authorization", bearer(1))
+                            .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isOk());
+            assertThat(settings.device(1).orElseThrow().token()).isEqualTo(token);
+        }
     }
 
     private WeatherNotificationDispatchService newDispatch(final LifeWeatherAnalysisService analyzer) {
@@ -361,19 +394,23 @@ class WeatherNotificationIntegrationTest {
             pushes.add(push);
             return outcome.apply(push);
         };
-        return new WeatherNotificationDispatchService(settingsRepository, notifications, locationService, analyzer, sender, CLOCK, true);
+        return new WeatherNotificationDispatchService(settingsRepository, notifications, locations, analyzer, sender, CLOCK);
     }
 
     private WeatherDevice register(final long member) {
         UUID id = UUID.randomUUID();
-        return settings.register(member, id, SECRET, "fake-fcm-token-" + id, Platform.ANDROID, Permission.GRANTED);
+        return settings.register(member, id, SECRET, "fake-fcm-token-" + id);
     }
 
-    private WeatherNotification notification() { return notifications.recent(1, 1).getFirst(); }
+    private int notificationCount() { return jdbc.queryForObject("SELECT COUNT(*) FROM weather_notifications", Integer.class); }
+    private WeatherNotification notification() {
+        UUID id = UUID.fromString(jdbc.queryForObject("SELECT notification_id FROM weather_notifications WHERE member_id=1", String.class));
+        return notifications.findOwned(1, id).orElseThrow();
+    }
     private String bearer(final long member) { return "Bearer " + tokens.createAccessToken(member); }
 
     private void seedForecasts(final NotificationSlot slot, final LocalDateTime publication) {
-        forecasts.startCollection(publication, publication.plusMinutes(15));
+        forecasts.startCollection(publication);
         forecasts.upsertHourly(IntStream.range(slot.firstForecastHour(), 24).mapToObj(hour ->
                 new HourlyForecast(GRID, new ForecastTimes(publication, slot.targetDate(DATE).atTime(hour, 0)),
                         15.0, 1.0, 0.0, 0.0, 0.0, 0.0, 55.0, 2.0, publication.plusMinutes(20))).toList());

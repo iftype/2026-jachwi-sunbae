@@ -8,23 +8,38 @@
 
 `KmaGridConverter`가 위경도를 공식 Lambert 투영의 기상청 격자로 변환한다. 잘못된 위경도·NaN·무한대·격자 범위 밖 입력을 거부하며 경계로 강제 보정하지 않는다. 서울·수원·부산·제주와 RAW 인덱스의 회귀 테스트를 유지한다. 격자 범위 안이라는 이유만으로 육지나 서비스 가능 지역이라고 단정하지 않는다.
 
-저장소는 해당 격자의 날짜 범위만 PK로 읽는다. 조회마다 기상청을 호출하거나 전국 격자를 순회하지 않는다. 별도 캐시는 없다. 요청한 날짜의 00–23시 24개 시간대와 일별 TMN·TMX를 반환하며, 아직 저장하지 못한 시간대는 빈 값이다. 수집 범위(발표 후 48시간) 밖이거나 보존 기간이 지난 날짜는 모든 값이 비어 `coverage`가 `UNAVAILABLE`이다.
+저장소는 해당 격자의 날짜 범위만 PK로 읽는다. 조회마다 기상청을 호출하거나 전국 격자를 순회하지 않는다. 별도 캐시는 없다. 요청한 날짜의 00–23시 24개 시간대와 일별 TMN·TMX를 반환하며, 아직 저장하지 못한 시간대는 빈 값이다. 수집 범위(발표 후 48시간) 밖이거나 보존 기간이 지난 날짜는 해당 시각의 값이 `null`이다.
 
-## 예보 상태
+## 조회 응답
 
-| 상태          | 의미                                                    |
-| ------------- | ------------------------------------------------------- |
-| `AVAILABLE`   | 완료 기록·수집시각·신선도를 확인한 정상 수치. 0도 보존  |
-| `MISSING`     | 완료된 정상 자료의 해당 값이 결측                       |
-| `UNAVAILABLE` | 미수집·미제공·오래된 자료·완료 미확인 등 사용할 수 없음 |
+DB의 시간별 한 행을 `WeatherForecastResult.Hour`로 읽고 API DTO로 변환한다. 중간 요소별 Map·`StoredReading`·`Reading`은 없다. 서비스의 시각별 Map 하나는 00–23시 24칸의 빈 시간을 채우는 데 사용한다.
 
-`AVAILABLE` 이외의 수치는 `null`이며 출처가 있으면 발표·수집시각은 보존한다. 전체 `coverage`는 사용할 수 있는 값의 범위에 따라 `AVAILABLE / PARTIAL / UNAVAILABLE`이다. 미수집 바다와 미수집 육지를 구별하지 않는다.
+시간별 항목은 `forecastAt`, `publishedAt`과 nullable 숫자 `tmp`, `sky`, `pty`, `pop`, `pcp`, `sno`, `reh`, `wsd`다. 최상위에는 `gridX`, `gridY`, `date`, `timeZone`, `hourly`, `tmn`, `tmx`, `tmnPublishedAt`, `tmxPublishedAt`이 있다. 예보·발표시각은 `+09:00`, `timeZone`은 `Asia/Seoul`이다. TMN·TMX는 독립적으로 갱신되므로 각각 발표시각을 제공한다.
 
-최신 발표 선택은 KST 발표 후 15분 가정이다. 기대 발표분보다 6시간을 초과해 오래된 값은 사용할 수 없다. 과거 시간대는 해당 시각에 기대했던 발표를 기준으로 하고, 당일 TMN·TMX의 기대 발표는 각각 02시·11시에서 멈춘다. 알림은 여기에 05시·20시 이상 발표분이라는 조건을 추가한다.
+시간별 항목 예시:
 
-`weather_collection_publications`의 `started_at`·`completed_at`과 행의 `collected_at`을 함께 검사한다. 완료 기록 없는 기존 자료나 실패 중인 발표분을 정상값으로 반환하지 않는다. 최신 실패분이 이전 성공값을 덮어쓴 경우 이전 값 복원은 지원하지 않는다.
+```json
+{
+  "forecastAt": "2026-10-25T23:00:00+09:00",
+  "publishedAt": "2026-10-25T20:00:00+09:00",
+  "tmp": 0.0,
+  "sky": 1.0,
+  "pty": 0.0,
+  "pop": 0.0,
+  "pcp": 0.0,
+  "sno": null,
+  "reh": 55.0,
+  "wsd": 1.0
+}
+```
 
-조회하는 시간별·일별 예보와 완료 기록은 [V3](../../src/main/resources/db/migration/V3__create_weather_forecasts.sql)에 정의되어 있다. 위치 저장용 `member_weather_locations`는 [V4](../../src/main/resources/db/migration/V4__create_weather_user_features.sql)가 생성한다. 위치 테이블은 `member_id` PK·회원 FK와 격자 범위 CHECK를 유지한다.
+정상 0은 숫자 0으로, 미수집·미제공·결측·미완료는 `null`로 표현한다. `status`, `coverage`, `checkedAt`, 요소별 `collectedAt`은 제공하지 않는다. 미수집 바다와 미수집 육지를 구별하지 않는다.
+
+`weather_collection_publications`의 해당 발표분에 `completed_at`이 있으면 조회한다. 재수집 시작 시 완료 표시를 비우므로 실패 중인 발표분은 숨긴다. 시작·완료·행 수집시각 사이의 교차 검증은 하지 않는다. 최신 실패분이 이전 성공값을 덮어쓴 경우 이전 값 복원은 지원하지 않는다.
+
+6시간 신선도 제한과 조회시각별 기대 발표 계산은 없다. 현재 DB에 남은 완료 예보를 반환하며 최신 기상청 발표라고 보장하지 않는다. 클라이언트는 실제 `publishedAt`을 표시할 수 있다. 알림도 같은 자료를 사용하고 별도 05시·20시 발표 조건을 두지 않는다.
+
+예보 테이블은 [V3](../../src/main/resources/db/migration/V3__create_weather_forecasts.sql)가 생성하며 [V5](../../src/main/resources/db/migration/V5__simplify_weather_collection_metadata.sql)가 `started_at`과 중복 CHECK를 제거한다. 위치 테이블은 [V4](../../src/main/resources/db/migration/V4__create_weather_user_features.sql)가 생성한다. 위치의 회원 PK·FK와 격자 범위 CHECK는 유지한다.
 
 ## 위치 저장·조회·삭제
 
@@ -84,8 +99,6 @@ PUT과 GET의 응답은 다음과 같다.
 
 위치 PUT에서 `observedAt`을 제거했고, 응답의 `observedAt`·`syncedAt`은 `updatedAt`으로 대체했다. 클라이언트는 위도·경도만 전송하고 위치 등록 여부와 서버 저장시각을 사용한다. 쿼리·본문의 좌표를 배포 프록시 로그에 노출하지 않도록 한다.
 
-기존 값별 `NOT_COLLECTED / NOT_PROVIDED / STALE / UNVERIFIED`는 `UNAVAILABLE`로 합쳤다. 클라이언트는 원인별 화면 분기 대신 값의 사용 가능 여부를 처리한다. 날짜·격자·출처·정상 0·결측의 의미는 유지한다.
-
-조회용 `StoredReading`은 완료 기록을 포함한 DB 결과이고 `WeatherForecastResult`는 판정 후 결과다. 둘은 내부 검증 필드가 외부 응답으로 새지 않도록 구분한다. API DTO는 KST 오프셋과 공개 필드를 표현하며, 알림은 같은 조회 서비스를 재사용한다.
+기존 요소별 `{value, status, publishedAt, collectedAt}` 응답은 시간별 nullable 숫자와 공통 발표시각으로 변경했다. 클라이언트는 `hourly[i].values.TMP.value` 대신 `hourly[i].tmp`를 읽고 `null`을 제공 불가로 처리한다. API DTO는 KST 오프셋과 공개 필드를 표현하며 알림은 같은 조회 서비스를 재사용한다.
 
 모바일 GPS·권한·WebView 전달·날씨 화면은 이번 백엔드 범위에 포함하지 않는다. 앱이 위치 권한을 철회하면 해제 API를 호출해야 한다. 서버가 OS 권한 변경이나 실제 이동을 독립적으로 알 수는 없다.

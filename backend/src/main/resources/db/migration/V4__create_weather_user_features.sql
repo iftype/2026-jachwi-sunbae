@@ -23,18 +23,12 @@ CREATE TABLE weather_notification_devices (
     installation_id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL PRIMARY KEY,
     member_id BIGINT NOT NULL,
     installation_secret_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
-    token VARCHAR(4096) CHARACTER SET ascii COLLATE ascii_bin NULL,
+    token VARCHAR(4096) COLLATE utf8mb4_bin NULL,
     token_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NULL,
-    platform VARCHAR(10) NOT NULL,
-    permission VARCHAR(10) NOT NULL,
-    active BOOLEAN NOT NULL,
     updated_at DATETIME(6) NOT NULL,
     UNIQUE KEY uk_weather_device_token (token_hash),
     UNIQUE KEY uk_weather_device_member (member_id),
-    CONSTRAINT fk_weather_device_member FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE,
-    CONSTRAINT chk_weather_device_platform CHECK (platform IN ('ANDROID', 'IOS')),
-    CONSTRAINT chk_weather_device_permission CHECK (permission IN ('GRANTED', 'DENIED')),
-    CONSTRAINT chk_weather_device_active CHECK (NOT active OR (permission = 'GRANTED' AND token IS NOT NULL AND token_hash IS NOT NULL))
+    CONSTRAINT fk_weather_device_member FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE weather_notifications (
@@ -49,10 +43,8 @@ CREATE TABLE weather_notifications (
     title VARCHAR(255) NOT NULL,
     body VARCHAR(1000) NOT NULL,
     notices JSON NOT NULL,
-    result VARCHAR(7) NULL,
     UNIQUE KEY uk_weather_notification_member_slot (member_id, send_date, slot),
     CONSTRAINT fk_weather_notification_member FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE,
-    CONSTRAINT chk_weather_notification_result CHECK (result IN ('SUCCESS', 'FAILED')),
     CONSTRAINT chk_weather_notification_slot CHECK (slot IN ('MORNING', 'EVENING')),
     CONSTRAINT chk_weather_notification_grid CHECK (grid_x BETWEEN 1 AND 149 AND grid_y BETWEEN 1 AND 253)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

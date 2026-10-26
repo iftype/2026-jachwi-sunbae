@@ -8,13 +8,12 @@ import com.jachwisunbae.weather.domain.GridPoint;
 import com.jachwisunbae.weather.domain.HourlyForecast;
 import com.jachwisunbae.weather.domain.WeatherElement;
 import com.jachwisunbae.weather.provider.kma.GridForecast;
-import com.jachwisunbae.weather.provider.kma.GridValue;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.IntStream;
+import java.util.Arrays;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -77,9 +76,7 @@ class HourlyForecastAssemblerTest {
     @DisplayName("TMP 응답의 실제 격자 수를 따르며 9295개를 고정하거나 0을 결측으로 보지 않는다")
     void acceptsVariableGridCounts(final int count) {
         List<GridForecast> forecasts = WeatherElement.hourlyElements().stream()
-                .map(element -> new GridForecast(TIMES, element, IntStream.range(0, count)
-                        .mapToObj(index -> value(GridPoint.fromIndex(index), element == WeatherElement.SKY ? 1.0 : 0.0))
-                        .toList()))
+                .map(element -> populated(element, count))
                 .toList();
 
         List<HourlyForecast> result = assembler.assemble(TIMES, forecasts, COLLECTED_AT);
@@ -117,35 +114,13 @@ class HourlyForecastAssemblerTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @ParameterizedTest
-    @EnumSource(value = WeatherElement.class, names = {"TMN", "TMX"}, mode = EnumSource.Mode.EXCLUDE)
-    @DisplayName("어느 요소라도 발표시각이나 예보대상시각이 다르면 섞지 않는다")
-    void rejectsMismatchedTimes(final WeatherElement element) {
-        for (ForecastTimes mismatched : List.of(
-                new ForecastTimes(LocalDateTime.of(2026, 10, 22, 14, 0), LocalDateTime.of(2026, 10, 22, 20, 0)),
-                new ForecastTimes(LocalDateTime.of(2026, 10, 22, 17, 0), LocalDateTime.of(2026, 10, 22, 21, 0)))) {
-            GridForecast wrong = new GridForecast(mismatched, element, List.of(value(POINT, SAMPLE.get(element))));
 
-            assertThatThrownBy(() -> assembler.assemble(TIMES, replace(element, wrong), COLLECTED_AT))
-                    .isInstanceOf(IllegalArgumentException.class);
-        }
-    }
-
-    @Test
-    @DisplayName("8개 응답끼리 시각이 같더라도 호출자가 지정한 예상 시각과 다르면 거부한다")
-    void rejectsAllResponsesFromWrongRequest() {
-        ForecastTimes expected = new ForecastTimes(LocalDateTime.of(2026, 10, 22, 17, 0),
-                LocalDateTime.of(2026, 10, 22, 21, 0));
-
-        assertThatThrownBy(() -> assembler.assemble(expected, completeForecasts(), COLLECTED_AT))
-                .isInstanceOf(IllegalArgumentException.class);
-    }
 
     @ParameterizedTest
     @EnumSource(value = WeatherElement.class, names = {"TMN", "TMX"})
     @DisplayName("계획에서 분리한 일별 요소를 시간별 요소 대신 사용하거나 추가할 수 없다")
     void rejectsDailyElements(final WeatherElement element) {
-        GridForecast daily = new GridForecast(TIMES, element, List.of(value(POINT, 7.0)));
+        GridForecast daily = forecast(element, value(POINT, 7.0));
 
         assertThatThrownBy(() -> assembler.assemble(TIMES, replace(WeatherElement.TMP, daily), COLLECTED_AT))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -155,35 +130,11 @@ class HourlyForecastAssemblerTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @ParameterizedTest
-    @EnumSource(value = WeatherElement.class, names = {"TMN", "TMX"}, mode = EnumSource.Mode.EXCLUDE)
-    @DisplayName("요소 안의 중복 좌표는 TMP 대상 밖에 있어도 조용히 덮어쓰지 않고 거부한다")
-    void rejectsDuplicateCoordinates(final WeatherElement element) {
-        GridForecast duplicated = forecast(element, value(EXTRA_POINT, 1.0), value(EXTRA_POINT, 2.0));
 
-        assertThatThrownBy(() -> assembler.assemble(TIMES, replace(element, duplicated), COLLECTED_AT))
-                .isInstanceOf(IllegalArgumentException.class);
-    }
 
     @Test
-    @DisplayName("빈 응답 목록과 null 입력을 정상 예보로 만들지 않는다")
-    void rejectsMissingInputs() {
-        List<GridForecast> forecasts = completeForecasts();
-        assertThatThrownBy(() -> assembler.assemble(null, forecasts, COLLECTED_AT))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> assembler.assemble(TIMES, null, COLLECTED_AT))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> assembler.assemble(TIMES, forecasts, null))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> assembler.assemble(TIMES, List.of(), COLLECTED_AT))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> assembler.assemble(TIMES, replace(WeatherElement.TMP, null), COLLECTED_AT))
-                .isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
-    @DisplayName("이전 결합의 값·격자·수집시각을 다음 호출에 남기지 않고 결과 변경도 허용하지 않는다")
-    void isolatesCallsAndKeepsResultsImmutable() {
+    @DisplayName("이전 결합의 값·격자·수집시각을 다음 호출에 남기지 않고 서로 영향을 주지 않는다")
+    void isolatesCalls() {
         List<HourlyForecast> first = assembler.assemble(TIMES, completeForecasts(), COLLECTED_AT);
         List<GridForecast> changed = replace(WeatherElement.TMP, forecast(WeatherElement.TMP, value(EXTRA_POINT, -3.5)));
 
@@ -193,7 +144,6 @@ class HourlyForecastAssemblerTest {
                 10.0, 1.0, 0.0, 0.0, 0.0, 0.0, 65.0, 0.7, COLLECTED_AT));
         assertThat(second).containsExactly(new HourlyForecast(EXTRA_POINT, TIMES,
                 -3.5, null, null, null, null, null, null, null, COLLECTED_AT.plusMinutes(1)));
-        assertThatThrownBy(() -> first.clear()).isInstanceOf(UnsupportedOperationException.class);
         assertThatThrownBy(() -> WeatherElement.hourlyElements().clear()).isInstanceOf(UnsupportedOperationException.class);
     }
 
@@ -206,11 +156,22 @@ class HourlyForecastAssemblerTest {
         return completeForecasts().stream().map(forecast -> forecast.element() == element ? replacement : forecast).toList();
     }
 
-    private GridForecast forecast(final WeatherElement element, final GridValue... values) {
-        return new GridForecast(TIMES, element, List.of(values));
+    private GridForecast populated(final WeatherElement element, final int count) {
+        Double[] values = new Double[37697];
+        Arrays.fill(values, 0, count, element == WeatherElement.SKY ? 1.0 : 0.0);
+        return new GridForecast(TIMES, element, values);
     }
 
-    private GridValue value(final GridPoint point, final double value) {
-        return new GridValue(point, value);
+    @SafeVarargs
+    private final GridForecast forecast(final WeatherElement element, final Map.Entry<GridPoint, Double>... values) {
+        Double[] cells = new Double[37697];
+        for (var value : values) {
+            cells[value.getKey().toIndex()] = value.getValue();
+        }
+        return new GridForecast(TIMES, element, cells);
+    }
+
+    private Map.Entry<GridPoint, Double> value(final GridPoint point, final double value) {
+        return Map.entry(point, value);
     }
 }

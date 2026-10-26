@@ -10,10 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.IntStream;
 
-// 한 발표분을 수집하기 위해 기상청에 보낼 요청 목록이다.
-// 무엇을 얼마나 수집할지 결정
 public record WeatherCollectionPlan(List<KmaForecastRequest> hourlyRequests, List<KmaForecastRequest> dailyRequests) {
-    // 발표 다음 정시부터 48시간을 수집한다.
     private static final int FORECAST_HOURS = 48;
     // 최저기온(TMN)은 06시, 최고기온(TMX)은 15시 예보 시각으로 요청한다.
     private static final int TMN_FORECAST_HOUR = 6;
@@ -32,7 +29,6 @@ public record WeatherCollectionPlan(List<KmaForecastRequest> hourlyRequests, Lis
         return new WeatherCollectionPlan(hourlyRequests(publishedAt), dailyRequests(publishedAt));
     }
 
-    // 발표 시각으로 들어온 값이 실제 발표 정시(분·초 없음)인지 검증한다.
     private static void validatePublication(final LocalDateTime publishedAt) {
         if (publishedAt == null || !publishedAt.equals(publishedAt.truncatedTo(ChronoUnit.HOURS))
                 || !WeatherPublicationSchedule.HOURS.contains(publishedAt.getHour())) {
@@ -64,7 +60,6 @@ public record WeatherCollectionPlan(List<KmaForecastRequest> hourlyRequests, Lis
         return requests;
     }
 
-    // 다음 날 이후 값은 항상 제공되고, 당일 값은 마지막 제공 발표 시각까지만 제공된다.
     private static boolean isProvided(final LocalDateTime publishedAt, final LocalDate date,
                                       final int lastPublicationHour) {
         return !date.equals(publishedAt.toLocalDate()) || publishedAt.getHour() <= lastPublicationHour;

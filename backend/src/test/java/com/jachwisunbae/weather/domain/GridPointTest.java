@@ -15,6 +15,7 @@ class GridPointTest {
     @DisplayName("원본 배열 인덱스를 1부터 시작하는 격자 좌표로 변환한다")
     void mapsRowBoundaries(final int index, final int nx, final int ny) {
         assertThat(GridPoint.fromIndex(index)).isEqualTo(new GridPoint(nx, ny));
+        assertThat(new GridPoint(nx, ny).toIndex()).isEqualTo(index);
     }
 
     @ParameterizedTest

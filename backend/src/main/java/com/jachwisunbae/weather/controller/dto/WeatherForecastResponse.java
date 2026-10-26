@@ -3,35 +3,27 @@ package com.jachwisunbae.weather.controller.dto;
 import com.jachwisunbae.weather.service.dto.result.WeatherForecastResult;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
-@Schema(description = "KST 오늘 또는 내일 00~23시 예보. 값은 KMA RAW 수치이며 POP·PCP·SNO의 해석은 아직 미확인입니다.")
+@Schema(description = "저장된 완료 발표분의 24시간 예보. 최신 기상청 발표를 보장하지 않으며 값이 없으면 null입니다.")
 public record WeatherForecastResponse(int gridX, int gridY, LocalDate date, String timeZone,
-                                      OffsetDateTime checkedAt, String coverage,
-                                      List<Hour> hourly, Value tmn, Value tmx) {
-    private static final ZoneOffset KST = ZoneOffset.ofHours(9);
-
+                                      List<Hour> hourly, Double tmn, Double tmx,
+                                      OffsetDateTime tmnPublishedAt, OffsetDateTime tmxPublishedAt) {
     public static WeatherForecastResponse from(final WeatherForecastResult result) {
+        var daily = result.daily();
         return new WeatherForecastResponse(result.grid().nx(), result.grid().ny(), result.date(), "Asia/Seoul",
-                result.checkedAt().atOffset(KST), result.coverage().name(), result.hourly().stream()
-                .map(hour -> new Hour(hour.forecastAt().atOffset(KST), hour.values().entrySet().stream()
-                        .collect(Collectors.toMap(entry -> entry.getKey().name(), entry -> Value.from(entry.getValue())))))
-                .toList(), Value.from(result.tmn()), Value.from(result.tmx()));
+                result.hourly().stream().map(hour -> new Hour(kst(hour.forecastAt()), kst(hour.publishedAt()),
+                        hour.tmp(), hour.sky(), hour.pty(), hour.pop(), hour.pcp(), hour.sno(), hour.reh(), hour.wsd())).toList(),
+                daily.tmn(), daily.tmx(), kst(daily.tmnPublishedAt()), kst(daily.tmxPublishedAt()));
     }
 
-    public record Hour(OffsetDateTime forecastAt, Map<String, Value> values) { }
+    public record Hour(OffsetDateTime forecastAt, OffsetDateTime publishedAt,
+                       Double tmp, Double sky, Double pty, Double pop, Double pcp, Double sno, Double reh, Double wsd) { }
 
-    public record Value(Double value,
-                        @Schema(description = "AVAILABLE, MISSING, UNAVAILABLE") String status,
-                        OffsetDateTime publishedAt, OffsetDateTime collectedAt) {
-        static Value from(final WeatherForecastResult.Reading reading) {
-            return new Value(reading.value(), reading.status().name(),
-                    reading.publishedAt() == null ? null : reading.publishedAt().atOffset(KST),
-                    reading.collectedAt() == null ? null : reading.collectedAt().atOffset(KST));
-        }
+    private static OffsetDateTime kst(final LocalDateTime time) {
+        return time == null ? null : time.atOffset(ZoneOffset.ofHours(9));
     }
 }

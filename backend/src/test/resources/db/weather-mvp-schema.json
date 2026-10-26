@@ -1,5 +1,5 @@
 {
-  "sourceMigrations": "Five unchanged tables use the final V1-V7 schema; member_weather_locations has four columns and weather_notifications stores notices.",
+  "sourceMigrations": "Final weather schema after V3, unapplied V4, and V5 simplification.",
   "mysqlVersion": "8.4.10",
   "tables": {
     "member_weather_locations": [
@@ -25,10 +25,8 @@
     "weather_collection_publications": [
       "CREATE TABLE `weather_collection_publications` (",
       "  `published_at` datetime NOT NULL,",
-      "  `started_at` datetime(6) NOT NULL,",
       "  `completed_at` datetime(6) DEFAULT NULL,",
-      "  PRIMARY KEY (`published_at`),",
-      "  CONSTRAINT `chk_weather_publication_completion` CHECK ((`completed_at` >= `started_at`))",
+      "  PRIMARY KEY (`published_at`)",
       ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     ],
     "weather_daily_forecasts": [
@@ -45,13 +43,7 @@
       "  PRIMARY KEY (`grid_x`,`grid_y`,`forecast_date`),",
       "  CONSTRAINT `chk_weather_daily_forecasts_grid` CHECK (((`grid_x` between 1 and 149) and (`grid_y` between 1 and 253))),",
       "  CONSTRAINT `chk_weather_daily_forecasts_source` CHECK (((`tmn_published_at` is not null) or (`tmx_published_at` is not null))),",
-      "  CONSTRAINT `chk_weather_daily_forecasts_tmn` CHECK ((`tmn` not in (-(99),-(999)))),",
-      "  CONSTRAINT `chk_weather_daily_forecasts_tmn_date` CHECK ((cast(`tmn_published_at` as date) <= `forecast_date`)),",
-      "  CONSTRAINT `chk_weather_daily_forecasts_tmn_hour` CHECK (((minute(`tmn_published_at`) = 0) and (second(`tmn_published_at`) = 0))),",
       "  CONSTRAINT `chk_weather_daily_forecasts_tmn_metadata` CHECK ((((`tmn_published_at` is null) and (`tmn_collected_at` is null) and (`tmn` is null)) or ((`tmn_published_at` is not null) and (`tmn_collected_at` is not null)))),",
-      "  CONSTRAINT `chk_weather_daily_forecasts_tmx` CHECK ((`tmx` not in (-(99),-(999)))),",
-      "  CONSTRAINT `chk_weather_daily_forecasts_tmx_date` CHECK ((cast(`tmx_published_at` as date) <= `forecast_date`)),",
-      "  CONSTRAINT `chk_weather_daily_forecasts_tmx_hour` CHECK (((minute(`tmx_published_at`) = 0) and (second(`tmx_published_at`) = 0))),",
       "  CONSTRAINT `chk_weather_daily_forecasts_tmx_metadata` CHECK ((((`tmx_published_at` is null) and (`tmx_collected_at` is null) and (`tmx` is null)) or ((`tmx_published_at` is not null) and (`tmx_collected_at` is not null))))",
       ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     ],
@@ -72,16 +64,7 @@
       "  `collected_at` datetime(6) NOT NULL COMMENT '행에 반영한 수집시각 (KST)',",
       "  PRIMARY KEY (`grid_x`,`grid_y`,`forecast_at`),",
       "  CONSTRAINT `chk_weather_forecasts_grid` CHECK (((`grid_x` between 1 and 149) and (`grid_y` between 1 and 253))),",
-      "  CONSTRAINT `chk_weather_forecasts_hours` CHECK (((minute(`forecast_at`) = 0) and (second(`forecast_at`) = 0) and (minute(`published_at`) = 0) and (second(`published_at`) = 0))),",
-      "  CONSTRAINT `chk_weather_forecasts_pcp` CHECK ((`pcp` not in (-(99),-(999)))),",
-      "  CONSTRAINT `chk_weather_forecasts_pop` CHECK ((`pop` not in (-(99),-(999)))),",
-      "  CONSTRAINT `chk_weather_forecasts_pty` CHECK ((`pty` not in (-(99),-(999)))),",
-      "  CONSTRAINT `chk_weather_forecasts_reh` CHECK ((`reh` not in (-(99),-(999)))),",
-      "  CONSTRAINT `chk_weather_forecasts_sky` CHECK ((`sky` not in (-(99),-(999)))),",
-      "  CONSTRAINT `chk_weather_forecasts_sno` CHECK ((`sno` not in (-(99),-(999)))),",
-      "  CONSTRAINT `chk_weather_forecasts_time_order` CHECK ((`forecast_at` >= `published_at`)),",
-      "  CONSTRAINT `chk_weather_forecasts_tmp` CHECK ((`tmp` not in (-(99),-(999)))),",
-      "  CONSTRAINT `chk_weather_forecasts_wsd` CHECK ((`wsd` not in (-(99),-(999))))",
+      "  CONSTRAINT `chk_weather_forecasts_time_order` CHECK ((`forecast_at` >= `published_at`))",
       ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     ],
     "weather_notification_devices": [
@@ -89,19 +72,13 @@
       "  `installation_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,",
       "  `member_id` bigint NOT NULL,",
       "  `installation_secret_hash` char(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,",
-      "  `token` varchar(4096) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL,",
+      "  `token` varchar(4096) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,",
       "  `token_hash` char(64) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL,",
-      "  `platform` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,",
-      "  `permission` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,",
-      "  `active` tinyint(1) NOT NULL,",
       "  `updated_at` datetime(6) NOT NULL,",
       "  PRIMARY KEY (`installation_id`),",
       "  UNIQUE KEY `uk_weather_device_member` (`member_id`),",
       "  UNIQUE KEY `uk_weather_device_token` (`token_hash`),",
-      "  CONSTRAINT `fk_weather_device_member` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`) ON DELETE CASCADE,",
-      "  CONSTRAINT `chk_weather_device_active` CHECK (((0 = `active`) or ((`permission` = _utf8mb4'GRANTED') and (`token` is not null) and (`token_hash` is not null)))),",
-      "  CONSTRAINT `chk_weather_device_permission` CHECK ((`permission` in (_utf8mb4'GRANTED',_utf8mb4'DENIED'))),",
-      "  CONSTRAINT `chk_weather_device_platform` CHECK ((`platform` in (_utf8mb4'ANDROID',_utf8mb4'IOS')))",
+      "  CONSTRAINT `fk_weather_device_member` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`) ON DELETE CASCADE",
       ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     ],
     "weather_notifications": [
@@ -117,15 +94,12 @@
       "  `title` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,",
       "  `body` varchar(1000) COLLATE utf8mb4_unicode_ci NOT NULL,",
       "  `notices` json NOT NULL,",
-      "  `result` varchar(7) COLLATE utf8mb4_unicode_ci DEFAULT NULL,",
       "  PRIMARY KEY (`notification_id`),",
       "  UNIQUE KEY `uk_weather_notification_member_slot` (`member_id`,`send_date`,`slot`),",
       "  CONSTRAINT `fk_weather_notification_member` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`) ON DELETE CASCADE,",
       "  CONSTRAINT `chk_weather_notification_grid` CHECK (((`grid_x` between 1 and 149) and (`grid_y` between 1 and 253))),",
-      "  CONSTRAINT `chk_weather_notification_result` CHECK ((`result` in (_utf8mb4'SUCCESS',_utf8mb4'FAILED'))),",
       "  CONSTRAINT `chk_weather_notification_slot` CHECK ((`slot` in (_utf8mb4'MORNING',_utf8mb4'EVENING')))",
       ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     ]
-  },
-  "unchangedTablesSourceCommit": "fd5e74dd3d27f39c2bc1899017ddab741bb3de85"
+  }
 }

@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.jachwisunbae.common.exception.errorcode.ErrorCode;
 import com.jachwisunbae.common.exception.server.UpstreamServiceException;
 import com.jachwisunbae.weather.domain.ForecastTimes;
-import com.jachwisunbae.weather.domain.GridPoint;
 import com.jachwisunbae.weather.domain.WeatherElement;
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -41,10 +40,13 @@ class KmaGridParserTest {
 
         assertThat(result.times()).isEqualTo(TIMES);
         assertThat(result.element()).isEqualTo(WeatherElement.TMP);
-        assertThat(result.values()).containsExactly(
-                new GridValue(new GridPoint(1, 1), -4), new GridValue(new GridPoint(149, 1), 1),
-                new GridValue(new GridPoint(1, 2), 2), new GridValue(new GridPoint(60, 127), 14),
-                new GridValue(new GridPoint(149, 253), 19));
+        assertThat(result.values()).hasSize(37697);
+        assertThat(result.values()[0]).isEqualTo(-4.0);
+        assertThat(result.values()[1]).isNull();
+        assertThat(result.values()[148]).isEqualTo(1.0);
+        assertThat(result.values()[149]).isEqualTo(2.0);
+        assertThat(result.values()[18833]).isEqualTo(14.0);
+        assertThat(result.values()[37696]).isEqualTo(19.0);
         assertThat(result.validCount()).isEqualTo(5);
         assertThat(result.missingCount()).isEqualTo(37692);
     }
@@ -60,7 +62,8 @@ class KmaGridParserTest {
         GridForecast result = parser.parse(String.join(",", values), TIMES, element);
 
         assertThat(result.element()).isEqualTo(element);
-        assertThat(result.values()).containsExactly(new GridValue(new GridPoint(1, 1), 0));
+        assertThat(result.values()[0]).isZero();
+        assertThat(result.values()[1]).isNull();
         assertThat(result.validCount()).isEqualTo(1);
         assertThat(result.missingCount()).isEqualTo(37696);
     }

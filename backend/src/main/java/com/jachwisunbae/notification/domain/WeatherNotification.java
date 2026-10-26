@@ -9,12 +9,10 @@ import java.util.UUID;
 
 public record WeatherNotification(UUID notificationId, long memberId, LocalDate sendDate, NotificationSlot slot,
                                   LocalDate targetDate, GridPoint grid, String title, String body,
-                                  List<Notice> notices, SendResult result, Instant createdAt) {
+                                  List<Notice> notices, Instant createdAt) {
     public WeatherNotification {
         notices = List.copyOf(notices);
     }
-
-    public enum SendResult { SUCCESS, FAILED }
 
     @Override
     public String toString() {

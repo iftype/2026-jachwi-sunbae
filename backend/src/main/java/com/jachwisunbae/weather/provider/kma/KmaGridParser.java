@@ -5,17 +5,11 @@ import com.jachwisunbae.common.exception.server.UpstreamServiceException;
 import com.jachwisunbae.weather.domain.ForecastTimes;
 import com.jachwisunbae.weather.domain.GridPoint;
 import com.jachwisunbae.weather.domain.WeatherElement;
-import java.util.ArrayList;
-import java.util.List;
 
-//Raw를 격자 데이터로 변환한다.
-// 쉼표로 숫자 분리, 숫자가 37697인지 확인, 원본 인덱스를 (nx,ny)로 변환 , -99,-999 결축값 제외
+// 원본 배열의 위치를 보존하고 결측만 null로 바꾼다.
 public class KmaGridParser {
 
     public GridForecast parse(final String raw, final ForecastTimes times, final WeatherElement element) {
-        if (times == null || element == null) {
-            throw new IllegalArgumentException("RAW 요청에 사용한 시각과 기상 요소가 필요합니다.");
-        }
         if (raw == null || raw.isBlank()) {
             throw invalidResponse("기상청 격자 응답이 비어 있습니다.");
         }
@@ -32,15 +26,16 @@ public class KmaGridParser {
             throw invalidResponse("기상청 격자 수가 일치하지 않습니다. count=" + tokens.length);
         }
 
-        List<GridValue> values = new ArrayList<>();
+        Double[] values = new Double[GridPoint.CELL_COUNT];
+        boolean hasValue = false;
         for (int index = 0; index < tokens.length; index++) {
             double value = parseValue(tokens[index], index);
             if (value != -99.0 && value != -999.0) {
-                // 결측을 제거하기 전의 원본 인덱스로 좌표를 계산한다.
-                values.add(new GridValue(GridPoint.fromIndex(index), value));
+                values[index] = value;
+                hasValue = true;
             }
         }
-        if (values.isEmpty()) {
+        if (!hasValue) {
             throw invalidResponse("기상청 격자 응답에 유효한 값이 없습니다.");
         }
         return new GridForecast(times, element, values);

@@ -1,8 +1,6 @@
 package com.jachwisunbae.notification.repository;
 
 import com.jachwisunbae.notification.domain.WeatherDevice;
-import com.jachwisunbae.notification.domain.WeatherDevice.Permission;
-import com.jachwisunbae.notification.domain.WeatherDevice.Platform;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -35,8 +33,23 @@ public class WeatherNotificationSettingsRepository {
                 """, memberId, enabled, utc(now));
     }
 
-    public List<Long> enabledMemberIds() {
-        return jdbc.queryForList("SELECT member_id FROM member_weather_notification_settings WHERE enabled = TRUE", Long.class);
+    public List<WeatherDevice> enabledDevices() {
+        return jdbc.query("""
+                SELECT d.* FROM weather_notification_devices d
+                JOIN member_weather_notification_settings s ON s.member_id = d.member_id
+                WHERE s.enabled = TRUE AND d.token IS NOT NULL
+                """, this::mapDevice);
+    }
+
+    // 해지·동의 철회·회원 이전 후 최초 조회한 토큰으로 잘못 보내지 않도록 발송 직전에 한 번 확인한다.
+    public boolean canSend(final WeatherDevice device) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("""
+                SELECT EXISTS (
+                    SELECT 1 FROM member_weather_notification_settings s
+                    JOIN weather_notification_devices d ON d.member_id = s.member_id
+                    WHERE s.member_id = ? AND s.enabled = TRUE AND d.installation_id = ? AND d.token = ?
+                )
+                """, Boolean.class, device.memberId(), device.installationId().toString(), device.token()));
     }
 
     public Optional<WeatherDevice> findByMember(final long memberId) {
@@ -44,8 +57,8 @@ public class WeatherNotificationSettingsRepository {
                 .stream().findFirst();
     }
 
-    public Optional<WeatherDevice> findInstallationForUpdate(final UUID installationId) {
-        return jdbc.query("SELECT * FROM weather_notification_devices WHERE installation_id = ? FOR UPDATE",
+    public Optional<WeatherDevice> findInstallation(final UUID installationId) {
+        return jdbc.query("SELECT * FROM weather_notification_devices WHERE installation_id = ?",
                 this::mapDevice, installationId.toString()).stream().findFirst();
     }
 
@@ -53,31 +66,29 @@ public class WeatherNotificationSettingsRepository {
         jdbc.update("DELETE FROM weather_notification_devices WHERE member_id = ? AND installation_id <> ?",
                 d.memberId(), d.installationId().toString());
         int updated = jdbc.update("""
-                UPDATE weather_notification_devices SET member_id = ?, token = ?, token_hash = ?, platform = ?, permission = ?,
-                    active = ?, updated_at = ? WHERE installation_id = ? AND installation_secret_hash = ?
-                """, d.memberId(), d.token(), tokenHash, d.platform().name(), d.permission().name(), d.active(), utc(d.updatedAt()),
+                UPDATE weather_notification_devices SET member_id = ?, token = ?, token_hash = ?, updated_at = ? WHERE installation_id = ? AND installation_secret_hash = ?
+                """, d.memberId(), d.token(), tokenHash, utc(d.updatedAt()),
                 d.installationId().toString(), d.secretHash());
         if (updated == 0) {
             jdbc.update("""
                     INSERT INTO weather_notification_devices
-                        (installation_id, member_id, installation_secret_hash, token, token_hash, platform, permission, active, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        (installation_id, member_id, installation_secret_hash, token, token_hash, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
                     """, d.installationId().toString(), d.memberId(), d.secretHash(), d.token(), tokenHash,
-                    d.platform().name(), d.permission().name(), d.active(), utc(d.updatedAt()));
+                    utc(d.updatedAt()));
         }
     }
 
     public void revoke(final long memberId, final Instant now) {
         jdbc.update("""
-                UPDATE weather_notification_devices SET token = NULL, token_hash = NULL, permission = 'DENIED', active = FALSE,
+                UPDATE weather_notification_devices SET token = NULL, token_hash = NULL,
                     updated_at = ? WHERE member_id = ?
                 """, utc(now), memberId);
     }
 
     private WeatherDevice mapDevice(final ResultSet rs, final int row) throws SQLException {
         return new WeatherDevice(UUID.fromString(rs.getString("installation_id")), rs.getLong("member_id"),
-                rs.getString("installation_secret_hash"), rs.getString("token"), Platform.valueOf(rs.getString("platform")),
-                Permission.valueOf(rs.getString("permission")), rs.getBoolean("active"),
+                rs.getString("installation_secret_hash"), rs.getString("token"),
                 rs.getObject("updated_at", LocalDateTime.class).toInstant(ZoneOffset.UTC));
     }
 
