@@ -14,9 +14,14 @@
   box-sizing: border-box;
 }
 
+/*
+ * 모바일에서 화면 전체가 핀치·더블탭으로 확대되지 않게 한다. 스크롤은 그대로 둔다.
+ * 지도 확대·축소는 지도 SDK가 터치 이벤트로 직접 처리하므로 영향이 없다.
+ */
 html {
   height: 100%;
   background: #fff;
+  touch-action: pan-x pan-y;
 }
 
 /*

@@ -9,6 +9,7 @@ import type { ChecklistStage } from '@/features/checklist/model/checklistTypes';
 import ChecklistPageLayout from '@/features/checklist/ui/checklist-page-layout/ChecklistPageLayout';
 import { usePropertyChecklistOverview, usePropertyDetail } from '@/features/property/api/useProperties';
 import { parsePositiveId } from '@/features/property/lib/propertyFormat';
+import useReturnNavigation from '@/shared/lib/navigation/useReturnNavigation';
 import BottomActionArea from '@/shared/ui/bottom-action-area/BottomActionArea';
 import { Button } from '@/shared/ui/button/Button';
 import ContentState from '@/shared/ui/content-state/ContentState';
@@ -42,6 +43,10 @@ const ResolvedPropertyActiveChecklist = ({ propertyId, stage }: { propertyId: nu
   const assign = useAssignActiveChecklist(propertyId, stage);
   const newlyCreatedId = readNewChecklistId(location.state);
   const fromPropertyDetail = isFromPropertyDetail(location.state) || searchParams.get('from') === 'property-detail';
+  const backToDetail = useReturnNavigation({
+    cameFromTarget: fromPropertyDetail,
+    fallback: `/properties/${propertyId}`,
+  });
   const overviewStage = overview.data?.stages.find((item) => item.stage === stage);
   const appliedStage = overviewStage?.applied === true ? overviewStage : undefined;
   const isApplied = appliedStage !== undefined;
@@ -94,7 +99,7 @@ const ResolvedPropertyActiveChecklist = ({ propertyId, stage }: { propertyId: nu
       {(propertyDetail) => (
         <ChecklistPageLayout
           title="체크리스트 교체"
-          backTo={`/properties/${propertyId}`}
+          onBack={backToDetail}
           backLabel="매물 상세로 돌아가기"
           className="property-page checklist-page active-checklist-page"
           containerClassName="page-container checklist-page__narrow"

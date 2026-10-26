@@ -2,45 +2,10 @@
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
-    <script>
-      // Maze 웹사이트 테스트 연결: dev·로컬에서는 외부 스니펫을 로드하지 않는다.
-      if (window.location.origin === 'https://www.jachwi-sunbae.kr') {
-        (function (m, a, z, e) {
-          var s, t, u, v;
-          try {
-            t = m.sessionStorage.getItem('maze-us');
-          } catch (err) {}
-
-          if (!t) {
-            t = new Date().getTime();
-            try {
-              m.sessionStorage.setItem('maze-us', t);
-            } catch (err) {}
-          }
-
-          u =
-            document.currentScript ||
-            (function () {
-              var w = document.getElementsByTagName('script');
-              return w[w.length - 1];
-            })();
-          v = u && u.nonce;
-
-          s = a.createElement('script');
-          s.src = z + '?apiKey=' + e;
-          s.async = true;
-          if (v) s.setAttribute('nonce', v);
-          a.getElementsByTagName('head')[0].appendChild(s);
-          m.mazeUniversalSnippetApiKey = e;
-        })(
-          window,
-          document,
-          'https://snippet.maze.co/maze-universal-loader.js',
-          '25d1f829-0857-4a92-a8f0-e8fa7bf184e9',
-        );
-      }
-    </script>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
     <meta name="referrer" content="no-referrer" />
     <meta name="theme-color" content="#ffffff" />
     <!-- 이미지 규칙을 거쳐 해시가 붙은 파일명으로 나가므로, 파비콘을 바꿔도 1년 캐시에 막히지 않는다. -->

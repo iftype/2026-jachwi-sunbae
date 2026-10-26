@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 
 import { isApiErrorCode } from '@/features/auth/api/apiClient';
 import { USER_CHECKLIST_STAGE } from '@/features/checklist/model/checklist';
@@ -7,6 +7,7 @@ import ChecklistPageLayout from '@/features/checklist/ui/checklist-page-layout/C
 import { usePropertyChecklistDetail, usePropertyDetail } from '@/features/property/api/useProperties';
 import { getChecklistStageLabel, parsePositiveId } from '@/features/property/lib/propertyFormat';
 import useDelayedLoading from '@/shared/lib/hooks/useDelayedLoading';
+import useReturnNavigation from '@/shared/lib/navigation/useReturnNavigation';
 import ContentState from '@/shared/ui/content-state/ContentState';
 import Icon from '@/shared/ui/icon/Icon';
 import IconButton from '@/shared/ui/icon-button/IconButton';
@@ -14,6 +15,10 @@ import IconButton from '@/shared/ui/icon-button/IconButton';
 import PropertyChecklistItemControl from './ui/property-checklist-item-control/PropertyChecklistItemControl';
 
 import styles from './PropertyChecklistPage.module.css';
+
+const PROPERTY_DETAIL_STATE = { from: 'property-detail' };
+const isFromPropertyDetail = (state: unknown) =>
+  typeof state === 'object' && state !== null && 'from' in state && state.from === 'property-detail';
 
 const PropertyChecklistPage = () => {
   const params = useParams();
@@ -49,6 +54,12 @@ const ResolvedPropertyChecklistPage = ({
   const isLoading = checklist.isPending || isLoadingVisible;
   const property = usePropertyDetail(propertyId);
   const [editingMemoItemId, setEditingMemoItemId] = useState<number | null>(null);
+  const location = useLocation();
+  const fromPropertyDetail = isFromPropertyDetail(location.state);
+  const backToDetail = useReturnNavigation({
+    cameFromTarget: fromPropertyDetail,
+    fallback: `/properties/${propertyId}`,
+  });
 
   if (isLoading) {
     return isLoadingVisible ? <ContentState loading title="체크리스트를 불러오는 중이에요." /> : null;
@@ -78,7 +89,7 @@ const ResolvedPropertyChecklistPage = ({
   return (
     <ChecklistPageLayout
       title={property.data === undefined ? '매물 체크리스트' : `${property.data.name} 체크리스트`}
-      backTo={`/properties/${propertyId}`}
+      onBack={backToDetail}
       backLabel="매물 상세로 돌아가기"
       endSlot={
         <>
@@ -86,6 +97,9 @@ const ResolvedPropertyChecklistPage = ({
             <Link
               className={styles.editAction}
               to={`/properties/${propertyId}/active-checklists/${detail.stage}?mode=replace`}
+              // 교체 화면이 이 화면 기록을 대신해, 교체를 마치고 돌아가도 체크리스트가 두 번 쌓이지 않는다.
+              replace
+              state={fromPropertyDetail ? PROPERTY_DETAIL_STATE : undefined}
             >
               편집
             </Link>
@@ -125,7 +139,15 @@ const ResolvedPropertyChecklistPage = ({
       </ol>
 
       <div className={styles.saveAction}>
-        <Link to={`/properties/${propertyId}`}>저장</Link>
+        <Link
+          to={`/properties/${propertyId}`}
+          onClick={(event) => {
+            event.preventDefault();
+            backToDetail();
+          }}
+        >
+          저장
+        </Link>
       </div>
     </ChecklistPageLayout>
   );

@@ -156,6 +156,27 @@
   transform: translate(-50%, -50%);
 }
 
+/* 지도가 준비되기 전에 누른 위치는 반영되지 않으므로, 준비가 끝날 때까지 가운데에 안내를 띄운다. */
+.mapLoading {
+  position: absolute;
+  z-index: 20;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 92%);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
+  color: var(--color-ink);
+  font-size: 0.8rem;
+  font-weight: 650;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
 .mapError {
   position: absolute;
   z-index: 20;
