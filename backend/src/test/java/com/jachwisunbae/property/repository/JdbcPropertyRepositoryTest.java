@@ -116,8 +116,8 @@ class JdbcPropertyRepositoryTest {
     @Test
     @DisplayName("통근 시간용 매물 위치는 회원의 삭제하지 않은 매물만 ID 내림차순으로 위치 없이도 돌려준다")
     void findsLocationsOfOwnProperties() {
-        long member = insertMember("me");
-        long other = insertMember("other");
+        long member = insertMember();
+        long other = insertMember();
         long located = insertProperty(member, "위치 있는 집");
         jdbcTemplate.update("UPDATE properties SET latitude = 37.5000000, longitude = 127.0000000 WHERE id = ?",
                 located);
@@ -134,9 +134,9 @@ class JdbcPropertyRepositoryTest {
         assertThat(locations.get(1).longitude()).isEqualByComparingTo("127.0");
     }
 
-    private long insertMember(final String nickname) {
-        return insert("INSERT INTO members (nickname, created_at, updated_at) VALUES (?, NOW(6), NOW(6))",
-                nickname);
+    // 익명 회원은 닉네임 없이 ID만 가진다(V3).
+    private long insertMember() {
+        return insert("INSERT INTO members (created_at, updated_at) VALUES (NOW(6), NOW(6))");
     }
 
     private long insertProperty(final long memberId, final String name) {
