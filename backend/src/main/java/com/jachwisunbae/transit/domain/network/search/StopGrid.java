@@ -1,4 +1,4 @@
-package com.jachwisunbae.transit.domain.collection;
+package com.jachwisunbae.transit.domain.network.search;
 
 import com.jachwisunbae.transit.domain.GtfsStop;
 import com.jachwisunbae.transit.domain.vo.Coordinate;
@@ -11,13 +11,13 @@ import java.util.function.IntConsumer;
 // 목적지 근처 정류장을 21만 정류장 전체가 아니라 주변 격자 칸에서만 찾는다.
 // 0.01도 칸은 위도 방향 약 1.1km, 국내(북위 33~39도) 경도 방향 약 0.87km 이상이라,
 // 목적지 칸과 이웃 8칸이면 도보 10분(약 720m) 안의 정류장을 모두 담는다.
-final class StopGrid {
+public final class StopGrid {
 
     private static final double CELL_DEGREES = 0.01;
 
     private final Map<Long, int[]> stopsByCell;
 
-    StopGrid(final List<GtfsStop> stops) {
+    public StopGrid(final List<GtfsStop> stops) {
         Map<Long, List<Integer>> cells = new HashMap<>();
         for (int stop = 0; stop < stops.size(); stop++) {
             Coordinate coordinate = stops.get(stop).coordinate();
@@ -29,7 +29,7 @@ final class StopGrid {
                 members.stream().mapToInt(Integer::intValue).toArray()));
     }
 
-    void forEachNear(final Coordinate coordinate, final IntConsumer action) {
+    public void forEachNear(final Coordinate coordinate, final IntConsumer action) {
         int row = row(coordinate.latitude());
         int column = column(coordinate.longitude());
         for (int dRow = -1; dRow <= 1; dRow++) {

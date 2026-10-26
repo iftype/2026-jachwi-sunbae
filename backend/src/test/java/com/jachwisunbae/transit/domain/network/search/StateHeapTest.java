@@ -1,4 +1,4 @@
-package com.jachwisunbae.transit.domain.collection;
+package com.jachwisunbae.transit.domain.network.search;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

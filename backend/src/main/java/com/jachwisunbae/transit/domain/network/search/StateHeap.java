@@ -1,28 +1,28 @@
-package com.jachwisunbae.transit.domain.collection;
+package com.jachwisunbae.transit.domain.network.search;
 
 import java.util.Arrays;
 
 // 탐색 상태 번호를 시간이 짧은 순서로 꺼내는 이진 힙이다. 객체를 만들지 않도록 상태 번호와 시간을 원시 배열에 담는다.
 // 같은 상태가 더 짧은 시간으로 다시 들어오면 그대로 하나 더 넣고, 꺼낼 때 오래된 항목을 건너뛴다.
-final class StateHeap {
+public final class StateHeap {
 
     private int[] states = new int[1 << 12];
     private int[] seconds = new int[1 << 12];
     private int size;
 
-    boolean isEmpty() {
+    public boolean isEmpty() {
         return size == 0;
     }
 
-    int topState() {
+    public int topState() {
         return states[0];
     }
 
-    int topSeconds() {
+    public int topSeconds() {
         return seconds[0];
     }
 
-    void push(final int state, final int time) {
+    public void push(final int state, final int time) {
         if (size == states.length) {
             states = Arrays.copyOf(states, size * 2);
             seconds = Arrays.copyOf(seconds, size * 2);
@@ -41,7 +41,7 @@ final class StateHeap {
         seconds[child] = time;
     }
 
-    void removeTop() {
+    public void removeTop() {
         size--;
         if (size == 0) {
             return;

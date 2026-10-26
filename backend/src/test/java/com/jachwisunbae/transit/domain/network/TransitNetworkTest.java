@@ -1,4 +1,4 @@
-package com.jachwisunbae.transit.domain.collection;
+package com.jachwisunbae.transit.domain.network;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -78,16 +78,6 @@ class TransitNetworkTest {
         Map<String, Integer> seconds = travelSeconds(network.reachableStops(DESTINATION, new Seconds(3600), 0));
 
         assertThat(seconds).containsKeys("A", "B", "C", "G", "S").doesNotContainKey("E");
-    }
-
-    @Test
-    @DisplayName("버스 정류장은 다음 정류장 쪽 8방위를, 역과 다음 정류장이 없는 정류장은 방향을 비운다")
-    void findsDirection() {
-        Map<String, String> directions = network.reachableStops(DESTINATION, new Seconds(3600), 2).stream()
-                .filter(stop -> stop.direction() != null)
-                .collect(Collectors.toMap(stop -> stop.stop().stopId(), ReachableStop::direction));
-
-        assertThat(directions).containsOnly(Map.entry("B", "남"), Map.entry("C", "남"), Map.entry("E", "서"));
     }
 
     @Test

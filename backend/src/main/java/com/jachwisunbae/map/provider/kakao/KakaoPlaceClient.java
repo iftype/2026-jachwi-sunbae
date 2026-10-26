@@ -27,6 +27,8 @@ public class KakaoPlaceClient {
 
     private static final String BASE_URL = "https://dapi.kakao.com";
     private static final int PAGE_SIZE = 15;
+    // 캐시 없이 요청마다 호출하므로 카테고리당 호출 수를 제한한다. 카카오도 최대 45건까지만 제공한다.
+    private static final int MAX_PAGE_COUNT = 3;
 
     private final RestClient client;
 
@@ -58,6 +60,21 @@ public class KakaoPlaceClient {
             .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
             .requestFactory(requestFactory)
             .build();
+    }
+
+    // 마지막 페이지 또는 최대 페이지 수까지 순회하며 document를 모은다.
+    public List<KakaoCategorySearchResponse.Document> searchCategoryPages(String categoryCode, BigDecimal latitude,
+                                                                          BigDecimal longitude, int radius) {
+        List<KakaoCategorySearchResponse.Document> documents = new ArrayList<>();
+        for (int page = 1; page <= MAX_PAGE_COUNT; page++) {
+            KakaoCategorySearchResponse response = searchCategory(categoryCode, latitude, longitude, radius, page);
+            documents.addAll(response.documents());
+
+            if (response.end()) {
+                break;
+            }
+        }
+        return documents;
     }
 
     public KakaoCategorySearchResponse searchCategory(String categoryCode, BigDecimal latitude,
@@ -96,7 +113,9 @@ public class KakaoPlaceClient {
                 text(document, "address_name"),
                 decimal(document, "y"),
                 decimal(document, "x"),
-                integer(document, "distance")));
+                integer(document, "distance"),
+                text(document, "phone"),
+                text(document, "place_url")));
         }
         return new KakaoCategorySearchResponse(List.copyOf(documents),
             root.path("meta").path("is_end").asBoolean(true));

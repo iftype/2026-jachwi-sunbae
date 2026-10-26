@@ -57,7 +57,9 @@ class KakaoPlaceClientTest {
                             "address_name": "경기 성남시 수정구 금토동 696",
                             "y": "37.4066144",
                             "x": "127.0908479",
-                            "distance": "250"
+                            "distance": "250",
+                            "phone": "031-123-4567",
+                            "place_url": "http://place.map.kakao.com/123"
                           }]
                         }
                         """, MediaType.APPLICATION_JSON));
@@ -67,7 +69,8 @@ class KakaoPlaceClientTest {
         assertThat(response.end()).isFalse();
         assertThat(response.documents()).containsExactly(new KakaoCategorySearchResponse.Document(
                 "123", "이마트24 KT판교사옥점", "경기 성남시 수정구 금토로 32", "경기 성남시 수정구 금토동 696",
-                new BigDecimal("37.4066144"), new BigDecimal("127.0908479"), 250));
+                new BigDecimal("37.4066144"), new BigDecimal("127.0908479"), 250,
+                "031-123-4567", "http://place.map.kakao.com/123"));
         server.verify();
     }
 
@@ -78,7 +81,7 @@ class KakaoPlaceClientTest {
                 .andRespond(withSuccess("""
                         {
                           "meta": {"is_end": true},
-                          "documents": [{"id": "1", "place_name": "", "road_address_name": ""}]
+                          "documents": [{"id": "1", "place_name": "", "road_address_name": "", "phone": ""}]
                         }
                         """, MediaType.APPLICATION_JSON));
 
@@ -86,7 +89,7 @@ class KakaoPlaceClientTest {
 
         assertThat(response.end()).isTrue();
         assertThat(response.documents()).containsExactly(
-                new KakaoCategorySearchResponse.Document("1", null, null, null, null, null, null));
+                new KakaoCategorySearchResponse.Document("1", null, null, null, null, null, null, null, null));
     }
 
     @Test

@@ -2,7 +2,7 @@ package com.jachwisunbae.transit.service;
 
 import com.jachwisunbae.common.exception.errorcode.ErrorCode;
 import com.jachwisunbae.common.exception.server.ServiceUnavailableException;
-import com.jachwisunbae.transit.domain.collection.TransitNetwork;
+import com.jachwisunbae.transit.domain.network.TransitNetwork;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;

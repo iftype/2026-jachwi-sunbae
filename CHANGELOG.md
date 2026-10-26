@@ -6,6 +6,34 @@
 
 아직 릴리스하지 않은 변경을 기록한다.
 
+## [2.1.0] - 2026-10-22
+
+### Added
+
+- 주변 중개업소만 조회하는 `GET /api/maps/agencies` API를 추가하고, 응답에 전화번호와 카카오맵 상세 페이지 URL을 포함한다.
+- 카드형 홈과 공통 카드·버튼·입력창·지도 마커를 추가하고, 카드형 화면을 기본 주소로 제공하며 데스크탑과 휴대폰 화면을 나눈다.
+- 매물 상세의 기본·부가 정보를 바텀시트에서 바로 수정한다.
+- dev·prod 공통으로 JVM GC·safepoint 로그를 남기고, 운영자용 Thread Dump 수집 명령과 로그 순환 설정을 배포한다.
+- 기존 API 포트에서 Prometheus 메트릭을 노출한다.
+
+### Changed
+
+- 동네 찾기에서 검색할 때 지도를 새로 만들지 않고 유지하며, 로그인 후에도 실제 주소 검색을 사용한다.
+- GTFS 데이터 적재를 일회성 명령으로 바꾸고, 버스정류장 좌표 조회 인덱스를 Flyway `V2` 마이그레이션으로 관리한다.
+- 웹뷰의 네이티브 탭바 연동을 제거하고 모바일 앱 코드를 별도 저장소로 분리한다.
+- 프론트엔드에 뮤테이션 테스트를 도입하고 테스트를 병렬로 실행한다.
+
+### Fixed
+
+- 모바일 매물 등록에서 다음 버튼이 보이지 않는 문제를 수정한다.
+- 주변 버스정류장 조회에서 같은 정류장이 두 번 나오는 문제를 수정한다.
+- 매물을 동시에 만들 때 옵션 저장에서 데드락이 발생하던 문제를 수정한다. 새 매물은 옵션을 지우지 않고 바로 저장한다.
+
+### Performance
+
+- 통근 지도 경계를 시도별로 받아 가까운 곳부터 나눠 그린다.
+- 매물 목록의 체크리스트 진행률을 해당 회원의 매물만 집계하도록 바꿔 불필요한 조회를 제거한다.
+
 ## [2.0.1] - 2026-10-15
 
 ### Added
@@ -122,7 +150,8 @@
 - WebView 지도 마커 위치 갱신을 `transform` 기반으로 최적화한다.
 - 매물 사진 Object URL을 재사용해 지도 확대·이동 중 불필요한 재생성을 줄인다.
 
-[Unreleased]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/compare/v2.0.1...HEAD
+[Unreleased]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/releases/tag/v2.1.0
 [2.0.1]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/releases/tag/v2.0.1
 [2.0.0]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/releases/tag/v2.0.0
 [1.1.0]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/releases/tag/v1.1.0

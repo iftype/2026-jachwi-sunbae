@@ -121,8 +121,8 @@ public class JdbcPropertyRepository implements PropertyRepository {
 
         long generatedId = keyHolder.getKey().longValue();
         insertPropertyDetails(generatedId, property);
-        replaceRoomOptions(generatedId, property.getRoomOptions());
-        replaceUtilityOptions(generatedId, property.getUtilityOptions());
+        insertRoomOptions(generatedId, property.getRoomOptions());
+        insertUtilityOptions(generatedId, property.getUtilityOptions());
 
         return Property.reconstruct(
             generatedId,
@@ -298,6 +298,10 @@ public class JdbcPropertyRepository implements PropertyRepository {
 
     private void replaceRoomOptions(final long propertyId, final Set<RoomOption> roomOptions) {
         jdbcTemplate.update("DELETE FROM property_room_options WHERE property_id = ?", propertyId);
+        insertRoomOptions(propertyId, roomOptions);
+    }
+
+    private void insertRoomOptions(final long propertyId, final Set<RoomOption> roomOptions) {
         if (roomOptions == null || roomOptions.isEmpty()) {
             return;
         }
@@ -307,6 +311,10 @@ public class JdbcPropertyRepository implements PropertyRepository {
 
     private void replaceUtilityOptions(final long propertyId, final Set<UtilityOption> utilityOptions) {
         jdbcTemplate.update("DELETE FROM property_utility_options WHERE property_id = ?", propertyId);
+        insertUtilityOptions(propertyId, utilityOptions);
+    }
+
+    private void insertUtilityOptions(final long propertyId, final Set<UtilityOption> utilityOptions) {
         if (utilityOptions == null || utilityOptions.isEmpty()) {
             return;
         }
