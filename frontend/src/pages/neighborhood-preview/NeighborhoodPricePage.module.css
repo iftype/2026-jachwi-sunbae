@@ -69,3 +69,9 @@
 .transactions p {
   margin: 0.5rem 0 0;
 }
+
+.actions {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}

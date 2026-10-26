@@ -7,6 +7,8 @@ import Icon from '@/shared/ui/icon/Icon';
 
 import useNeighborhoodDetailAnalytics from './hooks/useNeighborhoodDetailAnalytics';
 import type { NeighborhoodPreviewContext } from './hooks/useNeighborhoodPreview';
+import ListingLink from './ui/listing-link/ListingLink';
+import NearbyLink from './ui/nearby-link/NearbyLink';
 
 import styles from './NeighborhoodRoutePage.module.css';
 
@@ -113,11 +115,15 @@ const NeighborhoodRoutePage = () => {
       <p className={styles.notice}>
         시간표 기반 예상 정보예요. 실시간 버스 도착 정보는 제공하지 않아요. 집에서 출발 정류장까지 도보는 별도입니다.
       </p>
-      {preview.isPublicExplore && (
-        <ExplorationRecordAction
-          location={{ ...area.center, address: area.fullName, roadAddress: null, jibunAddress: area.fullName }}
-        />
-      )}
+      <div className={styles.actions}>
+        <ListingLink areaName={area.name} center={area.center} onOpen={preview.openListing} />
+        <NearbyLink areaName={area.name} to={preview.nearbyPathFor(area)} onOpen={preview.openNearby} />
+        {preview.isPublicExplore && (
+          <ExplorationRecordAction
+            location={{ ...area.center, address: area.fullName, roadAddress: null, jibunAddress: area.fullName }}
+          />
+        )}
+      </div>
     </main>
   );
 };
