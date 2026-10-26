@@ -13,6 +13,7 @@ import com.jachwisunbae.weather.service.WeatherCollectionService;
 import java.time.Clock;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.test.context.ConfigDataApplicationContextInitializer;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
@@ -54,14 +55,14 @@ class WeatherSchedulingConfigTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"dev", "prod"})
-    void serverProfilesCollectAndCleanButKeepUnprovisionedFirebaseOff(final String profile) {
+    @CsvSource({"dev, jachwi-sunbae-de", "prod, jachwi-sunbae-prod"})
+    void serverProfilesCollectAndCleanButKeepNotificationsOff(final String profile, final String projectId) {
         profile(profile).run(context -> {
             assertThat(context).hasNotFailed().hasSingleBean(WeatherCollectionScheduler.class)
                     .hasSingleBean(WeatherCleanupScheduler.class).doesNotHaveBean(WeatherNotificationScheduler.class);
             assertThat(context.getBean(ScheduledAnnotationBeanPostProcessor.class).getScheduledTasks()).hasSize(2);
             assertThat(context.getEnvironment().getProperty("weather.notification.enabled", Boolean.class)).isFalse();
-            assertThat(context.getEnvironment().getProperty("weather.notification.firebase-project-id")).isEmpty();
+            assertThat(context.getEnvironment().getProperty("weather.notification.firebase-project-id")).isEqualTo(projectId);
             assertThat(context.getEnvironment().getProperty("server.port", Integer.class)).isEqualTo(80);
             verifyNoInteractions(collection, cleanup, notification);
         });
@@ -70,7 +71,7 @@ class WeatherSchedulingConfigTest {
     @ParameterizedTest
     @ValueSource(strings = {"dev", "prod"})
     void enablingPreparedNotificationsRegistersAllThreeSchedulers(final String profile) {
-        // 실제 프로젝트는 아직 없다. 서비스 대역으로 향후 YAML의 enabled=true 전환만 검증한다.
+        // 실제 Firebase에 연결하지 않고 서비스 대역으로 YAML의 enabled=true 전환만 검증한다.
         profile(profile).withPropertyValues("weather.notification.enabled=true").run(context -> {
             assertThat(context).hasNotFailed().hasSingleBean(WeatherCollectionScheduler.class)
                     .hasSingleBean(WeatherCleanupScheduler.class).hasSingleBean(WeatherNotificationScheduler.class);

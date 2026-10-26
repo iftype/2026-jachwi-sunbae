@@ -48,7 +48,8 @@ class WeatherNotificationConfigTest {
     @ValueSource(strings = {"dev", "prod"})
     void missingProjectIdPreventsAccidentalActivation(final String name) {
         try (var credentials = mockStatic(GoogleCredentials.class)) {
-            profile(name).withPropertyValues("weather.notification.enabled=true").run(context -> {
+            profile(name).withPropertyValues("weather.notification.enabled=true",
+                    "weather.notification.firebase-project-id=").run(context -> {
                 assertThat(context.getStartupFailure()).hasRootCauseMessage("날씨 알림 활성화에는 Firebase project ID가 필요합니다.");
                 credentials.verifyNoInteractions();
             });

@@ -59,8 +59,8 @@ class JdbcPropertyRepositoryTest {
     @Test
     @DisplayName("매물 목록은 회원의 매물마다 체크 항목 진행률을 집계하고 다른 회원의 항목은 섞지 않는다")
     void countsProgressOfOwnPropertiesOnly() {
-        long member = insertMember("me");
-        long other = insertMember("other");
+        long member = insertMember();
+        long other = insertMember();
         long checked = insertProperty(member, "체크한 집");
         long empty = insertProperty(member, "체크리스트 없는 집");
         long othersProperty = insertProperty(other, "남의 집");
@@ -87,7 +87,7 @@ class JdbcPropertyRepositoryTest {
     @Test
     @DisplayName("삭제한 매물은 목록에도 진행률 집계에도 나오지 않는다")
     void excludesDeletedProperties() {
-        long member = insertMember("me");
+        long member = insertMember();
         long deleted = insertProperty(member, "삭제한 집");
         insertItem(insertChecklist(deleted, "ON_SITE"), 101, "GOOD");
         jdbcTemplate.update("UPDATE properties SET deleted_at = NOW(6) WHERE id = ?", deleted);
@@ -98,7 +98,7 @@ class JdbcPropertyRepositoryTest {
     @Test
     @DisplayName("매물을 만들 때 옵션을 저장하고, 수정하면 옵션을 새 값으로 바꾼다")
     void savesAndReplacesOptions() {
-        long member = insertMember("me");
+        long member = insertMember();
         LocalDateTime now = LocalDateTime.parse("2026-10-20T00:00:00");
         Property saved = propertyRepository.save(Property.create(member, "옵션 있는 집", 1000L, 50L, null, null, null,
                 null, 0L, null, List.of("BED", "DESK"), List.of("WATER"), null, now));
@@ -112,9 +112,9 @@ class JdbcPropertyRepositoryTest {
         assertThat(updated.getUtilityOptions()).containsExactly(UtilityOption.INTERNET);
     }
 
-    private long insertMember(final String nickname) {
-        return insert("INSERT INTO members (nickname, created_at, updated_at) VALUES (?, NOW(6), NOW(6))",
-                nickname);
+    // 익명 회원은 닉네임 없이 ID만 가진다(V3).
+    private long insertMember() {
+        return insert("INSERT INTO members (created_at, updated_at) VALUES (NOW(6), NOW(6))");
     }
 
     private long insertProperty(final long memberId, final String name) {

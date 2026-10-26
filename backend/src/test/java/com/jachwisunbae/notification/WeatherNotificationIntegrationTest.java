@@ -113,7 +113,7 @@ class WeatherNotificationIntegrationTest {
         jdbc.update("DELETE FROM weather_forecasts");
         jdbc.update("DELETE FROM weather_daily_forecasts");
         jdbc.update("DELETE FROM weather_collection_publications");
-        jdbc.update("INSERT INTO members (id, nickname, created_at, updated_at) VALUES (1, '첫회원', NOW(), NOW()), (2, '둘째회원', NOW(), NOW())");
+        jdbc.update("INSERT INTO members (id, created_at, updated_at) VALUES (1, NOW(), NOW()), (2, NOW(), NOW())");
         pushes.clear();
         outcome = push -> true;
         dispatch = newDispatch(analysis);

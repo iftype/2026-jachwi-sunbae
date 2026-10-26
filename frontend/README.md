@@ -30,7 +30,7 @@ set +a
 npm run dev
 ```
 
-기본 `.env.example`은 외부 키가 필요 없는 닉네임 인증·데모 지도 모드입니다. `.env.example`을 `.env.local`로 복사하면 Webpack이 빌드 시작에 그 값을 읽습니다(`.env.local`은 저장소에 올라가지 않으며, 이미 설정된 셸 환경변수를 덮어쓰지 않습니다). `http://localhost:3000`에서 닉네임과 선택 비밀번호로 바로 시작합니다.
+기본 `.env.example`은 외부 키가 필요 없는 익명 자동 로그인·데모 지도 모드입니다. `.env.example`을 `.env.local`로 복사하면 Webpack이 빌드 시작에 그 값을 읽습니다(`.env.local`은 저장소에 올라가지 않으며, 이미 설정된 셸 환경변수를 덮어쓰지 않습니다). `http://localhost:3000`에 들어가면 로그인 입력 없이 자동으로 익명 회원으로 시작합니다.
 
 `npm run dev`는 실제 백엔드 API에 연결합니다. 백엔드 없이 UI fixture만 확인할 때에만 `npm run dev:mock`을 사용합니다. dev 배포에서 fixture가 꼭 필요한 경우에는 CodePipeline 빌드 환경변수에 `ENABLE_MSW=true`를 지정할 수 있으며, 운영에서는 이 값을 사용하지 않습니다.
 
@@ -92,11 +92,10 @@ JWT secret, 지도 Client Secret, S3 자격증명은 프론트에 넣지 않습�
 
 동네 찾기의 위치 선택·결과 지도에는 발행된 네이버 사용자 스타일 `631c1c09-380e-427f-b7d8-e600956dac10`을 적용합니다. 기존 지도 탭은 기본 스타일을 유지하며, 추천 경계 강조는 배경 지도 스타일과 별도로 표시합니다.
 
-인스타그램 광고용 공개 페이지는 `/landing`입니다. 오리 로고, 네 장의 순환 슬라이드, App Store·웹 시작 버튼을 제공합니다. 로고는 iPhone·iPad에서는 App Store로, 그 외 환경에서는 운영 웹 로그인으로 연결됩니다. 로컬 확인 주소는 `http://localhost:3000/landing`이며, 연결 주소와 이미지는 `src/pages/landing/LandingPage.tsx`에서 관리합니다.
+랜딩(`/landing`)은 없앴습니다. 첫 진입은 바로 홈(`/`)이며 자동 로그인합니다. 서비스 소개는 사용 방법(`/guide`, `src/pages/usage-guide`)이 맡고, 예전 `/landing`은 쿼리를 유지한 채 `/`로, `/about`은 `/guide`로 이동합니다.
 
 | 화면                 | 경로                                                      | 기능                                           |
 | -------------------- | --------------------------------------------------------- | ---------------------------------------------- |
-| 닉네임으로 시작      | `/login`                                                  | 닉네임과 선택 비밀번호로 시작                  |
 | 공개 안내            | `/privacy`                                                | 광고 측정 동의·철회                            |
 | 매물 목록            | `/properties`                                             | 매물 목록, 단계별 진행 현황, PDF 비교 진입     |
 | 매물 비교            | `/compare`                                                | 2~5개 매물 선택과 전체 기록 PDF 다운로드       |
@@ -125,8 +124,8 @@ JWT secret, 지도 Client Secret, S3 자격증명은 프론트에 넣지 않습�
 
 운영 사이트의 Maze 사용성 테스트 설치와 배포 후 검증은 [Maze 테스트 안내](docs/maze-testing.md)를 참고합니다.
 
-- Access Token은 탭 단위 `sessionStorage`에 `expiresAt`과 함께 저장해 새로고침만 복구합니다. `localStorage`에는 쓰지 않습니다.
-- 401·만료·로그아웃은 인증 Query Cache와 토큰을 함께 지웁니다.
+- Access Token은 메모리에만 둡니다. 앱을 열면 `POST /api/auth/login`이 HttpOnly Refresh 쿠키로 같은 익명 회원을 복원하거나 새 익명 회원을 만듭니다.
+- Access Token이 만료되거나 업무 API가 401을 주면 `POST /api/auth/refresh`로 갱신해 원래 요청을 한 번 다시 보냅니다. 갱신이 `401 REFRESH_TOKEN_INVALID`로 거절되면 새 회원을 만들지 않고 인증 Query Cache와 토큰을 지운 뒤 안내합니다.
 - 사진 콘텐츠는 URL을 `<img>`에 직접 주지 않고 Bearer 인증 Blob으로 조회해 Object URL을 만든 뒤 해제합니다.
 - 사진은 JPEG·PNG·WebP, 파일당 5MiB, 매물당 30장으로 선택 단계부터 검증합니다.
 - 서버 상태는 TanStack Query가 관리하고, 체크 항목 상태와 메모 저장 채널은 서로 독립적입니다.

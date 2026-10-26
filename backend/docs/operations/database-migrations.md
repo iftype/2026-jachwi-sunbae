@@ -85,27 +85,40 @@ sudo systemctl restart jachwi-sunbae.service
 
 빈 DB에서는 V1이 실제 실행되므로 이력 유형이 `SQL`이다.
 
-## 현재 날씨 위치 스키마
+## 최종 V1–V5 구조
 
-[V4__create_weather_user_features.sql](../../src/main/resources/db/migration/V4__create_weather_user_features.sql)의 `member_weather_locations`는 `member_id`, `grid_x`, `grid_y`, `updated_at` 네 컬럼을 생성한다. 격자는 NOT NULL이고 회원 FK·격자 범위 CHECK를 유지한다. UTC `updated_at DATETIME(6)`은 기록용이며 위치 삭제는 행 DELETE로 처리한다. 위치 정의는 유지한다.
+| 버전 | 파일                                         | 역할                                   |
+| ---- | -------------------------------------------- | -------------------------------------- |
+| V1   | `V1__initial_schema.sql`                     | 기존 초기 스키마                       |
+| V2   | `V2__add_bus_stops_coordinate_index.sql`     | 버스정류장 위도·경도 인덱스            |
+| V3   | `V3__introduce_anonymous_authentication.sql` | 익명 회원·Refresh Token                |
+| V4   | `V4__create_weather_forecasts.sql`           | 시간별·일별 예보와 수집 완료 기록      |
+| V5   | `V5__create_weather_user_features.sql`       | 회원 위치·수신 설정·FCM 기기·알림 이력 |
 
-이 정의는 V4가 적용되지 않은 DB를 위한 것이다. 이미 V4가 적용된 영구 DB에서는 변경 파일을 그대로 사용하거나 이력을 고치지 않고 별도 추가 마이그레이션 전략을 정해야 한다. 변경·배포 전에 해당 DB의 `flyway_schema_history`를 확인한다.
+V1·V2와 `develop`의 익명 인증 V3는 원본을 유지한다. 인증 V3는 회원 ID·생성/수정시각과 연관 기록을 보존하면서 닉네임·비밀번호 컬럼을 제거하고 `deleted_at`, `refresh_tokens`를 추가한다.
 
-[스키마 기준 데이터](../../src/test/resources/db/weather-mvp-schema.json)는 V5까지 적용한 7개 날씨 테이블의 최종 DDL을 기록한다. 스키마 테스트가 현재 DDL과 비교하고, 위치 격자의 NOT NULL·범위·회원 FK·연쇄 삭제를 검증한다.
+[V4](../../src/main/resources/db/migration/V4__create_weather_forecasts.sql)는 과거 날씨 V3와 메타데이터 단순화 결과를 하나의 CREATE 정의로 통합한다. `weather_forecasts`, `weather_daily_forecasts`, `weather_collection_publications`를 생성하며 `started_at`·완료시각 교차 CHECK·파서/수집 계획과 중복된 세부 CHECK는 처음부터 생성하지 않는다. PK·격자 범위·시간별 시각 순서·일별 출처 조합과 `completed_at` 기반 완료 확인은 유지한다. 별도의 중간 ALTER 마이그레이션은 없다.
 
-## 생활 안내 JSON 컬럼
+[V5](../../src/main/resources/db/migration/V5__create_weather_user_features.sql)는 기존 회원 날씨 기능 DDL을 번호만 옮긴 것이다. `member_weather_locations`는 회원 ID·격자·UTC `updated_at`만 저장하고 회원 FK·격자 NOT NULL·범위 CHECK를 유지한다. 기기는 회원당 하나이며 토큰 해시 유니크 제약을 유지한다. 알림은 `notices JSON NOT NULL`에 `condition`, `message` 배열을 저장하고 회원·발송일·슬롯 중복을 막는다. 과거 판정 상태·기기 관리 필드는 복원하지 않는다.
 
-2026-10-26 확인한 로컬 DB 두 곳(`jachwi-sunbae-backend-mysql-1`, `jachwi-weather-lab-mysql-1`)은 Flyway V3까지만 적용되어 있었다. 담당자도 Dev·Prod를 포함해 V4를 적용한 영구 DB가 없다고 확인했다. 이에 V4의 `weather_notifications.assessments`를 최종 정의인 `notices JSON NOT NULL`로 변경했다. 추가 단순화로 기기의 `platform`·`permission`·`active`, 알림의 `result`도 제거했다. 회원·발송일·슬롯 유니크 제약은 유지한다.
+[스키마 기준 데이터](../../src/test/resources/db/weather-mvp-schema.json)는 최종 7개 날씨 테이블의 DDL을 기록한다. 테스트는 일회용 MySQL에서 빈 DB의 5개 적용과 재실행, V1·V2의 회원·매물·체크리스트 보존, 인증 V3의 회원·Refresh Token 보존과 V4·V5 추가 적용을 검증한다. V4 직후부터 최종 예보 스키마인지 확인하고 V5 적용 후에도 예보 값과 완료 기록이 유지되는지 비교한다.
 
-DB에는 실제 안내의 `condition`, `message`만 가진 JSON 배열을 저장한다. 기존 판정 상태·상세 사유·시각 목록은 저장하지 않는다. 이번 작업은 영구 DB에 SQL을 실행하거나 DB를 초기화하지 않았다. 테스트는 별도 MySQL 컨테이너의 빈 DB에 V1–V5를 적용하고 재적용이 없는지 검증한다.
+## 기존 날씨 버전 적용 이력 확인
 
-이전 V4가 적용된 DB를 추후 발견하면 이 파일을 그대로 적용하거나 Flyway 이력을 수정하지 않는다. 기존 JSON 데이터 보존·변환 정책과 컬럼 변경을 위한 후속 마이그레이션이 필요하다.
+이 통합 파일은 날씨 스키마의 최초 배포용이며, 과거 날씨 버전을 적용한 DB의 자동 전환 경로가 아니다. Flyway 사용 여부와 특정 날씨 SQL 적용 여부를 구분해 배포 담당자가 **각 Dev·Prod DB의 실제 이력**을 확인한다. 이번 정리에서는 영구 DB에 접속하거나 이력·테이블을 수정하지 않았다.
 
-## 적용된 V3의 후속 변경
+```sql
+SELECT version, description, script, checksum, success
+FROM flyway_schema_history
+ORDER BY installed_rank;
+```
 
-V3는 로컬 영구 DB에 이미 적용되어 있으므로 수정하지 않았다. [V5__simplify_weather_collection_metadata.sql](../../src/main/resources/db/migration/V5__simplify_weather_collection_metadata.sql)이 발표분의 `started_at`과 완료시각 교차 CHECK, 예보의 원본 결측·세부 요청시각 CHECK를 제거한다. PK·격자 범위·시간별 시각 순서·일별 출처 조합 제약은 유지한다.
+V3가 `introduce_anonymous_authentication`인지 과거 `create_weather_forecasts`인지 파일명·체크섬으로 구분한다. 과거 날씨 V3·V4·V5 또는 실패 이력이 발견되면 배포를 중단하고 별도 전환 계획을 정한다. 번호 변경만으로 해결되지 않으며 `repair`, 이력 직접 수정, `CREATE TABLE IF NOT EXISTS`로 충돌을 숨기지 않는다. 인증 V3까지 정상 적용된 DB에는 V4·V5 두 개만 추가된다.
 
-스키마 통합 테스트는 임시 MySQL에 V4까지 적용하고 시간별·일별 값과 완료 기록을 넣은 다음 V5를 적용해 보존 여부를 확인한다. 영구 DB에는 이번 작업의 SQL을 실행하지 않았다. 두 로컬 DB에는 서로 다른 V3 체크섬이 기록되어 있어 자동으로 `repair`하지 않았다. 실제 배포는 적용 이력이 현재 V3와 일치하는지 확인해야 한다.
+앞서 확인한 로컬 DB 두 곳(`jachwi-sunbae-backend-mysql-1`, `jachwi-weather-lab-mysql-1`)에는 과거 날씨 V3와 서로 다른 체크섬이 기록되어 있었다. 현재 파일로 바로 기동하면 검증 충돌이 발생할 수 있다. 이 확인은 Dev·Prod의 날씨 버전 미적용을 증명하지 않는다.
+
+- **데이터를 보존할 DB:** 기존 DB와 백업을 보존하고 실제 스키마·이력을 조사한다. 새 V1–V5 DB로 회원 ID·연관 기록·날씨 데이터를 옮기는 별도 변환·검증 계획 등을 수립한다. 실제 적용된 예전 DDL에 따라 달라지므로 이번 작업에서 자동 이관하거나 기존 날씨 테이블을 삭제하지 않는다.
+- **버려도 되는 로컬 개발 데이터:** 담당자가 폐기를 결정한 경우 별도의 새 DB/볼륨에 V1–V5를 적용하고 연결을 전환할 수 있다. 기존 볼륨을 임의로 초기화하거나 공유 DB를 테스트용으로 사용하지 않는다.
 
 ## 이후 변경 SQL 작성
 

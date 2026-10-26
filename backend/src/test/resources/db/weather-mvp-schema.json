@@ -1,5 +1,5 @@
 {
-  "sourceMigrations": "Final weather schema after V3, unapplied V4, and V5 simplification.",
+  "sourceMigrations": "Final weather schema created by V4 (forecasts) and V5 (member features), after V3 anonymous authentication.",
   "mysqlVersion": "8.4.10",
   "tables": {
     "member_weather_locations": [

@@ -42,7 +42,6 @@ export const fetchCheckItems = (
     config,
     path: `/api/check-items?${search}`,
     signal,
-    requiresAuthentication: false,
     parseData: (value) => {
       const result = parseCheckItemPage(value, input.stage);
       if (result.content.some((item) => item.stage !== input.stage)) throw new Error('stage');

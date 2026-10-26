@@ -1,14 +1,13 @@
 package com.jachwisunbae.auth.config;
 
 import com.jachwisunbae.auth.token.JwtTokenProvider;
+import com.jachwisunbae.auth.token.RefreshTokenProvider;
 import com.jachwisunbae.auth.web.AuthenticatedMemberIdResolver;
 import java.time.Clock;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.crypto.password.Pbkdf2PasswordEncoder;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -26,11 +25,6 @@ public class AuthConfig {
     }
 
     @Bean
-    public PasswordEncoder passwordEncoder() {
-        return Pbkdf2PasswordEncoder.defaultsForSpringSecurity_v5_8();
-    }
-
-    @Bean
     public JwtTokenProvider jwtTokenProvider(
             @Value("${auth.jwt.secret}") String secret,
             @Value("${auth.jwt.issuer}") String issuer,
@@ -38,5 +32,10 @@ public class AuthConfig {
             @Value("${auth.jwt.access-token-seconds}") long seconds,
             Clock clock) {
         return new JwtTokenProvider(secret, issuer, audience, seconds, clock);
+    }
+
+    @Bean
+    public RefreshTokenProvider refreshTokenProvider() {
+        return new RefreshTokenProvider();
     }
 }

@@ -9,31 +9,21 @@ import java.time.LocalDateTime;
 public class Member extends BaseTimeEntity {
 
     private final Long id;
-    private String nickname;
-    private String passwordHash;
+    private final LocalDateTime deletedAt;
 
-    private Member(final Long id, final String nickname, final String passwordHash,
-                   final LocalDateTime createdAt, final LocalDateTime updatedAt) {
+    private Member(final Long id, final LocalDateTime createdAt, final LocalDateTime updatedAt,
+                   final LocalDateTime deletedAt) {
         super(createdAt, updatedAt);
         this.id = id;
-        this.nickname = validateNickname(nickname);
-        this.passwordHash = passwordHash;
+        this.deletedAt = deletedAt;
     }
 
-    public static Member create(final String nickname, final String passwordHash, final LocalDateTime now) {
-        return new Member(null, nickname, passwordHash, now, now);
+    public static Member create(final LocalDateTime now) {
+        return new Member(null, now, now, null);
     }
 
-    public static Member reconstruct(final Long id, final String nickname, final String passwordHash,
-                                     final LocalDateTime createdAt, final LocalDateTime updatedAt) {
-        return new Member(id, nickname, passwordHash, createdAt, updatedAt);
-    }
-
-    public boolean isPasswordProtected() {
-        return passwordHash != null;
-    }
-
-    private static String validateNickname(final String nickname) {
-        return Nickname.from(nickname).value();
+    public static Member reconstruct(final Long id, final LocalDateTime createdAt,
+                                     final LocalDateTime updatedAt, final LocalDateTime deletedAt) {
+        return new Member(id, createdAt, updatedAt, deletedAt);
     }
 }

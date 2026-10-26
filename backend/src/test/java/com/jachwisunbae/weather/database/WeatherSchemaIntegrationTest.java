@@ -44,7 +44,26 @@ class WeatherSchemaIntegrationTest {
         DataSource dataSource = new DriverManagerDataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword());
         assertThat(Flyway.configure().dataSource(dataSource).target("4").load().migrate().migrationsExecuted).isEqualTo(4);
         JdbcTemplate before = new JdbcTemplate(dataSource);
-        before.update("INSERT INTO weather_collection_publications VALUES (?, ?, ?)", PUBLISHED_AT, COLLECTED_AT, COLLECTED_AT);
+        // V5의 ALTER 없이 V4 CREATE만으로 예보의 최종 스키마가 완성되어야 한다.
+        assertThat(before.queryForList("""
+                SELECT table_name FROM information_schema.tables
+                WHERE table_schema = DATABASE() AND table_name LIKE '%weather%'
+                """, String.class)).containsExactlyInAnyOrder(
+                "weather_forecasts", "weather_daily_forecasts", "weather_collection_publications");
+        assertThat(before.queryForList("""
+                SELECT column_name FROM information_schema.columns
+                WHERE table_schema = DATABASE() AND table_name = 'weather_collection_publications'
+                ORDER BY ordinal_position
+                """, String.class)).containsExactly("published_at", "completed_at");
+        assertThat(before.queryForList("""
+                SELECT constraint_name FROM information_schema.table_constraints
+                WHERE table_schema = DATABASE() AND table_name LIKE 'weather_%' AND constraint_type = 'CHECK'
+                """, String.class)).containsExactlyInAnyOrder(
+                "chk_weather_forecasts_grid", "chk_weather_forecasts_time_order",
+                "chk_weather_daily_forecasts_grid", "chk_weather_daily_forecasts_source",
+                "chk_weather_daily_forecasts_tmn_metadata", "chk_weather_daily_forecasts_tmx_metadata");
+        before.update("INSERT INTO weather_collection_publications (published_at, completed_at) VALUES (?, ?)",
+                PUBLISHED_AT, COLLECTED_AT);
         before.update("""
                 INSERT INTO weather_forecasts (grid_x, grid_y, forecast_at, published_at, collected_at, tmp)
                 VALUES (60, 127, ?, ?, ?, -7.25)
@@ -98,7 +117,7 @@ class WeatherSchemaIntegrationTest {
     @CsvSource({"NULL, 127", "60, NULL", "0, 127", "150, 127", "60, 0", "60, 254"})
     @DisplayName("저장된 회원 위치의 격자는 NULL이거나 기상청 격자 범위 밖일 수 없다")
     void rejectsMissingOrOutOfRangeMemberGrid(final String x, final String y) {
-        jdbcTemplate.update("INSERT INTO members (id, nickname, created_at, updated_at) VALUES (1, '위치 회원', NOW(), NOW())");
+        jdbcTemplate.update("INSERT INTO members (id, created_at, updated_at) VALUES (1, NOW(), NOW())");
         assertThatThrownBy(() -> jdbcTemplate.update("""
                 INSERT INTO member_weather_locations (member_id, grid_x, grid_y, updated_at)
                 VALUES (1, %s, %s, NOW(6))
@@ -111,7 +130,7 @@ class WeatherSchemaIntegrationTest {
         String insert = "INSERT INTO member_weather_locations (member_id, grid_x, grid_y, updated_at) VALUES (1, 60, 127, NOW(6))";
         assertThatThrownBy(() -> jdbcTemplate.update(insert))
                 .isInstanceOf(DataAccessException.class).hasMessageContaining("fk_member_weather_location_member");
-        jdbcTemplate.update("INSERT INTO members (id, nickname, created_at, updated_at) VALUES (1, '위치 회원', NOW(), NOW())");
+        jdbcTemplate.update("INSERT INTO members (id, created_at, updated_at) VALUES (1, NOW(), NOW())");
         jdbcTemplate.update(insert);
         jdbcTemplate.update("DELETE FROM members WHERE id = 1");
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM member_weather_locations", Integer.class)).isZero();

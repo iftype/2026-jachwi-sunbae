@@ -12,10 +12,8 @@ public enum ErrorCode {
     INTERNAL_SERVER_ERROR("서버 내부 오류가 발생했습니다."),
 
     // 회원 및 인증
-    NICKNAME_INVALID("닉네임을 확인해 주세요."),
-    NICKNAME_PASSWORD_INVALID("비밀번호를 확인해 주세요."),
-    NICKNAME_AUTHENTICATION_FAILED("닉네임 또는 비밀번호를 확인해 주세요."),
-    ACCESS_TOKEN_INVALID("인증 정보를 확인할 수 없습니다."),
+    ACCESS_TOKEN_INVALID("ACCESS 인증 정보를 확인할 수 없습니다."),
+    REFRESH_TOKEN_INVALID("REFRESH 인증 정보를 확인할 수 없습니다."),
     MEMBER_NOT_FOUND("회원을 찾을 수 없습니다."),
 
     // 체크리스트

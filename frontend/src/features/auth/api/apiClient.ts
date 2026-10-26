@@ -4,9 +4,17 @@ import {
   capturePostHogException,
   type PostHogErrorCategory,
   type PostHogErrorSeverity,
+  trackPostHogEvent,
 } from '@/shared/lib/analytics/posthog';
 
-import { clearAuthentication, getAccessToken, getAuthenticationRevision } from '../model/authStore';
+import {
+  clearAuthentication,
+  getAccessToken,
+  getAuthenticationRevision,
+  getAuthenticationSnapshot,
+  setAuthentication,
+} from '../model/authStore';
+import { parseLoginResponseDto } from './authParsers';
 
 type ApiErrorKind = 'network' | 'server' | 'invalid-response' | 'authentication-ended';
 
@@ -160,50 +168,150 @@ type ExecuteRequestOptions = {
   requiresAuthentication: boolean;
 };
 
-const executeRequest = async ({
-  config,
-  path,
-  method,
-  headers,
-  body,
-  signal,
-  requiresAuthentication,
-}: ExecuteRequestOptions): Promise<Response> => {
-  const authenticationRevision = requiresAuthentication ? getAuthenticationRevision() : null;
-  let accessToken: string | null = null;
-
-  if (requiresAuthentication) {
-    accessToken = getAccessToken();
-
-    if (accessToken === null) throw new ApiError({ kind: 'authentication-ended' });
-    headers.set('Authorization', `Bearer ${accessToken}`);
-  }
-
-  const hasAuthenticationEnded = () =>
-    requiresAuthentication &&
-    (authenticationRevision !== getAuthenticationRevision() || accessToken !== getAccessToken());
-
-  let response: Response;
+const sendRequest = async (
+  { config, path, method, headers, body, signal }: ExecuteRequestOptions,
+  accessToken: string | null,
+): Promise<Response> => {
+  if (accessToken !== null) headers.set('Authorization', `Bearer ${accessToken}`);
 
   try {
-    response = await fetch(createApiUrl(config, path), { method, headers, body, signal });
+    return await fetch(createApiUrl(config, path), { method, headers, body, signal });
   } catch (error) {
     if (isAbortError(error)) {
       throw error;
     }
 
-    if (hasAuthenticationEnded()) throw new ApiError({ kind: 'authentication-ended' });
+    throw new ApiError({ kind: 'network' });
+  }
+};
 
+const LOGIN_PATH = '/api/auth/login';
+const REFRESH_PATH = '/api/auth/refresh';
+
+type AuthenticationPath = typeof LOGIN_PATH | typeof REFRESH_PATH;
+
+/**
+ * Refresh 쿠키로 같은 회원의 Access Token을 받는다. 로그인은 쿠키로 복원하지 못하면 서버가 새 익명 회원을 만들고,
+ * 갱신은 새 회원 없이 401 REFRESH_TOKEN_INVALID로 거절한다.
+ * 서버가 401로 복원을 거절하면 인증을 끝내고, 통신 장애는 인증 상태를 바꾸지 않는다.
+ */
+const requestToken = async (config: PublicConfig, path: AuthenticationPath): Promise<string> => {
+  let response: Response;
+  try {
+    response = await fetch(createApiUrl(config, path), {
+      method: 'POST',
+      headers: new Headers({ Accept: 'application/json' }),
+      credentials: 'include',
+    });
+  } catch {
     throw new ApiError({ kind: 'network' });
   }
 
-  if (hasAuthenticationEnded()) throw new ApiError({ kind: 'authentication-ended' });
+  if (response.status === 401) clearAuthentication('unauthorized');
+  if (!response.ok) return throwResponseError(response);
 
-  if (response.status === 401) {
-    clearAuthentication('unauthorized');
+  const payload = await readJson(response);
+  if (!isSuccessEnvelope(payload)) throw new ApiError({ kind: 'invalid-response', status: response.status });
+
+  let login: ReturnType<typeof parseLoginResponseDto>;
+  try {
+    login = parseLoginResponseDto(payload.data);
+  } catch {
+    throw new ApiError({ kind: 'invalid-response', status: response.status });
   }
 
-  return response;
+  // 같은 화면에서 이어지는 토큰 갱신은 빼고, 페이지를 열고 처음 회원을 정할 때만 기록한다.
+  const isFirstLogin = getAuthenticationSnapshot().session === null;
+  setAuthentication({
+    accessToken: login.accessToken,
+    tokenType: login.tokenType,
+    expiresIn: login.expiresIn,
+    memberId: login.member.memberId,
+  });
+  if (path === LOGIN_PATH && isFirstLogin) {
+    trackPostHogEvent('login_succeeded', { login_method: 'anonymous', new_member: login.newMember });
+  }
+  return login.accessToken;
+};
+
+// 로그인과 갱신은 둘 다 같은 Refresh 쿠키로 토큰을 받으므로, 진행 중인 요청 하나를 함께 기다린다.
+let pendingAuthentication: Promise<string> | null = null;
+
+/** 앱 시작과 사용자의 다시 시도에 쓴다. 동시에 여러 요청이 불러도 로그인 요청은 한 번만 보낸다. */
+export const authenticate = (config: PublicConfig): Promise<string> => {
+  pendingAuthentication ??= requestToken(config, LOGIN_PATH)
+    .catch((error: unknown) => {
+      captureUnexpectedApiError({ error, path: LOGIN_PATH, method: 'POST' });
+      trackPostHogEvent('login_failed', {
+        login_method: 'anonymous',
+        error_kind: error instanceof ApiError ? error.kind : 'unknown',
+        error_code: error instanceof ApiError ? error.code : null,
+      });
+      throw error;
+    })
+    .finally(() => {
+      pendingAuthentication = null;
+    });
+  return pendingAuthentication;
+};
+
+/** Access Token이 만료됐을 때 쓴다. 복원하지 못해도 새 회원을 만들지 않고 인증을 끝낸다. */
+const refreshAuthentication = (config: PublicConfig): Promise<string> => {
+  pendingAuthentication ??= requestToken(config, REFRESH_PATH)
+    .catch((error: unknown) => {
+      captureUnexpectedApiError({ error, path: REFRESH_PATH, method: 'POST' });
+      throw error;
+    })
+    .finally(() => {
+      pendingAuthentication = null;
+    });
+  return pendingAuthentication;
+};
+
+/**
+ * 토큰이 없으면 처음 회원을 정할 때는 로그인하고, 이미 회원이 정해졌으면 갱신한다.
+ * 서버가 이미 복원을 거절했다면 사용자가 다시 시도할 때까지 로그인을 되풀이하지 않는다.
+ */
+const getOrStartAuthentication = (config: PublicConfig): Promise<string> => {
+  const accessToken = getAccessToken();
+  if (accessToken !== null) return Promise.resolve(accessToken);
+  const { session, terminationReason } = getAuthenticationSnapshot();
+  if (terminationReason !== null) {
+    return Promise.reject(new ApiError({ kind: 'authentication-ended' }));
+  }
+  return session === null ? authenticate(config) : refreshAuthentication(config);
+};
+
+const executeRequest = async (options: ExecuteRequestOptions): Promise<Response> => {
+  if (!options.requiresAuthentication) return sendRequest(options, null);
+
+  const accessToken = await getOrStartAuthentication(options.config);
+  // 요청 도중 다른 회원으로 바뀌거나 인증이 끝나면 늦게 온 응답을 버린다. 같은 회원의 토큰 갱신은 버리지 않는다.
+  const authenticationRevision = getAuthenticationRevision();
+  const throwIfAuthenticationEnded = () => {
+    if (authenticationRevision !== getAuthenticationRevision()) throw new ApiError({ kind: 'authentication-ended' });
+  };
+
+  let response: Response;
+  try {
+    response = await sendRequest(options, accessToken);
+  } catch (error) {
+    throwIfAuthenticationEnded();
+    throw error;
+  }
+  throwIfAuthenticationEnded();
+  if (response.status !== 401) return response;
+
+  // Access Token이 만료됐다. 다른 요청이 이미 새 토큰을 받았으면 그 토큰으로, 아니면 갱신해서 한 번만 다시 보낸다.
+  const currentToken = getAccessToken();
+  const retryToken =
+    currentToken !== null && currentToken !== accessToken ? currentToken : await refreshAuthentication(options.config);
+  throwIfAuthenticationEnded();
+
+  const retried = await sendRequest(options, retryToken);
+  throwIfAuthenticationEnded();
+  if (retried.status === 401) clearAuthentication('unauthorized');
+  return retried;
 };
 
 const throwResponseError = async (response: Response): Promise<never> => {

@@ -39,7 +39,7 @@ DB의 시간별 한 행을 `WeatherForecastResult.Hour`로 읽고 API DTO로 변
 
 6시간 신선도 제한과 조회시각별 기대 발표 계산은 없다. 현재 DB에 남은 완료 예보를 반환하며 최신 기상청 발표라고 보장하지 않는다. 클라이언트는 실제 `publishedAt`을 표시할 수 있다. 알림도 같은 자료를 사용하고 별도 05시·20시 발표 조건을 두지 않는다.
 
-예보 테이블은 [V3](../../src/main/resources/db/migration/V3__create_weather_forecasts.sql)가 생성하며 [V5](../../src/main/resources/db/migration/V5__simplify_weather_collection_metadata.sql)가 `started_at`과 중복 CHECK를 제거한다. 위치 테이블은 [V4](../../src/main/resources/db/migration/V4__create_weather_user_features.sql)가 생성한다. 위치의 회원 PK·FK와 격자 범위 CHECK는 유지한다.
+익명 인증 [V3](../../src/main/resources/db/migration/V3__introduce_anonymous_authentication.sql) 이후 예보 테이블은 [V4](../../src/main/resources/db/migration/V4__create_weather_forecasts.sql)가 최종 구조로 생성하고, 위치 테이블은 [V5](../../src/main/resources/db/migration/V5__create_weather_user_features.sql)가 생성한다. 위치의 회원 PK·FK와 격자 범위 CHECK는 유지한다. 날씨 API는 익명 로그인·재방문 복원·Refresh 갱신으로 받은 Access Token의 회원 ID를 기존 `@AuthenticatedMemberId`로 사용한다.
 
 ## 위치 저장·조회·삭제
 

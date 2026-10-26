@@ -3,27 +3,17 @@ import type { MemberDto } from './dtos/MemberDto';
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 
-const isMemberDto = (value: unknown): value is MemberDto =>
-  isRecord(value) &&
-  typeof value.memberId === 'number' &&
-  Number.isInteger(value.memberId) &&
-  value.memberId > 0 &&
-  typeof value.displayName === 'string' &&
-  value.displayName.length > 0 &&
-  typeof value.passwordProtected === 'boolean';
+const isMemberId = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isInteger(value) && value > 0;
 
 const parseMember = (value: unknown): MemberDto => {
-  if (!isRecord(value)) throw new Error('현재 회원 응답 형식이 올바르지 않습니다.');
-  const member = { memberId: value.id, displayName: value.name, passwordProtected: value.passwordProtected };
-  if (!isMemberDto(member)) throw new Error('현재 회원 응답 형식이 올바르지 않습니다.');
-  return member;
+  if (!isRecord(value) || !isMemberId(value.id)) throw new Error('현재 회원 응답 형식이 올바르지 않습니다.');
+  return { memberId: value.id };
 };
 
 const parseLoginMember = (value: unknown): MemberDto => {
-  if (!isRecord(value)) throw new Error('로그인 회원 응답 형식이 올바르지 않습니다.');
-  const member = { memberId: value.memberId, displayName: value.name, passwordProtected: value.passwordProtected };
-  if (!isMemberDto(member)) throw new Error('로그인 회원 응답 형식이 올바르지 않습니다.');
-  return member;
+  if (!isRecord(value) || !isMemberId(value.memberId)) throw new Error('로그인 회원 응답 형식이 올바르지 않습니다.');
+  return { memberId: value.memberId };
 };
 
 export const parseMemberDto = (value: unknown): MemberDto => parseMember(value);

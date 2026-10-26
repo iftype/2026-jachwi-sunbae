@@ -4,7 +4,7 @@
 
 ## 스키마
 
-[V3__create_weather_forecasts.sql](../../src/main/resources/db/migration/V3__create_weather_forecasts.sql)이 `weather_forecasts`, `weather_daily_forecasts`, `weather_collection_publications`를 생성한다. 적용된 V3는 보존하고 [V5](../../src/main/resources/db/migration/V5__simplify_weather_collection_metadata.sql)에서 `started_at`과 파서·계획에 중복된 세부 CHECK를 제거한다. PK와 격자 범위·시간 순서·일별 출처 조합 제약은 유지한다. 기존 날씨 버전이 적용된 DB에는 통합 파일을 그대로 적용하지 않는다. [적용 이력과 통합 정책](../operations/database-migrations.md)을 먼저 확인한다.
+[V4__create_weather_forecasts.sql](../../src/main/resources/db/migration/V4__create_weather_forecasts.sql)이 `weather_forecasts`, `weather_daily_forecasts`, `weather_collection_publications`의 최종 구조를 생성한다. `started_at`과 파서·계획에 중복된 세부 CHECK는 처음부터 만들지 않는다. PK와 격자 범위·시간 순서·일별 출처 조합 제약, `completed_at` 기반 완료 확인은 유지한다. V3는 익명 인증, V5는 회원 날씨 기능이다. 과거 날씨 버전이 적용된 DB에는 통합 파일을 그대로 적용하지 않고 [적용 이력과 통합 정책](../operations/database-migrations.md)을 먼저 확인한다.
 
 ## 실행
 

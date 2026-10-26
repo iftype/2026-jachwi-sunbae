@@ -3,10 +3,12 @@ package com.jachwisunbae.weather.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jachwisunbae.auth.token.JwtTokenProvider;
 import com.jachwisunbae.weather.domain.DailyForecast;
 import com.jachwisunbae.weather.domain.DailyTemperature;
@@ -55,6 +57,8 @@ class WeatherApiIntegrationTest {
     @Autowired
     private MockMvc mvc;
     @Autowired
+    private ObjectMapper objectMapper;
+    @Autowired
     private JwtTokenProvider tokens;
     @Autowired
     private JdbcWeatherForecastRepository forecasts;
@@ -81,12 +85,56 @@ class WeatherApiIntegrationTest {
     @BeforeEach
     void setup() {
         jdbc.update("DELETE FROM member_weather_locations");
+        jdbc.update("DELETE FROM refresh_tokens");
         jdbc.update("DELETE FROM members");
         jdbc.update("DELETE FROM weather_forecasts");
         jdbc.update("DELETE FROM weather_daily_forecasts");
         jdbc.update("DELETE FROM weather_collection_publications");
-        jdbc.update("INSERT INTO members (id, nickname, created_at, updated_at) VALUES (1, '첫회원', NOW(), NOW()), (2, '둘째회원', NOW(), NOW())");
+        jdbc.update("INSERT INTO members (id, created_at, updated_at) VALUES (1, NOW(), NOW()), (2, NOW(), NOW())");
 
+    }
+
+    @Test
+    void anonymousLoginRestorationAndRefreshKeepTheMembersWeatherLocationAndConsent() throws Exception {
+        var login = mvc.perform(post("/api/auth/login"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.newMember").value(true))
+                .andReturn().getResponse();
+        var data = objectMapper.readTree(login.getContentAsString()).path("data");
+        long memberId = data.path("member").path("memberId").asLong();
+        String authorization = "Bearer " + data.path("accessToken").asText();
+        var refreshCookie = login.getCookie("refresh_token");
+        assertThat(refreshCookie).isNotNull();
+
+        mvc.perform(put("/api/members/me/weather-location").header("Authorization", authorization)
+                        .contentType(MediaType.APPLICATION_JSON).content(locationBody(37.5665, 126.978)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.gridX").value(60));
+        mvc.perform(put("/api/members/me/weather-notification-settings").header("Authorization", authorization)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"enabled\":true}"))
+                .andExpect(status().isOk());
+        assertThat(locations.find(memberId).orElseThrow().grid()).isEqualTo(new GridPoint(60, 127));
+        assertThat(locations.find(1)).isEmpty();
+
+        var publication = TODAY.atTime(20, 0);
+        complete(publication);
+        forecasts.upsertHourly(List.of(hourly(new GridPoint(60, 127), TODAY.atTime(23, 0), publication, 12.0)));
+        for (String path : List.of("/api/auth/login", "/api/auth/refresh")) {
+            var restored = mvc.perform(post(path).cookie(refreshCookie))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data.newMember").value(false))
+                    .andExpect(jsonPath("$.data.member.memberId").value(memberId))
+                    .andReturn().getResponse();
+            authorization = "Bearer " + objectMapper.readTree(restored.getContentAsString()).path("data").path("accessToken").asText();
+            refreshCookie = restored.getCookie("refresh_token");
+            assertThat(refreshCookie).isNotNull();
+            mvc.perform(get("/api/members/me/weather-location").header("Authorization", authorization))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data.gridX").value(60));
+            mvc.perform(get("/api/members/me/weather-notification-settings").header("Authorization", authorization))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data.enabled").value(true));
+            mvc.perform(get("/api/weather/forecasts").header("Authorization", authorization)
+                            .param("latitude", "37.5665").param("longitude", "126.978"))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data.hourly[23].tmp").value(12.0));
+        }
+        mvc.perform(get("/api/members/me/weather-notification-settings").header("Authorization", bearer(1)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.enabled").value(false));
     }
 
     @Test
