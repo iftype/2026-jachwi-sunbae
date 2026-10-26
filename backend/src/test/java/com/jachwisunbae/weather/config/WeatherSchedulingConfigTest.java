@@ -55,13 +55,17 @@ class WeatherSchedulingConfigTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"dev, jachwi-sunbae-de", "prod, jachwi-sunbae-prod"})
-    void serverProfilesCollectAndCleanButKeepNotificationsOff(final String profile, final String projectId) {
+    @CsvSource({"dev, jachwi-sunbae-de, true", "prod, jachwi-sunbae-prod, false"})
+    void serverProfilesCollectAndCleanAndNotifyOnlyInDev(final String profile, final String projectId,
+            final boolean notifies) {
         profile(profile).run(context -> {
             assertThat(context).hasNotFailed().hasSingleBean(WeatherCollectionScheduler.class)
-                    .hasSingleBean(WeatherCleanupScheduler.class).doesNotHaveBean(WeatherNotificationScheduler.class);
-            assertThat(context.getBean(ScheduledAnnotationBeanPostProcessor.class).getScheduledTasks()).hasSize(2);
-            assertThat(context.getEnvironment().getProperty("weather.notification.enabled", Boolean.class)).isFalse();
+                    .hasSingleBean(WeatherCleanupScheduler.class);
+            assertThat(context.getBeansOfType(WeatherNotificationScheduler.class)).hasSize(notifies ? 1 : 0);
+            assertThat(context.getBean(ScheduledAnnotationBeanPostProcessor.class).getScheduledTasks())
+                    .hasSize(notifies ? 4 : 2);
+            assertThat(context.getEnvironment().getProperty("weather.notification.enabled", Boolean.class))
+                    .isEqualTo(notifies);
             assertThat(context.getEnvironment().getProperty("weather.notification.firebase-project-id")).isEqualTo(projectId);
             assertThat(context.getEnvironment().getProperty("server.port", Integer.class)).isEqualTo(80);
             verifyNoInteractions(collection, cleanup, notification);

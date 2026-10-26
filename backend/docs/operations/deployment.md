@@ -198,7 +198,7 @@ set +x
 vault kv patch -mount=secret jachwi-sunbae/dev firebase_service_account_json=- < /secure/path/dev-service-account.json
 ```
 
-Prod는 경로를 `jachwi-sunbae/prod`로 바꾸고 Prod 전용 JSON을 입력한다. 별도 훅 없이 다음 CodeDeploy 배포에서 새 ASG 인스턴스에도 배치된다. 알림은 두 환경 모두 OFF를 유지하며 실제 프로젝트·자격증명·앱 연동 확인 후 별도로 활성화한다.
+Prod는 경로를 `jachwi-sunbae/prod`로 바꾸고 Prod 전용 JSON을 입력한다. 별도 훅 없이 다음 CodeDeploy 배포에서 새 ASG 인스턴스에도 배치된다. 알림은 Dev만 ON이며, Dev는 이 JSON이 없으면 서버가 시작되지 않는다. Prod는 실제 프로젝트·자격증명·앱 연동 확인 후 별도로 활성화한다.
 
 Vault 값 변경은 실행 중인 앱에 즉시 반영되지 않는다. 이 리비전 배포 후 파일을 갱신하고 성공했을 때만 재시작한다. prod에서는 인자를 `prod`로 바꾼다.
 

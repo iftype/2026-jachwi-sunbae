@@ -34,7 +34,7 @@ class WeatherNotificationConfigTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"local", "dev", "prod"})
+    @ValueSource(strings = {"local", "prod"})
     void currentProfilesStartWithoutReadingFirebaseCredentials(final String name) {
         try (var credentials = mockStatic(GoogleCredentials.class)) {
             profile(name).run(context -> {
