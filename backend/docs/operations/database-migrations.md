@@ -87,11 +87,19 @@ sudo systemctl restart jachwi-sunbae.service
 
 ## 현재 날씨 위치 스키마
 
-[V4__create_weather_user_features.sql](../../src/main/resources/db/migration/V4__create_weather_user_features.sql)의 `member_weather_locations`는 `member_id`, `grid_x`, `grid_y`, `updated_at` 네 컬럼을 생성한다. 격자는 NOT NULL이고 회원 FK·격자 범위 CHECK를 유지한다. UTC `updated_at DATETIME(6)`은 기록용이며 위치 삭제는 행 DELETE로 처리한다. 다른 날씨·알림 테이블의 구조는 변경하지 않았다.
+[V4__create_weather_user_features.sql](../../src/main/resources/db/migration/V4__create_weather_user_features.sql)의 `member_weather_locations`는 `member_id`, `grid_x`, `grid_y`, `updated_at` 네 컬럼을 생성한다. 격자는 NOT NULL이고 회원 FK·격자 범위 CHECK를 유지한다. UTC `updated_at DATETIME(6)`은 기록용이며 위치 삭제는 행 DELETE로 처리한다. 위치 정의는 유지하며 생활 안내 단순화에서는 알림 JSON 컬럼만 변경했다.
 
 이 정의는 V4가 적용되지 않은 DB를 위한 것이다. 이미 V4가 적용된 영구 DB에서는 변경 파일을 그대로 사용하거나 이력을 고치지 않고 별도 추가 마이그레이션 전략을 정해야 한다. 변경·배포 전에 해당 DB의 `flyway_schema_history`를 확인한다.
 
-[스키마 기준 데이터](../../src/test/resources/db/weather-mvp-schema.json)는 위치의 4개 컬럼 계약과 나머지 6개 테이블의 기존 최종 DDL을 구분한다. 스키마 테스트가 현재 DDL과 비교하고, 위치 격자의 NOT NULL·범위·회원 FK·연쇄 삭제를 검증한다. 위치를 제외한 기존 예보·알림 스키마는 그대로 유지한다.
+[스키마 기준 데이터](../../src/test/resources/db/weather-mvp-schema.json)는 위치의 4개 컬럼 계약과 알림의 `notices` 계약, 나머지 5개 테이블의 기존 최종 DDL을 구분한다. 스키마 테스트가 현재 DDL과 비교하고, 위치 격자의 NOT NULL·범위·회원 FK·연쇄 삭제를 검증한다. 위치·알림을 제외한 기존 예보·설정·기기 스키마는 그대로 유지한다.
+
+## 생활 안내 JSON 컬럼
+
+2026-10-26 확인한 로컬 DB 두 곳(`jachwi-sunbae-backend-mysql-1`, `jachwi-weather-lab-mysql-1`)은 Flyway V3까지만 적용되어 있었다. 담당자도 Dev·Prod를 포함해 V4를 적용한 영구 DB가 없다고 확인했다. 이에 V4의 `weather_notifications.assessments`를 최종 정의인 `notices JSON NOT NULL`로 변경했다. 다른 테이블 DDL과 회원·발송일·슬롯 유니크 제약은 유지한다.
+
+DB에는 실제 안내의 `condition`, `message`만 가진 JSON 배열을 저장한다. 기존 판정 상태·상세 사유·시각 목록은 저장하지 않는다. 이번 작업은 영구 DB에 SQL을 실행하거나 DB를 초기화하지 않았다. 테스트는 별도 MySQL 컨테이너의 빈 DB에 V1–V4를 적용하고 재적용이 없는지 검증한다.
+
+이전 V4가 적용된 DB를 추후 발견하면 이 파일을 그대로 적용하거나 Flyway 이력을 수정하지 않는다. 기존 JSON 데이터 보존·변환 정책과 컬럼 변경을 위한 후속 마이그레이션이 필요하다.
 
 ## 이후 변경 SQL 작성
 

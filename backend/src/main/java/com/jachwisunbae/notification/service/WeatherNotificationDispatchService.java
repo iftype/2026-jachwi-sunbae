@@ -75,7 +75,7 @@ public class WeatherNotificationDispatchService {
             return;
         }
         var notification = new WeatherNotification(UUID.randomUUID(), memberId, date, slot, slot.targetDate(date),
-                location.grid(), report.title(), report.body(), report.assessments(), null, clock.instant());
+                location.grid(), report.title(), report.body(), report.notices(), null, clock.instant());
         // (회원, 발송일, 시간대) 유니크 키 삽입에 성공한 호출만 한 번 전송한다. 중복 실행돼도 두 번 보내지 않는다.
         // 저장 후 중단된 작업을 복구하지 않는다.
         if (!notifications.saveIfAbsent(notification)) {

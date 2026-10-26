@@ -48,7 +48,7 @@ CREATE TABLE weather_notifications (
     created_at DATETIME(6) NOT NULL,
     title VARCHAR(255) NOT NULL,
     body VARCHAR(1000) NOT NULL,
-    assessments JSON NOT NULL,
+    notices JSON NOT NULL,
     result VARCHAR(7) NULL,
     UNIQUE KEY uk_weather_notification_member_slot (member_id, send_date, slot),
     CONSTRAINT fk_weather_notification_member FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE,

@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jachwisunbae.weather.domain.GridPoint;
-import com.jachwisunbae.notification.domain.LifeWeatherReport.Assessment;
+import com.jachwisunbae.notification.domain.LifeWeatherReport.Notice;
 import com.jachwisunbae.notification.domain.NotificationSlot;
 import com.jachwisunbae.notification.domain.WeatherNotification;
 import com.jachwisunbae.notification.domain.WeatherNotification.SendResult;
@@ -34,16 +34,16 @@ public class WeatherNotificationRepository {
         try {
             jdbc.update("""
                     INSERT INTO weather_notifications (notification_id, member_id, send_date, slot, target_date,
-                        grid_x, grid_y, title, body, assessments, created_at)
+                        grid_x, grid_y, title, body, notices, created_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, n.notificationId().toString(), n.memberId(), n.sendDate(), n.slot().name(), n.targetDate(),
-                    n.grid().nx(), n.grid().ny(), n.title(), n.body(), json.writeValueAsString(n.assessments()),
+                    n.grid().nx(), n.grid().ny(), n.title(), n.body(), json.writeValueAsString(n.notices()),
                     LocalDateTime.ofInstant(n.createdAt(), ZoneOffset.UTC));
             return true;
         } catch (DuplicateKeyException exception) {
             return false;
         } catch (JsonProcessingException exception) {
-            throw new IllegalStateException("생활 날씨 판정 저장 실패");
+            throw new IllegalStateException("생활 날씨 안내 저장 실패");
         }
     }
 
@@ -67,11 +67,11 @@ public class WeatherNotificationRepository {
             return new WeatherNotification(UUID.fromString(rs.getString("notification_id")), rs.getLong("member_id"),
                     rs.getObject("send_date", LocalDate.class), NotificationSlot.valueOf(rs.getString("slot")),
                     rs.getObject("target_date", LocalDate.class), new GridPoint(rs.getInt("grid_x"), rs.getInt("grid_y")),
-                    rs.getString("title"), rs.getString("body"), json.readValue(rs.getString("assessments"),
-                            new TypeReference<List<Assessment>>() { }),
+                    rs.getString("title"), rs.getString("body"), json.readValue(rs.getString("notices"),
+                            new TypeReference<List<Notice>>() { }),
                     result == null ? null : SendResult.valueOf(result), rs.getObject("created_at", LocalDateTime.class).toInstant(ZoneOffset.UTC));
         } catch (JsonProcessingException exception) {
-            throw new IllegalStateException("생활 날씨 판정 조회 실패");
+            throw new IllegalStateException("생활 날씨 안내 조회 실패");
         }
     }
 }

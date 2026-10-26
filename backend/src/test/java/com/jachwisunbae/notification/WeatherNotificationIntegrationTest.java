@@ -9,6 +9,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jachwisunbae.auth.token.JwtTokenProvider;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jachwisunbae.notification.domain.LifeWeatherReport.Condition;
+import com.jachwisunbae.notification.domain.LifeWeatherReport.Notice;
 import com.jachwisunbae.common.exception.client.InvalidInputException;
 import com.jachwisunbae.weather.domain.ForecastTimes;
 import com.jachwisunbae.weather.domain.GridPoint;
@@ -125,23 +128,54 @@ class WeatherNotificationIntegrationTest {
     }
 
     @Test
-    void sendsOneCombinedPushAndPreservesOnlyTheSevenAssessments() throws Exception {
+    void sendsOneCombinedPushAndPreservesOnlyMatchingNotices() throws Exception {
         dispatch.dispatch(NotificationSlot.MORNING);
         dispatch.dispatch(NotificationSlot.MORNING);
         assertThat(pushes).hasSize(1);
         var saved = notification();
         assertThat(saved.result()).isEqualTo(SendResult.SUCCESS);
-        assertThat(saved.assessments()).hasSize(7);
+        assertThat(saved.notices()).extracting(Notice::condition).containsExactly(Condition.LAUNDRY);
         assertThat(pushes.getFirst().notificationId()).isEqualTo(saved.notificationId());
-        String json = jdbc.queryForObject("SELECT assessments FROM weather_notifications", String.class);
-        assertThat(json).doesNotContain("policyVersion", "collectedAt", "hourly", "token");
+        String json = jdbc.queryForObject("SELECT notices FROM weather_notifications", String.class);
+        assertThat(new ObjectMapper().readTree(json)).isEqualTo(new ObjectMapper().readTree("""
+                [{"condition":"LAUNDRY","message":"09~18시 예보상 바깥 건조를 고려할 수 있어요"}]
+                """));
         jdbc.update("DELETE FROM weather_forecasts");
         locations.sync(1, new GridPoint(61, 120), MORNING.plusSeconds(1));
         mvc.perform(get("/api/members/me/weather-notifications/" + saved.notificationId()).header("Authorization", bearer(1)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.gridX").value(60))
-                .andExpect(jsonPath("$.data.assessments.length()").value(7)).andExpect(jsonPath("$.data.result").value("SUCCESS"))
-                .andExpect(jsonPath("$.data.forecast").doesNotExist()).andExpect(jsonPath("$.data.deliveries").doesNotExist());
-        assertThat(notifications.findOwned(1, saved.notificationId()).orElseThrow().assessments()).isEqualTo(saved.assessments());
+                .andExpect(jsonPath("$.data.notices.length()").value(1)).andExpect(jsonPath("$.data.result").value("SUCCESS"))
+                .andExpect(jsonPath("$.data.notices[0].condition").value("LAUNDRY"))
+                .andExpect(jsonPath("$.data.notices[0].message").value("09~18시 예보상 바깥 건조를 고려할 수 있어요"))
+                .andExpect(jsonPath("$.data.assessments").doesNotExist())
+                .andExpect(jsonPath("$.data.notices[0].verdict").doesNotExist())
+                .andExpect(jsonPath("$.data.notices[0].reason").doesNotExist())
+                .andExpect(jsonPath("$.data.notices[0].forecastTimes").doesNotExist());
+        assertThat(notifications.findOwned(1, saved.notificationId()).orElseThrow().notices()).isEqualTo(saved.notices());
+    }
+
+    @Test
+    void summaryWithEmptyNoticesRoundTripsWithoutOptionalData() throws Exception {
+        jdbc.update("UPDATE weather_forecasts SET reh = NULL, pop = NULL, pcp = NULL, sno = NULL, wsd = NULL");
+        dispatch.dispatch(NotificationSlot.MORNING);
+        assertThat(pushes).hasSize(1);
+        var saved = notification();
+        assertThat(saved.notices()).isEmpty();
+        assertThat(saved.title()).isEqualTo("오늘 07~23시 예보기온 15~15℃");
+        assertThat(jdbc.queryForObject("SELECT notices FROM weather_notifications", String.class)).isEqualTo("[]");
+        mvc.perform(get("/api/members/me/weather-notifications/" + saved.notificationId()).header("Authorization", bearer(1)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.notices").isEmpty());
+        mvc.perform(get("/api/members/me/weather-notifications").header("Authorization", bearer(1)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data[0].title").value(saved.title()));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"pop = 100, pcp = 10, sno = 10, wsd = 100", "pop = NULL, pcp = NULL, sno = NULL, wsd = NULL"})
+    void unusedElementsNeitherCreateRainNorPreventLaundry(final String values) {
+        jdbc.update("UPDATE weather_forecasts SET " + values);
+        dispatch.dispatch(NotificationSlot.MORNING);
+        assertThat(pushes).hasSize(1);
+        assertThat(notification().notices()).extracting(Notice::condition).containsExactly(Condition.LAUNDRY);
     }
 
     @Test
@@ -173,7 +207,7 @@ class WeatherNotificationIntegrationTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"off", "permission", "location", "incomplete", "stale", "missing"})
+    @ValueSource(strings = {"off", "permission", "location", "incomplete", "stale", "missing", "temperature", "hour"})
     void doesNotSendWithoutConsentLocationOrUsableForecasts(final String cause) {
         switch (cause) {
             case "off" -> settings.setEnabled(1, false);
@@ -181,7 +215,9 @@ class WeatherNotificationIntegrationTest {
             case "location" -> locationService.delete(1);
             case "incomplete" -> jdbc.update("UPDATE weather_collection_publications SET completed_at = NULL");
             case "stale" -> { jdbc.update("DELETE FROM weather_forecasts"); seedForecasts(NotificationSlot.MORNING, DATE.atTime(2, 0)); }
-            case "missing" -> jdbc.update("UPDATE weather_forecasts SET pty = NULL");
+            case "missing" -> jdbc.update("UPDATE weather_forecasts SET pty = NULL WHERE HOUR(forecast_at) = 23");
+            case "temperature" -> jdbc.update("UPDATE weather_forecasts SET tmp = NULL WHERE HOUR(forecast_at) = 23");
+            case "hour" -> jdbc.update("DELETE FROM weather_forecasts WHERE HOUR(forecast_at) = 18");
             default -> throw new IllegalArgumentException();
         }
         dispatch.dispatch(NotificationSlot.MORNING);
@@ -294,7 +330,12 @@ class WeatherNotificationIntegrationTest {
         assertThat(settings.device(1).orElseThrow().active()).isFalse();
         mvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.paths['/api/members/me/weather-devices/current']").exists())
-                .andExpect(jsonPath("$.paths['/api/members/me/weather-notifications/{notificationId}/receipts/{installationId}']").doesNotExist());
+                .andExpect(jsonPath("$.paths['/api/members/me/weather-notifications/{notificationId}/receipts/{installationId}']").doesNotExist())
+                .andExpect(jsonPath("$.components.schemas.WeatherNotificationResponse.properties.notices").exists())
+                .andExpect(jsonPath("$.components.schemas.WeatherNotificationResponse.properties.assessments").doesNotExist())
+                .andExpect(jsonPath("$.components.schemas.WeatherNotice.properties.condition.enum.length()").value(5))
+                .andExpect(jsonPath("$.components.schemas.WeatherNotice.properties.message").exists())
+                .andExpect(jsonPath("$.components.schemas.WeatherNotice.properties.verdict").doesNotExist());
     }
 
     @ParameterizedTest

@@ -60,9 +60,9 @@ class WeatherSchemaIntegrationTest {
     }
 
     @Test
-    @DisplayName("위치의 4개 컬럼 계약과 나머지 6개 날씨 테이블의 기존 DDL을 유지한다")
+    @DisplayName("위치·알림의 최종 계약과 나머지 5개 날씨 테이블의 기존 DDL을 유지한다")
     void matchesFinalMvpSchemaContract() throws IOException {
-        // 나머지 6개 테이블은 통합 전 실제 DDL, 위치 테이블은 명시적으로 변경한 4개 컬럼 계약이다.
+        // 위치 4개 컬럼과 알림 notices 계약 외의 5개 테이블은 기존 DDL을 유지한다.
         try (var input = new ClassPathResource("db/weather-mvp-schema.json").getInputStream()) {
             var expected = new ObjectMapper().readTree(input).get("tables");
             var names = new ArrayList<String>();

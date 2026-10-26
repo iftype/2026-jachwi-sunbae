@@ -1,5 +1,5 @@
 {
-  "sourceMigrations": "Six unchanged tables use the final V1-V7 schema; member_weather_locations uses the simplified four-column contract.",
+  "sourceMigrations": "Five unchanged tables use the final V1-V7 schema; member_weather_locations has four columns and weather_notifications stores notices.",
   "mysqlVersion": "8.4.10",
   "tables": {
     "member_weather_locations": [
@@ -116,7 +116,7 @@
       "  `created_at` datetime(6) NOT NULL,",
       "  `title` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,",
       "  `body` varchar(1000) COLLATE utf8mb4_unicode_ci NOT NULL,",
-      "  `assessments` json NOT NULL,",
+      "  `notices` json NOT NULL,",
       "  `result` varchar(7) COLLATE utf8mb4_unicode_ci DEFAULT NULL,",
       "  PRIMARY KEY (`notification_id`),",
       "  UNIQUE KEY `uk_weather_notification_member_slot` (`member_id`,`send_date`,`slot`),",

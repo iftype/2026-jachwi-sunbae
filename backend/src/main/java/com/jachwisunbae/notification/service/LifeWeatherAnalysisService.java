@@ -12,9 +12,7 @@ import com.jachwisunbae.weather.service.dto.result.WeatherForecastResult;
 import com.jachwisunbae.weather.service.dto.result.WeatherForecastResult.Reading;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.EnumMap;
 import java.util.List;
-import java.util.Map;
 import org.springframework.stereotype.Service;
 
 // 알림 대상 날짜의 예보를 조회해, 알림 규칙(LifeWeatherRules)에 넣을 입력으로 바꾸고 평가 결과를 반환한다.
@@ -51,14 +49,16 @@ public class LifeWeatherAnalysisService {
         return rules.evaluate(ruleInput);
     }
 
-    // 조회 결과의 한 시각을 규칙 입력으로 바꾼다. 쓸 수 없는 값은 null로 넘겨 규칙이 판단 불가로 처리하게 한다.
+    // 생활 안내에 필요한 TMP·PTY·REH만 전달한다. 나머지 요소의 수집·일반 조회는 그대로 유지한다.
     private LifeWeatherForecast.Hour toRuleHour(final WeatherForecastResult.Hour hour, final LocalDateTime required) {
-        Map<WeatherElement, Double> values = new EnumMap<>(WeatherElement.class);
-        for (WeatherElement element : WeatherElement.hourlyElements()) {
-            Reading reading = hour.values().get(element);
-            values.put(element, usable(reading, required) ? reading.value() : null);
-        }
-        return new LifeWeatherForecast.Hour(hour.forecastAt(), values);
+        return new LifeWeatherForecast.Hour(hour.forecastAt(),
+                usableValue(hour.values().get(WeatherElement.TMP), required),
+                usableValue(hour.values().get(WeatherElement.PTY), required),
+                usableValue(hour.values().get(WeatherElement.REH), required));
+    }
+
+    private Double usableValue(final Reading reading, final LocalDateTime required) {
+        return usable(reading, required) ? reading.value() : null;
     }
 
     // 정상 값(AVAILABLE)이면서 요구 발표 이후에 발표된 값만 쓸 수 있다.

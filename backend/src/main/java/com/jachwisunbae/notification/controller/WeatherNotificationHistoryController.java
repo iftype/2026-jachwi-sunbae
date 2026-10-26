@@ -36,7 +36,7 @@ public class WeatherNotificationHistoryController {
     }
 
     @GetMapping("/{notificationId}")
-    @Operation(summary = "알림 당시의 7가지 생활 날씨 상세", description = "200: 당시 격자·문구·7가지 판정·FCM 요청 결과. "
+    @Operation(summary = "알림 당시의 생활 날씨 안내", description = "200: 당시 격자·문구·조건을 충족한 notices·FCM 요청 결과. notices에는 최대 5개 안내만 포함하며 빈 목록도 가능합니다. "
             + "FCM data.notificationId로 접근합니다. 현재 위치와 구분하세요. 401 인증 오류, 404 WEATHER_NOTIFICATION_NOT_FOUND/MEMBER_NOT_FOUND.")
     public ApiResponse<WeatherNotificationResponse> find(@AuthenticatedMemberId final Long memberId, @PathVariable final UUID notificationId) {
         return ApiResponse.of(WeatherNotificationResponse.from(service.find(memberId, notificationId)));

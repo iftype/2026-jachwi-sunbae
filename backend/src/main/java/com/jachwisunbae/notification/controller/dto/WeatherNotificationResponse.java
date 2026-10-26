@@ -3,23 +3,23 @@ package com.jachwisunbae.notification.controller.dto;
 import com.jachwisunbae.notification.domain.WeatherNotification;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
-@Schema(description = "알림 당시의 격자·문구·7가지 판정. 현재 예보로 다시 계산하지 않습니다.")
+@Schema(description = "알림 당시의 격자·문구·실제 생활 안내. 현재 예보로 다시 계산하지 않습니다.")
 public record WeatherNotificationResponse(UUID notificationId, LocalDate sendDate, String slot, LocalDate targetDate,
-                                          int gridX, int gridY, String title, String body, List<Assessment> assessments,
+                                          int gridX, int gridY, String title, String body,
+                                          @Schema(description = "조건을 충족한 안내만 우선순위대로 반환합니다. 빈 목록이면 기온 요약 알림이며, 항목 부재가 해당 날씨의 부재를 보장하지 않습니다.") List<Notice> notices,
                                           @Schema(description = "SUCCESS: FCM 요청 수락, FAILED: 발송 실패 또는 조건 변경, null: 결과 미기록. 기기 도착 확인이 아닙니다.") String result) {
     public static WeatherNotificationResponse from(final WeatherNotification n) {
         return new WeatherNotificationResponse(n.notificationId(), n.sendDate(), n.slot().name(), n.targetDate(), n.grid().nx(), n.grid().ny(),
-                n.title(), n.body(), n.assessments().stream().map(item -> new Assessment(item.condition().name(), item.verdict().name(),
-                        item.reason(), item.message(), item.forecastTimes().stream().map(at -> at.atOffset(ZoneOffset.ofHours(9))).toList())).toList(),
+                n.title(), n.body(), n.notices().stream().map(item -> new Notice(item.condition().name(), item.message())).toList(),
                 n.result() == null ? null : n.result().name());
     }
 
-    public record Assessment(String condition,
-                              @Schema(description = "CAUTION, RECOMMENDED, NOT_APPLICABLE, UNKNOWN") String verdict,
-                              String reason, String message, List<OffsetDateTime> forecastTimes) { }
+    @Schema(name = "WeatherNotice", description = "실제 조건을 충족한 생활 날씨 안내")
+    public record Notice(
+            @Schema(description = "SNOW·RAIN·FREEZE·TEMPERATURE_SWING은 주의, LAUNDRY는 추천입니다.",
+                    allowableValues = {"SNOW", "RAIN", "FREEZE", "TEMPERATURE_SWING", "LAUNDRY"}) String condition,
+            String message) { }
 }
