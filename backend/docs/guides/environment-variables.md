@@ -40,7 +40,8 @@ Spring Boot 애플리케이션은 CORS 허용 Origin과 인증·저장소 설정
 | `MAP_CONNECT_TIMEOUT_MILLIS` | `2000`                  | 지도 외부 공급자 연결 제한 시간                                                          |
 | `MAP_READ_TIMEOUT_MILLIS`    | `5000`                  | 지도 외부 공급자 응답 제한 시간                                                          |
 | `DEPLOYMENT_ENVIRONMENT`     | `local`                 | 구조화 로그의 실행 환경. EC2에서는 `dev` 또는 `prod`를 사용한다                          |
-| `LOG_PATH`                   | `./logs`                | `prod` 프로필에서 JSON 로그 파일을 저장할 디렉터리                                       |
+| `LOG_PATH`                   | `./logs`                | `dev`·`prod` 프로필에서 JSON 로그 파일을 저장할 디렉터리                                 |
+| `KMA_API_KEY`                | 비움                    | 기상청 API허브 키. 날씨 수집을 켜는 Dev·Prod에서 필요하다                                |
 
 ## 사용 방법
 
@@ -54,11 +55,12 @@ Docker Compose는 같은 디렉터리의 `.env`를 자동으로 읽는다. Sprin
 
 ## dev·prod 프로필
 
-dev와 prod EC2는 모두 `SPRING_PROFILES_ACTIVE=prod`로 기동하며 `/etc/jachwi-sunbae/app.env`에서 환경변수를 읽는다. 애플리케이션은 80 포트를 직접 사용한다.
+Dev는 `SPRING_PROFILES_ACTIVE=dev`, Prod는 `SPRING_PROFILES_ACTIVE=prod`로 기동하며 `/etc/jachwi-sunbae/app.env`에서 환경변수를 읽는다. 기존 Dev도 `prod`를 사용했으므로 이 버전 배포 전에 Vault의 Dev `app_env`를 `dev`로 변경해야 한다. 저장소 수정만으로 현재 서버나 Vault 값이 바뀌지는 않는다. 애플리케이션은 80 포트를 직접 사용한다.
 실제 값은 환경마다 분리하고 파일 권한은 `root:root`, `0600`으로 유지한다.
 
 | 설정                       | dev                            | prod                           |
 | -------------------------- | ------------------------------ | ------------------------------ |
+| `SPRING_PROFILES_ACTIVE`   | `dev`                          | `prod`                         |
 | `CORS_ALLOWED_ORIGINS`     | `https://dev.jachwi-sunbae.kr` | `https://www.jachwi-sunbae.kr` |
 | `PHOTO_STORAGE_REGION`     | `ap-northeast-2`               | `ap-northeast-2`               |
 | `PHOTO_STORAGE_BUCKET`     | `techcourse-project-2026`      | `techcourse-project-2026`      |
@@ -87,10 +89,10 @@ AWS S3는 EC2 `ec2-project` instance role로 접근하므로 `PHOTO_STORAGE_ENDP
 백엔드는 네이버 API를 사용하지 않는다.
 
 `src/main/resources/db/migration/V1__initial_schema.sql`은 기존 스키마와 시스템 체크 항목을 고정한 최초 마이그레이션이다.
-백엔드 기동 시 Flyway가 아직 적용하지 않은 버전을 실행한다. 새 변경은 `V2__설명.sql`부터 추가한다.
+백엔드 기동 시 Flyway가 아직 적용하지 않은 버전을 실행한다. 현재 목록은 V1–V5이며 새 변경은 적용 이력과 다른 브랜치의 버전을 확인한 뒤 미사용 버전으로 추가한다.
 `docker/mysql/init/003-bus-stops-sample.sql`, `004-good-price-stores-sample.sql`, `005-cctvs-sample.sql`은 로컬 샘플이며 애플리케이션 JAR에 포함하지 않는다.
 `local` 프로필에서는 Flyway 실행 후 각 테이블이 비어 있을 때만 자동 적재한다. 작업 디렉터리는 `backend`여야 한다.
-`prod` 프로필에서는 이 샘플 적재를 실행하지 않는다.
+`dev`·`prod` 프로필에서는 이 샘플 적재를 실행하지 않는다.
 
 `spring.flyway.baseline-on-migrate`의 기본값은 `false`다. 기존 DB를 처음 연결할 때는 백업과 기준 스키마 일치를 확인한 뒤
 `SPRING_FLYWAY_BASELINE_ON_MIGRATE=true`를 해당 최초 기동에만 지정한다. 기준선 등록 후에는 반드시 제거한다.

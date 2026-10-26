@@ -1,0 +1,32 @@
+spring:
+  datasource:
+    url: jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}?sslMode=${DB_SSL_MODE:REQUIRED}&connectionTimeZone=%2B00:00&forceConnectionTimeZoneToSession=true&preserveInstants=true&rewriteBatchedStatements=true
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+server:
+  port: 80
+
+logging:
+  level:
+    root: info
+  file:
+    path: ${LOG_PATH:/var/log/jachwi-sunbae}
+  structured:
+    ecs:
+      service:
+        environment: ${DEPLOYMENT_ENVIRONMENT:unknown}
+
+auth:
+  jwt:
+    secret: ${JWT_SECRET}
+
+weather:
+  collection:
+    enabled: true
+  cleanup:
+    enabled: true
+  notification:
+    enabled: true
+    firebase-project-id: "jachwi-sunbae-de"

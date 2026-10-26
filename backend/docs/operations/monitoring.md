@@ -87,12 +87,12 @@ HTTP `uri` 태그는 실제 값이 아닌 경로 템플릿 (`/api/properties/{pr
 
 ## 로그 구성
 
-| 실행 환경       | 출력                  | 용도                           |
-| --------------- | --------------------- | ------------------------------ |
-| `local`, `test` | 사람이 읽는 콘솔 로그 | 개발과 테스트                  |
-| `prod` 프로필   | 콘솔 + ECS JSON 파일  | dev·prod EC2와 CloudWatch 수집 |
+| 실행 환경           | 출력                  | 용도                           |
+| ------------------- | --------------------- | ------------------------------ |
+| `local`, `test`     | 사람이 읽는 콘솔 로그 | 개발과 테스트                  |
+| `dev`·`prod` 프로필 | 콘솔 + ECS JSON 파일  | dev·prod EC2와 CloudWatch 수집 |
 
-dev와 prod EC2는 모두 Spring의 `prod` 프로필을 사용한다. `DEPLOYMENT_ENVIRONMENT`를 각각 `dev`, `prod`로 두어 JSON의 `service.environment`를 구분한다.
+Dev와 Prod는 각각 Spring의 `dev`·`prod` 프로필을 사용하며 두 프로필 모두 기존 ECS JSON 파일 로그 설정을 유지한다. 기존 Dev의 `prod` 프로필은 배포 전에 Vault 설정에서 전환한다. `DEPLOYMENT_ENVIRONMENT`를 각각 `dev`, `prod`로 두어 JSON의 `service.environment`를 구분한다.
 
 로그 파일은 다음과 같다.
 

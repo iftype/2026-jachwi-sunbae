@@ -51,6 +51,15 @@ public enum ErrorCode {
     MAP_ADDRESS_NOT_FOUND("해당 위치의 주소를 찾을 수 없습니다."),
     MAP_PROVIDER_UNAVAILABLE("지도 정보를 불러오지 못했습니다."),
 
+    // 날씨
+    WEATHER_PROVIDER_UNAVAILABLE("날씨 정보를 불러오지 못했습니다."),
+    WEATHER_RESPONSE_INVALID("날씨 정보를 불러오지 못했습니다."),
+    WEATHER_COORDINATE_INVALID("위도와 경도를 확인해 주세요."),
+    WEATHER_LOCATION_UNSUPPORTED("날씨를 제공하지 않는 위치입니다."),
+
+    WEATHER_DEVICE_CONFLICT("기기 등록 상태를 확인하고 다시 시도해 주세요."),
+    WEATHER_NOTIFICATION_NOT_FOUND("알림을 찾을 수 없습니다."),
+
     // 대중교통
     TRANSIT_FEED_READ_FAILURE("대중교통 데이터를 불러오지 못했습니다."),
     ADMIN_DONG_READ_FAILURE("행정동 경계 데이터를 불러오지 못했습니다."),
@@ -59,7 +68,6 @@ public enum ErrorCode {
     TRANSIT_STOP_NOT_FOUND("정류장을 찾을 수 없습니다."),
     COMMUTE_ROUTE_NOT_FOUND("최대 통근 시간 안에 목적지까지 가는 경로가 없습니다."),
     RENTAL_QUERY_INVALID("지역 코드와 페이지 정보를 확인해 주세요.");
-
 
     private final String publicMessage;
 

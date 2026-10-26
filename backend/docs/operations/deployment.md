@@ -99,13 +99,13 @@ Thread Dump 스크립트와 logrotate 설정도 `scripts/` 아래에 두어 기�
 
 [appspec.yml](../../deploy/appspec.yml)이 순서와 제한 시간을 정의한다. 배포 경로는 `/opt/jachwi-sunbae`다.
 
-| 훅                 | 처리                                                                                                        |
-| ------------------ | ----------------------------------------------------------------------------------------------------------- |
-| `ApplicationStop`  | 기존 서비스를 중지한다. 직전 리비전의 스크립트를 사용하며 첫 배포에는 실행되지 않는다                       |
-| `BeforeInstall`    | 배포 디렉터리를 비운다                                                                                      |
-| `AfterInstall`     | 환경별 Vault 도구·인증서와 `app.env`를 준비하고 사용자·권한 확인 후 JVM 진단 도구와 systemd 유닛을 설치한다 |
-| `ApplicationStart` | `systemctl restart`로 새 애플리케이션을 실행한다                                                            |
-| `ValidateService`  | 서비스 실행, `health=UP`, 실행 SHA와 배포 SHA 일치를 확인한다                                               |
+| 훅                 | 처리                                                                                                          |
+| ------------------ | ------------------------------------------------------------------------------------------------------------- |
+| `ApplicationStop`  | 기존 서비스를 중지한다. 직전 리비전의 스크립트를 사용하며 첫 배포에는 실행되지 않는다                         |
+| `BeforeInstall`    | 배포 디렉터리를 비운다                                                                                        |
+| `AfterInstall`     | 실행 사용자·그룹을 확인하고 Vault 설정·Firebase 인증 파일을 준비한 뒤 JVM 진단 도구와 systemd 유닛을 설치한다 |
+| `ApplicationStart` | `systemctl restart`로 새 애플리케이션을 실행한다                                                              |
+| `ValidateService`  | 서비스 실행, `health=UP`, 실행 SHA와 배포 SHA 일치를 확인한다                                                 |
 
 과거 서비스 중지가 누락되어 `start`가 옛 프로세스를 유지하고, 그 health 응답으로 배포가 성공 처리된 경험이 있다. 이를 방지하려고 **명시적 restart와 SHA 비교**를 함께 사용한다.
 
@@ -115,20 +115,22 @@ Thread Dump 스크립트와 logrotate 설정도 `scripts/` 아래에 두어 기�
 
 EC2에는 Java 21, 실행 사용자 `jachwi`, CodeDeploy 에이전트와 배포 디렉터리가 필요하다. Vault 준비 스크립트는 Java·사용자·CodeDeploy 에이전트를 설치하지 않는다.
 
-[jachwi-sunbae.service](../../deploy/jachwi-sunbae.service)는 환경변수 파일을 읽어 `jachwi` 사용자로 실행한다. dev·prod 모두 `SPRING_PROFILES_ACTIVE=prod`를 사용한다.
+[jachwi-sunbae.service](../../deploy/jachwi-sunbae.service)는 환경변수 파일을 읽어 `jachwi` 사용자로 실행한다. Dev는 `SPRING_PROFILES_ACTIVE=dev`, Prod는 `SPRING_PROFILES_ACTIVE=prod`를 사용한다. 기존 Dev의 `prod` 설정은 이 버전 배포 전에 Vault의 Dev `app_env`에서 변경해야 한다. 기존 날씨 실행 여부·Firebase 프로젝트 ID 환경변수는 YAML보다 우선하므로 제거한다. 현재 Dev·Prod FCM은 인증정보·앱 연동 준비가 끝나기 전이라 OFF다.
 
 ### 포트와 파일 권한
 
 애플리케이션은 **80 포트**를 사용한다. ALB에서 앱으로 전달하는 경로에 8080이 열려 있지 않아 80을 사용하며, 비루트 사용자에게 `CAP_NET_BIND_SERVICE`를 부여한다.
 
-포트 변경 시 `application-prod.yml`, `validate.sh`의 확인 URL, ALB 대상 그룹을 함께 변경한다. 대상 그룹의 포트는 생성 후 변경할 수 없다.
+포트 변경 시 `application-dev.yml`·`application-prod.yml`, `validate.sh`의 확인 URL, ALB 대상 그룹을 함께 변경한다. 대상 그룹의 포트는 생성 후 변경할 수 없다.
 
-| 경로                                 | 권한·용도                                           |
-| ------------------------------------ | --------------------------------------------------- |
-| `/etc/jachwi-sunbae/app.env`         | `0600 root:root`. systemd가 읽는 환경변수           |
-| `/etc/jachwi-sunbae/vault-ca.crt`    | `0644 root:root`. Vault TLS 검증용 공개 인증서      |
-| `/etc/jachwi-sunbae/vault-ec2-nonce` | `0600 root:root`. 인스턴스별 재인증 값              |
-| `/var/log/jachwi-sunbae`             | `0750 jachwi:jachwi`. 애플리케이션·종료 이벤트 로그 |
+| 경로                                               | 권한·용도                                           |
+| -------------------------------------------------- | --------------------------------------------------- |
+| `/etc/jachwi-sunbae/app.env`                       | `0600 root:root`. systemd가 읽는 환경변수           |
+| `/etc/jachwi-sunbae/firebase`                      | `0750 root:jachwi`. 인증 파일 디렉터리              |
+| `/etc/jachwi-sunbae/firebase/service-account.json` | `0640 root:jachwi`. Firebase Admin 인증 파일        |
+| `/etc/jachwi-sunbae/vault-ca.crt`                  | `0644 root:root`. Vault TLS 검증용 공개 인증서      |
+| `/etc/jachwi-sunbae/vault-ec2-nonce`               | `0600 root:root`. 인스턴스별 재인증 값              |
+| `/var/log/jachwi-sunbae`                           | `0750 jachwi:jachwi`. 애플리케이션·종료 이벤트 로그 |
 
 ### 자동 재시작
 
@@ -149,7 +151,7 @@ EC2 자체의 중지·종료는 systemd로 복구할 수 없으며 ASG 구성에
 
 ### 구성과 인증
 
-Vault 주소는 `https://10.0.100.209:8200`이다. KV v2의 `app_env` 필드에 환경변수 파일 전체를 저장한다.
+Vault 주소는 `https://10.0.100.209:8200`이다. KV v2의 `app_env` 필드에 환경변수 파일 전체를 저장하고, 선택 필드 `firebase_service_account_json`에는 서버용 서비스 계정 JSON 원문을 문자열로 저장한다.
 
 | 환경 | 스크립트 인자 | 인증 역할 / 읽기 정책              | 비밀값 경로                 |
 | ---- | ------------- | ---------------------------------- | --------------------------- |
@@ -173,9 +175,10 @@ Vault 서버의 `jachwi-sync-dev-asg.timer`와 `jachwi-sync-prod-asg.timer`가 �
 ```text
 AfterInstall
   → 배포 그룹으로 dev / prod 선택
+  → AMI의 jachwi 사용자·그룹 확인
   → prepare_vault.sh: CLI·도구 설치, 공개 인증서 검증·배치
-  → fetch_env.sh <환경>: IMDSv2 신원 조회 → Vault 인증
-  → app.env 임시 다운로드 → 필수 키 검사 → 기존 파일 교체
+  → fetch_env.sh <환경>: IMDSv2 신원 조회 → Vault 인증 → KV 한 번 조회
+  → app.env 필수 키·Firebase JSON 검사 → 권한 설정 → 각 파일 교체
 ApplicationStart → restart
 ValidateService → health와 SHA 확인
 ```
@@ -183,6 +186,19 @@ ValidateService → health와 SHA 확인
 [prepare_vault.sh](../../deploy/scripts/prepare_vault.sh)는 Vault CLI `2.1.1`, `jq`, `openssl`, `curl`, `timeout`을 준비한다. [fetch_env.sh](../../deploy/scripts/fetch_env.sh)는 `dev` 또는 `prod` 인자 하나만 허용한다. 각 스크립트는 최대 180초, `AfterInstall`은 420초로 제한하며 인증은 최대 6회 재시도한다.
 
 파일 교체 전 `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET` 항목을 검사한다. 실패 시 기존 파일을 보존하고 배포를 중단한다. 앞선 훅에서 앱이 중지됐을 수 있으므로 파일 보존이 무중단을 보장하지는 않는다.
+
+Firebase JSON은 같은 디렉터리의 임시 파일로 받아 단일 JSON 객체인지 검사한 뒤 원자적으로 교체한다. 서비스 계정의 실제 유효성·권한은 Firebase 초기화와 연동 시 확인한다. 필드가 없으면 기존 인증 파일을 제거하고 `app.env` 배포를 계속한다. 필드가 JSON 객체 문자열이 아니거나 Vault 조회·파일 쓰기가 실패하면 배포를 중단한다. 원문은 로그에 출력하지 않고 임시 파일은 종료 시 정리한다. 두 파일을 한 트랜잭션으로 교체하는 것은 아니다.
+
+systemd는 `GOOGLE_APPLICATION_CREDENTIALS=/etc/jachwi-sunbae/firebase/service-account.json`을 고정한다. `EnvironmentFile`이 `Environment`보다 우선하므로 Vault `app_env`에는 이 변수를 넣지 않고 기존 DB·JWT·`KMA_API_KEY`를 유지한다. [systemd 환경변수 우선순위](https://www.freedesktop.org/software/systemd/man/latest/systemd.exec.html#EnvironmentFile=)를 따른다.
+
+Vault 관리자는 기존 환경별 KV에 `firebase_service_account_json` 필드를 추가한다. Dev는 `jachwi-sunbae-de`, Prod는 현재 YAML의 `jachwi-sunbae-prod`와 실제 프로젝트가 일치하는지 확인한다. 저장소 밖에 보관한 Dev JSON을 등록하는 예시이며 여기서 명령을 실행한 것은 아니다. 기존 `app_env`를 보존하려면 [KV patch](https://developer.hashicorp.com/vault/docs/commands/kv/patch)를 사용한다.
+
+```bash
+set +x
+vault kv patch -mount=secret jachwi-sunbae/dev firebase_service_account_json=- < /secure/path/dev-service-account.json
+```
+
+Prod는 경로를 `jachwi-sunbae/prod`로 바꾸고 Prod 전용 JSON을 입력한다. 별도 훅 없이 다음 CodeDeploy 배포에서 새 ASG 인스턴스에도 배치된다. 알림은 Dev만 ON이며, Dev는 이 JSON이 없으면 서버가 시작되지 않는다. Prod는 실제 프로젝트·자격증명·앱 연동 확인 후 별도로 활성화한다.
 
 Vault 값 변경은 실행 중인 앱에 즉시 반영되지 않는다. 이 리비전 배포 후 파일을 갱신하고 성공했을 때만 재시작한다. prod에서는 인자를 `prod`로 바꾼다.
 
@@ -199,7 +215,7 @@ sudo timeout --kill-after=5s 180s bash /opt/jachwi-sunbae/scripts/fetch_env.sh d
 
 AMI는 Java·에이전트 등 기반 실행 환경을 제공하고 CodeDeploy가 애플리케이션과 Vault 설정을 준비한다. 환경변수 변경만으로 AMI를 다시 만들 필요는 없다.
 
-AMI 생성은 서비스 중인 EC2 대신 분리한 작업용 인스턴스에서 진행한다. 앱 자동 시작을 해제하고 `app.env`·백업·인증 nonce·비밀값이 포함될 수 있는 작업 흔적을 제외한다. 기존 검증은 파일 경로에서의 제외이며 과거 디스크 데이터의 완전 소거까지 확인한 것은 아니다.
+AMI 생성은 서비스 중인 EC2 대신 분리한 작업용 인스턴스에서 진행한다. 앱 자동 시작을 해제하고 `app.env`·Firebase 서비스 계정 JSON·백업·인증 nonce·비밀값이 포함될 수 있는 작업 흔적을 제외한다. 기존 검증은 파일 경로에서의 제외이며 과거 디스크 데이터의 완전 소거까지 확인한 것은 아니다.
 
 2026-10-07 확인한 AMI와 자동 복구 배포는 다음과 같다. ASG는 `$Latest` 대신 검증한 시작 템플릿 버전을 명시한다.
 

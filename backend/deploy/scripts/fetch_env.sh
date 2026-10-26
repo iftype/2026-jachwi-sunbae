@@ -30,6 +30,8 @@ unset VAULT_TOKEN VAULT_SKIP_VERIFY VAULT_TLS_SERVER_NAME
 ENV_DIR=/etc/jachwi-sunbae
 ENV_FILE="${ENV_DIR}/app.env"
 NONCE_FILE="${ENV_DIR}/vault-ec2-nonce"
+FIREBASE_DIR="${ENV_DIR}/firebase"
+FIREBASE_FILE="${FIREBASE_DIR}/service-account.json"
 
 [[ "$(id -u)" == 0 ]] || {
   echo 'root 권한으로 실행해야 합니다.' >&2
@@ -86,13 +88,22 @@ VAULT_TOKEN=$(printf '%s' "${LOGIN_RESPONSE}" \
 export VAULT_TOKEN
 unset LOGIN_RESPONSE IMDS_TOKEN EC2_SIGNATURE
 
-TEMP_FILE=$(mktemp "${ENV_DIR}/.app.env.XXXXXX")
-trap 'rm -f "${TEMP_FILE}"; unset VAULT_TOKEN' EXIT
+TEMP_DIR=$(mktemp -d "${ENV_DIR}/.vault.XXXXXX")
+TEMP_FILE="${TEMP_DIR}/app.env"
+SECRET_FILE="${TEMP_DIR}/secret.json"
+FIREBASE_TEMP=''
+trap 'rm -rf "${TEMP_DIR}"; rm -f "${FIREBASE_TEMP}"; unset VAULT_TOKEN' EXIT
 
-vault kv get -mount=secret -field=app_env \
-  "${SECRET_PATH}" > "${TEMP_FILE}"
+if ! vault kv get -mount=secret -format=json "${SECRET_PATH}" > "${SECRET_FILE}" 2>/dev/null; then
+  echo 'Vault 설정 조회에 실패했습니다.' >&2
+  exit 1
+fi
 
-test -s "${TEMP_FILE}"
+if ! jq -erj '.data.data.app_env | select(type == "string" and length > 0)' \
+  "${SECRET_FILE}" > "${TEMP_FILE}" 2>/dev/null; then
+  echo 'Vault app_env가 비어 있거나 형식이 올바르지 않습니다.' >&2
+  exit 1
+fi
 
 for key in DB_HOST DB_PORT DB_NAME DB_USERNAME DB_PASSWORD JWT_SECRET; do
   if ! grep -Eq "^[[:space:]]*${key}[[:space:]]*=" "${TEMP_FILE}"; then
@@ -101,8 +112,29 @@ for key in DB_HOST DB_PORT DB_NAME DB_USERNAME DB_PASSWORD JWT_SECRET; do
   fi
 done
 
+HAS_FIREBASE=$(jq -r '.data.data | has("firebase_service_account_json")' "${SECRET_FILE}" 2>/dev/null)
+if [[ "${HAS_FIREBASE}" == true ]]; then
+  install -d -o root -g jachwi -m 0750 "${FIREBASE_DIR}"
+  FIREBASE_TEMP=$(mktemp "${FIREBASE_DIR}/.service-account.XXXXXX")
+  if ! jq -er '.data.data.firebase_service_account_json | fromjson | objects' \
+    "${SECRET_FILE}" > "${FIREBASE_TEMP}" 2>/dev/null; then
+    echo 'Firebase 서비스 계정 JSON 형식이 올바르지 않습니다.' >&2
+    exit 1
+  fi
+  chown root:jachwi "${FIREBASE_TEMP}"
+  chmod 0640 "${FIREBASE_TEMP}"
+fi
+
 chown root:root "${TEMP_FILE}"
 chmod 0600 "${TEMP_FILE}"
+
+if [[ "${HAS_FIREBASE}" == true ]]; then
+  mv -fT "${FIREBASE_TEMP}" "${FIREBASE_FILE}"
+  echo 'Firebase 서비스 계정 파일을 갱신했습니다.'
+else
+  rm -f "${FIREBASE_FILE}"
+  echo 'Firebase 서비스 계정 필드가 없어 파일 배치를 생략하고 이전 파일을 제거했습니다.'
+fi
 mv -fT "${TEMP_FILE}" "${ENV_FILE}"
 
 echo "Vault에서 ${DEPLOY_ENV} app.env를 갱신했습니다."
