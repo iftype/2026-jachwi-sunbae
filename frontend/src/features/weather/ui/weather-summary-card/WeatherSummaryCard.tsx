@@ -8,6 +8,7 @@ import { createForecastFixture, SAMPLE_LOCATION } from '../../model/weatherFixtu
 import { useWeatherPrototype } from '../../model/WeatherPrototypeProvider';
 import LocationPrompt from '../location-prompt/LocationPrompt';
 import ScenarioControl from '../scenario-control/ScenarioControl';
+import WeatherNoticePreview from '../weather-notice-preview/WeatherNoticePreview';
 import WeatherSymbol from '../weather-symbol/WeatherSymbol';
 
 import styles from './WeatherSummaryCard.module.css';
@@ -52,6 +53,7 @@ const WeatherSummaryCard = () => {
           </div>
         </Link>
       )}
+      <WeatherNoticePreview />
       <Link className={styles.settings} to="/weather/settings" state={{ from: '/me' }}>
         <span>생활 날씨 알림 설정</span>
         <Icon name="chevron-right" size={18} />

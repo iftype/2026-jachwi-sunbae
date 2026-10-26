@@ -68,6 +68,8 @@ describe('생활 날씨 프로토타입 사용자 흐름', () => {
     renderFlow();
     await user.click(await screen.findByText(/프로토타입 시나리오/));
     await user.selectOptions(screen.getByLabelText('날씨 상황 선택'), 'rain');
+    await user.click(screen.getByRole('button', { name: '오후 10시 · 내일 날씨' }));
+    expect(screen.getByText('내일 비 예보가 있어요. 우산을 챙기세요!')).toBeInTheDocument();
     await user.click(screen.getByRole('link', { name: '서울 시청 날씨 상세 보기' }));
     const list = await screen.findByRole('list', { name: '시간별 예보' });
     expect(within(list).getAllByRole('listitem')).toHaveLength(24);
@@ -90,6 +92,11 @@ describe('생활 날씨 프로토타입 사용자 흐름', () => {
     expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'true');
     await user.click(screen.getByRole('switch'));
     expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByLabelText('시연할 발송 시간')).toHaveValue('MORNING');
+    await user.click(screen.getByRole('button', { name: '가상 알림 확인하기' }));
+    expect(screen.getByRole('link', { name: /눌러서 알림 당시 내용 보기/ })).toHaveTextContent(
+      '오늘 비 예보가 있어요. 우산을 준비하세요',
+    );
   });
 
   it('저녁 가상 푸시는 내일의 눈·추위를 담고 시나리오 변경 후에도 당시 상세가 유지된다', async () => {

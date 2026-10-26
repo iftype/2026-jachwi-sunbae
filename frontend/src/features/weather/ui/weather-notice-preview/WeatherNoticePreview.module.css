@@ -1,0 +1,71 @@
+.preview {
+  margin-top: 1rem;
+}
+
+.preview h3 {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.caption {
+  margin: 0.4rem 0 0.65rem;
+  color: var(--color-ink-soft);
+  font-size: 0.65rem;
+  line-height: 1.5;
+}
+
+.slots {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.slots button {
+  min-height: 2.75rem;
+  padding: 0.6rem 0.35rem;
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
+.examples {
+  margin: 0.65rem 0 0;
+  padding: 0.15rem 0.8rem;
+  border-radius: var(--radius-md);
+  background: var(--color-card-surface);
+  list-style: none;
+}
+
+.examples li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.7rem 0;
+}
+
+.examples li + li {
+  border-top: 1px solid var(--color-border-strong);
+}
+
+.icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  padding-top: 0.1rem;
+  color: var(--color-check-good-ink);
+}
+
+.examples li > div {
+  min-width: 0;
+}
+
+.examples strong {
+  font-size: 0.7rem;
+}
+
+.examples p {
+  margin: 0.2rem 0 0;
+  color: var(--color-ink-soft);
+  font-size: 0.75rem;
+  line-height: 1.6;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
