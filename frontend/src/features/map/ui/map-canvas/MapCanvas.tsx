@@ -74,6 +74,7 @@ const MapCanvas = ({
     <div
       className={`${styles.canvas} ${liveMode ? styles.live : styles.demo}`}
       ref={canvasRef}
+      data-map-zoom-area=""
       aria-label={liveMode ? 'Naver 지도' : '데모 지도'}
       onClick={(event) => {
         if (liveMode || !interactive || onSelectLocation === undefined) return;
