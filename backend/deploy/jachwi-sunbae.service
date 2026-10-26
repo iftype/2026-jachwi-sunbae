@@ -13,6 +13,7 @@ Group=jachwi
 # systemd가 root 권한으로 읽은 뒤 User로 내려간다. 따라서 이 파일은 0600 root:root으로 두고
 # 애플리케이션 계정에 읽기 권한을 주지 않는다. 운영 비밀이 들어 있다.
 EnvironmentFile=/etc/jachwi-sunbae/app.env
+Environment="GOOGLE_APPLICATION_CREDENTIALS=/etc/jachwi-sunbae/firebase/service-account.json"
 
 # 애플리케이션이 80 을 듣는다. 비루트 계정이 1024 미만 포트에 바인딩하려면 이 권한이 필요하다.
 AmbientCapabilities=CAP_NET_BIND_SERVICE

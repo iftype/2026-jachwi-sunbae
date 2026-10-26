@@ -25,6 +25,12 @@ case "${DEPLOYMENT_GROUP_NAME:-}" in
         ;;
 esac
 
+# Firebase 파일을 root:jachwi로 만들기 전에 AMI의 실행 사용자·그룹을 확인한다.
+if ! id "${RUN_USER}" &>/dev/null || ! getent group "${RUN_USER}" >/dev/null; then
+    echo "실행 사용자 또는 그룹이 없다: ${RUN_USER}" >&2
+    exit 1
+fi
+
 timeout --kill-after=5s 180s \
     bash "${APP_DIR}/scripts/prepare_vault.sh"
 timeout --kill-after=5s 180s \
@@ -34,11 +40,6 @@ timeout --kill-after=5s 180s \
 # 없으면 애플리케이션이 기동 도중에 죽으므로 여기서 먼저 멈춘다.
 if [[ ! -f "${ENV_FILE}" ]]; then
     echo "운영 환경변수 파일이 없다: ${ENV_FILE}" >&2
-    exit 1
-fi
-
-if ! id "${RUN_USER}" &>/dev/null; then
-    echo "실행 사용자가 없다: ${RUN_USER}" >&2
     exit 1
 fi
 

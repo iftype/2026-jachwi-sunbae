@@ -69,7 +69,7 @@
 
 2026-10-26 로컬 두 DB의 V4 미적용과 모든 영구 DB에 V4가 미적용이라는 담당자 확인을 근거로 V4를 수정했다. 기기의 `platform`·`permission`·`active`와 알림의 `result`를 제거했다. 기존 DB 초기화·이력 수정은 실행하지 않았다. 적용된 V3는 수정하지 않고 V5로 예보 메타데이터를 정리한다. [적용 정책](../operations/database-migrations.md)을 따른다.
 
-알림 실행 여부는 각 프로필의 `weather.notification.enabled`로 관리한다. Local은 OFF이며, Dev·Prod도 실제 Firebase 프로젝트가 미생성인 현재는 OFF다. 최종 목표는 Dev·Prod ON이다. 준비 후 각 YAML의 `firebase-project-id`에 서로 다른 실제 프로젝트 ID를 고정하고 활성화한다. 스케줄러의 조건부 빈으로 실행을 제어하고 Dispatch 서비스에 중복 플래그를 주입하지 않는다. OFF에서는 Firebase 자격증명을 읽지 않으며 ON에는 Google Application Default Credentials가 필요하다. 파일 기반 ADC이면 `GOOGLE_APPLICATION_CREDENTIALS`에 저장소 밖 경로를 넣는다.
+알림 실행 여부는 각 프로필의 `weather.notification.enabled`로 관리한다. Local은 OFF이며, Dev·Prod도 인증정보·앱 연동 준비 중인 현재는 OFF다. 최종 목표는 Dev·Prod ON이다. 준비 후 각 YAML의 `firebase-project-id`에 서로 다른 실제 프로젝트 ID를 고정하고 활성화한다. 스케줄러의 조건부 빈으로 실행을 제어하고 Dispatch 서비스에 중복 플래그를 주입하지 않는다. OFF에서는 Firebase 자격증명을 읽지 않으며 ON에는 Google Application Default Credentials가 필요하다. EC2의 `GOOGLE_APPLICATION_CREDENTIALS`는 systemd가 `/etc/jachwi-sunbae/firebase/service-account.json`으로 고정하며 서비스 계정 JSON은 [Vault 배포 절차](../operations/deployment.md#배포-흐름과-설정-변경)로 배치한다.
 
 Dev 서버·개발 앱·개발용 토큰은 Dev Firebase를, Prod 서버·운영 앱·운영용 토큰은 Prod Firebase를 사용한다. 서버 자격증명과 앱 설정의 프로젝트 일치를 확인하고 운영 토큰을 Dev DB에 복제하지 않는다. 회원 × 발송일 × 슬롯의 중복 생성 방지는 유지한다. [환경별 준비 사항](environment-variables.md#날씨의-외부-인증정보와-프로필)을 따른다.
 

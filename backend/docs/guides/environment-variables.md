@@ -46,10 +46,10 @@ Spring Boot 애플리케이션은 CORS 허용 Origin과 인증·저장소 설정
 
 날씨 기능은 아래 인증정보만 외부에서 주입한다. 실행 여부와 Firebase 프로젝트 ID는 `application-{profile}.yml`에서 관리한다.
 
-| 환경변수                         | 기본값 | 용도                                                                                        |
-| -------------------------------- | ------ | ------------------------------------------------------------------------------------------- |
-| `KMA_API_KEY`                    | 비움   | Dev·Prod 전국 격자 수집에 필요한 기상청 API허브 키. Local에서는 불필요                      |
-| `GOOGLE_APPLICATION_CREDENTIALS` | 미설정 | FCM 활성화 후 파일 기반 ADC를 사용할 때의 저장소 밖 자격증명 경로. 다른 ADC 방식이면 불필요 |
+| 환경변수                         | 기본값 | 용도                                                                                                       |
+| -------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------- |
+| `KMA_API_KEY`                    | 비움   | Dev·Prod 전국 격자 수집에 필요한 기상청 API허브 키. Local에서는 불필요                                     |
+| `GOOGLE_APPLICATION_CREDENTIALS` | 미설정 | EC2에서는 systemd가 `/etc/jachwi-sunbae/firebase/service-account.json`으로 고정. `app_env`에 정의하지 않음 |
 
 현재 저장소의 실행 설정은 다음과 같다.
 
@@ -58,11 +58,11 @@ Spring Boot 애플리케이션은 CORS 허용 Origin과 인증·저장소 설정
 | `weather.collection.enabled`               | OFF        | ON                      | ON                      |
 | `weather.cleanup.enabled`                  | OFF        | ON                      | ON                      |
 | `weather.notification.enabled`             | OFF        | OFF: Firebase 준비 대기 | OFF: Firebase 준비 대기 |
-| `weather.notification.firebase-project-id` | 사용 안 함 | 빈 값: 프로젝트 미생성  | 빈 값: 프로젝트 미생성  |
+| `weather.notification.firebase-project-id` | 사용 안 함 | `jachwi-sunbae-de`      | `jachwi-sunbae-prod`    |
 
 공통 `application.yml`은 세 기능 모두 기본 OFF다. `application-local.yml`도 OFF를 명시하고, `application-dev.yml`·`application-prod.yml`이 수집·정리를 활성화한다. 서버 시작 시 수집하지 않고 다음 예약 실행에서 빈 DB에도 같은 경로로 적재한다. 최초 적재 전용 설정·수동 CLI는 없다. 수집은 KST 02·05·08·11·14·17·20·23시 15분, 정리는 매일 00:30이다. 공개 지연 15분은 아직 실측 전 가정이다.
 
-Dev·Prod의 최종 목표는 FCM도 ON이지만, 2026-10-25 확인 결과 두 Firebase 프로젝트가 아직 생성되지 않았다. 실제 프로젝트 ID·ADC·앱 등록이 준비되기 전에는 현재 OFF를 유지한다. 준비 후 각 프로필의 `firebase-project-id`에 서로 다른 실제 ID를 고정하고 `weather.notification.enabled`를 `true`로 바꾼다. 프로젝트 ID는 비밀이 아니지만 임의 값을 넣지 않는다. 빈 ID로 알림을 활성화하면 자격증명을 읽기 전에 기동에 실패한다.
+Dev·Prod의 최종 목표는 FCM도 ON이지만 실제 프로젝트·ADC·앱 등록을 확인하기 전에는 현재 OFF를 유지한다. Dev의 지정 프로젝트는 `jachwi-sunbae-de`이며 Prod는 기존 설정값을 유지한다. 환경별 서비스 계정 JSON은 [Vault 배포 절차](../operations/deployment.md#배포-흐름과-설정-변경)로 배치한다. 준비 후 YAML의 ID와 실제 프로젝트가 일치하는지 확인하고 `weather.notification.enabled`를 `true`로 바꾼다. 프로젝트 ID는 비밀이 아니지만 임의 값을 넣지 않는다. 빈 ID로 알림을 활성화하면 자격증명을 읽기 전에 기동에 실패한다.
 
 - Dev 서버·개발 앱은 Dev Firebase 프로젝트와 개발용 자격증명·토큰을 사용한다.
 - Prod 서버·운영 앱은 Prod Firebase 프로젝트와 운영용 자격증명·토큰을 사용한다.
