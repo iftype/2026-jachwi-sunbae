@@ -115,7 +115,7 @@ Thread Dump 스크립트와 logrotate 설정도 `scripts/` 아래에 두어 기�
 
 EC2에는 Java 21, 실행 사용자 `jachwi`, CodeDeploy 에이전트와 배포 디렉터리가 필요하다. Vault 준비 스크립트는 Java·사용자·CodeDeploy 에이전트를 설치하지 않는다.
 
-[jachwi-sunbae.service](../../deploy/jachwi-sunbae.service)는 환경변수 파일을 읽어 `jachwi` 사용자로 실행한다. Dev는 `SPRING_PROFILES_ACTIVE=dev`, Prod는 `SPRING_PROFILES_ACTIVE=prod`를 사용한다. 기존 Dev의 `prod` 설정은 이 버전 배포 전에 Vault의 Dev `app_env`에서 변경해야 한다. 기존 날씨 실행 여부·Firebase 프로젝트 ID 환경변수도 제거하고 [프로필별 준비 사항](../guides/environment-variables.md#날씨의-외부-인증정보와-프로필)을 확인한다. 현재 Dev·Prod FCM은 인증정보·앱 연동 준비가 끝나기 전이라 OFF다.
+[jachwi-sunbae.service](../../deploy/jachwi-sunbae.service)는 환경변수 파일을 읽어 `jachwi` 사용자로 실행한다. Dev는 `SPRING_PROFILES_ACTIVE=dev`, Prod는 `SPRING_PROFILES_ACTIVE=prod`를 사용한다. 기존 Dev의 `prod` 설정은 이 버전 배포 전에 Vault의 Dev `app_env`에서 변경해야 한다. 기존 날씨 실행 여부·Firebase 프로젝트 ID 환경변수는 YAML보다 우선하므로 제거한다. 현재 Dev·Prod FCM은 인증정보·앱 연동 준비가 끝나기 전이라 OFF다.
 
 ### 포트와 파일 권한
 
@@ -187,9 +187,9 @@ ValidateService → health와 SHA 확인
 
 파일 교체 전 `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET` 항목을 검사한다. 실패 시 기존 파일을 보존하고 배포를 중단한다. 앞선 훅에서 앱이 중지됐을 수 있으므로 파일 보존이 무중단을 보장하지는 않는다.
 
-Firebase JSON은 같은 디렉터리의 임시 파일로 받아 단일 JSON 객체인지 검사한 뒤 원자적으로 교체한다. 서비스 계정의 실제 유효성·권한은 Firebase 초기화와 연동 시 확인한다. 필드가 없으면 기존 인증 파일을 제거하고 `app.env` 배포를 계속한다. 필드가 null·빈 문자열·잘못된 JSON이거나 Vault 조회·파일 쓰기가 실패하면 배포를 중단한다. 원문은 로그에 출력하지 않고 임시 파일은 종료 시 정리한다. 두 파일을 한 트랜잭션으로 교체하는 것은 아니다.
+Firebase JSON은 같은 디렉터리의 임시 파일로 받아 단일 JSON 객체인지 검사한 뒤 원자적으로 교체한다. 서비스 계정의 실제 유효성·권한은 Firebase 초기화와 연동 시 확인한다. 필드가 없으면 기존 인증 파일을 제거하고 `app.env` 배포를 계속한다. 필드가 JSON 객체 문자열이 아니거나 Vault 조회·파일 쓰기가 실패하면 배포를 중단한다. 원문은 로그에 출력하지 않고 임시 파일은 종료 시 정리한다. 두 파일을 한 트랜잭션으로 교체하는 것은 아니다.
 
-systemd는 `GOOGLE_APPLICATION_CREDENTIALS=/etc/jachwi-sunbae/firebase/service-account.json`을 고정한다. `EnvironmentFile`이 `Environment`보다 우선하므로 `app_env`에 이 변수가 정의되어 있으면 배포를 거부한다. Vault `app_env`에서는 해당 항목을 제거하고 기존 DB·JWT·`KMA_API_KEY`를 유지한다. [systemd 환경변수 우선순위](https://www.freedesktop.org/software/systemd/man/latest/systemd.exec.html#EnvironmentFile=)를 따른다.
+systemd는 `GOOGLE_APPLICATION_CREDENTIALS=/etc/jachwi-sunbae/firebase/service-account.json`을 고정한다. `EnvironmentFile`이 `Environment`보다 우선하므로 Vault `app_env`에는 이 변수를 넣지 않고 기존 DB·JWT·`KMA_API_KEY`를 유지한다. [systemd 환경변수 우선순위](https://www.freedesktop.org/software/systemd/man/latest/systemd.exec.html#EnvironmentFile=)를 따른다.
 
 Vault 관리자는 기존 환경별 KV에 `firebase_service_account_json` 필드를 추가한다. Dev는 `jachwi-sunbae-de`, Prod는 현재 YAML의 `jachwi-sunbae-prod`와 실제 프로젝트가 일치하는지 확인한다. 저장소 밖에 보관한 Dev JSON을 등록하는 예시이며 여기서 명령을 실행한 것은 아니다. 기존 `app_env`를 보존하려면 [KV patch](https://developer.hashicorp.com/vault/docs/commands/kv/patch)를 사용한다.
 
@@ -266,10 +266,10 @@ bash -n backend/deploy/scripts/jachwi-thread-dump.sh
 git diff --check
 ```
 
-Vault/Firebase 파일 배치나 JVM 진단 도구(Thread Dump 스크립트·logrotate·`AfterInstall` 설치·systemd 유닛)를 바꾸면 [diagnostics-test.sh](../../deploy/tests/diagnostics-test.sh)를 Amazon Linux 2023 컨테이너에서 실행한다. 테스트가 `/opt`, `/etc`에 파일을 만들므로 EC2나 로컬 호스트에서 직접 실행하지 않는다. 실제 서비스에 SIGQUIT을 보내지 않고 모의 IMDS·Vault·`systemctl`·`journalctl`과 컨테이너 안의 JVM으로 검증한다.
+JVM 진단 도구(Thread Dump 스크립트·logrotate·`AfterInstall` 설치·systemd 유닛)를 바꾸면 [diagnostics-test.sh](../../deploy/tests/diagnostics-test.sh)를 Amazon Linux 2023 컨테이너에서 실행한다. 테스트가 `/opt`, `/etc`에 파일을 만들므로 EC2나 로컬 호스트에서 직접 실행하지 않는다. 실제 서비스에 SIGQUIT을 보내지 않고 모의 `systemctl`·`journalctl`과 컨테이너 안의 JVM으로 검증한다.
 
 ```bash
 docker run --rm -v "$PWD/backend/deploy:/deploy:ro" -e JACHWI_DIAGNOSTICS_TEST=container \
   amazonlinux:2023 bash -c 'dnf install -y -q java-21-amazon-corretto-headless logrotate \
-  systemd util-linux procps-ng shadow-utils findutils jq openssl >/dev/null && bash /deploy/tests/diagnostics-test.sh'
+  systemd util-linux procps-ng shadow-utils findutils >/dev/null && bash /deploy/tests/diagnostics-test.sh'
 ```

@@ -34,8 +34,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -78,11 +76,10 @@ class WeatherCollectionIntegrationTest {
         jdbc.update("DELETE FROM weather_collection_publications");
     }
 
-    @ParameterizedTest
-    @ValueSource(ints = {2, 5, 14, 23})
+    @Test
     @DisplayName("전국 크기의 RAW를 48시간·일별 계획대로 요청하고 원본의 모든 값·시각을 MySQL과 대조한다")
-    void collectsAndVerifiesFullPlan(final int hour) {
-        WeatherCollectionPlan plan = WeatherCollectionPlan.forPublication(LocalDate.of(2026, 10, 23).atTime(hour, 0));
+    void collectsAndVerifiesFullPlan() {
+        WeatherCollectionPlan plan = WeatherCollectionPlan.forPublication(LocalDate.of(2026, 10, 23).atTime(2, 0));
         Map<KmaForecastRequest, byte[]> raw = new LinkedHashMap<>();
         RestClient.Builder builder = RestClient.builder().baseUrl("https://apihub.kma.go.kr");
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();

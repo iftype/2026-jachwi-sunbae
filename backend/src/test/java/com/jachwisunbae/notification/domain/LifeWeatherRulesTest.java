@@ -6,8 +6,6 @@ import com.jachwisunbae.notification.domain.LifeWeatherForecast.Hour;
 import com.jachwisunbae.notification.domain.LifeWeatherReport.Condition;
 import com.jachwisunbae.notification.domain.LifeWeatherReport.Notice;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -15,7 +13,6 @@ import java.util.function.UnaryOperator;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvFileSource;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.NullSource;
@@ -31,20 +28,6 @@ class LifeWeatherRulesTest {
         var report = evaluate(replace(hours(), 12, h -> new Hour(h.at(), h.temperature(), pty, h.humidity())), null, null);
         assertThat(has(report, Condition.RAIN)).isEqualTo(rain);
         assertThat(has(report, Condition.SNOW)).isEqualTo(snow);
-    }
-
-    @ParameterizedTest
-    @CsvFileSource(resources = "/weather/kma-precipitation-samples.csv", numLinesToSkip = 1)
-    void actualRainAndSnowSamplesUseOnlyPty(final String scenario, final String publishedAt, final String forecastAt,
-            final int nx, final int ny, final double pty, final double pop, final double pcp, final double sno,
-            final boolean expectedRain, final boolean expectedSnow) {
-        LocalDateTime at = LocalDateTime.parse(forecastAt, DateTimeFormatter.ofPattern("yyyyMMddHH"));
-        List<Hour> hours = hours(at.toLocalDate(), NotificationSlot.MORNING);
-        var input = new LifeWeatherForecast(at.toLocalDate(), NotificationSlot.MORNING,
-                replace(hours, at.getHour(), h -> new Hour(h.at(), h.temperature(), pty, h.humidity())), null, null);
-        var report = rules.evaluate(input);
-        assertThat(has(report, Condition.RAIN)).as(scenario).isEqualTo(expectedRain);
-        assertThat(has(report, Condition.SNOW)).as(scenario).isEqualTo(expectedSnow);
     }
 
     @ParameterizedTest

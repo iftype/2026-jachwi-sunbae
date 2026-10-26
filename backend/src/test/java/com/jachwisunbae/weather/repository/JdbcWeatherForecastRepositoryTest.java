@@ -201,6 +201,26 @@ class JdbcWeatherForecastRepositoryTest {
     }
 
     @Test
+    @DisplayName("기준 시각·날짜 이전의 예보만 삭제하고 기준 이후는 보존한다")
+    void deletesOnlyForecastsBeforeCutoff() {
+        JdbcWeatherForecastRepository repository = repository(true);
+        repository.upsertHourly(List.of(
+                new HourlyForecast(POINT, new ForecastTimes(PUBLISHED_AT, FORECAST_AT.minusHours(1)),
+                        1.0, 1.0, 0.0, 0.0, 0.0, null, 50.0, 1.0, COLLECTED_AT),
+                hourly(POINT, PUBLISHED_AT, COLLECTED_AT, 1.0)));
+        repository.upsertDaily(List.of(
+                new DailyForecast(POINT, DATE.minusDays(1), temperature(1.0, PUBLISHED_AT, COLLECTED_AT), null),
+                new DailyForecast(POINT, DATE, temperature(1.0, PUBLISHED_AT, COLLECTED_AT), null)));
+
+        assertThat(repository.deleteHourlyBefore(FORECAST_AT)).isOne();
+        assertThat(repository.deleteDailyBefore(DATE)).isOne();
+
+        assertHourly(hourly(POINT, PUBLISHED_AT, COLLECTED_AT, 1.0));
+        assertThat(count("weather_forecasts")).isOne();
+        assertThat(count("weather_daily_forecasts")).isOne();
+    }
+
+    @Test
     @DisplayName("저장소는 호출자가 연 트랜잭션에 참여해 두 테이블을 함께 롤백한다")
     void participatesInCallerTransaction() {
         DataSource dataSource = dataSource(false);

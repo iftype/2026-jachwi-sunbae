@@ -112,19 +112,12 @@ for key in DB_HOST DB_PORT DB_NAME DB_USERNAME DB_PASSWORD JWT_SECRET; do
   fi
 done
 
-# EnvironmentFile은 Environment보다 우선하므로 인증 파일 경로를 중복 관리하지 않는다.
-if grep -Eq '^[[:space:]]*GOOGLE_APPLICATION_CREDENTIALS[[:space:]]*=' "${TEMP_FILE}"; then
-  echo 'GOOGLE_APPLICATION_CREDENTIALS는 systemd에서 관리합니다. app_env에서 제거해 주세요.' >&2
-  exit 1
-fi
-
 HAS_FIREBASE=$(jq -r '.data.data | has("firebase_service_account_json")' "${SECRET_FILE}" 2>/dev/null)
 if [[ "${HAS_FIREBASE}" == true ]]; then
   install -d -o root -g jachwi -m 0750 "${FIREBASE_DIR}"
   FIREBASE_TEMP=$(mktemp "${FIREBASE_DIR}/.service-account.XXXXXX")
-  if ! jq -erj '.data.data.firebase_service_account_json | select(type == "string")' \
-    "${SECRET_FILE}" > "${FIREBASE_TEMP}" 2>/dev/null \
-    || ! jq -es 'length == 1 and (.[0] | type == "object")' "${FIREBASE_TEMP}" >/dev/null 2>&1; then
+  if ! jq -er '.data.data.firebase_service_account_json | fromjson | objects' \
+    "${SECRET_FILE}" > "${FIREBASE_TEMP}" 2>/dev/null; then
     echo 'Firebase 서비스 계정 JSON 형식이 올바르지 않습니다.' >&2
     exit 1
   fi

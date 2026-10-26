@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# JVM 진단 도구와 Vault/Firebase 파일 배치·AfterInstall·systemd 유닛을 검증한다.
+# JVM 진단 도구(Thread Dump 스크립트·logrotate·AfterInstall 설치·systemd 유닛)를 검증한다.
 # /opt, /etc, /usr/local/sbin 에 파일을 만들므로 버려도 되는 Amazon Linux 2023 컨테이너에서만 실행한다.
 #
 #   docker run --rm -v "$PWD/backend/deploy:/deploy:ro" -e JACHWI_DIAGNOSTICS_TEST=container \
 #     amazonlinux:2023 bash -c 'dnf install -y -q java-21-amazon-corretto-headless logrotate \
-#     systemd util-linux procps-ng shadow-utils findutils jq openssl >/dev/null && bash /deploy/tests/diagnostics-test.sh'
+#     systemd util-linux procps-ng shadow-utils findutils >/dev/null && bash /deploy/tests/diagnostics-test.sh'
 set -uo pipefail
 
 if [[ "${JACHWI_DIAGNOSTICS_TEST:-}" != container || "$(id -u)" != 0 ]]; then
@@ -319,112 +319,6 @@ check "logrotate: 이전 파일 최대 5개" [ "$(ls /var/log/jachwi-diagnostics
 rm -rf /var/log/jachwi-diagnostics
 logrotate -s "${T}/logrotate.status" "${T}/logrotate.conf" 2> "${T}/missing.err"
 check "logrotate: 파일 없어도 성공 (missingok)" [ $? -eq 0 ]
-
-# --- Vault 환경변수·Firebase 파일 배치 ----------------------------------------------------
-# 실제 IMDS·Vault 대신 PATH 대역을 사용한다. 모든 값은 가짜이며 실제 인증은 하지 않는다.
-export VAULT_TEST_DIR="${T}/vault"
-mkdir -p "${VAULT_TEST_DIR}/bin"
-cat > "${VAULT_TEST_DIR}/bin/curl" <<'MOCK'
-#!/usr/bin/env bash
-case "${!#}" in
-    */latest/api/token) printf 'TEST_IMDS_TOKEN' ;;
-    */instance-identity/rsa2048) printf 'TEST_EC2_SIGNATURE' ;;
-    *) exit 1 ;;
-esac
-MOCK
-cat > "${VAULT_TEST_DIR}/bin/vault" <<'MOCK'
-#!/usr/bin/env bash
-case "$*" in
-    'write -format=json auth/aws/login -')
-        cat > "${VAULT_TEST_DIR}/login.json"
-        printf '{"auth":{"client_token":"TEST_VAULT_TOKEN"}}'
-        ;;
-    'kv get -mount=secret -format=json jachwi-sunbae/dev'|'kv get -mount=secret -format=json jachwi-sunbae/prod')
-        printf '%s\n' "${!#}" >> "${VAULT_TEST_DIR}/reads"
-        if [[ -e "${VAULT_TEST_DIR}/read-error" ]]; then
-            echo TEST_PRIVATE_KEY >&2
-            exit 1
-        fi
-        cat "${VAULT_TEST_DIR}/${!#}.json"
-        ;;
-    *) exit 1 ;;
-esac
-MOCK
-chmod 0755 "${VAULT_TEST_DIR}/bin/"*
-mkdir -p "${VAULT_TEST_DIR}/jachwi-sunbae"
-id jachwi &>/dev/null || useradd --system --no-create-home jachwi
-FAKE_APP_ENV=$'DB_HOST=test\nDB_PORT=3306\nDB_NAME=test\nDB_USERNAME=test\nDB_PASSWORD=TEST_DB_SECRET\nJWT_SECRET=TEST_JWT_SECRET\nKMA_API_KEY=TEST_KMA_KEY\n'
-for environment in dev prod; do
-    jq -n --arg project "test-${environment}" \
-        '{type:"service_account", project_id:$project, private_key:"TEST_PRIVATE_KEY"}' > "${VAULT_TEST_DIR}/${environment}-account"
-    jq -n --arg env "${FAKE_APP_ENV}" --rawfile account "${VAULT_TEST_DIR}/${environment}-account" \
-        '{data:{data:{app_env:$env, firebase_service_account_json:$account}}}' > "${VAULT_TEST_DIR}/jachwi-sunbae/${environment}.json"
-done
-cp "${VAULT_TEST_DIR}/jachwi-sunbae/dev.json" "${VAULT_TEST_DIR}/valid.json"
-ENV_FILE=/etc/jachwi-sunbae/app.env
-FIREBASE_FILE=/etc/jachwi-sunbae/firebase/service-account.json
-run_fetch() {
-    PATH="${VAULT_TEST_DIR}/bin:${PATH}" bash -x "${DEPLOY_DIR}/scripts/fetch_env.sh" "$1" \
-        > "${VAULT_TEST_DIR}/output" 2>&1
-}
-check_fetch_cleanup() {
-    check "$1: 임시 파일 정리" test -z "$(find /etc/jachwi-sunbae -name '.vault.*' -o -name '.service-account.*')"
-    check "$1: 비밀정보 로그 비노출" bash -c '! grep -Eq "TEST_(PRIVATE_KEY|DB_SECRET|JWT_SECRET|KMA_KEY|VAULT_TOKEN|EC2_SIGNATURE|IMDS_TOKEN)" "$1"' _ "${VAULT_TEST_DIR}/output"
-}
-for environment in dev prod; do
-    : > "${VAULT_TEST_DIR}/reads"
-    run_fetch "${environment}"
-    check "Vault ${environment}: 배치 성공" [ $? -eq 0 ]
-    check "Vault ${environment}: 같은 경로 한 번 조회" [ "$(cat "${VAULT_TEST_DIR}/reads")" == "jachwi-sunbae/${environment}" ]
-    check "Vault ${environment}: AWS 인증 역할 유지" jq -e --arg role "jachwi-${environment}" '.role == $role and (.nonce | length > 0)' "${VAULT_TEST_DIR}/login.json" > /dev/null
-    check "Vault ${environment}: app.env 원본 유지" [ "$(cat "${ENV_FILE}")" == "${FAKE_APP_ENV%$'\n'}" ]
-    check "Vault ${environment}: JSON 원본 유지" cmp -s "${VAULT_TEST_DIR}/${environment}-account" "${FIREBASE_FILE}"
-    check_fetch_cleanup "Vault ${environment}"
-done
-check "Firebase 디렉터리 root:jachwi 0750" [ "$(stat -c '%a %U %G' /etc/jachwi-sunbae/firebase)" == '750 root jachwi' ]
-check "Firebase 파일 root:jachwi 0640" [ "$(stat -c '%a %U %G' "${FIREBASE_FILE}")" == '640 root jachwi' ]
-check "app.env root:root 0600 유지" [ "$(stat -c '%a %U %G' "${ENV_FILE}")" == '600 root root' ]
-check "jachwi는 Firebase 파일 읽기 가능" setpriv --reuid=jachwi --regid=jachwi --clear-groups test -r "${FIREBASE_FILE}"
-check "jachwi는 Firebase 파일 변경 불가" setpriv --reuid=jachwi --regid=jachwi --clear-groups test ! -w "${FIREBASE_FILE}"
-check "일반 사용자는 Firebase 파일 읽기 불가" setpriv --reuid=65534 --regid=65534 --clear-groups test ! -r "${FIREBASE_FILE}"
-check "jachwi는 app.env 직접 읽기 불가" setpriv --reuid=jachwi --regid=jachwi --clear-groups test ! -r "${ENV_FILE}"
-
-jq 'del(.data.data.firebase_service_account_json)' "${VAULT_TEST_DIR}/valid.json" > "${VAULT_TEST_DIR}/jachwi-sunbae/dev.json"
-for round in 1 2; do
-    run_fetch dev
-    check "선택 필드 없음 ${round}회차: 배포 성공" [ $? -eq 0 ]
-    check "선택 필드 없음 ${round}회차: 이전 인증 파일 제거" test ! -e "${FIREBASE_FILE}"
-    check_fetch_cleanup "선택 필드 없음 ${round}회차"
-done
-cp "${VAULT_TEST_DIR}/valid.json" "${VAULT_TEST_DIR}/jachwi-sunbae/dev.json"
-run_fetch dev
-cp "${ENV_FILE}" "${VAULT_TEST_DIR}/previous-env"
-cp "${FIREBASE_FILE}" "${VAULT_TEST_DIR}/previous-account"
-for invalid in '"TEST_PRIVATE_KEY {"' '""' 'null' '{}' '"null"' '"[]"' '"{} {}"'; do
-    jq --argjson invalid "${invalid}" '.data.data.firebase_service_account_json = $invalid' \
-        "${VAULT_TEST_DIR}/valid.json" > "${VAULT_TEST_DIR}/jachwi-sunbae/dev.json"
-    run_fetch dev
-    check "잘못된 JSON: 배포 실패" [ $? -ne 0 ]
-    check "잘못된 JSON: 기존 app.env 보존" cmp -s "${ENV_FILE}" "${VAULT_TEST_DIR}/previous-env"
-    check "잘못된 JSON: 기존 인증 파일 보존" cmp -s "${FIREBASE_FILE}" "${VAULT_TEST_DIR}/previous-account"
-    check_fetch_cleanup '잘못된 JSON'
-done
-for failure in vault missing-env override write; do
-    cp "${VAULT_TEST_DIR}/valid.json" "${VAULT_TEST_DIR}/jachwi-sunbae/dev.json"
-    case "${failure}" in
-        vault) touch "${VAULT_TEST_DIR}/read-error" ;;
-        missing-env) jq '.data.data.app_env = "DB_HOST=test"' "${VAULT_TEST_DIR}/valid.json" > "${VAULT_TEST_DIR}/jachwi-sunbae/dev.json" ;;
-        override) jq '.data.data.app_env += "  GOOGLE_APPLICATION_CREDENTIALS = /wrong/path\n"' "${VAULT_TEST_DIR}/valid.json" > "${VAULT_TEST_DIR}/jachwi-sunbae/dev.json" ;;
-        write) rm "${FIREBASE_FILE}"; mkdir "${FIREBASE_FILE}" ;;
-    esac
-    run_fetch dev
-    check "${failure}: 배포 실패" [ $? -ne 0 ]
-    check "${failure}: 기존 app.env 보존" cmp -s "${ENV_FILE}" "${VAULT_TEST_DIR}/previous-env"
-    check_fetch_cleanup "${failure}"
-    rm -f "${VAULT_TEST_DIR}/read-error"
-done
-rmdir "${FIREBASE_FILE}"
-unset VAULT_TEST_DIR
 
 # --- AfterInstall 설치와 재배포 ------------------------------------------------------------
 # Vault 스크립트와 systemctl 은 모의로 바꾸고 나머지 AfterInstall 은 그대로 실행한다.

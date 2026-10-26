@@ -41,39 +41,7 @@ Spring Boot 애플리케이션은 CORS 허용 Origin과 인증·저장소 설정
 | `MAP_READ_TIMEOUT_MILLIS`    | `5000`                  | 지도 외부 공급자 응답 제한 시간                                                          |
 | `DEPLOYMENT_ENVIRONMENT`     | `local`                 | 구조화 로그의 실행 환경. EC2에서는 `dev` 또는 `prod`를 사용한다                          |
 | `LOG_PATH`                   | `./logs`                | `dev`·`prod` 프로필에서 JSON 로그 파일을 저장할 디렉터리                                 |
-
-## 날씨의 외부 인증정보와 프로필
-
-날씨 기능은 아래 인증정보만 외부에서 주입한다. 실행 여부와 Firebase 프로젝트 ID는 `application-{profile}.yml`에서 관리한다.
-
-| 환경변수                         | 기본값 | 용도                                                                                                       |
-| -------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------- |
-| `KMA_API_KEY`                    | 비움   | Dev·Prod 전국 격자 수집에 필요한 기상청 API허브 키. Local에서는 불필요                                     |
-| `GOOGLE_APPLICATION_CREDENTIALS` | 미설정 | EC2에서는 systemd가 `/etc/jachwi-sunbae/firebase/service-account.json`으로 고정. `app_env`에 정의하지 않음 |
-
-현재 저장소의 실행 설정은 다음과 같다.
-
-| 기능                                       | Local      | Dev                     | Prod                    |
-| ------------------------------------------ | ---------- | ----------------------- | ----------------------- |
-| `weather.collection.enabled`               | OFF        | ON                      | ON                      |
-| `weather.cleanup.enabled`                  | OFF        | ON                      | ON                      |
-| `weather.notification.enabled`             | OFF        | OFF: Firebase 준비 대기 | OFF: Firebase 준비 대기 |
-| `weather.notification.firebase-project-id` | 사용 안 함 | `jachwi-sunbae-de`      | `jachwi-sunbae-prod`    |
-
-공통 `application.yml`은 세 기능 모두 기본 OFF다. `application-local.yml`도 OFF를 명시하고, `application-dev.yml`·`application-prod.yml`이 수집·정리를 활성화한다. 서버 시작 시 수집하지 않고 다음 예약 실행에서 빈 DB에도 같은 경로로 적재한다. 최초 적재 전용 설정·수동 CLI는 없다. 수집은 KST 02·05·08·11·14·17·20·23시 15분, 정리는 매일 00:30이다. 공개 지연 15분은 아직 실측 전 가정이다.
-
-Dev·Prod의 최종 목표는 FCM도 ON이지만 실제 프로젝트·ADC·앱 등록을 확인하기 전에는 현재 OFF를 유지한다. Dev의 지정 프로젝트는 `jachwi-sunbae-de`이며 Prod는 기존 설정값을 유지한다. 환경별 서비스 계정 JSON은 [Vault 배포 절차](../operations/deployment.md#배포-흐름과-설정-변경)로 배치한다. 준비 후 YAML의 ID와 실제 프로젝트가 일치하는지 확인하고 `weather.notification.enabled`를 `true`로 바꾼다. 프로젝트 ID는 비밀이 아니지만 임의 값을 넣지 않는다. 빈 ID로 알림을 활성화하면 자격증명을 읽기 전에 기동에 실패한다.
-
-- Dev 서버·개발 앱은 Dev Firebase 프로젝트와 개발용 자격증명·토큰을 사용한다.
-- Prod 서버·운영 앱은 Prod Firebase 프로젝트와 운영용 자격증명·토큰을 사용한다.
-- 서비스 계정의 `project_id`와 서버 YAML, 앱의 Firebase 설정이 같은 환경을 가리키는지 확인한다. 다른 ADC 방식을 쓰면 해당 환경의 프로젝트 접근 권한을 확인한다.
-- Dev DB에 운영 회원의 FCM 토큰을 복제하지 않는다. 회원 수신 동의는 기존처럼 기본 OFF다.
-- KMA 키도 가능하면 환경별로 분리한다. 발급 정책상 같은 키를 쓰면 Dev·Prod의 합산 호출량·허용량을 확인한다.
-- API 키와 서비스 계정 JSON·비공개 키는 Git에 넣지 않는다. 실제 FCM 수신과 앱 토큰의 프로젝트 일치는 별도 배포 전 검증이다.
-
-기존 날씨 ON/OFF·강수 검증·Firebase 프로젝트 ID 환경변수 항목은 `.env`, Vault `app_env`와 실행 환경에서 제거한다. Spring 표준 우선순위상 환경변수가 YAML보다 우선할 수 있으므로, 기존 값을 남긴 채 프로필만 바꾸면 의도한 정책과 달라질 수 있다. 별도 환경변수 차단 계층은 두지 않는다.
-
-[수집 흐름](weather-collection.md), [강수 데이터 계약](weather-raw-contract.md), [정기 알림](weather-notifications.md)을 참고한다.
+| `KMA_API_KEY`                | 비움                    | 기상청 API허브 키. 날씨 수집을 켜는 Dev·Prod에서 필요하다                                |
 
 ## 사용 방법
 
