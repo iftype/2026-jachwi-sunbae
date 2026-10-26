@@ -631,3 +631,38 @@ it('위치 선택·분석·결과·다시 선택하기 내내 지도를 새로 �
   expect(await screen.findByRole('region', { name: '지도에서 목적지 선택' })).toBeInTheDocument();
   expect(mapMounts.count).toBe(1);
 });
+it.each([false, true])(
+  '공개 탐색 여부 %s: 결과 지도에는 외부 링크를 두지 않고 동네 상세에서 다방과 주변 분석을 연다',
+  async (isPublic) => {
+    show('commute', isPublic);
+    const user = await choosePoint();
+    await user.click(screen.getByRole('button', { name: '선택한 조건으로 찾기' }));
+    await user.click(await screen.findByRole('button', { name: /2위 신림동/ }));
+    expect(await screen.findByRole('button', { name: /신림동 · 약 27분/ })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /다방에서/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /주변 시설 분석/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /신림동 · 약 27분/ }));
+    expect(await screen.findByRole('main', { name: '신림동 대중교통 상세' })).toBeInTheDocument();
+    const dabangLink = screen.getByRole('link', { name: /다방에서 신림동 원·투룸 보기/ });
+    expect(dabangLink).toHaveAttribute('target', '_blank');
+    expect(dabangLink).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(dabangLink.getAttribute('href')).toMatch(
+      /^https:\/\/www\.dabangapp\.com\/(mobile\/)?map\/onetwo\?m_lat=37\.\d+&m_lng=126\.\d+&m_zoom=15$/,
+    );
+    dabangLink.addEventListener('click', (event) => event.preventDefault());
+    await user.click(dabangLink);
+    expect(trackPostHogEvent).toHaveBeenCalledWith(
+      'neighborhood_listing_link_clicked',
+      expect.objectContaining({ provider: 'dabang', feature: 'commute' }),
+    );
+    expect(screen.queryByRole('button', { name: '이 동네에서 본 방 기록하기' }) !== null).toBe(isPublic);
+    const nearbyUrl = new URL(
+      screen.getByRole('link', { name: /신림동 주변 시설 분석/ }).getAttribute('href') ?? '',
+      'http://localhost',
+    );
+    expect(nearbyUrl.pathname).toBe(isPublic ? '/explore/nearby' : '/neighborhoods/nearby');
+    expect(nearbyUrl.searchParams.get('name')).toBe('신림동');
+    expect(Number(nearbyUrl.searchParams.get('latitude'))).toBeCloseTo(37.48, 1);
+    expect(nearbyUrl.searchParams.get('backTo')).toMatch(/\/areas\/11210690\/details/);
+  },
+);

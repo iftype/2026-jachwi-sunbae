@@ -1,8 +1,6 @@
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 
-import MapCanvas from '@/features/map/ui/map-canvas/MapCanvas';
-import MapCategoryRail from '@/features/map/ui/map-category-rail/MapCategoryRail';
-import MapRadiusSelector from '@/features/map/ui/map-radius-selector/MapRadiusSelector';
+import { readAreaNearbyBackPath, readAreaNearbyTarget } from '@/features/map/lib/areaNearbyTarget';
 import { usePropertyDetail } from '@/features/property/api/useProperties';
 import { parsePositiveId } from '@/features/property/lib/propertyFormat';
 import { ButtonLink } from '@/shared/ui/button/Button';
@@ -10,43 +8,25 @@ import EmptyState from '@/shared/ui/empty-state/EmptyState';
 import InlineNotice from '@/shared/ui/inline-notice/InlineNotice';
 import TopNavigation from '@/shared/ui/top-navigation/TopNavigation';
 
-import useNearbyAnalysis, {
-  NEARBY_RADII,
-  type NearbyRadius,
-  nearbyRadiusLabel,
-  type NearbyRadiusOption,
-} from './hooks/useNearbyAnalysis';
-import MapNearbySheet from './ui/map-nearby-sheet/MapNearbySheet';
-import MapPlaceDetailCard from './ui/map-place-detail-card/MapPlaceDetailCard';
-import NearbyMapNotice from './ui/nearby-map-notice/NearbyMapNotice';
+import NearbyStage from './ui/nearby-stage/NearbyStage';
 
 import styles from './NearbyAnalysisPage.module.css';
 
-const EMPTY_COUNTS = { HOSPITAL: 0, TRANSPORT: 0, SCHOOL: 0, CONVENIENCE: 0, AGENCY: 0 };
-
-const radiusOptions = (isAllMode: boolean, radius: NearbyRadius) => [
-  { value: 'all' as const, label: '전체', isSelected: isAllMode },
-  ...NEARBY_RADII.map((value) => ({
-    value,
-    label: nearbyRadiusLabel(value),
-    isSelected: !isAllMode && radius === value,
-  })),
-];
-
+/** `/properties/:propertyId/nearby`는 매물 좌표로, `/explore/nearby`·`/neighborhoods/nearby`는 동네 좌표로 분석한다. */
 const NearbyAnalysisPage = () => {
-  const propertyId = parsePositiveId(useParams().propertyId);
-  if (propertyId === null)
+  const { propertyId } = useParams();
+  if (propertyId === undefined) return <AreaNearbyAnalysisPage />;
+  const parsedPropertyId = parsePositiveId(propertyId);
+  if (parsedPropertyId === null)
     return <EmptyState title="올바른 매물 주소가 아니에요" description="매물 목록에서 다시 선택해 주세요." />;
-  return <ResolvedNearbyAnalysisPage propertyId={propertyId} />;
+  return <PropertyNearbyAnalysisPage propertyId={parsedPropertyId} />;
 };
 
-const ResolvedNearbyAnalysisPage = ({ propertyId }: { propertyId: number }) => {
+const PropertyNearbyAnalysisPage = ({ propertyId }: { propertyId: number }) => {
   const property = usePropertyDetail(propertyId);
   const latitude = property.data?.location.latitude ?? null;
   const longitude = property.data?.location.longitude ?? null;
   const hasLocation = latitude !== null && longitude !== null;
-  const analysis = useNearbyAnalysis(propertyId, hasLocation ? { latitude, longitude } : null);
-  const { nearby } = analysis;
 
   return (
     <main className={styles.page}>
@@ -72,52 +52,50 @@ const ResolvedNearbyAnalysisPage = ({ propertyId }: { propertyId: number }) => {
           />
         </div>
       ) : (
-        <section className={styles.mapStage} aria-label="매물 주변 분석 지도">
-          <MapCanvas
-            center={analysis.viewportCenter}
-            markers={analysis.markers}
-            circles={analysis.circles}
-            radiusCenter={analysis.center}
-            level={analysis.mapLevel}
-            showRadiusLabels
-            selectedMarkerId={
-              analysis.selectedPlace === null ? null : `place-${analysis.selectedPlace.providerPlaceId}`
-            }
-            onSelectMarker={analysis.selectMarker}
-            onCenterChange={analysis.panTo}
-            onLevelChange={analysis.setMapLevel}
+        <NearbyStage
+          subjectId={propertyId}
+          center={hasLocation ? { latitude, longitude } : null}
+          headingPrefix={`${property.data?.name ?? '선택한'} 매물`}
+          label="매물 주변 분석 지도"
+          isSubjectPending={property.isPending}
+        />
+      )}
+    </main>
+  );
+};
+
+/** 동네 탐색 결과의 중심 좌표로 정류장·공인중개사 같은 주변 시설을 본다. 토큰이 없으면 API 클라이언트가 먼저 자동 로그인한다. */
+const AreaNearbyAnalysisPage = () => {
+  const [params] = useSearchParams();
+  const target = readAreaNearbyTarget(params);
+  const backTo = readAreaNearbyBackPath(params);
+
+  return (
+    <main className={styles.page}>
+      <TopNavigation
+        className={styles.mapNavigation}
+        title="동네 주변 분석"
+        backTo={backTo}
+        backLabel="동네 지도로 돌아가기"
+      />
+      {target === null ? (
+        <div className={styles.fullState}>
+          <EmptyState
+            title="동네 위치를 찾지 못했어요"
+            description="동네 지도에서 다시 선택해 주세요."
+            action={<ButtonLink to={backTo}>동네 지도로 가기</ButtonLink>}
           />
-          <MapRadiusSelector<NearbyRadiusOption>
-            label="분석 반경"
-            options={radiusOptions(analysis.isAllMode, analysis.radius)}
-            onSelect={analysis.selectRadius}
-          />
-          <MapCategoryRail
-            selectedCategories={analysis.selectedCategories}
-            counts={nearby.isSuccess ? nearby.data.counts : undefined}
-            onToggle={analysis.selectCategory}
-          />
-          <NearbyMapNotice
-            isPropertyPending={property.isPending}
-            isNearbyPending={nearby.isPending}
-            isNearbyError={nearby.isError}
-            onRetry={() => void nearby.refetch()}
-          />
-          {analysis.selectedPlace !== null && (
-            <MapPlaceDetailCard place={analysis.selectedPlace} onClose={analysis.closePlace} />
-          )}
-          {!property.isPending && !nearby.isPending && !nearby.isError && (
-            <MapNearbySheet
-              heading={`${property.data?.name ?? '선택한'} 매물 주변 ${nearbyRadiusLabel(analysis.radius)}`}
-              counts={nearby.data?.counts ?? EMPTY_COUNTS}
-              selectedCategories={analysis.selectedCategories}
-              places={analysis.places}
-              expanded={analysis.isListExpanded}
-              onToggleExpanded={analysis.toggleList}
-              onToggleCategory={analysis.selectCategory}
-            />
-          )}
-        </section>
+        </div>
+      ) : (
+        <NearbyStage
+          subjectId={`area-${target.latitude}-${target.longitude}`}
+          center={{ latitude: target.latitude, longitude: target.longitude }}
+          markerLabel={target.name}
+          initialCategories={['TRANSPORT', 'AGENCY']}
+          headingPrefix={target.name}
+          label="동네 주변 분석 지도"
+          isSubjectPending={false}
+        />
       )}
     </main>
   );

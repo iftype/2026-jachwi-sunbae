@@ -6,6 +6,8 @@ import Icon from '@/shared/ui/icon/Icon';
 
 import useNeighborhoodDetailAnalytics from './hooks/useNeighborhoodDetailAnalytics';
 import type { NeighborhoodPreviewContext } from './hooks/useNeighborhoodPreview';
+import ListingLink from './ui/listing-link/ListingLink';
+import NearbyLink from './ui/nearby-link/NearbyLink';
 
 import styles from './NeighborhoodPricePage.module.css';
 
@@ -44,11 +46,15 @@ const NeighborhoodPricePage = () => {
             <br />
             보증금 차이를 조정한 가격은 아닙니다.
           </p>
-          {preview.isPublicExplore && (
-            <ExplorationRecordAction
-              location={{ ...area.center, address: area.fullName, roadAddress: null, jibunAddress: area.fullName }}
-            />
-          )}
+          <div className={styles.actions}>
+            <ListingLink areaName={area.name} center={area.center} onOpen={preview.openListing} />
+            <NearbyLink areaName={area.name} to={preview.nearbyPathFor(area)} onOpen={preview.openNearby} />
+            {preview.isPublicExplore && (
+              <ExplorationRecordAction
+                location={{ ...area.center, address: area.fullName, roadAddress: null, jibunAddress: area.fullName }}
+              />
+            )}
+          </div>
           <h2>주변 월세 거래 기록</h2>
           <p className={styles.period}>{area.period}</p>
           {!area.items.length && <p>조회된 거래가 없어요.</p>}
