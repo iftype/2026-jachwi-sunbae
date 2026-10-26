@@ -80,10 +80,3 @@
   color: var(--color-placeholder);
   font-size: 0.5rem;
 }
-
-.logoutButton {
-  min-height: auto;
-  padding: 0.25rem;
-  color: var(--color-muted);
-  font-size: 0.5rem;
-}

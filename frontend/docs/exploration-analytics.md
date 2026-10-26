@@ -10,9 +10,9 @@
 
 - `useNeighborhoodPreview`: 검색 실행·재시도·동네 선택·정류장 변경을 수집한다. 검색 응답은 시도당 한 번만 기록한다.
 - 월세·경로 상세 페이지: 실제 정보 표시와 실패를 구분하고 기존 공개 라우팅을 유지한다.
-- `LandingPage`: `useLandingAnalytics('exploration_v1')`를 적용해 방문 이벤트 중복을 막는다.
-- `LandingDemo`: 직접 누른 탐색 모드 버튼만 수집한다. 스크롤로 재생되는 시연을 실제 기능 사용으로 기록하지 않는다.
-- 스토어 이동: `send_instantly`·`sendBeacon`으로 클릭 전송을 시도한다. SDK 로딩 중 큐·차단·네트워크 상황에서는 수신을 보장하지 않는다.
+- `UsageGuidePage`: `useUsageGuideViewTracking`으로 방문 이벤트 중복을 막는다.
+- `UsageDemo`: 직접 누른 탐색 모드 버튼만 수집한다. 스크롤로 재생되는 시연을 실제 기능 사용으로 기록하지 않는다.
+- 랜딩을 없애면서 `landing_page_viewed`, `service_introduction_viewed`, `landing_cta_clicked`, `landing_demo_interacted`는 더 이상 보내지 않는다. 이전 기간 데이터를 볼 때만 쓴다.
 
 선행 랜딩 변경이 병합되어 별도 적용 패치는 제거하고 실제 코드에 반영했다. 제거한 준비 패치는 Git 이력에서 복구할 수 있다.
 
@@ -26,21 +26,19 @@
 
 모든 이벤트는 기존 수집 계층에서 `environment`, `platform`, `app_version`을 부여한다. 전송 직전에는 `device_category`, `operating_system`, `native_app_version`, `traffic_type`도 보강한다. 기능 이벤트에는 `feature=rental/commute`, `entrypoint=public_explore/neighborhoods`, `mock_data`를 추가한다.
 
-| 이벤트                               | 발생 시점                              | 주요 추가 속성                                                          |
-| ------------------------------------ | -------------------------------------- | ----------------------------------------------------------------------- |
-| `landing_page_viewed`                | 랜딩 진입, StrictMode 중복 제외        | `landing_variant`                                                       |
-| `service_introduction_viewed`        | /about 서비스 소개 진입                | `landing_variant`                                                       |
-| `landing_cta_clicked`                | 실제 시작·로그인·스토어 이동 버튼 클릭 | `destination=web/login/app_store/google_play`, `placement`, `page_kind` |
-| `landing_demo_interacted`            | 시연의 탐색 모드 버튼 직접 조작        | `action`, 미리 정한 `value`                                             |
-| `neighborhood_feature_viewed`        | 해당 모드의 지도 진입                  | 공통 기능 속성                                                          |
-| `neighborhood_search_submitted`      | 유효한 목적지·조건으로 동네 조회 실행  | `search_id`, `trigger=search/retry`, 통근 조건 또는 월세 필터           |
-| `neighborhood_search_results_viewed` | 조회가 끝나 결과/빈 결과를 표시        | `search_id`, `result_count`, `has_results`, 월세는 `transaction_count`  |
-| `neighborhood_search_failed`         | 검색 요청/경계 조회 실패가 화면에 표시 | `search_id`, `error_kind=request`                                       |
-| `neighborhood_area_selected`         | 실제 조회 결과에 있는 동네 선택        | `search_id`(현재 탭에서 검색한 경우)                                    |
-| `rental_information_viewed`          | 선택한 동네의 월세 상세 목록 표시      | `transaction_count`, `has_transactions`                                 |
-| `commute_route_viewed`               | 경로 상세 화면에서 유효한 경로 표시    | 공통 기능 속성                                                          |
-| `commute_route_failed`               | 경로 상세 화면에서 조회 실패 표시      | 공통 기능 속성                                                          |
-| `commute_departure_station_changed`  | 다른 유효한 출발 정류장 직접 선택      | `search_id`(있는 경우)                                                  |
+| 이벤트                               | 발생 시점                              | 주요 추가 속성                                                         |
+| ------------------------------------ | -------------------------------------- | ---------------------------------------------------------------------- |
+| `usage_guide_viewed`                 | 사용 방법 진입, StrictMode 중복 제외   | 없음                                                                   |
+| `usage_guide_demo_interacted`        | 시연의 탐색 모드 버튼 직접 조작        | `action`, 미리 정한 `value`                                            |
+| `neighborhood_feature_viewed`        | 해당 모드의 지도 진입                  | 공통 기능 속성                                                         |
+| `neighborhood_search_submitted`      | 유효한 목적지·조건으로 동네 조회 실행  | `search_id`, `trigger=search/retry`, 통근 조건 또는 월세 필터          |
+| `neighborhood_search_results_viewed` | 조회가 끝나 결과/빈 결과를 표시        | `search_id`, `result_count`, `has_results`, 월세는 `transaction_count` |
+| `neighborhood_search_failed`         | 검색 요청/경계 조회 실패가 화면에 표시 | `search_id`, `error_kind=request`                                      |
+| `neighborhood_area_selected`         | 실제 조회 결과에 있는 동네 선택        | `search_id`(현재 탭에서 검색한 경우)                                   |
+| `rental_information_viewed`          | 선택한 동네의 월세 상세 목록 표시      | `transaction_count`, `has_transactions`                                |
+| `commute_route_viewed`               | 경로 상세 화면에서 유효한 경로 표시    | 공통 기능 속성                                                         |
+| `commute_route_failed`               | 경로 상세 화면에서 조회 실패 표시      | 공통 기능 속성                                                         |
+| `commute_departure_station_changed`  | 다른 유효한 출발 정류장 직접 선택      | `search_id`(있는 경우)                                                 |
 
 통근 검색에는 `max_minutes`, `max_transfers`를, 월세 검색에는 `max_rent_manwon`을 수집한다. 주소·목적지 이름·좌표·검색어·정류장 ID·거래 금액 원문을 새 로그에 보내지 않는다. 상세 중복 방지에 사용한 지역/정류장 키는 로컬 비교용이며 전송하지 않는다.
 

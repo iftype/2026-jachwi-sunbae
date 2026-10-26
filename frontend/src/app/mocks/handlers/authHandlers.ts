@@ -1,19 +1,19 @@
 import { http } from 'msw';
 
-import { failure, success } from '../mockStore';
+import { success } from '../mockStore';
+
+// 로컬 목은 Refresh 쿠키를 흉내 내지 않고 늘 같은 익명 회원(1번)으로 복원한다.
+const tokenResponse = () =>
+  success({
+    accessToken: 'local-msw-access-token',
+    tokenType: 'Bearer',
+    expiresIn: 900,
+    newMember: false,
+    member: { memberId: 1 },
+  });
 
 export const authHandlers = [
-  http.post('*/api/auth/nickname', async ({ request }) => {
-    const body = (await request.json()) as Record<string, unknown>;
-    if (typeof body.nickname !== 'string' || body.nickname.trim() === '') {
-      return failure('INVALID_REQUEST', 400);
-    }
-    return success({
-      accessToken: 'local-msw-access-token',
-      tokenType: 'Bearer',
-      expiresIn: 28_800,
-      member: { memberId: 1, name: body.nickname.trim(), passwordProtected: typeof body.password === 'string' },
-    });
-  }),
-  http.get('*/api/members/me', () => success({ id: 1, name: '이자취', passwordProtected: false })),
+  http.post('*/api/auth/login', tokenResponse),
+  http.post('*/api/auth/refresh', tokenResponse),
+  http.get('*/api/members/me', () => success({ id: 1 })),
 ];

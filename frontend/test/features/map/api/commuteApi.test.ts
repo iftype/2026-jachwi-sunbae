@@ -27,7 +27,7 @@ it('서버의 행정동 코드·정류장을 파싱하고 가격·환승·경계
   expect(result.areas[0].stations[1].direction).toBe('북동');
   expect(result.areas.every((area) => /^\d{8}$/.test(area.adminDongCode))).toBe(true);
 });
-it('로그인 상태여도 공개 조회에 인증 헤더를 보내지 않고 요청 조건을 전달한다', async () => {
+it('통근 조회도 회원 인증 헤더와 요청 조건을 함께 보낸다', async () => {
   setAuthentication({ accessToken: 'mock', tokenType: 'Bearer', expiresIn: 3600 });
   let authorization: string | null = 'unobserved';
   let transfers: string | null = null;
@@ -43,7 +43,7 @@ it('로그인 상태여도 공개 조회에 인증 헤더를 보내지 않고 �
     }),
   );
   await fetchCommuteAreas(config, { latitude: 37.5, longitude: 127.03 }, 40, 1);
-  expect(authorization).toBeNull();
+  expect(authorization).toBe('Bearer mock');
   expect(transfers).toBe('1');
 });
 it('이전 초안의 10자리 행정동 코드는 거절한다', async () => {

@@ -138,9 +138,9 @@ assets/jachwi-sunbae-logo.2e4dac46707736dbc407.png
 
 ## SPA 폴백
 
-react-router의 클라이언트 라우팅을 쓴다. `/landing`, `/properties/1`, `/map` 같은 경로는 S3에 실제 객체가 없으므로, CloudFront에서 403·404 응답을 `/index.html`(상태 200)로 매핑해야 한다.
+react-router의 클라이언트 라우팅을 쓴다. `/guide`, `/properties/1`, `/map` 같은 경로는 S3에 실제 객체가 없으므로, CloudFront에서 403·404 응답을 `/index.html`(상태 200)로 매핑해야 한다.
 
-이게 없으면 광고 링크의 `/landing` 직접 진입과 매물·지도 화면 새로고침이 깨진다.
+이게 없으면 광고 링크의 직접 진입(예전 `/landing` 포함)과 매물·지도 화면 새로고침이 깨진다.
 
 ## 행정동 경계 자산
 

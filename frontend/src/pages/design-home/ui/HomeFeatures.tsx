@@ -14,7 +14,6 @@ const HomeFeatures = ({ className }: { className?: string }) => (
       <RecordCard className={styles.fill} />
     </div>
     <div className={styles.column}>
-      {/* 사용방법 화면은 이후 연결한다. */}
       <ActionCard
         tone="informative"
         title={
@@ -24,6 +23,7 @@ const HomeFeatures = ({ className }: { className?: string }) => (
           </>
         }
         aria-label="사용방법 알아보기"
+        to="/guide"
         className={styles.guide}
         illustration={<ActionCardIllustration src={guideGoose} width={200} height={294} placement="peek" />}
       />

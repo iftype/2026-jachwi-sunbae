@@ -17,7 +17,6 @@ export const fetchRentalAverage = async (config: PublicConfig, legalDongCode: st
     const result = await apiRequest({
       config,
       signal,
-      requiresAuthentication: false,
       path: `/api/rental-transactions?${new URLSearchParams({ legalDongCode, page: String(page), size: '100' })}`,
       parseData: (value) => {
         const data = readRecord(value);

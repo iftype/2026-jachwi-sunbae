@@ -17,7 +17,7 @@ it('정상 로그인은 유지하지만 로그아웃 후 MSW를 다시 시작해
   setAuthentication({ accessToken: 'nickname-login-token', tokenType: 'Bearer', expiresIn: 60 });
   await startBrowserMocking();
   expect(getAccessToken()).toBe('nickname-login-token');
-  clearAuthentication('logout');
+  clearAuthentication('unauthorized');
   await startBrowserMocking();
   expect(getAccessToken()).toBeNull();
 });

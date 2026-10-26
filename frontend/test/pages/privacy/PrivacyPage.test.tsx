@@ -31,7 +31,7 @@ describe('개인정보처리방침 뒤로 가기', () => {
     window.history.replaceState(null, '', '/');
   });
 
-  it.each(['/login?next=%2Fproperties', '/landing?utm_source=instagram', '/neighborhoods', '/me#account'])(
+  it.each(['/login?next=%2Fproperties', '/guide?utm_source=instagram', '/neighborhoods', '/me#account'])(
     '%s에서 들어오면 원래 경로·쿼리·해시로 돌아온다',
     async (path) => {
       const user = userEvent.setup();
