@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -147,6 +148,15 @@ class WeatherNotificationIntegrationTest {
                 .andExpect(jsonPath("$.data.notices[0].reason").doesNotExist())
                 .andExpect(jsonPath("$.data.notices[0].forecastTimes").doesNotExist());
         assertThat(notifications.findOwned(1, saved.notificationId()).orElseThrow().notices()).isEqualTo(saved.notices());
+    }
+
+    @Test
+    void testPushDoesNotSaveNotificationAndReportsMissingDevice() throws Exception {
+        mvc.perform(post("/api/members/me/weather-notifications/test").header("Authorization", bearer(1)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.sent").value(false));
+        mvc.perform(post("/api/members/me/weather-notifications/test").header("Authorization", bearer(2)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.sent").value(false));
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM weather_notifications", Integer.class)).isZero();
     }
 
     @Test

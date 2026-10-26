@@ -4,6 +4,8 @@ import com.jachwisunbae.common.exception.client.InvalidInputException;
 import com.jachwisunbae.common.exception.errorcode.ErrorCode;
 import com.jachwisunbae.member.service.MemberService;
 import com.jachwisunbae.notification.domain.WeatherDevice;
+import com.jachwisunbae.notification.provider.WeatherPushSender;
+import com.jachwisunbae.notification.provider.WeatherPushSender.Push;
 import com.jachwisunbae.notification.repository.WeatherNotificationSettingsRepository;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -21,12 +23,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class WeatherNotificationSettingsService {
     private final MemberService members;
     private final WeatherNotificationSettingsRepository repository;
+    private final WeatherPushSender sender;
     private final Clock clock;
 
     public WeatherNotificationSettingsService(final MemberService members, final WeatherNotificationSettingsRepository repository,
-                                               final Clock clock) {
+                                               final WeatherPushSender sender, final Clock clock) {
         this.members = members;
         this.repository = repository;
+        this.sender = sender;
         this.clock = clock;
     }
 
@@ -44,6 +48,12 @@ public class WeatherNotificationSettingsService {
     public Optional<WeatherDevice> device(final long memberId) {
         members.findProfileById(memberId);
         return repository.findByMember(memberId).filter(device -> device.token() != null);
+    }
+
+    // 수신 확인용이라 수신 동의·위치·예보를 보지 않고 이력도 저장하지 않는다.
+    public boolean sendTest(final long memberId) {
+        return device(memberId).map(device -> sender.send(
+                new Push(UUID.randomUUID(), device.token(), "날씨 알림 테스트", "알림이 정상적으로 도착했어요"))).orElse(false);
     }
 
     @Transactional
