@@ -33,13 +33,14 @@ beforeEach(() => {
 afterEach(() => {
   resetAuthenticationForTests();
   queryClient.clear();
+  sessionStorage.clear();
 });
 
-const renderRecords = () =>
+const renderRecords = (initialEntry = '/properties') =>
   render(
     <QueryClientProvider client={queryClient}>
       <PublicConfigProvider config={{ apiBaseUrl: 'http://localhost:8080' }}>
-        <MemoryRouter initialEntries={['/properties']}>
+        <MemoryRouter initialEntries={[initialEntry]}>
           <Routes>
             <Route path="/properties/:propertyId?" element={<DesignRecordsPage />} />
             <Route path="/properties/new" element={<h1>매물 등록 화면</h1>} />
@@ -153,4 +154,23 @@ it('데스크탑에서 지도나 리스트의 방을 누르면 리스트 자리�
     }),
   ).toBeInTheDocument();
   matchMedia.mockRestore();
+});
+
+const viewSwitch = () => within(screen.getByRole('navigation', { name: '기록 보기 방식' }));
+
+it('주소에 리스트 보기가 있으면 리스트로 연다', async () => {
+  renderRecords('/properties?view=list');
+  expect(await screen.findByRole('heading', { name: '모든 기록' })).toBeInTheDocument();
+  expect(viewSwitch().getByRole('button', { name: /리스트/ })).toHaveAttribute('aria-pressed', 'true');
+});
+
+it('마지막으로 고른 보기를 기억해 주소에 보기가 없어도 그 보기로 연다', async () => {
+  const user = userEvent.setup();
+  const { unmount } = renderRecords();
+  await screen.findByText('신림역 원룸');
+  await user.click(viewSwitch().getByRole('button', { name: /리스트/ }));
+  unmount();
+
+  renderRecords();
+  expect(await screen.findByRole('heading', { name: '모든 기록' })).toBeInTheDocument();
 });

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import PropertyAdditionalInfoForm from '@/pages/property-memo/ui/property-additional-info-form/PropertyAdditionalInfoForm';
 import { describePropertyLoadError } from '@/features/property/api/propertyErrorMessages';
@@ -22,6 +22,13 @@ import Icon from '@/shared/ui/icon/Icon';
 import QueryState from '@/shared/ui/query-state/QueryState';
 import TopNavigationMenu from '@/shared/ui/top-navigation-menu/TopNavigationMenu';
 
+import {
+  DETAIL_TAB_PARAM,
+  type DetailTab,
+  parseDetailTab,
+  readLastDetailTab,
+  writeLastDetailTab,
+} from './model/detailTab';
 import PropertyAdditionalInfoSection from './ui/property-additional-info-section/PropertyAdditionalInfoSection';
 import PropertyBasicInfoForm from './ui/property-basic-info-section/PropertyBasicInfoForm';
 import PropertyBasicInfoSection from './ui/property-basic-info-section/PropertyBasicInfoSection';
@@ -114,7 +121,20 @@ const PropertyDetailView = ({ propertyId, detail, backTo, panel }: PropertyDetai
   const removeMutation = useRemoveProperty(propertyId);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<'details' | 'checklist'>('details');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = parseDetailTab(searchParams.get(DETAIL_TAB_PARAM)) ?? readLastDetailTab();
+  // 고른 탭을 주소에 남겨 체크리스트에서 돌아와도 그 탭으로 열고, 마지막 탭으로 기억해 다른 매물도 그 탭으로 연다.
+  // 들어온 화면(state)은 그대로 둔다.
+  const setActiveTab = (next: DetailTab) => {
+    writeLastDetailTab(next);
+    setSearchParams(
+      (current) => {
+        current.set(DETAIL_TAB_PARAM, next);
+        return current;
+      },
+      { replace: true, state: locationState },
+    );
+  };
   const [editingSection, setEditingSection] = useState<'basic' | 'additional' | null>(null);
   const deleteButtonRef = useRef<HTMLButtonElement>(null);
   const photoTriggerRef = useRef<HTMLButtonElement | null>(null);
