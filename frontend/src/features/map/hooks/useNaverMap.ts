@@ -4,7 +4,7 @@ import { usePublicConfig } from '@/shared/config/PublicConfigContext';
 
 import { clampToSouthKorea } from '../lib/mapLocation';
 import { markerScale, markerSignature, markerZIndex } from '../lib/mapMarkerPresentation';
-import { createMapRegionLayer } from '../lib/mapRegionLayer';
+import { createMapRegionLayer, READY_TIMEOUT_MS } from '../lib/mapRegionLayer';
 import { type LiveMap, type LiveOverlay, naverEngine } from '../lib/naverMapEngine';
 import type { MapCanvasProps } from '../model/MapCanvas';
 import { createMapMarkerElement } from '../ui/map-marker/MapMarkerView';
@@ -64,6 +64,8 @@ const useNaverMap = ({
   const circleSignatureRef = useRef('');
   const callbackRef = useRef({ onSelectLocation, onCenterChange, onLevelChange, onSelectMarker, onBoundsChange });
   const [mapReady, setMapReady] = useState(false);
+  // SDK 로드와 GL 준비 사이에는 지도를 눌러도 반응이 없으므로 화면에 준비 중임을 알린다.
+  const [renderReady, setRenderReady] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const gestureActiveRef = useRef(false);
   const [settledVersion, setSettledVersion] = useState(0);
@@ -95,9 +97,11 @@ const useNaverMap = ({
     let disposed = false;
     let map: LiveMap | null = null;
     let listeners: unknown[] = [];
+    let readyFrame: number | null = null;
 
     setSdkError(false);
     setMapReady(false);
+    setRenderReady(false);
     void engine
       .load()
       .then(() => {
@@ -126,6 +130,17 @@ const useNaverMap = ({
         );
         setMapReady(true);
         callbackRef.current.onBoundsChange?.(engine.getBounds(map));
+        const createdAt = performance.now();
+        const waitForRender = () => {
+          readyFrame = null;
+          if (disposed || map === null) return;
+          if (engine.isRenderReady(map) || performance.now() - createdAt >= READY_TIMEOUT_MS) {
+            setRenderReady(true);
+            return;
+          }
+          readyFrame = window.requestAnimationFrame(waitForRender);
+        };
+        waitForRender();
       })
       .catch(() => {
         if (!disposed) setSdkError(true);
@@ -133,6 +148,7 @@ const useNaverMap = ({
 
     return () => {
       disposed = true;
+      if (readyFrame !== null) window.cancelAnimationFrame(readyFrame);
       listeners.forEach((listener) => engine.removeListener(listener));
       listeners = [];
       setGestureActive(false);
@@ -306,6 +322,6 @@ const useNaverMap = ({
     regionLayerRef.current?.sync(regions, selectedRegionId);
   }, [engine, liveMode, mapReady, regions, selectedRegionId, settledVersion]);
 
-  return { containerRef, canvasRef, liveMode, sdkError };
+  return { containerRef, canvasRef, liveMode, sdkError, isLoading: liveMode && !renderReady && !sdkError };
 };
 export default useNaverMap;
