@@ -56,12 +56,12 @@ const checklistDetailResponse = {
 };
 
 describe('최종 체크리스트 API 계약', () => {
-  it('시스템 체크 항목은 stage와 trim한 query만 보내며 인증 없이 조회한다', async () => {
+  it('시스템 체크 항목은 stage와 trim한 query만 보내며 회원 인증으로 조회한다', async () => {
     server.use(
       http.get(`${config.apiBaseUrl}/api/check-items`, ({ request }) => {
         const url = new URL(request.url);
         expect(Object.fromEntries(url.searchParams)).toEqual({ stage: 'ON_SITE', query: '관리비' });
-        expect(request.headers.get('Authorization')).toBeNull();
+        expect(request.headers.get('Authorization')).toMatch(/^Bearer /);
         return HttpResponse.json(successEnvelope([checkItemsResponse[0]]));
       }),
     );

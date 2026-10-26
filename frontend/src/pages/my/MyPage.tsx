@@ -1,9 +1,4 @@
-import { useOutletContext } from 'react-router-dom';
-
-import { clearAuthentication } from '@/features/auth/model/authStore';
-import type { Member } from '@/features/auth/model/Member';
 import { usePublicConfig } from '@/shared/config/PublicConfigContext';
-import { Button } from '@/shared/ui/button/Button';
 import type { IconName } from '@/shared/ui/icon/Icon';
 import TopNavigation from '@/shared/ui/top-navigation/TopNavigation';
 
@@ -17,7 +12,7 @@ const myMenuItems: Array<{ to: string; icon: IconName; label: string }> = [
   { to: '/checklists', icon: 'checklist', label: '내 체크리스트 관리' },
   { to: '/map', icon: 'map', label: '지도와 주변 시설' },
   { to: '/compare', icon: 'external-link', label: '매물 비교 PDF' },
-  { to: '/about', icon: 'info', label: '자취선배 소개' },
+  { to: '/guide', icon: 'info', label: '사용 방법' },
 ];
 
 const myNoticeItems = [
@@ -35,8 +30,6 @@ const myNoticeItems = [
 
 const MyPage = () => {
   const config = usePublicConfig();
-  const member = useOutletContext<Member>();
-  const displayInitial = member.displayName.trim().slice(0, 1) || '자';
 
   return (
     <main className={styles.page}>
@@ -44,14 +37,12 @@ const MyPage = () => {
         <TopNavigation title="마이" backTo="/" backLabel="홈으로 돌아가기" />
         <section className={styles.profileCard} aria-labelledby="member-heading">
           <span className={styles.avatar} aria-hidden="true">
-            {displayInitial}
+            자
           </span>
           <div className={styles.memberInfo}>
-            <h2 id="member-heading">{member.displayName}</h2>
-            <p>
-              {member.passwordProtected ? '비밀번호로 기록을 보호하고 있어요.' : '비밀번호 없는 공유 닉네임이에요.'}
-            </p>
-            <small>브라우저를 닫으면 다시 닉네임으로 시작합니다.</small>
+            <h2 id="member-heading">익명 회원</h2>
+            <p>로그인 없이 이 브라우저에 기록이 이어져요.</p>
+            <small>다른 브라우저나 앱에서는 새 기록으로 시작해요.</small>
           </div>
         </section>
         <nav className={styles.menu} aria-label="내 기록">
@@ -64,9 +55,6 @@ const MyPage = () => {
         ))}
         <footer className={styles.footer}>
           <span>자취선배 MVP2 · {config.mapProviderMode === 'demo' ? 'DEMO MAP' : 'LIVE MAP'}</span>
-          <Button variant="text" className={styles.logoutButton} onClick={() => clearAuthentication('logout')}>
-            로그아웃
-          </Button>
         </footer>
       </div>
     </main>

@@ -96,7 +96,7 @@ const CONTRACT = {
   ],
   PropertyProgress: ['totalCount', 'completedCount', 'goodCount', 'cautionCount', 'unconfirmedCount', 'progressRate'],
   PropertyMemoResponse: ['propertyId', 'freeMemo'],
-  MemberDetailResponse: ['id', 'name', 'passwordProtected'],
+  MemberDetailResponse: ['id'],
   SystemCheckItemResponse: ['id', 'stage', 'itemType', 'question'],
   UserChecklistSummaryResponse: ['id', 'name', 'stage', 'itemCount'],
   UserChecklistItemResponse: ['id', 'systemCheckItemId', 'itemType', 'question', 'displayOrder', 'active'],

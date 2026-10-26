@@ -75,7 +75,6 @@ export const fetchCommuteAreas = (
   apiRequest({
     config,
     signal,
-    requiresAuthentication: false,
     path: `/api/commute-areas?${new URLSearchParams({ latitude: String(destination.latitude), longitude: String(destination.longitude), maxMinutes: String(maxMinutes), maxTransfers: String(maxTransfers) })}`,
     parseData: (value) => {
       const record = readRecord(value);

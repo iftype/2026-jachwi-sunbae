@@ -3,7 +3,10 @@ import { http, HttpResponse } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { captureException } = vi.hoisted(() => ({ captureException: vi.fn() }));
-vi.mock('@/shared/lib/analytics/posthog', () => ({ capturePostHogException: captureException }));
+vi.mock('@/shared/lib/analytics/posthog', () => ({
+  capturePostHogException: captureException,
+  trackPostHogEvent: vi.fn(),
+}));
 
 import { apiBlobRequest, apiRequest } from '@/features/auth/api/apiClient';
 import { clearAuthentication, setAuthentication } from '@/features/auth/model/authStore';
@@ -18,7 +21,7 @@ describe('API 오류 수집', () => {
   afterEach(() => vi.restoreAllMocks());
   beforeEach(() => {
     captureException.mockClear();
-    setAuthentication({ accessToken: 'private-token', tokenType: 'Bearer', expiresIn: 60 });
+    setAuthentication({ accessToken: 'private-token', tokenType: 'Bearer', expiresIn: 60, memberId: 1 });
   });
 
   it.each([400, 401, 403, 404, 409, 429, 500, 503])(
@@ -118,8 +121,22 @@ describe('API 오류 수집', () => {
       apiRequest({ config, path, signal: controller.signal, parseData: (value) => value }),
     ).rejects.toBeDefined();
     expect(captureException).not.toHaveBeenCalled();
-    clearAuthentication('logout');
-    await expect(request()).rejects.toMatchObject({ kind: 'authentication-ended' });
+
+    let releaseResponse: (() => void) | undefined;
+    const responseGate = new Promise<void>((resolve) => {
+      releaseResponse = resolve;
+    });
+    server.use(
+      http.get(`${config.apiBaseUrl}${path}`, async () => {
+        await responseGate;
+        return HttpResponse.json({ code: 'SUCCESS', message: '요청에 성공했습니다.', data: null });
+      }),
+    );
+    const pending = request();
+    await Promise.resolve();
+    clearAuthentication('unauthorized');
+    releaseResponse?.();
+    await expect(pending).rejects.toMatchObject({ kind: 'authentication-ended' });
     expect(captureException).not.toHaveBeenCalled();
   });
 
