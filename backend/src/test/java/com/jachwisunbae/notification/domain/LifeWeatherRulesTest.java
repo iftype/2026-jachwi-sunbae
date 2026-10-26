@@ -70,7 +70,7 @@ class LifeWeatherRulesTest {
         var report = evaluate(replace(hours(), 9, h -> new Hour(h.at(), h.temperature(), 0.0, humidity)), null, null);
         assertThat(report.sendable()).isTrue();
         assertThat(report.notices()).isEmpty();
-        assertThat(report.title()).contains("예보기온");
+        assertThat(report.body()).contains("예보기온");
     }
 
     @ParameterizedTest
@@ -86,23 +86,22 @@ class LifeWeatherRulesTest {
         var report = evaluate(replace(hours(), 20, h -> new Hour(h.at(), -5.0, 2.0, h.humidity())), -5.0, 5.0);
         assertThat(report.notices()).extracting(Notice::condition).containsExactly(
                 Condition.SNOW, Condition.RAIN, Condition.FREEZE, Condition.TEMPERATURE_SWING, Condition.LAUNDRY);
-        assertThat(report.title()).isEqualTo("오늘 눈 예보가 있어요. 이동에 주의하세요");
-        assertThat(report.body()).isEqualTo("오늘 비 예보가 있어요. 우산을 준비하세요");
+        assertThat(report.title()).isEqualTo("자취선배 생활정보");
+        assertThat(report.body()).isEqualTo("오늘 눈이 예상돼요. 이동할 때 주의하세요!");
     }
 
     @Test
-    void oneCautionDoesNotUseLaundryAsSecondCaution() {
+    void cautionComesBeforeLaundryInBody() {
         var report = evaluate(hours(), -5.0, null);
         assertThat(report.notices()).extracting(Notice::condition).containsExactly(Condition.FREEZE, Condition.LAUNDRY);
-        assertThat(report.title()).contains("추위");
-        assertThat(report.body()).contains("마지막으로 확인한 위치").doesNotContain("건조");
+        assertThat(report.body()).isEqualTo("오늘 영하 5℃ 이하 추위가 예상돼요. 수도관 보온을 점검하세요!");
     }
 
     @Test
-    void laundryIsTheTitleWithoutCautions() {
+    void laundryIsTheBodyWithoutCautions() {
         var report = evaluate(hours(), null, null);
         assertThat(report.notices()).extracting(Notice::condition).containsExactly(Condition.LAUNDRY);
-        assertThat(report.title()).isEqualTo("오늘 09~18시 예보상 바깥 건조를 고려할 수 있어요");
+        assertThat(report.body()).isEqualTo("오늘은 비 예보가 없고 습도가 낮아요. 빨래하기 괜찮겠어요!");
     }
 
     @ParameterizedTest
@@ -115,7 +114,7 @@ class LifeWeatherRulesTest {
         var report = rules.evaluate(new LifeWeatherForecast(date, slot, hours, null, null));
         assertThat(report.sendable()).isTrue();
         assertThat(report.notices()).isEmpty();
-        assertThat(report.title()).isEqualTo(slot == NotificationSlot.MORNING
+        assertThat(report.body()).isEqualTo(slot == NotificationSlot.MORNING
                 ? "오늘 07~23시 예보기온 5~20℃" : "내일 00~23시 예보기온 5~20℃");
     }
 

@@ -134,7 +134,7 @@ class WeatherNotificationIntegrationTest {
         assertThat(pushes.getFirst().notificationId()).isEqualTo(saved.notificationId());
         String json = jdbc.queryForObject("SELECT notices FROM weather_notifications", String.class);
         assertThat(new ObjectMapper().readTree(json)).isEqualTo(new ObjectMapper().readTree("""
-                [{"condition":"LAUNDRY","message":"09~18시 예보상 바깥 건조를 고려할 수 있어요"}]
+                [{"condition":"LAUNDRY","message":"오늘은 비 예보가 없고 습도가 낮아요. 빨래하기 괜찮겠어요!"}]
                 """));
         jdbc.update("DELETE FROM weather_forecasts");
         locations.sync(1, new GridPoint(61, 120), MORNING.plusSeconds(1));
@@ -142,7 +142,7 @@ class WeatherNotificationIntegrationTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.gridX").value(60))
                 .andExpect(jsonPath("$.data.notices.length()").value(1)).andExpect(jsonPath("$.data.result").doesNotExist())
                 .andExpect(jsonPath("$.data.notices[0].condition").value("LAUNDRY"))
-                .andExpect(jsonPath("$.data.notices[0].message").value("09~18시 예보상 바깥 건조를 고려할 수 있어요"))
+                .andExpect(jsonPath("$.data.notices[0].message").value("오늘은 비 예보가 없고 습도가 낮아요. 빨래하기 괜찮겠어요!"))
                 .andExpect(jsonPath("$.data.assessments").doesNotExist())
                 .andExpect(jsonPath("$.data.notices[0].verdict").doesNotExist())
                 .andExpect(jsonPath("$.data.notices[0].reason").doesNotExist())
@@ -166,7 +166,7 @@ class WeatherNotificationIntegrationTest {
         assertThat(pushes).hasSize(1);
         var saved = notification();
         assertThat(saved.notices()).isEmpty();
-        assertThat(saved.title()).isEqualTo("오늘 07~23시 예보기온 15~15℃");
+        assertThat(saved.body()).isEqualTo("오늘 07~23시 예보기온 15~15℃");
         assertThat(jdbc.queryForObject("SELECT notices FROM weather_notifications", String.class)).isEqualTo("[]");
         mvc.perform(get("/api/members/me/weather-notifications/" + saved.notificationId()).header("Authorization", bearer(1)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.notices").isEmpty());
