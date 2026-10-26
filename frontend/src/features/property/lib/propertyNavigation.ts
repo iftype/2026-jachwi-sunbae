@@ -16,5 +16,9 @@ export const getPropertyReturnPath = (
   return fallback;
 };
 
+/** 들어온 화면이 상태로 넘어왔으면 바로 이전 기록이 그 화면이다. */
+export const hasPropertyReturnPath = (state: unknown): boolean =>
+  typeof state === 'object' && state !== null && 'returnTo' in state;
+
 export const getPropertyReturnState = (state: unknown): unknown =>
   typeof state === 'object' && state !== null && 'returnState' in state ? state.returnState : undefined;

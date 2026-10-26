@@ -9,11 +9,13 @@ import { parsePositiveId } from '@/features/property/lib/propertyFormat';
 import {
   getPropertyReturnPath,
   getPropertyReturnState,
+  hasPropertyReturnPath,
   type PropertyReturnPath,
 } from '@/features/property/lib/propertyNavigation';
 import type { PropertyDetail } from '@/features/property/model/Property';
 import PropertyPhotoViewer from '@/features/property/ui/property-photo-viewer/PropertyPhotoViewer';
 import { trackPostHogEvent } from '@/shared/lib/analytics/posthog';
+import useReturnNavigation from '@/shared/lib/navigation/useReturnNavigation';
 import ConfirmDialog from '@/shared/ui/confirm-dialog/ConfirmDialog';
 import ContentState from '@/shared/ui/content-state/ContentState';
 import Icon from '@/shared/ui/icon/Icon';
@@ -102,7 +104,13 @@ const ResolvedPropertyDetailPage = ({
 
 const PropertyDetailView = ({ propertyId, detail, backTo, panel }: PropertyDetailViewProps) => {
   const navigate = useNavigate();
-  const returnState = getPropertyReturnState(useLocation().state);
+  const locationState = useLocation().state;
+  const returnState = getPropertyReturnState(locationState);
+  const goBack = useReturnNavigation({
+    cameFromTarget: hasPropertyReturnPath(locationState),
+    fallback: backTo,
+    fallbackState: returnState,
+  });
   const removeMutation = useRemoveProperty(propertyId);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
@@ -142,6 +150,10 @@ const PropertyDetailView = ({ propertyId, detail, backTo, panel }: PropertyDetai
               className={styles.backButton}
               to={backTo}
               state={returnState}
+              onClick={(event) => {
+                event.preventDefault();
+                goBack();
+              }}
               aria-label={
                 backTo === '/map'
                   ? '매물 지도로 돌아가기'
