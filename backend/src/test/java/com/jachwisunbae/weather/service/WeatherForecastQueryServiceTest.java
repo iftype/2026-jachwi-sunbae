@@ -84,10 +84,7 @@ class WeatherForecastQueryServiceTest {
     }
 
     @Test
-    void validatesDatesBeforeReadingDatabase() {
-        for (LocalDate date : List.of(TODAY.minusDays(1), TODAY.plusDays(2))) {
-            assertThatThrownBy(() -> service.findByGrid(GRID, date)).isInstanceOf(InvalidInputException.class);
-        }
+    void validatesCoordinatesBeforeReadingDatabase() {
         assertThatThrownBy(() -> service.find(Double.NaN, 127, TODAY)).isInstanceOf(InvalidInputException.class);
         verifyNoInteractions(repository);
     }

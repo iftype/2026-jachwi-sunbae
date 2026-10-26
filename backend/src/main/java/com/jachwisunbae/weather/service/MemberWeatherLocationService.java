@@ -34,10 +34,10 @@ public class MemberWeatherLocationService {
 
     @Transactional
     public MemberWeatherLocation sync(final long memberId, final double latitude, final double longitude) {
-        members.findProfileById(memberId);
-        GridPoint grid = converter.convert(latitude, longitude);
+        members.findProfileById(memberId); // 해당 회원이 존재하는지 확인
+        GridPoint grid = converter.convert(latitude, longitude); // 격자 변환
         Instant now = clock.instant().truncatedTo(ChronoUnit.MICROS);
-        repository.sync(memberId, grid, now);
+        repository.sync(memberId, grid, now);//회원별 마지막 격자를 DB에 저장
         return new MemberWeatherLocation(grid, now);
     }
 

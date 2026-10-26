@@ -4,11 +4,11 @@
 
 ## 조회 흐름
 
-`WeatherForecastController → WeatherForecastQueryService → WeatherForecastQueryRepository` 순서다. 기존 익명 회원 JWT를 요구하며 `GET /api/weather/forecasts`에 위도·경도와 오늘 또는 내일의 날짜를 전달한다. 날짜를 생략하면 KST 오늘이다. 입력·응답·오류의 기준은 Controller Swagger/OpenAPI다.
+`WeatherForecastController → WeatherForecastQueryService → WeatherForecastQueryRepository` 순서다. 기존 익명 회원 JWT를 요구하며 `GET /api/weather/forecasts`에 위도·경도와 조회할 날짜를 전달한다. 날짜를 생략하면 KST 오늘이다. 조회 가능한 날짜를 따로 제한하지 않는다. 입력·응답·오류의 기준은 Controller Swagger/OpenAPI다.
 
 `KmaGridConverter`가 위경도를 공식 Lambert 투영의 기상청 격자로 변환한다. 잘못된 위경도·NaN·무한대·격자 범위 밖 입력을 거부하며 경계로 강제 보정하지 않는다. 서울·수원·부산·제주와 RAW 인덱스의 회귀 테스트를 유지한다. 격자 범위 안이라는 이유만으로 육지나 서비스 가능 지역이라고 단정하지 않는다.
 
-저장소는 해당 격자의 날짜 범위만 PK로 읽는다. 조회마다 기상청을 호출하거나 전국 격자를 순회하지 않는다. 별도 캐시는 없다. 오늘·내일 각각 00–23시의 24개 시간대와 일별 TMN·TMX를 반환하며, 아직 저장하지 못한 시간대는 빈 값이다.
+저장소는 해당 격자의 날짜 범위만 PK로 읽는다. 조회마다 기상청을 호출하거나 전국 격자를 순회하지 않는다. 별도 캐시는 없다. 요청한 날짜의 00–23시 24개 시간대와 일별 TMN·TMX를 반환하며, 아직 저장하지 못한 시간대는 빈 값이다. 수집 범위(발표 후 48시간) 밖이거나 보존 기간이 지난 날짜는 모든 값이 비어 `coverage`가 `UNAVAILABLE`이다.
 
 ## 예보 상태
 

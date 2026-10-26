@@ -12,9 +12,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 // 기상청 단기예보 발표 주기에 맞춰 최신 발표분을 자동 수집한다.
-// weather.collection.enabled=true인 웹 애플리케이션에서만 등록된다.
 @Component
-@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @ConditionalOnProperty(name = "weather.collection.enabled", havingValue = "true")
 public class WeatherCollectionScheduler {
     private final WeatherCollectionService service;
@@ -26,6 +24,7 @@ public class WeatherCollectionScheduler {
     }
 
     // 발표(02시부터 3시간 간격) 직후에는 데이터가 아직 제공되지 않을 수 있어 15분 뒤에 실행한다.
+    //cron 6칸 - 초, 분, 시, 일, 월 * 는 매일
     @Scheduled(cron = "0 15 2,5,8,11,14,17,20,23 * * *", zone = "Asia/Seoul")
     public void collect() {
         try {

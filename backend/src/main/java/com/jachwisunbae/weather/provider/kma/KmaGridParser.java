@@ -8,6 +8,8 @@ import com.jachwisunbae.weather.domain.WeatherElement;
 import java.util.ArrayList;
 import java.util.List;
 
+//Raw를 격자 데이터로 변환한다.
+// 쉼표로 숫자 분리, 숫자가 37697인지 확인, 원본 인덱스를 (nx,ny)로 변환 , -99,-999 결축값 제외
 public class KmaGridParser {
 
     public GridForecast parse(final String raw, final ForecastTimes times, final WeatherElement element) {

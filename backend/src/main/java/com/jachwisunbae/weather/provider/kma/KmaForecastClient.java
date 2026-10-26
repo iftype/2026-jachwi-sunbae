@@ -2,6 +2,8 @@ package com.jachwisunbae.weather.provider.kma;
 
 import com.jachwisunbae.common.exception.errorcode.ErrorCode;
 import com.jachwisunbae.common.exception.server.UpstreamServiceException;
+import java.io.IOException;
+import java.net.URI;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -9,13 +11,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StreamUtils;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.util.UriBuilder;
 
+// 기상청 API허브의 단기예보 격자 API를 호출해, 요청 하나(발표·예보 시각, 요소)의 전국 격자 값을 받는다.
 @Component
 public class KmaForecastClient {
 
@@ -33,6 +38,7 @@ public class KmaForecastClient {
         this(createClient(), apiKey);
     }
 
+    // 테스트에서 모의 서버용 RestClient를 주입한다.
     KmaForecastClient(final RestClient client, final String apiKey) {
         this.client = client;
         this.apiKey = apiKey;
@@ -42,29 +48,18 @@ public class KmaForecastClient {
         if (request == null) {
             throw new IllegalArgumentException("요청할 발표·예보 시각과 기상 요소가 필요합니다.");
         }
-        validateApiKey(apiKey);
-        return parser.parse(new String(request(request), StandardCharsets.UTF_8), request.times(), request.element());
+        validateApiKey();
+        String body = new String(download(request), StandardCharsets.UTF_8);
+        return parser.parse(body, request.times(), request.element());
     }
 
-    private byte[] request(final KmaForecastRequest forecastRequest) {
+    // 실패는 모두 UpstreamServiceException으로 바꾼다.
+    private byte[] download(final KmaForecastRequest request) {
         try {
             return client.get()
-                    .uri(uri -> uri.path(FORECAST_PATH)
-                            .queryParam("tmfc", forecastRequest.tmfc())
-                            .queryParam("tmef", forecastRequest.tmef())
-                            .queryParam("vars", forecastRequest.element().name())
-                            .queryParam("authKey", "{apiKey}")
-                            .build(apiKey))
+                    .uri(uri -> forecastUri(uri, request))
                     .accept(MediaType.TEXT_PLAIN)
-                    .exchange((request, response) -> {
-                        // exchange는 상태 코드를 자동 검사하지 않는다. 리다이렉트·빈 성공 응답도 거부한다.
-                        int status = response.getStatusCode().value();
-                        if (status != HttpStatus.OK.value()) {
-                            throw new UpstreamServiceException(ErrorCode.WEATHER_PROVIDER_UNAVAILABLE,
-                                    "기상청 예보 요청에 실패했습니다. HTTP status=" + status);
-                        }
-                        return StreamUtils.copyToByteArray(response.getBody());
-                    });
+                    .exchange((clientRequest, response) -> readOkBody(response));
         } catch (ResourceAccessException exception) {
             // 원래 예외의 URL·메시지·cause에 authKey가 포함될 수 있어 전달하지 않는다.
             throw new UpstreamServiceException(ErrorCode.WEATHER_PROVIDER_UNAVAILABLE,
@@ -75,6 +70,27 @@ public class KmaForecastClient {
         }
     }
 
+    // authKey는 URI 템플릿 변수로 넣어 특수문자가 인코딩되게 한다.
+    private URI forecastUri(final UriBuilder uri, final KmaForecastRequest request) {
+        return uri.path(FORECAST_PATH)
+                .queryParam("tmfc", request.tmfc())
+                .queryParam("tmef", request.tmef())
+                .queryParam("vars", request.element().name())
+                .queryParam("authKey", "{apiKey}")
+                .build(apiKey);
+    }
+
+    // exchange는 상태 코드를 자동 검사하지 않으므로 200 외의 응답(리다이렉트 포함)은 직접 실패 처리한다.
+    private static byte[] readOkBody(final ClientHttpResponse response) throws IOException {
+        int status = response.getStatusCode().value();
+        if (status != HttpStatus.OK.value()) {
+            throw new UpstreamServiceException(ErrorCode.WEATHER_PROVIDER_UNAVAILABLE,
+                    "기상청 예보 요청에 실패했습니다. HTTP status=" + status);
+        }
+        return StreamUtils.copyToByteArray(response.getBody());
+    }
+
+    // 연결 3초·응답 15초 제한을 두고, 리다이렉트는 따라가지 않는다.
     static RestClient createClient() {
         HttpClient httpClient = HttpClient.newBuilder()
                 .connectTimeout(CONNECT_TIMEOUT)
@@ -85,7 +101,7 @@ public class KmaForecastClient {
         return RestClient.builder().baseUrl(BASE_URL).requestFactory(factory).build();
     }
 
-    private static void validateApiKey(final String apiKey) {
+    private void validateApiKey() {
         if (apiKey == null || apiKey.isBlank()) {
             throw new IllegalStateException("기상청 예보 요청에는 KMA_API_KEY가 필요합니다.");
         }

@@ -6,8 +6,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.jachwisunbae.weather.cleanup.WeatherCleanupScheduler;
 import com.jachwisunbae.weather.collector.WeatherCollectionScheduler;
-import com.jachwisunbae.weather.notification.scheduler.WeatherNotificationScheduler;
-import com.jachwisunbae.weather.notification.service.WeatherNotificationDispatchService;
+import com.jachwisunbae.notification.scheduler.WeatherNotificationScheduler;
+import com.jachwisunbae.notification.service.WeatherNotificationDispatchService;
 import com.jachwisunbae.weather.service.WeatherCleanupService;
 import com.jachwisunbae.weather.service.WeatherCollectionService;
 import java.time.Clock;

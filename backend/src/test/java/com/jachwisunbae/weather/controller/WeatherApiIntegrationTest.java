@@ -125,16 +125,13 @@ class WeatherApiIntegrationTest {
     }
 
     @Test
-    void validatesAuthenticationCoordinatesDatesAndMissingParameters() throws Exception {
+    void validatesAuthenticationCoordinatesAndMissingParameters() throws Exception {
         mvc.perform(get("/api/weather/forecasts").param("latitude", "37").param("longitude", "127"))
                 .andExpect(status().isUnauthorized());
         for (String invalid : List.of("NaN", "Infinity", "91", "bad")) {
             mvc.perform(get("/api/weather/forecasts").header("Authorization", bearer(1))
                     .param("latitude", invalid).param("longitude", "127")).andExpect(status().isBadRequest());
         }
-        mvc.perform(get("/api/weather/forecasts").header("Authorization", bearer(1))
-                .param("latitude", "37").param("longitude", "127").param("date", "2026-10-27"))
-                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("WEATHER_DATE_UNSUPPORTED"));
         mvc.perform(get("/api/weather/forecasts").header("Authorization", bearer(1)).param("latitude", "37"))
                 .andExpect(status().isBadRequest());
         mvc.perform(get("/api/weather/forecasts").header("Authorization", bearer(1))
