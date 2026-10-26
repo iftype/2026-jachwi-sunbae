@@ -1,0 +1,83 @@
+.section {
+  margin-top: 1.25rem;
+}
+.heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+}
+.heading h2 {
+  margin: 0;
+  font-size: 0.9rem;
+}
+.heading > span {
+  color: var(--color-ink-soft);
+  font-size: 0.6rem;
+}
+.card {
+  display: block;
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  background: var(--color-card-surface);
+  color: var(--color-ink);
+  text-decoration: none;
+}
+.card:hover {
+  background: var(--color-card-surface-hover);
+}
+.location {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+}
+.location > span {
+  color: var(--color-ink-soft);
+  font-size: 0.65rem;
+}
+.location > svg:last-child {
+  margin-left: auto;
+}
+.weather {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin: 1rem 0;
+}
+.temperature {
+  font-size: 2.4rem;
+  font-weight: 750;
+  letter-spacing: -0.08rem;
+}
+.weather b {
+  font-size: 0.85rem;
+}
+.weather p {
+  margin: 0.3rem 0 0;
+  color: var(--color-ink-soft);
+  font-size: 0.62rem;
+}
+.range {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.7rem;
+}
+.range > span {
+  color: var(--color-ink-soft);
+}
+.detail {
+  margin-left: auto;
+}
+.settings {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 2.75rem;
+  color: var(--color-ink);
+  font-size: 0.78rem;
+  text-decoration: none;
+}

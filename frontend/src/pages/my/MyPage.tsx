@@ -1,3 +1,4 @@
+import WeatherSummaryCard from '@/features/weather/ui/weather-summary-card/WeatherSummaryCard';
 import { usePublicConfig } from '@/shared/config/PublicConfigContext';
 import type { IconName } from '@/shared/ui/icon/Icon';
 import TopNavigation from '@/shared/ui/top-navigation/TopNavigation';
@@ -45,6 +46,7 @@ const MyPage = () => {
             <small>다른 브라우저나 앱에서는 새 기록으로 시작해요.</small>
           </div>
         </section>
+        <WeatherSummaryCard />
         <nav className={styles.menu} aria-label="내 기록">
           {myMenuItems.map((item) => (
             <MyMenuLink key={item.to} {...item} />

@@ -1,0 +1,78 @@
+.page {
+  padding: 0 var(--page-inline-padding) 1.5rem;
+}
+.badge {
+  display: inline-block;
+  margin: 1rem 0;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-card-surface);
+  color: var(--color-ink-soft);
+  font-size: 0.7rem;
+}
+.title {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.5;
+  letter-spacing: -0.04rem;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.body {
+  margin: 0.8rem 0 1.4rem;
+  color: var(--color-ink-soft);
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+.metadata {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  background: var(--color-card-surface);
+}
+.metadata div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+}
+.metadata dt {
+  color: var(--color-ink-soft);
+}
+.metadata dd {
+  margin: 0;
+}
+.notices {
+  margin: 1.6rem 0;
+}
+.notices h2 {
+  font-size: 0.95rem;
+}
+.notices ul {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0;
+  list-style: none;
+}
+.notices li {
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  background: var(--color-card-surface);
+}
+.notices li span {
+  font-size: 0.7rem;
+  font-weight: 750;
+}
+.notices li p {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.7;
+}
+.note {
+  margin: 1rem 0;
+  color: var(--color-ink-soft);
+  font-size: 0.73rem;
+  line-height: 1.8;
+}

@@ -5,6 +5,7 @@ import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-do
 import PropertyAppLayout from '@/app/layouts/property-app-layout/PropertyAppLayout';
 import PublicExploreLayout from '@/app/layouts/public-explore-layout/PublicExploreLayout';
 import { isChecklistStage } from '@/features/checklist/model/checklist';
+import WeatherPrototypeProvider from '@/features/weather/model/WeatherPrototypeProvider';
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
 
 import LazyRouteBoundary from './LazyRouteBoundary';
@@ -30,6 +31,9 @@ const ChecklistDetailPage = lazy(() => import('@/pages/checklist-detail/Checklis
 const PropertyActiveChecklistPage = lazy(() => import('@/pages/property-active-checklist/PropertyActiveChecklistPage'));
 const PropertyChecklistPage = lazy(() => import('@/pages/property-checklist/PropertyChecklistPage'));
 const MyPage = lazy(() => import('@/pages/my/MyPage'));
+const WeatherPage = lazy(() => import('@/pages/weather/WeatherPage'));
+const WeatherSettingsPage = lazy(() => import('@/pages/weather-settings/WeatherSettingsPage'));
+const WeatherNotificationPage = lazy(() => import('@/pages/weather-notification/WeatherNotificationPage'));
 const MapPage = lazy(() => import('@/pages/map/MapPage'));
 const MapLocationSelectPage = lazy(() => import('@/pages/map-location-select/MapLocationSelectPage'));
 const NearbyAnalysisPage = lazy(() => import('@/pages/nearby-analysis/NearbyAnalysisPage'));
@@ -63,7 +67,7 @@ const LegacyLandingRoute = () => {
   const { search } = useLocation();
   return <Navigate to={{ pathname: '/', search }} replace />;
 };
-const AppRoutes = () => (
+const RouteContent = () => (
   <Routes>
     <Route element={<PublicExploreLayout />}>
       <Route path="/explore" element={lazyPage(<NeighborhoodEntryPage />)} />
@@ -116,6 +120,9 @@ const AppRoutes = () => (
         <Route path="/checklists/new" element={lazyPage(<CreateChecklistPage />)} />
         <Route path="/checklists/:resource" element={lazyPage(<ChecklistResourceRoute />)} />
         <Route path="/me" element={lazyPage(<MyPage />)} />
+        <Route path="/weather" element={lazyPage(<WeatherPage />)} />
+        <Route path="/weather/settings" element={lazyPage(<WeatherSettingsPage />)} />
+        <Route path="/weather/notifications/:notificationId" element={lazyPage(<WeatherNotificationPage />)} />
         <Route path="/map/:propertyId?" element={lazyPage(<MapPage />)} />
         <Route path="/map/select-location" element={lazyPage(<MapLocationSelectPage />)} />
         <Route path="/compare" element={lazyPage(<PropertyComparePage />)} />
@@ -125,6 +132,12 @@ const AppRoutes = () => (
     </Route>
     <Route path="*" element={lazyPage(<NotFoundPage />)} />
   </Routes>
+);
+
+const AppRoutes = () => (
+  <WeatherPrototypeProvider>
+    <RouteContent />
+  </WeatherPrototypeProvider>
 );
 
 export default AppRoutes;

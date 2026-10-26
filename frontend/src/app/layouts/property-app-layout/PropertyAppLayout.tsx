@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'react';
 import { Link, Outlet, useLocation, useOutletContext } from 'react-router-dom';
 
 import type { Member } from '@/features/auth/model/Member';
@@ -12,6 +13,15 @@ import styles from './PropertyAppLayout.module.css';
 const PropertyAppLayout = () => {
   const member = useOutletContext<Member>();
   const location = useLocation();
+  const contentRef = useRef<HTMLDivElement>(null);
+  const isWeatherPage = location.pathname === '/weather' || location.pathname.startsWith('/weather/');
+  const wasWeatherPage = useRef(isWeatherPage);
+
+  // 날씨 시연 화면을 오갈 때만 내용의 시작으로 이동한다. 다른 기능의 스크롤은 유지한다.
+  useLayoutEffect(() => {
+    if ((isWeatherPage || wasWeatherPage.current) && contentRef.current) contentRef.current.scrollTop = 0;
+    wasWeatherPage.current = isWeatherPage;
+  }, [isWeatherPage, location.key]);
   // 데스크탑은 모든 화면 위에 홈 로고·주요 화면 메뉴가 있는 공용 헤더를 둔다. 지도 주소 판단도 이 값을 쓴다.
   const isDesktop = useIsDesktop();
   // 지도에서 연 매물(`/map/:propertyId`)은 데스크탑이면 지도 화면, 휴대폰이면 상세 화면이다.
@@ -30,9 +40,9 @@ const PropertyAppLayout = () => {
     /^\/properties\/\d+\/checklists\/\d+$/.test(location.pathname);
 
   // 로그인 뒤 화면은 바텀탭 없이 홈으로 돌아가는 상단 바만 둔다.
-  // 마이·방 비교는 자체 상단 내비게이션이 홈으로 돌아가므로 상단 바를 겹쳐 두지 않는다.
+  // 마이·방 비교·날씨는 자체 상단 내비게이션을 사용하므로 상단 바를 겹쳐 두지 않는다.
   // 인프라 지도·동네 찾기 지도는 지도·검색을 화면 위까지 쓰므로 상단 바를 두지 않는다.
-  const hidesDesignBar = location.pathname === '/me' || location.pathname === '/compare' || isMapPage;
+  const hidesDesignBar = location.pathname === '/me' || location.pathname === '/compare' || isWeatherPage || isMapPage;
 
   return (
     <DesktopHeaderSlotProvider>
@@ -51,7 +61,7 @@ const PropertyAppLayout = () => {
             </Link>
           </header>
         )}
-        <div className={styles.content}>
+        <div ref={contentRef} className={styles.content}>
           <Outlet context={member} />
         </div>
       </div>

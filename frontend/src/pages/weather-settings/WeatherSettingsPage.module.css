@@ -1,0 +1,195 @@
+.page {
+  padding: 0 var(--page-inline-padding) 1.5rem;
+}
+.intro {
+  margin: 0.8rem 0 1.3rem;
+  font-size: 1.15rem;
+  font-weight: 650;
+  line-height: 1.6;
+}
+.card {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  background: var(--color-card-surface);
+}
+.page h2 {
+  margin: 0;
+  font-size: 0.9rem;
+}
+.settingRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.settingRow p {
+  margin: 0.4rem 0 0;
+  color: var(--color-ink-soft);
+  font-size: 0.7rem;
+}
+.toggle {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  width: 3.2rem;
+  min-height: 2.75rem;
+  padding: 0 0.3rem;
+  border: 0;
+  border-radius: 2rem;
+  background: var(--color-border-strong);
+  cursor: pointer;
+}
+.toggle span {
+  display: block;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+  background: var(--color-canvas);
+}
+.toggle[aria-checked='true'] {
+  justify-content: flex-end;
+  background: var(--color-primary);
+}
+.caption {
+  margin: 0.7rem 0 0;
+  color: var(--color-ink-soft);
+  font-size: 0.73rem;
+  line-height: 1.7;
+}
+.section {
+  margin: 1.5rem 0;
+}
+.schedule {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  margin-top: 0.8rem;
+}
+.schedule > div {
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  background: var(--color-card-surface);
+}
+.schedule span {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--color-ink-soft);
+  font-size: 0.7rem;
+}
+.schedule strong {
+  font-size: 1.15rem;
+}
+.schedule p {
+  margin: 0.5rem 0 0;
+  color: var(--color-ink-soft);
+  font-size: 0.68rem;
+}
+.location {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+}
+.textLink {
+  display: inline-block;
+  padding-top: 0.7rem;
+  color: var(--color-ink);
+  font-size: 0.8rem;
+}
+.conditions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+.conditions li {
+  padding: 0.45rem 0.65rem;
+  border-radius: 0.6rem;
+  background: var(--color-card-surface);
+  font-size: 0.75rem;
+}
+.demo {
+  padding: 1rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+}
+.demoHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.demoHeading span {
+  color: var(--color-ink-soft);
+  font-size: 0.65rem;
+}
+.demo label {
+  display: block;
+  margin-top: 1rem;
+  font-size: 0.75rem;
+}
+.demo select {
+  width: 100%;
+  min-height: 2.75rem;
+  margin: 0.5rem 0 0.75rem;
+  padding: 0.5rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 0.8rem;
+}
+.demo select:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+.push {
+  display: block;
+  margin-top: 1rem;
+  padding: 0.9rem;
+  border-radius: var(--radius-md);
+  background: var(--color-card-surface);
+  color: var(--color-ink);
+  text-decoration: none;
+}
+.pushMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.65rem;
+}
+.pushMeta > span:last-child {
+  margin-left: auto;
+  color: var(--color-ink-soft);
+  font-size: 0.6rem;
+}
+.appIcon {
+  display: grid;
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 0.4rem;
+  background: var(--color-brand-yellow);
+  place-items: center;
+  font-weight: 800;
+}
+.push > strong {
+  display: block;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+.push > p {
+  margin: 0.4rem 0 0.8rem;
+  color: var(--color-ink-soft);
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+.openHint {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.65rem;
+}
