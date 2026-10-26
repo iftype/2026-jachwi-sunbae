@@ -29,5 +29,5 @@ weather:
     enabled: true
   notification:
     # 개발 Firebase 프로젝트·ADC·개발 앱의 등록정보를 준비한 뒤 true로 변경한다.
-    enabled: false
+    enabled: true
     firebase-project-id: "jachwi-sunbae-de"
