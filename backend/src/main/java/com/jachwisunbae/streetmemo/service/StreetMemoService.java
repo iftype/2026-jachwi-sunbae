@@ -35,7 +35,7 @@ public class StreetMemoService {
                                     final String memo, final StreetMemoPreference preference) {
         StreetMemo streetMemo = StreetMemo.create(memberId, latitude, longitude, memo, preference,
                 LocalDateTime.now(clock));
-        memberService.requireActiveMember(memberId);
+        memberService.findById(memberId);
         return StreetMemoResult.from(streetMemoRepository.save(streetMemo), memberId);
     }
 
@@ -49,7 +49,7 @@ public class StreetMemoService {
 
     @Transactional
     public void delete(final Long memberId, final long streetMemoId) {
-        memberService.requireActiveMember(memberId);
+        memberService.findById(memberId);
         StreetMemo streetMemo = streetMemoRepository.findByIdForUpdate(streetMemoId)
                 .orElseThrow(this::notFound);
         streetMemo.delete(memberId, LocalDateTime.now(clock));

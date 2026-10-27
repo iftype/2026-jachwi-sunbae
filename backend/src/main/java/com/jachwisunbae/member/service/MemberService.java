@@ -18,7 +18,7 @@ public class MemberService {
         this.memberRepository = memberRepository;
     }
 
-    private Member findById(final Long memberId) {
+    public Member findById(final Long memberId) {
         return memberRepository.findById(memberId)
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.MEMBER_NOT_FOUND,
                         "memberId=" + memberId + " 회원을 찾을 수 없습니다."));
@@ -26,9 +26,5 @@ public class MemberService {
 
     public MemberProfile findProfileById(final Long memberId) {
         return MemberProfile.from(findById(memberId));
-    }
-
-    public void requireActiveMember(final Long memberId) {
-        findById(memberId);
     }
 }
