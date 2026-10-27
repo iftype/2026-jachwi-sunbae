@@ -7,6 +7,7 @@ import com.jachwisunbae.streetmemo.controller.dto.response.StreetMemoResponse;
 import com.jachwisunbae.streetmemo.domain.StreetMemoPreference;
 import com.jachwisunbae.streetmemo.service.StreetMemoService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.net.URI;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/street-memos")
+@SecurityRequirement(name = "bearerAuth")
 public class StreetMemoController {
 
     private final StreetMemoService streetMemoService;

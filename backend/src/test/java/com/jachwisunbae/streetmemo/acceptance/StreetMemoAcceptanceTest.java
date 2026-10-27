@@ -211,9 +211,17 @@ class StreetMemoAcceptanceTest {
             mvc.perform(request)
                     .andExpect(status().isUnauthorized())
                     .andExpect(jsonPath("$.code").value("ACCESS_TOKEN_INVALID"));
+            mvc.perform(request.header(HttpHeaders.AUTHORIZATION, "Bearer invalid"))
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(jsonPath("$.code").value("ACCESS_TOKEN_INVALID"));
         }
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM street_memos WHERE deleted_at IS NULL", Long.class))
                 .isEqualTo(1L);
+        mvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.paths['/api/street-memos'].post.security[0].bearerAuth").isArray())
+                .andExpect(jsonPath("$.paths['/api/street-memos'].get.security[0].bearerAuth").isArray())
+                .andExpect(jsonPath("$.paths['/api/street-memos/{streetMemoId}'].delete.security[0].bearerAuth").isArray());
     }
 
     @Test
