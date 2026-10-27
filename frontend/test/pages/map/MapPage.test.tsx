@@ -1,11 +1,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { Link, MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { expect, it, vi } from 'vitest';
 
 import { propertySummaryFixture } from '@/app/mocks/fixtures/propertyFixtures';
+import { mapHandlers } from '@/app/mocks/handlers/mapHandlers';
+import { createStreetMemoHandlers } from '@/app/mocks/handlers/streetMemoHandlers';
 import MapPage from '@/pages/map/MapPage';
 import { setAuthentication } from '@/features/auth/model/authStore';
 import * as mapLocation from '@/features/map/lib/mapLocation';
@@ -74,6 +76,22 @@ vi.mock('@/features/map/ui/map-canvas/MapCanvas', () => ({
       <output aria-label="지도 중심">{JSON.stringify(props.center)}</output>
       <output aria-label="선택 매물">{props.selectedMarkerId}</output>
       <button onClick={() => props.onCenterChange?.(37.5, 127.1)}>지도 이동</button>
+      <button onClick={() => props.onSelectLocation?.(37.5662, 126.9785)}>빈 곳 찍기</button>
+      <button onClick={() => props.onBoundsChange?.({ south: 37.56, west: 126.97, north: 37.57, east: 126.99 })}>
+        화면 범위 알림
+      </button>
+      {props.coordinateMenu?.actions.map((action) => (
+        <button key={action.id} onClick={action.onSelect}>
+          {`말풍선 ${action.label}`}
+        </button>
+      ))}
+      {props.markers
+        ?.filter((marker) => marker.category === 'MEMO')
+        .map((marker) => (
+          <button key={marker.id} onClick={() => props.onSelectMarker?.(marker)}>
+            {`메모 마커 ${marker.label}`}
+          </button>
+        ))}
       {props.markers
         ?.filter((marker) => marker.tone === 'property')
         .map((marker) => (
@@ -270,4 +288,69 @@ it('선택 매물의 반경을 바꾸면 새 확대 수준에서 매물을 기�
   expect(screen.getByLabelText('선택 매물')).toHaveTextContent(`property-${propertySummaryFixture.propertyId}`);
   expect(screen.getByLabelText('지도 중심')).toHaveTextContent(centerBeforeDetail!);
   client.clear();
+});
+
+const renderMemoMap = () => {
+  vi.spyOn(mapLocation, 'readGeolocationPermission').mockResolvedValue('prompt');
+  server.use(
+    http.get('*/api/properties', () => HttpResponse.json({ code: 'SUCCESS', data: { totalCount: 0, items: [] } })),
+    ...mapHandlers,
+    ...createStreetMemoHandlers(),
+  );
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={[{ pathname: '/map', key: 'memo' }]}>
+        <PublicConfigProvider config={{ apiBaseUrl: 'http://localhost:8080', mapProviderMode: 'demo' }}>
+          <Routes>
+            <Route path="/map" element={<MapPage />} />
+          </Routes>
+        </PublicConfigProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+};
+
+it('메모 탭을 켜면 화면 안 거리 메모를 올리고, 남의 메모는 내용만 보고 지울 수 없다', async () => {
+  const user = userEvent.setup();
+  renderMemoMap();
+  await user.click(screen.getByRole('button', { name: '화면 범위 알림' }));
+  expect(screen.queryByRole('button', { name: /^메모 마커/ })).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: /^거리 메모 표시하기/ }));
+  await user.click(await screen.findByRole('button', { name: '메모 마커 늦게까지 여는 세탁소가 있어요.' }));
+  const details = within(await screen.findByRole('region', { name: '거리 메모' }));
+  expect(details.getByText('👍 좋아요')).toBeInTheDocument();
+  expect(details.queryByRole('button', { name: '메모 지우기' })).not.toBeInTheDocument();
+  // 메모를 보는 중에 빈 곳을 찍으면 닫기만 한다.
+  await user.click(screen.getByRole('button', { name: '빈 곳 찍기' }));
+  expect(screen.queryByRole('region', { name: '거리 메모' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: '📝 여기에 메모 남기기' })).not.toBeInTheDocument();
+});
+
+it('휴대폰은 빈 곳을 찍으면 아래 시트에서 메모 남기기와 매물 등록을 고른다', async () => {
+  const user = userEvent.setup();
+  renderMemoMap();
+  await user.click(screen.getByRole('button', { name: '화면 범위 알림' }));
+  await user.click(screen.getByRole('button', { name: '빈 곳 찍기' }));
+  expect(screen.getByRole('button', { name: '🏠 여기에 매물 등록하기' })).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: '📝 여기에 메모 남기기' }));
+  const form = within(await screen.findByRole('region', { name: '메모 남기기' }));
+  await user.click(form.getByRole('button', { name: '👎 싫어요' }));
+  await user.type(form.getByLabelText('메모'), '골목이 어두워요');
+  await user.click(form.getByRole('button', { name: '메모 남기기' }));
+  // 메모 탭이 꺼져 있어도 방금 쓴 메모가 보이게 켜고, 쓴 메모를 바로 연다.
+  expect(await screen.findByRole('region', { name: '거리 메모' })).toHaveTextContent('골목이 어두워요');
+  expect(screen.getByRole('button', { name: /^거리 메모 숨기기/ })).toHaveAttribute('aria-pressed', 'true');
+  expect(await screen.findByRole('button', { name: '메모 마커 골목이 어두워요' })).toBeInTheDocument();
+});
+
+it('찍은 위치에서 매물 등록을 고르면 그 자리를 가운데로 옮겨 추가 모드를 연다', async () => {
+  const user = userEvent.setup();
+  renderMemoMap();
+  await user.click(screen.getByRole('button', { name: '빈 곳 찍기' }));
+  await user.click(screen.getByRole('button', { name: '🏠 여기에 매물 등록하기' }));
+  expect(await screen.findByRole('region', { name: '선택한 위치로 매물 추가' })).toBeInTheDocument();
+  expect(screen.getByLabelText('지도 중심')).toHaveTextContent(
+    JSON.stringify({ latitude: 37.5662, longitude: 126.9785 }),
+  );
 });

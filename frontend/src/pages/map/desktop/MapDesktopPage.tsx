@@ -2,6 +2,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import PropertyDetailPage from '@/pages/property-detail/PropertyDetailPage';
 import { parsePositiveId } from '@/features/property/lib/propertyFormat';
+import StreetMemoPanel from '@/features/street-memo/ui/street-memo-panel/StreetMemoPanel';
 
 import useMapPage from '../hooks/useMapPage';
 import MapAddressSearch from '../ui/map-address-search/MapAddressSearch';
@@ -15,6 +16,7 @@ import styles from './MapDesktopPage.module.css';
  * 데스크탑 인프라 지도. 검색창은 공용 데스크탑 헤더로 옮겨 그리고,
  * 바텀시트 대신 왼쪽 칸에 매물 목록을 늘 펼쳐 둔 채 오른쪽에 지도를 둔다.
  * 목록에서 매물을 누르면(`/map/:propertyId`) 기록 화면처럼 지도를 떠나지 않고 왼쪽 칸에서 상세를 연다.
+ * 지도의 빈 곳을 찍으면 그 자리 말풍선에서 메모·매물 등록을 고르고, 메모는 지도 위 카드에서 쓰고 본다.
  */
 const MapDesktopPage = () => {
   const map = useMapPage();
@@ -54,7 +56,9 @@ const MapDesktopPage = () => {
           returnState={{ mapViewKey: map.locationKey }}
         />
       )}
-      <MapStage map={map} className={styles.mapStage} />
+      <MapStage map={map} className={styles.mapStage} showCoordinateMenu>
+        <StreetMemoPanel layer={map.memo} onCreated={map.showCreatedMemo} className={styles.memoCard} />
+      </MapStage>
     </main>
   );
 };

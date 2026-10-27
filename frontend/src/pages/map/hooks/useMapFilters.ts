@@ -22,7 +22,11 @@ const useMapFilters = (initial?: { categories: MapCategory[]; radius: MapRadius 
 
   const ensureRadius = () => setSelectedRadius((current) => current ?? 500);
 
-  return { selectedCategories, selectedRadius, toggleCategory, toggleRadius, ensureRadius };
+  /** 꺼져 있으면 그 카테고리만 켠다. 이미 켜져 있으면 그대로 둔다. */
+  const showCategory = (category: MapCategory) =>
+    setSelectedCategories((current) => (current.includes(category) ? current : [category]));
+
+  return { selectedCategories, selectedRadius, toggleCategory, showCategory, toggleRadius, ensureRadius };
 };
 
 export default useMapFilters;

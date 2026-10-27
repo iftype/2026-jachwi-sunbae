@@ -10,7 +10,7 @@
 
 .locationControls {
   position: absolute;
-  top: 22.45rem;
+  top: 25.25rem;
   right: 0.85rem;
   z-index: 15;
   display: grid;
@@ -38,6 +38,6 @@
 
 @media (max-width: 340px) {
   .locationControls {
-    top: 19.75rem;
+    top: 22.2rem;
   }
 }

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 import MapCanvas from '@/features/map/ui/map-canvas/MapCanvas';
 
-import { type MapPageState, PROPERTY_MARKER_PREFIX } from '../../hooks/useMapPage';
+import type { MapPageState } from '../../hooks/useMapPage';
 import MapAddPropertySheet from '../map-add-property-sheet/MapAddPropertySheet';
 import MapControls from '../map-controls/MapControls';
 import MapNearbyCountToast from '../map-nearby-count-toast/MapNearbyCountToast';
@@ -14,10 +14,12 @@ type MapStageProps = {
   className?: string;
   /** 추가 모드가 아닐 때 지도 위에 함께 띄울 요소(휴대폰 매물 바텀시트 등). */
   children?: ReactNode;
+  /** 데스크탑은 찍은 자리에 동작 말풍선을 띄운다. 휴대폰은 넘기지 않고 children으로 아래 시트를 띄운다. */
+  showCoordinateMenu?: boolean;
 };
 
-/** 인프라 지도 본체: 지도, 반경·시설 조작, 주변 시설 개수 안내, 매물 추가 모드 시트. */
-const MapStage = ({ map, className, children }: MapStageProps) => {
+/** 인프라 지도 본체: 지도, 반경·시설·메모 조작, 주변 시설 개수 안내, 매물 추가 모드 시트. */
+const MapStage = ({ map, className, children, showCoordinateMenu = false }: MapStageProps) => {
   const { addMode, search, mapLocation, filters, selectedRadius, toastCategory } = map;
 
   return (
@@ -38,11 +40,10 @@ const MapStage = ({ map, className, children }: MapStageProps) => {
         showRadiusLabels={false}
         showCenterPin={addMode.isAddMode}
         interactive={!addMode.isAddMode}
-        selectedMarkerId={
-          map.selectedPropertyId === null ? undefined : `${PROPERTY_MARKER_PREFIX}${map.selectedPropertyId}`
-        }
+        selectedMarkerId={map.selectedMarkerId}
+        coordinateMenu={showCoordinateMenu ? map.coordinateMenu : undefined}
         onSelectMarker={map.selectMarker}
-        onSelectLocation={map.closeSelection}
+        onSelectLocation={map.tapLocation}
         onCenterChange={map.changeCenter}
         onLevelChange={map.setMapLevel}
         onBoundsChange={map.updateBounds}

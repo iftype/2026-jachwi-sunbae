@@ -1,3 +1,6 @@
+import MapTapActionSheet from '@/features/map/ui/map-tap-action-sheet/MapTapActionSheet';
+import StreetMemoSheet from '@/features/street-memo/ui/street-memo-sheet/StreetMemoSheet';
+
 import useMapPage from '../hooks/useMapPage';
 import MapAddressSearch from '../ui/map-address-search/MapAddressSearch';
 import MapPropertySheet from '../ui/map-property-sheet/MapPropertySheet';
@@ -5,7 +8,10 @@ import MapStage from '../ui/map-stage/MapStage';
 
 import shared from '../MapPage.module.css';
 
-/** 휴대폰·태블릿 인프라 지도. 지도 위 검색창과 끌어 올리는 매물 바텀시트를 둔다. */
+/**
+ * 휴대폰·태블릿 인프라 지도. 지도 위 검색창과 끌어 올리는 매물 바텀시트를 둔다.
+ * 지도의 빈 곳을 찍으면 그 자리에 핀만 두고, 메모·매물 등록은 아래 시트에서 고른다.
+ */
 const MapMobilePage = () => {
   const map = useMapPage();
   const { search, mapLocation, sheet } = map;
@@ -41,6 +47,8 @@ const MapMobilePage = () => {
           onToggle={sheet.toggleSheet}
           returnState={{ mapViewKey: map.locationKey }}
         />
+        {map.tapPoint !== null && <MapTapActionSheet actions={map.tapActions} onClose={map.closeTap} />}
+        <StreetMemoSheet layer={map.memo} onCreated={map.showCreatedMemo} />
       </MapStage>
     </main>
   );

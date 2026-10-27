@@ -55,6 +55,7 @@ const MapControls = ({
         onSelect={onSelectRadius}
       />
       <MapCategoryRail
+        showMemo
         className={styles.categoryRail}
         selectedCategories={selectedCategories}
         counts={categoryCounts}

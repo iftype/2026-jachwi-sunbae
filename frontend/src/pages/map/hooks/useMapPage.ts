@@ -4,6 +4,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { getMapFocusCenter } from '@/features/map/lib/mapViewportFocus';
 import type { MapAddress, MapBounds } from '@/features/map/model/Map';
 import type { MapMarker } from '@/features/map/model/Map';
+import type { MapCoordinateMenu, MapTapAction } from '@/features/map/model/MapCanvas';
+import useStreetMemoLayer from '@/features/street-memo/hooks/useStreetMemoLayer';
 
 import { levelForRadius, type MapRadius } from '../lib/mapRadius';
 import { readMapView, writeMapView } from '../lib/mapViewState';
@@ -18,6 +20,9 @@ import useMapSheet from './useMapSheet';
 /** 현재 위치 또는 선택한 매물 좌표에서 반경별 주변 시설을 탐색한다. */
 const INITIAL_MAP_LEVEL = levelForRadius(500);
 export const PROPERTY_MARKER_PREFIX = 'property-';
+const TAP_MARKER_ID = 'tap-point';
+
+type MapPoint = { latitude: number; longitude: number };
 
 /** 인프라 지도 화면의 상태와 동작. 데스크탑·휴대폰 화면이 함께 쓴다. */
 const useMapPage = () => {
@@ -49,6 +54,9 @@ const useMapPage = () => {
   const { getFallbackCoordinate, mappedProperties, visibleProperties, propertyMarkers, isLoading, isError, retry } =
     useMapProperties(mapLocation.viewportCenter, mapLevel, bounds, selectedPropertyId);
   const selectedProperty = mappedProperties.find((property) => property.propertyId === selectedPropertyId);
+  const memo = useStreetMemoLayer(filters.selectedCategories.includes('MEMO') && !addMode.isAddMode, bounds);
+  // 지도의 빈 곳을 찍은 위치. 여기서 메모를 남길지 매물을 등록할지 고른다.
+  const [tapPoint, setTapPoint] = useState<MapPoint | null>(null);
   useEffect(() => {
     if (addMode.isAddMode) return;
     writeMapView(location.key, {
@@ -94,11 +102,15 @@ const useMapPage = () => {
     return [
       ...propertyMarkers,
       ...facilityMarkers,
+      ...memo.markers,
       ...(currentPosition === null
         ? []
         : [{ id: 'current-location', ...currentPosition, label: '현재 위치', tone: 'current' as const }]),
+      ...(tapPoint === null
+        ? []
+        : [{ id: TAP_MARKER_ID, ...tapPoint, label: '선택한 위치', tone: 'destination' as const }]),
     ];
-  }, [currentPosition, facilityMarkers, propertyMarkers]);
+  }, [currentPosition, facilityMarkers, propertyMarkers, memo.markers, tapPoint]);
 
   const moveToCurrentLocation = () => {
     void mapLocation.moveToCurrentLocation(getFallbackCoordinate).then((coordinate) => {
@@ -136,12 +148,19 @@ const useMapPage = () => {
   };
 
   const selectMarker = (marker: MapMarker) => {
+    if (!addMode.isAddMode && memo.selectMarker(marker)) {
+      setTapPoint(null);
+      setSelectedPropertyId(null);
+      return;
+    }
     if (marker.tone === 'propertyCluster') {
       mapLocation.moveToCoordinate({ latitude: marker.latitude, longitude: marker.longitude });
       setMapLevel((current) => Math.max(1, current - 1));
       return;
     }
     if (!addMode.isAddMode && marker.tone === 'property') {
+      setTapPoint(null);
+      memo.close();
       selectProperty(Number(marker.id.slice(PROPERTY_MARKER_PREFIX.length)));
     }
   };
@@ -165,13 +184,18 @@ const useMapPage = () => {
     addMode.handleCenterChange(coordinate);
   };
 
-  const enterAddMode = () => {
+  const enterAddModeAt = (point: MapPoint) => {
+    setTapPoint(null);
+    memo.close();
     setHasNearbyAnchor(true);
     filters.ensureRadius();
     setSelectedPropertyId(null);
     sheet.closeSheet();
-    addMode.enter(mapLocation.viewportCenter);
+    // 추가 모드는 화면 가운데 핀으로 위치를 고르므로, 찍은 위치에서 시작하면 그 자리를 가운데로 옮긴다.
+    mapLocation.moveToCoordinate(point);
+    addMode.enter(point);
   };
+  const enterAddMode = () => enterAddModeAt(mapLocation.viewportCenter);
 
   const cancelAddMode = () => {
     setNearbyAnchor(mapLocation.viewportCenter);
@@ -179,7 +203,9 @@ const useMapPage = () => {
   };
 
   const { selectedRadius, selectedCategories } = filters;
-  const toastCategory = selectedCategories.length === 1 ? selectedCategories[0] : undefined;
+  // 거리 메모는 반경 안 시설 개수가 아니라 화면 안 메모라 개수 안내를 띄우지 않는다.
+  const toastCategory =
+    selectedCategories.length === 1 && selectedCategories[0] !== 'MEMO' ? selectedCategories[0] : undefined;
 
   const listProperties = selectedProperty === undefined ? visibleProperties : [selectedProperty];
   const confirmAddProperty = (address: MapAddress) =>
@@ -189,6 +215,42 @@ const useMapPage = () => {
     setSelectedPropertyId(null);
     sheet.closeSheet();
   };
+
+  /**
+   * 지도의 빈 곳을 찍으면, 열려 있는 매물·메모·동작 목록이 있으면 닫기만 하고 아니면 그 자리에서 할 일을 고르게 한다.
+   * 무언가를 닫으려고 찍었는데 바로 새 동작 목록이 뜨면 다시 닫아야 해서 두 단계로 나눈다.
+   */
+  const tapLocation = (latitude: number, longitude: number) => {
+    if (addMode.isAddMode) return;
+    if (selectedPropertyId !== null || memo.mode !== null || tapPoint !== null) {
+      closeSelection();
+      memo.close();
+      setTapPoint(null);
+      return;
+    }
+    setTapPoint({ latitude, longitude });
+  };
+  const closeTap = () => setTapPoint(null);
+  const tapActions: MapTapAction[] =
+    tapPoint === null
+      ? []
+      : [
+          {
+            id: 'street-memo',
+            label: '📝 여기에 메모 남기기',
+            onSelect: () => {
+              setTapPoint(null);
+              memo.startDraft(tapPoint);
+            },
+          },
+          { id: 'property', label: '🏠 여기에 매물 등록하기', onSelect: () => enterAddModeAt(tapPoint) },
+        ];
+  const coordinateMenu: MapCoordinateMenu | undefined =
+    tapPoint === null ? undefined : { ...tapPoint, actions: tapActions, onClose: closeTap };
+  // 방금 쓴 메모가 보이도록 메모 카테고리를 켠다.
+  const showCreatedMemo = () => filters.showCategory('MEMO');
+  const selectedMarkerId =
+    selectedPropertyId !== null ? `${PROPERTY_MARKER_PREFIX}${selectedPropertyId}` : memo.selectedMarkerId;
 
   return {
     locationKey: location.key,
@@ -223,6 +285,14 @@ const useMapPage = () => {
     cancelAddMode,
     confirmAddProperty,
     closeSelection,
+    memo,
+    tapPoint,
+    tapActions,
+    coordinateMenu,
+    tapLocation,
+    closeTap,
+    showCreatedMemo,
+    selectedMarkerId,
   };
 };
 
