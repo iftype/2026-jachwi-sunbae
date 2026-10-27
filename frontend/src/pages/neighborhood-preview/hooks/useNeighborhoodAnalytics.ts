@@ -88,6 +88,8 @@ const useNeighborhoodAnalytics = (options: AnalyticsOptions) => {
     },
     selectArea: () => capture('neighborhood_area_selected'),
     changeStation: () => capture('commute_departure_station_changed'),
+    openListing: () => capture('neighborhood_listing_link_clicked', { provider: 'dabang' }),
+    openNearby: () => capture('neighborhood_nearby_link_clicked'),
   };
 };
 

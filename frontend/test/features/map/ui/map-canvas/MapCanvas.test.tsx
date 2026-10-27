@@ -142,6 +142,19 @@ describe('Naver 지도 상태 동기화', () => {
     vi.restoreAllMocks();
   });
 
+  it('지도가 그릴 준비를 마칠 때까지 불러오는 중임을 알린다', async () => {
+    const view = renderWithConfig(
+      <MapCanvas center={{ latitude: 37.5, longitude: 127 }} customStyleId="style" interactive />,
+    );
+    expect(view.getByRole('status')).toHaveTextContent('지도를 불러오고 있어요');
+    await waitFor(() => expect(maps).toHaveLength(1));
+    expect(view.getByRole('status')).toBeInTheDocument();
+
+    (maps[0] as FakeMapInstance & { _glReady?: boolean })._glReady = true;
+
+    await waitFor(() => expect(view.queryByRole('status')).not.toBeInTheDocument());
+  });
+
   it('동네에 마우스를 올리면 채움이 진해지고 벗어나면 복원한다', async () => {
     const { unmount } = renderWithConfig(
       <MapCanvas

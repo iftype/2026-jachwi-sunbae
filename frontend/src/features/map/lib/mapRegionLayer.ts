@@ -7,7 +7,7 @@ type Engine = Pick<ReturnType<typeof naverEngine>, 'latLng' | 'createOverlay' | 
 /** 한 번에 등록하는 새 동 수. GL 지도는 도형마다 레이어를 검증·직렬화해 많이 넣으면 한 프레임이 길어진다. */
 const STAGE_CHUNK = 40;
 /** GL 준비 신호를 못 받아도 이 시간이 지나면 그린다. */
-const READY_TIMEOUT_MS = 3000;
+export const READY_TIMEOUT_MS = 3000;
 type Polygon = InstanceType<NaverMapsNamespace['Polygon']>;
 const anchorOf = (region: MapRegion) => region.center ?? region.polygons?.[0]?.[0]?.[0] ?? region.paths[0]?.[0];
 /** 화면 중심에서 가까운 순서를 정하는 용도라 위도에 따른 경도 축척만 맞춘 근사 거리다. */

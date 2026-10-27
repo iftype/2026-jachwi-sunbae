@@ -343,7 +343,8 @@ printf 'OLD GC\n' > /var/log/jachwi-sunbae/gc.log
 
 for round in 1 2; do
     deploy_bundle
-    PATH="${T}/deploy-bin:${PATH}" DEPLOYMENT_GROUP_NAME=jachwi-sunbae-dev-group \
+    if [[ "${round}" == 1 ]]; then DEPLOY_GROUP=jachwi-sunbae-dev-group; else DEPLOY_GROUP=jachwi-sunbae-codeDeploy-group; fi
+    PATH="${T}/deploy-bin:${PATH}" DEPLOYMENT_GROUP_NAME="${DEPLOY_GROUP}" \
         bash /opt/jachwi-sunbae/scripts/after_install.sh > "${T}/after_install.out" 2>&1
     check "AfterInstall ${round}회차: 성공" [ $? -eq 0 ]
 done
@@ -373,6 +374,7 @@ mkdir -p /etc/jachwi-sunbae && touch /etc/jachwi-sunbae/app.env
 [[ -e /usr/bin/java ]] || ln -s "$(readlink -f "$(command -v java)")" /usr/bin/java
 systemd-analyze verify "${DEPLOY_DIR}/jachwi-sunbae.service" > "${T}/verify.out" 2>&1
 check "systemd 유닛 문법 검증" [ $? -eq 0 ]
+check "systemd 유닛: 고정 Firebase 인증 경로" grep -Fxq 'Environment="GOOGLE_APPLICATION_CREDENTIALS=/etc/jachwi-sunbae/firebase/service-account.json"' "${DEPLOY_DIR}/jachwi-sunbae.service"
 cat "${T}/verify.out"
 EXEC_START="$(sed -n 's/^ExecStart=//p' "${DEPLOY_DIR}/jachwi-sunbae.service")"
 check "systemd 유닛: 기존 Heap 정책 유지" grep -Fq -- '-XX:MaxRAMPercentage=50.0' <<< "${EXEC_START}"

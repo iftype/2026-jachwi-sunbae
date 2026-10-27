@@ -90,7 +90,7 @@
 
 ### 3.5. 저장 데이터와 조회 응답
 
-테이블은 `street_memos`이며 [V4 마이그레이션](../../backend/src/main/resources/db/migration/V4__create_street_memos.sql)으로 추가한다.
+테이블은 `street_memos`이며 [V6 마이그레이션](../../backend/src/main/resources/db/migration/V6__create_street_memos.sql)으로 추가한다.
 아래 표는 내부 저장 구조다. 공유 응답에서는 작성자 식별 정보를 제외한다.
 
 | 필드         | 저장 타입        | 필수 여부 | 의미                                                     |

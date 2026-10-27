@@ -122,8 +122,6 @@ JWT secret, 지도 Client Secret, S3 자격증명은 프론트에 넣지 않습�
 로그인 화면의 쿼리와 마이페이지의 해시도 유지합니다. 직접 접속해 앱 내 이전 이력이 없으면 `/`로 교체하여
 로그인 상태에 따른 기본 진입 화면으로 이동합니다.
 
-운영 사이트의 Maze 사용성 테스트 설치와 배포 후 검증은 [Maze 테스트 안내](docs/maze-testing.md)를 참고합니다.
-
 - Access Token은 메모리에만 둡니다. 앱을 열면 `POST /api/auth/login`이 HttpOnly Refresh 쿠키로 같은 익명 회원을 복원하거나 새 익명 회원을 만듭니다.
 - Access Token이 만료되거나 업무 API가 401을 주면 `POST /api/auth/refresh`로 갱신해 원래 요청을 한 번 다시 보냅니다. 갱신이 `401 REFRESH_TOKEN_INVALID`로 거절되면 새 회원을 만들지 않고 인증 Query Cache와 토큰을 지운 뒤 안내합니다.
 - 사진 콘텐츠는 URL을 `<img>`에 직접 주지 않고 Bearer 인증 Blob으로 조회해 Object URL을 만든 뒤 해제합니다.

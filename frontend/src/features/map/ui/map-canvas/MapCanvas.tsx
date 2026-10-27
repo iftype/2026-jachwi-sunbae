@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import { useMemo } from 'react';
 
+import ProgressCircle from '@/shared/ui/progress-circle/ProgressCircle';
 import StatusPanel from '@/shared/ui/status-panel/StatusPanel';
 
 import useNaverMap from '../../hooks/useNaverMap';
@@ -50,7 +51,7 @@ const MapCanvas = ({
   onSelectRegion,
 }: MapCanvasProps) => {
   const boundedCenter = useMemo(() => clampToSouthKorea(center), [center.latitude, center.longitude]);
-  const { containerRef, canvasRef, liveMode, sdkError } = useNaverMap({
+  const { containerRef, canvasRef, liveMode, sdkError, isLoading } = useNaverMap({
     center,
     animateView,
     coordinateAction,
@@ -74,6 +75,7 @@ const MapCanvas = ({
     <div
       className={`${styles.canvas} ${liveMode ? styles.live : styles.demo}`}
       ref={canvasRef}
+      data-map-zoom-area=""
       aria-label={liveMode ? 'Naver 지도' : '데모 지도'}
       onClick={(event) => {
         if (liveMode || !interactive || onSelectLocation === undefined) return;
@@ -251,6 +253,12 @@ const MapCanvas = ({
             .map((circle) => (
               <span key={circle.radiusMeters}>{circle.label}</span>
             ))}
+        </div>
+      )}
+      {isLoading && (
+        <div className={styles.mapLoading} role="status">
+          <ProgressCircle size={24} label="지도를 불러오는 중이에요." />
+          지도를 불러오고 있어요
         </div>
       )}
       {sdkError && (

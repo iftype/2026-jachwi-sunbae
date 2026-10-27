@@ -1,11 +1,17 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import AuthenticatedPhoto from '@/features/property/ui/authenticated-photo/AuthenticatedPhoto';
 import { HOME_PATH, RECORDS_PATH } from '@/shared/lib/navigation/appPaths';
 import Icon from '@/shared/ui/icon/Icon';
 
 import useRecords from '../hooks/useRecords';
+import {
+  parseRecordsView,
+  readLastRecordsView,
+  RECORDS_VIEW_PARAM,
+  type RecordsView,
+  writeLastRecordsView,
+} from '../model/recordsView';
 import RecordDistricts from '../ui/record-districts/RecordDistricts';
 import RecordList from '../ui/record-list/RecordList';
 import RecordListSkeleton from '../ui/record-list/RecordListSkeleton';
@@ -23,7 +29,19 @@ const RecordsMobilePage = () => {
   const navigate = useNavigate();
   const records = useRecords();
   const { selected, setSelectedId, setNotice } = records;
-  const [view, setView] = useState<'map' | 'list'>('map');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const view = parseRecordsView(searchParams.get(RECORDS_VIEW_PARAM)) ?? readLastRecordsView();
+  // 보기 방식을 주소에 남겨, 상세·체크리스트에서 뒤로 돌아와도 보던 보기(리스트 등)로 열리게 한다.
+  const setView = (next: RecordsView) => {
+    writeLastRecordsView(next);
+    setSearchParams(
+      (current) => {
+        current.set(RECORDS_VIEW_PARAM, next);
+        return current;
+      },
+      { replace: true },
+    );
+  };
   const showsMap = view === 'map';
 
   return (

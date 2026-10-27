@@ -52,6 +52,16 @@ map:
   connect-timeout-millis: ${MAP_CONNECT_TIMEOUT_MILLIS:2000}
   read-timeout-millis: ${MAP_READ_TIMEOUT_MILLIS:5000}
 
+weather:
+  kma:
+    api-key: ${KMA_API_KEY:}
+  notification:
+    enabled: false
+  collection:
+    enabled: false
+  cleanup:
+    enabled: false
+
 management:
   endpoints:
     web:

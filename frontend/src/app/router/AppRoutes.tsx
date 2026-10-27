@@ -74,6 +74,7 @@ const AppRoutes = () => (
       <Route path="/explore/price" element={lazyPage(<NeighborhoodPreviewPage />)}>
         <Route path="prices/:legalDongCode" element={lazyPage(<NeighborhoodPricePage />)} />
       </Route>
+      <Route path="/explore/nearby" element={lazyPage(<NearbyAnalysisPage />)} />
     </Route>
     <Route element={<PropertyAppLayout />}>
       <Route path="/guide" element={lazyPage(<UsageGuidePage />)} />
@@ -83,6 +84,7 @@ const AppRoutes = () => (
         <Route path="areas/:adminDongCode/details" element={lazyPage(<NeighborhoodRoutePage />)} />
         <Route path="prices/:legalDongCode" element={lazyPage(<NeighborhoodPricePage />)} />
       </Route>
+      <Route path="/neighborhoods/nearby" element={lazyPage(<NearbyAnalysisPage />)} />
     </Route>
     {/* 랜딩은 없다. 첫 진입은 홈에서 자동 로그인하고, 서비스 소개는 사용 방법(`/guide`)이 맡는다. */}
     <Route path="/landing" element={<LegacyLandingRoute />} />

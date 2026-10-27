@@ -9,6 +9,7 @@ import { fetchLegalBoundaries, nearbyLegalBoundaries } from '@/features/map/api/
 import { reverseGeocode, searchAddress } from '@/features/map/api/mapApi';
 import { fetchRentalAverage } from '@/features/map/api/rentalApi';
 import { useCommuteAreas } from '@/features/map/api/useCommuteAreas';
+import { areaNearbyPath } from '@/features/map/lib/areaNearbyTarget';
 import { readGeolocationPermission, requestCurrentMapLocation } from '@/features/map/lib/mapLocation';
 import { type MapCoordinate, MapLocationError } from '@/features/map/lib/mapLocation';
 import type { MapAddress } from '@/features/map/model/Map';
@@ -491,6 +492,15 @@ const useNeighborhoodPreview = () => {
     openAreaDetails: () => {
       if (selected) navigate(`${mapPath}/areas/${selected.adminDongCode}/details?mode=commute`);
     },
+    openListing: analytics.openListing,
+    openNearby: analytics.openNearby,
+    /** 동네 주변 분석 주소. 현재 화면으로 돌아올 수 있게 경로를 함께 넘긴다. */
+    nearbyPathFor: (area: { name: string; center: { latitude: number; longitude: number } }) =>
+      areaNearbyPath(
+        isPublicExplore ? '/explore' : '/neighborhoods',
+        { name: area.name, ...area.center },
+        `${location.pathname}${location.search}`,
+      ),
   };
 };
 export default useNeighborhoodPreview;

@@ -8,8 +8,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import javax.sql.DataSource;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,24 +30,28 @@ class RentalImportAcceptanceTest {
     @Container
     private static final MySQLContainer<?> MYSQL = new MySQLContainer<>("mysql:8.4.10")
         .withDatabaseName("rental_import").withUsername("rental_app").withPassword("import_test_password");
-    private static DataSource adminSource;
-    private static JdbcTemplate admin;
+    private static JdbcTemplate databaseAdmin;
+    private JdbcTemplate admin;
+    private String databaseName;
+    private String jdbcUrl;
     @TempDir
     private Path work;
 
     @BeforeAll
     static void configureDataOnlyAccount() {
-        adminSource = new DriverManagerDataSource(MYSQL.getJdbcUrl(), "root", MYSQL.getPassword());
-        admin = new JdbcTemplate(adminSource);
-        admin.execute("REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'rental_app'@'%'");
-        admin.execute("GRANT SELECT, INSERT, UPDATE, DELETE ON rental_import.* TO 'rental_app'@'%'");
+        databaseAdmin = new JdbcTemplate(new DriverManagerDataSource(MYSQL.getJdbcUrl(), "root", MYSQL.getPassword()));
+        databaseAdmin.execute("REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'rental_app'@'%'");
     }
 
     @BeforeEach
     void prepareSchemaAndFiles() throws Exception {
-        Flyway flyway = Flyway.configure().dataSource(adminSource).cleanDisabled(false).load();
-        flyway.clean();
-        flyway.migrate();
+        databaseName = "rental_import_" + UUID.randomUUID().toString().replace("-", "");
+        databaseAdmin.execute("CREATE DATABASE `" + databaseName + "`");
+        databaseAdmin.execute("GRANT SELECT, INSERT, UPDATE, DELETE ON `" + databaseName + "`.* TO 'rental_app'@'%'");
+        jdbcUrl = "jdbc:mysql://" + MYSQL.getHost() + ":" + MYSQL.getMappedPort(3306) + "/" + databaseName;
+        var adminSource = new DriverManagerDataSource(jdbcUrl, "root", MYSQL.getPassword());
+        admin = new JdbcTemplate(adminSource);
+        Flyway.configure().dataSource(adminSource).cleanDisabled(true).load().migrate();
         Files.writeString(work.resolve("법정동 코드.txt"),
             "법정동코드\t법정동명\t폐지여부\n1162010200\t서울특별시 관악구 신림동\t존재\n",
             Charset.forName("MS949"));
@@ -57,7 +61,7 @@ class RentalImportAcceptanceTest {
     @Test
     void importsReplacesAndSkipsRepeatedDataWithoutCreatePrivilege() throws Exception {
         var grants = new JdbcTemplate(new DriverManagerDataSource(
-            MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())).queryForList("SHOW GRANTS", String.class);
+            jdbcUrl, MYSQL.getUsername(), MYSQL.getPassword())).queryForList("SHOW GRANTS", String.class);
         assertThat(grants).noneMatch(grant -> grant.contains("CREATE") || grant.contains("ALL PRIVILEGES"));
 
         assertThat(runImport(true)).isZero();
@@ -213,7 +217,7 @@ class RentalImportAcceptanceTest {
             .redirectOutput(work.resolve("command.log").toFile());
         builder.environment().put("DB_HOST", apply ? MYSQL.getHost() : "unreachable.invalid");
         builder.environment().put("DB_PORT", MYSQL.getMappedPort(3306).toString());
-        builder.environment().put("DB_NAME", MYSQL.getDatabaseName());
+        builder.environment().put("DB_NAME", databaseName);
         builder.environment().put("DB_USERNAME", MYSQL.getUsername());
         builder.environment().put("DB_PASSWORD", MYSQL.getPassword());
         Process process = builder.start();

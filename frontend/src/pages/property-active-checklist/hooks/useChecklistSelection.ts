@@ -40,7 +40,8 @@ const useChecklistSelection = ({
 
   const toggleSelection = (checklistId: number) => {
     if (current?.checklistId === checklistId && appliedPropertyChecklistId !== null) {
-      openChecklist(appliedPropertyChecklistId, false);
+      // 교체 화면은 체크리스트 화면 기록을 대신한 것이므로, 다시 고른 체크리스트로도 기록을 쌓지 않고 바꿔 연다.
+      openChecklist(appliedPropertyChecklistId, true);
       return;
     }
     setSelectedId(checklistId);

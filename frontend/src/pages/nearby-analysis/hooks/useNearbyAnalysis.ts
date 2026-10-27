@@ -18,8 +18,19 @@ const levelForRadius = (radius: NearbyRadius) => (radius === 500 ? 4 : radius ==
 const toggleCategory = (categories: MapCategory[], category: MapCategory) =>
   categories.includes(category) ? categories.filter((item) => item !== category) : [...categories, category];
 
-/** 매물 좌표를 중심으로 반경·카테고리별 주변 시설을 조회하고, 지도 탐색 상태를 관리한다. */
-const useNearbyAnalysis = (propertyId: number, propertyLocation: MapCoordinate | null) => {
+export type NearbyAnalysisOptions = {
+  /** 중심 마커 이름. 기본은 매물이다. */
+  markerLabel?: string;
+  /** 처음부터 마커·목록에 보여줄 카테고리. */
+  initialCategories?: MapCategory[];
+};
+
+/** 중심 좌표(매물 또는 동네)를 기준으로 반경·카테고리별 주변 시설을 조회하고, 지도 탐색 상태를 관리한다. */
+const useNearbyAnalysis = (
+  propertyId: number | string,
+  propertyLocation: MapCoordinate | null,
+  options: NearbyAnalysisOptions = {},
+) => {
   const latitude = propertyLocation?.latitude ?? null;
   const longitude = propertyLocation?.longitude ?? null;
   const center = useMemo(
@@ -29,7 +40,7 @@ const useNearbyAnalysis = (propertyId: number, propertyLocation: MapCoordinate |
   const [viewportCenter, setViewportCenter] = useState(center);
   const [radius, setRadius] = useState<NearbyRadius>(2000);
   const [mapLevel, setMapLevel] = useState(6);
-  const [selectedCategories, setSelectedCategories] = useState<MapCategory[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<MapCategory[]>(options.initialCategories ?? []);
   const [isListExpanded, setIsListExpanded] = useState(false);
   const [isAllMode, setIsAllMode] = useState(false);
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
@@ -57,10 +68,15 @@ const useNearbyAnalysis = (propertyId: number, propertyLocation: MapCoordinate |
 
   const markers = useMemo<MapMarker[]>(
     () => [
-      { id: `selected-property-${propertyId}`, ...center, label: '선택한 매물', tone: 'selected' },
+      {
+        id: `selected-property-${propertyId}`,
+        ...center,
+        label: options.markerLabel ?? '선택한 매물',
+        tone: 'selected',
+      },
       ...clusterNearbyPlaces(places, mapLevel),
     ],
-    [center, mapLevel, places, propertyId],
+    [center, mapLevel, places, propertyId, options.markerLabel],
   );
   const circles = useMemo<MapRadiusCircle[]>(
     () =>

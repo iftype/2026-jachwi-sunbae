@@ -20,7 +20,7 @@
         </encoder>
     </appender>
 
-    <springProfile name="prod">
+    <springProfile name="dev | prod">
         <appender name="JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
             <file>${LOG_DIR}/application.log</file>
             <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
@@ -42,7 +42,7 @@
         </root>
     </springProfile>
 
-    <springProfile name="!prod">
+    <springProfile name="!dev &amp; !prod">
         <root level="${ROOT_LOG_LEVEL}">
             <appender-ref ref="CONSOLE"/>
         </root>
