@@ -46,6 +46,6 @@ export const createRegionSummaryElement = (region: MapRegion, selected: boolean,
 export const regionSummaryRows = (region: MapRegion): [string, string][] => {
   const rows: [string, string][] = [];
   if (region.summary?.travel !== undefined) rows.push(['이동 시간', region.summary.travel]);
-  if (region.summary?.price !== undefined) rows.push(['거래 평균가', region.summary.price]);
+  if (region.summary?.price !== undefined) rows.push(['월세 시세', region.summary.price]);
   return rows;
 };

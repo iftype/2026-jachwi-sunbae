@@ -35,6 +35,7 @@ const markerClassName = (marker: MapMarker, selectedMarkerId: string | null | un
     marker.tone === 'property' ? styles.propertyMarker : '',
     marker.tone === 'current' ? styles.currentMarker : '',
     marker.tone === 'selected' ? styles.selectedMarker : '',
+    marker.tone === 'destination' ? styles.destinationMarker : '',
     marker.tone === 'place' ? styles.placeMarker : '',
     marker.tone === 'cluster' ? styles.clusterMarker : '',
     marker.tone === 'propertyCluster' ? styles.propertyClusterMarker : '',
@@ -54,7 +55,12 @@ const MapMarkerView = ({ marker, selectedMarkerId = null, onSelectMarker }: MapM
           <small title={marker.summary.amount}>{marker.summary.amount}</small>
         </span>
       )}
-      {isCurrentLocationDot(marker) ? null : usesCategoryIcon(marker) && marker.category !== undefined ? (
+      {marker.tone === 'destination' ? (
+        <>
+          <span className={styles.destinationLabel}>{marker.label}</span>
+          <span className={styles.destinationTail} aria-hidden="true" />
+        </>
+      ) : isCurrentLocationDot(marker) ? null : usesCategoryIcon(marker) && marker.category !== undefined ? (
         <MapCategoryIcon category={marker.category} className={styles.categoryIcon} />
       ) : marker.tone === 'property' || marker.tone === 'selected' || marker.tone === 'propertyCluster' ? (
         <img className={styles.markerPhoto} src={logoImage} alt="" draggable={false} decoding="async" />

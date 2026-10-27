@@ -24,3 +24,16 @@ describe('매물 마커의 지도 SDK 요소 변환', () => {
     expect(onSelect).toHaveBeenCalledWith(marker);
   });
 });
+
+describe('고른 장소 말풍선 핀', () => {
+  it('로고 대신 장소 이름을 말풍선에 담고 꼬리를 붙인다', () => {
+    const element = createMapMarkerElement(
+      { id: 'destination', latitude: 37.395, longitude: 127.111, label: '판교역로 166', tone: 'destination' },
+      null,
+    );
+    expect(element.getAttribute('data-tone')).toBe('destination');
+    expect(element.querySelector('img')).toBeNull();
+    expect(element.textContent).toBe('판교역로 166');
+    expect(element.children).toHaveLength(2);
+  });
+});

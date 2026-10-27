@@ -22,6 +22,8 @@ export type MapCanvasProps = {
   customStyleId?: string;
   interactive?: boolean;
   showCenterPin?: boolean;
+  /** 화면이 자체 로딩 안내로 지도를 덮고 있으면 지도 준비 안내를 숨겨 로딩이 두 개 돌지 않게 한다. */
+  hideLoading?: boolean;
   showRadiusLabels?: boolean;
   selectedMarkerId?: string | null;
   onSelectMarker?: (marker: MapMarker) => void;

@@ -303,3 +303,38 @@ button.clusterMarker::before {
 :global([data-map-gesture='true']) .markerCaption {
   visibility: hidden;
 }
+
+/* 고른 장소(동네 찾기 목적지)는 이름이 든 말풍선 핀으로 그린다. 아래 꼬리 끝이 좌표를 가리킨다. */
+.destinationMarker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: auto;
+  height: auto;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  filter: drop-shadow(0 0.2rem 0.45rem rgb(25 30 40 / 28%));
+}
+.destinationLabel {
+  max-width: 11rem;
+  padding: 0.45rem 0.75rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-ink, #25282d);
+  color: white;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.destinationTail {
+  width: 0;
+  height: 0;
+  margin-top: -1px;
+  border-top: 0.45rem solid var(--color-ink, #25282d);
+  border-right: 0.4rem solid transparent;
+  border-left: 0.4rem solid transparent;
+}

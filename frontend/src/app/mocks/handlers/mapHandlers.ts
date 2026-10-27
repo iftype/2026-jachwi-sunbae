@@ -1,5 +1,8 @@
 import { http, HttpResponse } from 'msw';
 
+import { distanceMeters } from '@/features/map/lib/mapViewportQuery';
+
+import { fixedAgencies, fixedBusStops } from '../fixtures/placeFixtures';
 import { getMockProperties, success } from '../mockStore';
 
 const address = {
@@ -28,6 +31,34 @@ type DemoPlace = {
   address: string;
   distanceMeters: number;
   direction: number;
+};
+
+/** 정해진 좌표의 목 장소 중 조회 반경 안에 든 것만 가까운 순으로 거리와 함께 돌려준다. */
+const withinRadius = <T extends { latitude: number; longitude: number }>(
+  places: T[],
+  center: { latitude: number; longitude: number },
+  radius: number,
+) =>
+  places
+    .map((place) => ({ ...place, distanceMeters: Math.round(distanceMeters(center, place)) }))
+    .filter((place) => place.distanceMeters <= radius)
+    .sort((a, b) => a.distanceMeters - b.distanceMeters);
+
+const isValidRadiusQuery = (params: URLSearchParams) => {
+  const latitude = Number(params.get('latitude'));
+  const longitude = Number(params.get('longitude'));
+  const radius = Number(params.get('radius'));
+  return (
+    params.has('latitude') &&
+    params.has('longitude') &&
+    Number.isFinite(latitude) &&
+    latitude >= -90 &&
+    latitude <= 90 &&
+    Number.isFinite(longitude) &&
+    longitude >= -180 &&
+    longitude <= 180 &&
+    [500, 1000, 2000].includes(radius)
+  );
 };
 
 const demoPlaces: DemoPlace[] = [
@@ -172,15 +203,20 @@ export const mapHandlers = [
         { code: 'INVALID_REQUEST', message: '요청 값을 확인해주세요.', errors: [] },
         { status: 400 },
       );
-    const busStops = demoPlaces
-      .filter((place) => place.category === 'TRANSPORT' && place.distanceMeters <= radius)
-      .sort((a, b) => a.distanceMeters - b.distanceMeters)
-      .map((place) => ({
-        nodeId: place.providerPlaceId.replace(/^tago:/, ''),
-        name: place.name,
-        ...at(latitude, longitude, place.distanceMeters, place.direction),
-        distanceMeters: place.distanceMeters,
-      }));
+    const busStops = withinRadius(fixedBusStops, { latitude, longitude }, radius);
     return success({ center: { latitude, longitude }, radius, count: busStops.length, busStops });
+  }),
+  http.get('*/api/maps/agencies', ({ request }) => {
+    const params = new URL(request.url).searchParams;
+    if (!isValidRadiusQuery(params))
+      return HttpResponse.json(
+        { code: 'MAP_QUERY_INVALID', message: '요청 값을 확인해주세요.', errors: [] },
+        { status: 400 },
+      );
+    const latitude = Number(params.get('latitude'));
+    const longitude = Number(params.get('longitude'));
+    const radius = Number(params.get('radius'));
+    const agencies = withinRadius(fixedAgencies, { latitude, longitude }, radius);
+    return success({ center: { latitude, longitude }, radius, count: agencies.length, agencies });
   }),
 ];

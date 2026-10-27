@@ -127,24 +127,6 @@
 .analysis button {
   margin-top: 1.5rem;
 }
-.spinner {
-  width: 3rem;
-  height: 3rem;
-  border: 4px solid var(--color-surface-muted);
-  border-top-color: var(--color-brand-yellow);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .spinner {
-    animation: none;
-  }
-}
 .start {
   width: min(100%, 29rem);
   margin: auto;
@@ -566,14 +548,6 @@
   background: white;
   box-shadow: 0 0.2rem 0.6rem rgb(0 0 0 / 8%);
 }
-[data-tutorial-step='location'] > .activeSearchField {
-  outline: 2px solid var(--color-brand-yellow);
-  outline-offset: 2px;
-}
-.searchHeader[data-tutorial-step='filter'] .filterChips button {
-  outline: 2px solid var(--color-brand-yellow);
-  outline-offset: 2px;
-}
 .activeSearchField:focus-within {
   border-color: var(--color-border);
   box-shadow: 0 0.2rem 0.6rem rgb(0 0 0 / 8%);
@@ -646,10 +620,6 @@
   color: var(--color-muted);
   line-height: 1.5;
 }
-.entryToast {
-  bottom: calc(var(--map-sheet-bottom, env(safe-area-inset-bottom)) + 1rem);
-  max-width: 27rem;
-}
 .resultBack {
   width: 4.5rem;
   height: 4.5rem;
@@ -716,12 +686,12 @@
 }
 .locationControls {
   position: absolute;
-  bottom: calc(var(--map-sheet-bottom, 0px) + 13rem);
+  bottom: calc(var(--map-sheet-bottom, 0px) + 10.5rem);
   right: 0.85rem;
   z-index: 30;
 }
 .locationControls[data-result='true'] {
-  bottom: calc(var(--map-sheet-bottom, 0px) + 10.5rem);
+  bottom: calc(var(--map-sheet-bottom, 0px) + 13rem);
 }
 .locationStatus {
   position: absolute;
@@ -757,6 +727,14 @@
   min-height: 2.25rem;
   white-space: nowrap;
 }
+.filterChips button {
+  /* 통근·환승·월세 세 칩이 휴대폰 폭 안에 함께 들어가도록 남는 폭을 나눠 갖는다. */
+  width: auto;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 9.25rem;
+  padding-inline: 0.65rem;
+}
 .filterChips button > span,
 .filterBadge > span {
   width: 100%;
@@ -773,10 +751,51 @@
   border-radius: 0.75rem;
   font-size: 0.8rem;
 }
-/* 분석 중·실패 화면은 지도를 없애지 않고 덮는다. 지도는 뒤에서 계속 준비된다. */
+/* 분석·실패 안내는 지도를 지우지 않고 반투명하게 덮어, 고른 위치가 뒤에 비쳐 보이게 한다. */
 .mapOverlay {
   position: absolute;
   inset: 0;
   z-index: 40;
-  background: var(--color-surface, #fff);
+  background: rgb(255 255 255 / 78%);
+  backdrop-filter: blur(2px);
+}
+/* 지도 색상 기준 아래 정류장·부동산 안내. */
+.placesHint {
+  flex-basis: 100%;
+  color: var(--color-muted);
+  font-size: 0.65rem;
+}
+/* 휴대폰에서 위치를 고르면 아래에 올리는 찾기 버튼. 버튼 글자에 고른 장소 이름을 넣는다. */
+.searchCard {
+  position: absolute;
+  right: 1rem;
+  bottom: calc(var(--map-sheet-bottom, env(safe-area-inset-bottom)) + 1rem);
+  left: 1rem;
+  z-index: 20;
+  max-width: 27rem;
+  margin: 0 auto;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 18px rgb(0 0 0 / 16%);
+  animation: search-card-rise 180ms ease-out;
+}
+/* 이름이 길면 이름만 줄이고 `에서 찾기`는 남긴다. */
+.searchCardLabel {
+  display: flex;
+  min-width: 0;
+  white-space: nowrap;
+}
+.searchCardLabel span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@keyframes search-card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .searchCard {
+    animation: none;
+  }
 }

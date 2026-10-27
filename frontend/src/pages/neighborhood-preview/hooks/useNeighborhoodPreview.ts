@@ -1,20 +1,18 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { ApiError } from '@/features/auth/api/apiClient';
 import { commuteAreaToRegion } from '@/features/map/api/commuteApi';
 import { fetchCommuteRoute } from '@/features/map/api/commuteRouteApi';
-import { fetchLegalBoundaries, nearbyLegalBoundaries } from '@/features/map/api/legalBoundaryApi';
 import { reverseGeocode, searchAddress } from '@/features/map/api/mapApi';
-import { fetchRentalAverage } from '@/features/map/api/rentalApi';
 import { useCommuteAreas } from '@/features/map/api/useCommuteAreas';
-import { areaNearbyPath } from '@/features/map/lib/areaNearbyTarget';
 import { readGeolocationPermission, requestCurrentMapLocation } from '@/features/map/lib/mapLocation';
 import { type MapCoordinate, MapLocationError } from '@/features/map/lib/mapLocation';
 import type { MapAddress } from '@/features/map/model/Map';
 import { completeExploration, startExploration } from '@/features/onboarding/lib/explorationJourney';
 import { usePublicConfig } from '@/shared/config/PublicConfigContext';
+import useReturnNavigation from '@/shared/lib/navigation/useReturnNavigation';
 
 import { commuteBand, commuteColor } from '../model/commuteColors';
 import { readNeighborhoodSearch, writeNeighborhoodSearch } from '../model/neighborhoodSearchSession';
@@ -34,7 +32,7 @@ const describeError = (error: unknown) => {
   }
   return '정보를 불러오지 못했어요. 다시 시도해주세요.';
 };
-const describeRouteError = (error: unknown) => {
+export const describeRouteError = (error: unknown) => {
   if (error instanceof ApiError) {
     if (error.code === 'COMMUTE_ROUTE_NOT_FOUND') return '현재 조건에 맞는 경로를 찾지 못했어요.';
     if (error.code === 'TRANSIT_STOP_NOT_FOUND') return '선택한 정류장을 찾지 못했어요.';
@@ -47,23 +45,19 @@ const useNeighborhoodPreview = () => {
   const config = usePublicConfig();
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
   const client = useQueryClient();
   const isMockData = config.commuteDataSource === 'mock';
   const [query, setQuery] = useState('');
-  const isPublicExplore = location.pathname.startsWith('/explore/');
-  const mode: 'commute' | 'price' = (
-    isPublicExplore ? location.pathname.startsWith('/explore/price') : searchParams.get('mode') === 'price'
-  )
-    ? 'price'
-    : 'commute';
-  const searchSessionKey = `jachwi.neighborhood-search.v1.${JSON.stringify([mode, isPublicExplore, config.apiBaseUrl, config.boundaryBaseUrl, isMockData])}`;
+  const isPublicExplore = location.pathname === '/explore' || location.pathname.startsWith('/explore/');
+  const searchSessionKey = `jachwi.neighborhood-search.v2.${JSON.stringify([isPublicExplore, config.apiBaseUrl, config.boundaryBaseUrl, isMockData])}`;
   const [restoredSearch] = useState(() => readNeighborhoodSearch(searchSessionKey));
-  const routeAreaId = location.pathname.match(/\/(?:areas|prices)\/([^/]+)/)?.[1] ?? null;
+  const routeAreaId = location.pathname.match(/\/areas\/([^/]+)/)?.[1] ?? null;
   const [addressResults, setAddressResults] = useState<MapAddress[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
-  const mapPath = isPublicExplore ? `/explore/${mode}` : '/neighborhoods/map';
+  const mapPath = isPublicExplore ? '/explore' : '/neighborhoods';
+  // 첫 화면이 곧 지도라 돌아갈 탐색 기준 선택 화면이 없다. 들어온 화면으로 돌아가고, 직접 들어왔으면 홈으로 간다.
+  const leave = useReturnNavigation({ cameFromTarget: true, fallback: '/' });
   const [phase, setPhase] = useState<'map' | 'conditions' | 'analyzing'>(restoredSearch ? 'analyzing' : 'map');
   const [destination, setDestination] = useState(restoredSearch?.destination ?? PREVIEW_DESTINATION);
   const [mapCandidate, setMapCandidate] = useState(restoredSearch?.destination ?? PREVIEW_DESTINATION);
@@ -118,70 +112,30 @@ const useNeighborhoodPreview = () => {
     destination,
     maxMinutes,
     maxTransfers,
-    enabled: phase === 'analyzing' && mode === 'commute',
+    enabled: phase === 'analyzing',
   });
-  const price = useQuery({
-    queryKey: ['rental-areas', config.apiBaseUrl, config.boundaryBaseUrl, destination.latitude, destination.longitude],
-    queryFn: async ({ signal }) => {
-      const boundaries = await client.fetchQuery({
-        queryKey: ['legal-boundaries', config.boundaryBaseUrl],
-        queryFn: ({ signal }) => fetchLegalBoundaries(config.boundaryBaseUrl, signal),
-        staleTime: 30 * 60 * 1000,
-        gcTime: 30 * 60 * 1000,
-      });
-      const results = await Promise.all(
-        nearbyLegalBoundaries(boundaries, destination).map(async (boundary) => ({
-          ...boundary,
-          ...(await client.fetchQuery({
-            queryKey: ['rental-average', config.apiBaseUrl, boundary.legalDongCode],
-            queryFn: () => fetchRentalAverage(config, boundary.legalDongCode, signal),
-            staleTime: 5 * 60 * 1000,
-          })),
-        })),
-      );
-      return results.sort((a, b) => (a.average ?? Infinity) - (b.average ?? Infinity));
-    },
-    enabled: phase === 'analyzing' && mode === 'price',
-    refetchOnMount: false,
-    retry: false,
-  });
-  const allPriceAreas = mode === 'price' ? (price.data ?? []) : [];
-  const priceAreas = useMemo(
+  const allAreas = commute.data?.areas;
+  // 월세 조건은 받은 동네 시세의 상한이다. 시세가 없는 동네는 전체 가격일 때만 보여준다.
+  const areas = useMemo(
     () =>
-      (mode === 'price' ? (price.data ?? []) : []).filter(
-        (area) => maxRent === 0 || (area.average !== null && area.average <= maxRent * 10000),
-      ),
-    [price.data, mode, maxRent],
+      allAreas?.filter((area) => maxRent === 0 || (area.rent !== null && area.rent.monthlyRentKrw <= maxRent * 10000)),
+    [allAreas, maxRent],
   );
-  const selectedPrice = allPriceAreas.find((area) => area.legalDongCode === (routeAreaId ?? selectedId));
-  const areas = mode === 'commute' ? commute.data?.areas : undefined;
   const analytics = useNeighborhoodAnalytics({
-    mode,
     mock: isMockData,
     analyzing: phase === 'analyzing',
-    fetching: mode === 'price' ? price.isFetching : commute.isFetching,
-    success: mode === 'price' ? price.isSuccess : commute.isSuccess,
-    error: mode === 'price' ? price.isError : commute.isError,
-    resultCount: mode === 'price' ? priceAreas.length : (areas?.length ?? 0),
-    transactionCount: priceAreas.reduce((count, area) => count + area.items.length, 0),
+    fetching: commute.isFetching,
+    success: commute.isSuccess,
+    error: commute.isError,
+    resultCount: areas?.length ?? 0,
+    rentCount: areas?.filter((area) => area.rent !== null).length ?? 0,
   });
   useEffect(() => {
-    const result = mode === 'price' ? price : commute;
-    if (isPublicExplore && phase === 'analyzing' && result.isSuccess && !result.isFetching) {
-      completeExploration(mode === 'price' ? priceAreas.length : (areas?.length ?? 0));
+    if (isPublicExplore && phase === 'analyzing' && commute.isSuccess && !commute.isFetching) {
+      completeExploration(areas?.length ?? 0);
     }
-  }, [
-    isPublicExplore,
-    phase,
-    mode,
-    price.isSuccess,
-    price.isFetching,
-    commute.isSuccess,
-    commute.isFetching,
-    priceAreas.length,
-    areas?.length,
-  ]);
-  const selected = areas?.find((area) => area.adminDongCode === (routeAreaId ?? selectedId));
+  }, [isPublicExplore, phase, commute.isSuccess, commute.isFetching, areas?.length]);
+  const selected = allAreas?.find((area) => area.adminDongCode === (routeAreaId ?? selectedId));
   const selectedStation = selected?.stations.find((station) => station.stopId === selectedStopId);
   useEffect(() => {
     if (selected && !selectedStation) setSelectedStopId(selected.stations[0]?.stopId ?? null);
@@ -200,40 +154,25 @@ const useNeighborhoodPreview = () => {
       if (!selectedStopId) throw new Error('출발 정류장을 선택해 주세요.');
       return fetchCommuteRoute(config, destination, selectedStopId, maxMinutes, maxTransfers, signal);
     },
-    enabled: !!selectedStation && phase === 'analyzing' && mode === 'commute',
+    enabled: !!selectedStation && phase === 'analyzing',
     retry: false,
   });
   const regions = useMemo(
     () =>
-      mode === 'price'
-        ? priceAreas.map((area) => ({
-            id: area.legalDongCode,
-            name: area.name,
-            center: area.center,
-            paths: area.polygons.map((polygon) => polygon[0]),
-            polygons: area.polygons,
-            appearance:
-              area.legalDongCode === selectedId
-                ? { fillColor: '#168BFF', strokeColor: '#0875E1' }
-                : { fillColor: '#94A3B8', strokeColor: '#8492A6' },
-            summary: { price: area.average === null ? '거래 정보 없음' : `${Math.round(area.average / 10000)}만원` },
-          }))
-        : (areas ?? []).map((area) => ({
-            ...commuteAreaToRegion(area),
-            summary: undefined,
-            appearance: commuteColor(area.commuteMinutes),
-            drawStage: commuteBand(area.commuteMinutes),
-          })),
-    [areas, maxMinutes, mode, priceAreas, selectedId],
+      (areas ?? []).map((area) => ({
+        ...commuteAreaToRegion(area),
+        summary: undefined,
+        appearance: commuteColor(area.commuteMinutes),
+        drawStage: commuteBand(area.commuteMinutes),
+      })),
+    [areas],
   );
   return {
     isPublicExplore,
     mapPath,
-    priceAreas,
     maxRent,
     changeMaxRent: setMaxRent,
-    selectedPrice,
-    closePrice: () => setSelectedId(null),
+    rentPeriod: commute.data?.rentPeriod ?? null,
     currentPosition,
     isLocating,
     locationError,
@@ -280,12 +219,9 @@ const useNeighborhoodPreview = () => {
     routeError: selectedStation && route.isError && !route.isFetching ? describeRouteError(route.error) : null,
     retryRoute: () => route.refetch(),
     isMockData,
-    mode,
-    showCommute: mode === 'commute',
-    showPrice: mode === 'price',
-    openModeSelection: () => {
+    leave: () => {
       void client.cancelQueries({ queryKey: ['commute-areas'] });
-      navigate(isPublicExplore ? '/explore' : '/neighborhoods');
+      leave();
     },
     isChoosingConditions: phase === 'conditions',
     editLocation: () => {
@@ -295,12 +231,12 @@ const useNeighborhoodPreview = () => {
       setPhase('map');
     },
     startAnalysis: () => {
-      if (phase !== 'conditions' || (mode === 'commute' && !isValidCommuteTime)) return;
+      if (phase !== 'conditions' || !isValidCommuteTime) return;
       analytics.startSearch({ maxMinutes, maxTransfers, maxRent });
       resultView.current = null;
       setSelectedId(null);
       setSelectedStopId(null);
-      if (isPublicExplore) startExploration(mode, isMockData);
+      if (isPublicExplore) startExploration('commute', isMockData);
       setPhase('analyzing');
     },
     selectionCenter,
@@ -393,8 +329,7 @@ const useNeighborhoodPreview = () => {
       };
       setMapCandidate(point);
       setDestination(point);
-      setSelectionCenter(point);
-      setSelectionLevel(4);
+      // 지도를 직접 누르면 시점을 옮기지 않는다. 가운데로 옮기거나 확대하면 핀이 누른 자리에서 벗어나 다른 곳에 찍힌 것처럼 보인다.
       setHasChosenMapPoint(true);
       setPhase('conditions');
       const intent = locationIntent.current;
@@ -419,25 +354,22 @@ const useNeighborhoodPreview = () => {
       setPhase('conditions');
     },
     hasPickedDestination: true,
-    isAnalyzing:
-      phase === 'analyzing' &&
-      (mode === 'price' ? price.isPending || price.isFetching : commute.isPending || commute.isFetching),
-    error:
-      phase === 'analyzing' && (mode === 'price' ? price.isError : commute.isError)
-        ? describeError(mode === 'price' ? price.error : commute.error)
-        : null,
+    isAnalyzing: phase === 'analyzing' && (commute.isPending || commute.isFetching),
+    error: phase === 'analyzing' && commute.isError ? describeError(commute.error) : null,
     retry: () => {
       analytics.startSearch({ maxMinutes, maxTransfers, maxRent }, 'retry');
-      return mode === 'price' ? price.refetch() : commute.refetch();
+      return commute.refetch();
     },
     maxMinutes,
     isValidCommuteTime,
     changeMaxMinutes: setMaxMinutes,
     maxTransfers,
     changeMaxTransfers: setMaxTransfers,
-    resultLevel: resultView.current?.level ?? (mode === 'price' ? 8 : 10),
+    // 새로고침·뒤로가기로 고른 동네가 복원되면 전체 보기 대신 그 동네로 연다. 고른 동네 화면의 정류장·부동산을 바로 보여주기 위해서다.
+    resultLevel: resultView.current?.level ?? (selected ? 7 : 10),
     center:
       resultView.current ??
+      (selected ? resultMapCenter(selected.center, 7) : undefined) ??
       resultMapCenter(
         areas?.length
           ? {
@@ -450,13 +382,12 @@ const useNeighborhoodPreview = () => {
                   Math.max(...areas.map((area) => area.center.longitude))) /
                 2,
             }
-          : (priceAreas[0]?.center ?? destination),
-        mode === 'price' ? 8 : 10,
+          : destination,
+        10,
       ),
     reset: () => {
       analytics.cancelSearch();
-      if (location.pathname.includes('/areas/') || location.pathname.includes('/prices/'))
-        navigate(`${mapPath}?mode=${mode}`, { replace: true });
+      if (location.pathname.includes('/areas/')) navigate(mapPath, { replace: true });
       void client.cancelQueries({ queryKey: ['commute-areas'] });
       locationIntent.current += 1;
       if (resultView.current) {
@@ -472,17 +403,15 @@ const useNeighborhoodPreview = () => {
     },
     regions,
     selected,
-    selectRegion: (id: string | null) => {
-      const area =
-        mode === 'commute'
-          ? areas?.find((area) => area.adminDongCode === id)
-          : priceAreas.find((area) => area.legalDongCode === id);
+    selectRegion: (id: string | null, options?: { openDetails?: boolean }) => {
+      const area = areas?.find((area) => area.adminDongCode === id);
       if (area) analytics.selectArea();
       if (area) resultView.current = { ...resultMapCenter(area.center, 7), level: 7 };
       setSelectedId(id);
-      setSelectedStopId(areas?.find((area) => area.adminDongCode === id)?.stations[0]?.stopId ?? null);
-      if (id && mode === 'commute') navigate(`${mapPath}/areas/${id}?mode=${mode}`);
-      if (id && mode === 'price') navigate(`${mapPath}/prices/${id}?mode=price`);
+      setSelectedStopId(area?.stations[0]?.stopId ?? null);
+      // 데스크탑은 상세를 목록 옆에 붙여 지도를 가리지 않으므로, 동네를 고르면 바로 상세를 연다.
+      const openDetails = options?.openDetails ?? location.pathname.endsWith('/details');
+      if (id) navigate(`${mapPath}/areas/${id}${openDetails ? '/details' : ''}`);
     },
     selectStation: (id: string) => {
       if (!selected?.stations.some((station) => station.stopId === id) || id === selectedStopId) return;
@@ -490,17 +419,12 @@ const useNeighborhoodPreview = () => {
       setSelectedStopId(id);
     },
     openAreaDetails: () => {
-      if (selected) navigate(`${mapPath}/areas/${selected.adminDongCode}/details?mode=commute`);
+      if (selected) navigate(`${mapPath}/areas/${selected.adminDongCode}/details`);
+    },
+    closeAreaDetails: () => {
+      if (selected) navigate(`${mapPath}/areas/${selected.adminDongCode}`, { replace: true });
     },
     openListing: analytics.openListing,
-    openNearby: analytics.openNearby,
-    /** 동네 주변 분석 주소. 현재 화면으로 돌아올 수 있게 경로를 함께 넘긴다. */
-    nearbyPathFor: (area: { name: string; center: { latitude: number; longitude: number } }) =>
-      areaNearbyPath(
-        isPublicExplore ? '/explore' : '/neighborhoods',
-        { name: area.name, ...area.center },
-        `${location.pathname}${location.search}`,
-      ),
   };
 };
 export default useNeighborhoodPreview;

@@ -6,7 +6,7 @@ import { createCommuteAreaHandlers } from '@/app/mocks/handlers/commuteAreaHandl
 
 import { server } from '../../server';
 
-const query = '/api/commute-areas?latitude=37.5&longitude=127.03&maxMinutes=40';
+const query = '/api/commute-areas/with-rents?latitude=37.5&longitude=127.03&maxMinutes=40';
 const read = async (path: string) => {
   const response = await fetch(`http://localhost${path}`);
   return { status: response.status, body: await response.json() };
@@ -22,18 +22,30 @@ describe('최신 생활권 탐색 MSW', () => {
     const { status, body } = await read(query);
     expect(status).toBe(200);
     expect(body.data).toMatchObject({ maxMinutes: 40, areaCount: 3 });
-    expect(Object.keys(body.data).sort()).toEqual(['areaCount', 'areas', 'maxMinutes']);
+    expect(Object.keys(body.data).sort()).toEqual(['areaCount', 'areas', 'maxMinutes', 'rentEndDate', 'rentStartDate']);
     expect(body.data.areas.map((area: { commuteMinutes: number }) => area.commuteMinutes)).toEqual([3, 27, 38]);
-    expect(Object.keys(body.data.areas[0]).sort()).toEqual(['adminDongCode', 'commuteMinutes', 'stations'].sort());
+    expect(Object.keys(body.data.areas[0]).sort()).toEqual(
+      [
+        'adminDongCode',
+        'commuteMinutes',
+        'depositKrw',
+        'legalDongNames',
+        'monthlyRentKrw',
+        'stations',
+        'transactionCount',
+      ].sort(),
+    );
+    expect(body.data.areas[2]).toMatchObject({ monthlyRentKrw: null, transactionCount: null, legalDongNames: [] });
     body.data.areas.forEach((area: { stations: { travelMinutes: number }[] }) => {
       const times = area.stations.map((station) => station.travelMinutes);
       expect(times).toEqual([...times].sort((a, b) => a - b));
     });
     expect(body.data.areas[0].stations[0].direction).toBeNull();
-    expect(body.data.areas[0].stations[1].direction).toBe('북동');
+    // 서버는 정류장 방향을 더 쓰지 않아 늘 null로 보낸다(POL-COMMUTE-016).
+    expect(body.data.areas[0].stations[1].direction).toBeNull();
   });
   it('선택 파라미터 누락은 60분·2회 기본값을 적용한다', async () => {
-    expect((await read('/api/commute-areas?latitude=37.5&longitude=127')).body.data).toMatchObject({
+    expect((await read('/api/commute-areas/with-rents?latitude=37.5&longitude=127')).body.data).toMatchObject({
       maxMinutes: 60,
       areaCount: 3,
     });
@@ -75,16 +87,15 @@ describe('최신 생활권 탐색 MSW', () => {
   ])('%s=%s는 400 오류다', async (field, value) => {
     const params = new URLSearchParams('latitude=37.5&longitude=127&maxMinutes=40');
     params.set(field, value);
-    expect(await read(`/api/commute-areas?${params}`)).toMatchObject({
+    expect(await read(`/api/commute-areas/with-rents?${params}`)).toMatchObject({
       status: 400,
       body: { code: 'INVALID_REQUEST', errors: [{ field }] },
     });
   });
   it('필수 누락은 좌표만 오류로 반환한다', async () => {
-    expect((await read('/api/commute-areas')).body.errors.map((error: { field: string }) => error.field)).toEqual([
-      'latitude',
-      'longitude',
-    ]);
+    expect(
+      (await read('/api/commute-areas/with-rents')).body.errors.map((error: { field: string }) => error.field),
+    ).toEqual(['latitude', 'longitude']);
   });
   it('빈 결과를 처리한다', async () => {
     server.use(...createCommuteAreaHandlers({ scenario: 'empty', delayMs: 0 }));

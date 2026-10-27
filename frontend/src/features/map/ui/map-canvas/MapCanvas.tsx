@@ -23,7 +23,9 @@ const demoMarkerStyle = (marker: MapMarker, center: { latitude: number; longitud
   transform:
     marker.tone === 'property' || marker.tone === 'selected'
       ? 'translate(-50%, -120.710678%)'
-      : 'translate(-50%, -50%)',
+      : marker.tone === 'destination'
+        ? 'translate(-50%, -100%)'
+        : 'translate(-50%, -50%)',
   left: `${clamp(50 + (marker.longitude - center.longitude) * 3_100, 9, 91)}%`,
   top: `${clamp(50 - (marker.latitude - center.latitude) * 4_200, 10, 88)}%`,
 });
@@ -38,6 +40,7 @@ const MapCanvas = ({
   customStyleId,
   interactive = false,
   showCenterPin = false,
+  hideLoading = false,
   showRadiusLabels = false,
   selectedMarkerId = null,
   onSelectMarker,
@@ -255,7 +258,7 @@ const MapCanvas = ({
             ))}
         </div>
       )}
-      {isLoading && (
+      {isLoading && !hideLoading && (
         <div className={styles.mapLoading} role="status">
           <ProgressCircle size={24} label="지도를 불러오는 중이에요." />
           지도를 불러오고 있어요

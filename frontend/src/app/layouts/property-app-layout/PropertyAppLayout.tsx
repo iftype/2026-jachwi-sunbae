@@ -20,7 +20,8 @@ const PropertyAppLayout = () => {
   const isMapPage =
     location.pathname === '/map' ||
     (isDesktop && isMapPropertyPath) ||
-    location.pathname.startsWith('/neighborhoods/map');
+    location.pathname === '/neighborhoods' ||
+    location.pathname.startsWith('/neighborhoods/areas/');
   const fullScreen =
     location.pathname === '/map/select-location' ||
     location.pathname.startsWith('/properties/new') ||
