@@ -11,6 +11,10 @@ photo:
     access-key: ${PHOTO_STORAGE_ACCESS_KEY:local-photo-access-key}
     secret-key: ${PHOTO_STORAGE_SECRET_KEY:local-photo-secret-key}
 
+promotion:
+  collection:
+    enabled: false
+
 weather:
   collection:
     enabled: false
