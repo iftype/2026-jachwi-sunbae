@@ -111,3 +111,25 @@
   height: 0.1em;
   transform: translateX(-50%);
 }
+
+/* 거리 메모: 글줄 두 개와 접힌 모서리. */
+.icon[data-map-category-icon='MEMO'] {
+  border-radius: 0.2em 0.2em 0.42em 0.2em;
+}
+
+.icon[data-map-category-icon='MEMO']::before {
+  top: 0.22em;
+  left: 0.16em;
+  width: 0.46em;
+  height: 0.1em;
+  border-radius: 999px;
+  box-shadow: 0 0.2em 0 currentcolor;
+}
+
+.icon[data-map-category-icon='MEMO']::after {
+  right: -0.02em;
+  bottom: -0.02em;
+  width: 0.3em;
+  height: 0.3em;
+  border-top-left-radius: 0.1em;
+}

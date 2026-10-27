@@ -184,6 +184,15 @@ button.clusterMarker::before {
   background: #212124;
 }
 
+/* 거리 메모는 좋아요·싫어요를 색으로도 나누고, 내용은 마커 이름(aria-label)으로 읽는다. */
+.placeMarker[data-category='MEMO'][data-variant='positive'] {
+  background: var(--color-brand-blue, #6b9ae6);
+}
+
+.placeMarker[data-category='MEMO'][data-variant='negative'] {
+  background: var(--color-danger, #c96b6b);
+}
+
 /* 매물 군집은 숫자 배지로 구분한다. */
 .propertyClusterMarker {
   z-index: 8;

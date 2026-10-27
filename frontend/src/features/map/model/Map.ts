@@ -1,5 +1,6 @@
-export type MapCategory = 'HOSPITAL' | 'TRANSPORT' | 'SCHOOL' | 'CONVENIENCE' | 'AGENCY';
-export type NearbyCategory = Exclude<MapCategory, 'TRANSPORT'>;
+/** MEMO는 시설이 아니라 회원들이 남긴 거리 메모다. 주변 시설 조회에는 쓰지 않고 지도 화면 범위로 따로 조회한다. */
+export type MapCategory = 'HOSPITAL' | 'TRANSPORT' | 'SCHOOL' | 'CONVENIENCE' | 'AGENCY' | 'MEMO';
+export type NearbyCategory = Exclude<MapCategory, 'TRANSPORT' | 'MEMO'>;
 
 export type MapBounds = { south: number; west: number; north: number; east: number };
 
@@ -15,6 +16,8 @@ export type MapMarker = {
   /** destination은 고른 장소를 이름이 든 말풍선 핀으로 그린다. 꼬리 끝이 좌표를 가리킨다. */
   tone?: 'property' | 'current' | 'place' | 'selected' | 'destination' | 'cluster' | 'propertyCluster';
   category?: MapCategory;
+  /** 같은 카테고리 안에서 색으로 나눌 때 쓴다. 거리 메모의 좋아요(positive)·싫어요(negative). */
+  variant?: 'positive' | 'negative';
   count?: number;
   placeId?: string;
   actionable?: boolean;

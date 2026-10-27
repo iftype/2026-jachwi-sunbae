@@ -9,7 +9,7 @@ import styles from './MapNearbySheet.module.css';
 type MapNearbySheetProps = {
   eyebrow?: string;
   heading: string;
-  counts: Record<MapCategory, number>;
+  counts: Record<Exclude<MapCategory, 'MEMO'>, number>;
   selectedCategories: MapCategory[];
   places: NearbyPlace[];
   expanded: boolean;

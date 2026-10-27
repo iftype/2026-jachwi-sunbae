@@ -8,12 +8,20 @@ type MapCategoryRailProps = {
   selectedCategories: MapCategory[];
   counts?: Partial<Record<MapCategory, number>>;
   onToggle: (category: MapCategory) => void;
+  /** 거리 메모 탭을 함께 보여준다. 매물 주변 분석처럼 시설만 다루는 화면은 끈다. */
+  showMemo?: boolean;
   className?: string;
 };
 
-const MapCategoryRail = ({ selectedCategories, counts, onToggle, className }: MapCategoryRailProps) => (
+const MapCategoryRail = ({
+  selectedCategories,
+  counts,
+  onToggle,
+  showMemo = false,
+  className,
+}: MapCategoryRailProps) => (
   <aside className={`${styles.rail} ${className ?? ''}`} aria-label="지도 시설 카테고리">
-    {MAP_CATEGORY_OPTIONS.map((option) => {
+    {MAP_CATEGORY_OPTIONS.filter((option) => showMemo || option.value !== 'MEMO').map((option) => {
       const selected = selectedCategories.includes(option.value);
       const count = counts?.[option.value];
       return (

@@ -76,6 +76,7 @@ const MapMarkerView = ({ marker, selectedMarkerId = null, onSelectMarker }: MapM
     className: markerClassName(marker, selectedMarkerId),
     'data-tone': marker.tone ?? 'property',
     'data-category': marker.category,
+    'data-variant': marker.variant,
     'aria-label': marker.label,
   };
 
