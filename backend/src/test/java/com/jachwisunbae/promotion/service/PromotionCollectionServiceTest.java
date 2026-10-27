@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -23,6 +24,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -86,6 +88,28 @@ class PromotionCollectionServiceTest {
         assertThatThrownBy(service::collect).isInstanceOfSatisfying(UpstreamServiceException.class,
                 exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.PROMOTION_RESPONSE_INVALID));
         verifyNoInteractions(repository);
+    }
+
+    @Test
+    @DisplayName("저장된 목록이 없으면 최초 수집을 실행한다")
+    void collectsInitiallyWhenEmpty() {
+        when(repository.findLastCollectedAt(BRAND)).thenReturn(Optional.empty());
+        when(fetcher.fetch()).thenReturn(List.of(product("상품")));
+
+        service.collectIfEmpty();
+
+        verify(repository).replaceByBrand(BRAND, List.of(product("상품")), COLLECTED_AT);
+    }
+
+    @Test
+    @DisplayName("저장된 목록이 있으면 최초 수집을 건너뛴다")
+    void skipsInitialCollectionWhenCollected() {
+        when(repository.findLastCollectedAt(BRAND)).thenReturn(Optional.of(COLLECTED_AT));
+
+        service.collectIfEmpty();
+
+        verifyNoInteractions(fetcher);
+        verify(repository, never()).replaceByBrand(any(), any(), any());
     }
 
     @Test

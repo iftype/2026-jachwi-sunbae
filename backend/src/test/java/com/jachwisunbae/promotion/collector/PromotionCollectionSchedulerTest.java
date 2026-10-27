@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 
 import com.jachwisunbae.promotion.service.PromotionCollectionService;
 import com.jachwisunbae.weather.config.WeatherSchedulingConfig;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -54,15 +55,16 @@ class PromotionCollectionSchedulerTest {
     }
 
     @Test
-    @DisplayName("활성화하면 작업 하나를 등록하고 실행 시 Service를 호출한다")
-    void enabledTaskCallsService() {
+    @DisplayName("활성화하면 정기 수집과 최초 수집 작업을 등록하고 실행 시 Service를 호출한다")
+    void enabledTasksCallService() {
         runner.withPropertyValues("promotion.collection.enabled=true").run(context -> {
             var tasks = context.getBean(ScheduledAnnotationBeanPostProcessor.class).getScheduledTasks();
-            assertThat(tasks).hasSize(1);
+            assertThat(tasks).hasSize(2);
 
-            tasks.iterator().next().getTask().getRunnable().run();
+            tasks.forEach(task -> task.getTask().getRunnable().run());
 
             verify(service).collect();
+            verify(service).collectIfEmpty();
         });
     }
 
@@ -73,6 +75,19 @@ class PromotionCollectionSchedulerTest {
 
         assertThat(scheduled.cron()).isEqualTo("0 0 4 * * *");
         assertThat(scheduled.zone()).isEqualTo("Asia/Seoul");
+    }
+
+    @Test
+    @DisplayName("최초 수집은 기동 5분 뒤 한 번만 실행한다")
+    void collectsOnceFiveMinutesAfterStartup() throws Exception {
+        Scheduled scheduled = PromotionCollectionScheduler.class.getMethod("collectInitially")
+                .getAnnotation(Scheduled.class);
+
+        assertThat(scheduled.initialDelay()).isEqualTo(5);
+        assertThat(scheduled.timeUnit()).isEqualTo(TimeUnit.MINUTES);
+        assertThat(scheduled.fixedDelay()).isNegative();
+        assertThat(scheduled.fixedRate()).isNegative();
+        assertThat(scheduled.cron()).isEmpty();
     }
 
     @Test

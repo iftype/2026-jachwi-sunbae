@@ -64,6 +64,15 @@ public class PromotionCollectionService {
         }
     }
 
+    // 최초 배포처럼 저장된 목록이 없을 때만 수집해, 재배포마다 전체 수집하지 않는다.
+    public void collectIfEmpty() {
+        if (repository.findLastCollectedAt(BRAND).isPresent()) {
+            LOG.info("promotion-initial-collection-skipped brand={} reason=already-collected", BRAND);
+            return;
+        }
+        collect();
+    }
+
     private long elapsedMillis(final long startedAt) {
         return (System.nanoTime() - startedAt) / 1_000_000;
     }
