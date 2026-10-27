@@ -12,7 +12,6 @@
 
 - [로컬 개발](guides/local-development.md)
 - [환경변수](guides/environment-variables.md)
-- [편의점 행사상품 수집·저장·조회](guides/convenience-store-promotions.md)
 - [백엔드 코드 컨벤션](conventions/backend-code-convention.md)
 - [백엔드 패키지 구조](conventions/backend-package-structure.md)
 - [API 컨벤션](conventions/api-convention.md)
