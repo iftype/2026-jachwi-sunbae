@@ -102,7 +102,7 @@ class StreetMemoServiceIntegrationTest {
 
         assertThat(result.latitude()).isEqualTo(new BigDecimal("37.3948000"));
         assertThat(result.longitude()).isEqualTo(new BigDecimal("127.1112000"));
-        assertThat(service.findAllWithin(MIN_LATITUDE, MAX_LATITUDE, MIN_LONGITUDE, MAX_LONGITUDE)).containsExactly(result);
+        assertThat(service.findAllWithin(member, MIN_LATITUDE, MAX_LATITUDE, MIN_LONGITUDE, MAX_LONGITUDE)).containsExactly(result);
     }
 
     @Test
@@ -135,7 +135,7 @@ class StreetMemoServiceIntegrationTest {
                     .containsExactlyInAnyOrder(true, false);
         }
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM street_memos", Integer.class)).isOne();
-        assertThat(service.findAllWithin(MIN_LATITUDE, MAX_LATITUDE, MIN_LONGITUDE, MAX_LONGITUDE)).isEmpty();
+        assertThat(service.findAllWithin(member, MIN_LATITUDE, MAX_LATITUDE, MIN_LONGITUDE, MAX_LONGITUDE)).isEmpty();
     }
 
     @Test
@@ -147,7 +147,7 @@ class StreetMemoServiceIntegrationTest {
         try {
             jdbcTemplate.update("UPDATE street_memos SET preference = 'NEUTRAL'");
 
-            assertThatThrownBy(() -> service.findAllWithin(MIN_LATITUDE, MAX_LATITUDE, MIN_LONGITUDE, MAX_LONGITUDE))
+            assertThatThrownBy(() -> service.findAllWithin(member, MIN_LATITUDE, MAX_LATITUDE, MIN_LONGITUDE, MAX_LONGITUDE))
                     .isInstanceOfSatisfying(DataInconsistencyException.class, exception -> {
                         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INTERNAL_SERVER_ERROR);
                         assertThat(exception.getCause()).isInstanceOf(InvalidInputException.class);

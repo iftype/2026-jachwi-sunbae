@@ -12,11 +12,13 @@ public record StreetMemoResponse(
         BigDecimal longitude,
         String memo,
         @Schema(description = "작성자가 선택한 선호", allowableValues = {"LIKE", "DISLIKE"})
-        StreetMemoPreference preference
+        StreetMemoPreference preference,
+        @Schema(description = "현재 인증된 회원이 작성한 메모인지 여부", example = "true")
+        boolean isMine
 ) {
 
     public static StreetMemoResponse from(final StreetMemoResult result) {
         return new StreetMemoResponse(result.id(), result.latitude(), result.longitude(),
-                result.memo(), result.preference());
+                result.memo(), result.preference(), result.isMine());
     }
 }

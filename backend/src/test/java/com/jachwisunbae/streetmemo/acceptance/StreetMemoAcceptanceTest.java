@@ -78,7 +78,7 @@ class StreetMemoAcceptanceTest {
         MemberSession reader = login();
         ObjectNode body = validBody().put("preference", preference)
                 .put("memo", "  늦게까지 여는 세탁소예요. 🧺\n<script>alert('hi')</script>  ")
-                .put("memberId", reader.memberId());
+                .put("memberId", reader.memberId()).put("isMine", false);
 
         JsonNode created = create(author, body);
         long id = created.path("streetMemoId").asLong();
@@ -87,6 +87,8 @@ class StreetMemoAcceptanceTest {
         assertThat(created.path("preference").asText()).isEqualTo(preference);
         assertThat(jdbc.queryForObject("SELECT member_id FROM street_memos WHERE id = ?", Long.class, id))
                 .isEqualTo(author.memberId());
+        mvc.perform(viewport(author)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].isMine").value(true));
 
         JsonNode shared = data(mvc.perform(viewport(reader))
                 .andExpect(status().isOk())
@@ -94,7 +96,9 @@ class StreetMemoAcceptanceTest {
                 .andExpect(jsonPath("$.data.length()").value(1))
                 .andReturn().getResponse().getContentAsString()).get(0);
         assertPublicFields(shared);
-        assertThat(shared).isEqualTo(created);
+        ObjectNode expected = created.deepCopy();
+        expected.put("isMine", false);
+        assertThat(shared).isEqualTo(expected);
     }
 
     @Test
@@ -118,6 +122,8 @@ class StreetMemoAcceptanceTest {
         List<Long> ids = new ArrayList<>();
         items.forEach(item -> ids.add(item.path("streetMemoId").asLong()));
         assertThat(ids).containsExactlyInAnyOrder(first, second);
+        items.forEach(item -> assertThat(item.path("isMine").booleanValue())
+                .isEqualTo(item.path("streetMemoId").asLong() == second));
         mvc.perform(authorized(get("/api/street-memos"), other)
                         .param("minLatitude", "37").param("maxLatitude", "37")
                         .param("minLongitude", "126").param("maxLongitude", "126"))
@@ -254,6 +260,7 @@ class StreetMemoAcceptanceTest {
         var response = mvc.perform(authorized(post("/api/street-memos"), member)
                         .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.code").value("SUCCESS"))
+                .andExpect(jsonPath("$.data.isMine").value(true))
                 .andReturn().getResponse();
         JsonNode created = data(response.getContentAsString());
         assertThat(created.path("streetMemoId").asLong()).isPositive();
@@ -287,7 +294,7 @@ class StreetMemoAcceptanceTest {
     private void assertPublicFields(final JsonNode memo) {
         List<String> fields = new ArrayList<>();
         memo.fieldNames().forEachRemaining(fields::add);
-        assertThat(fields).containsExactlyInAnyOrder("streetMemoId", "latitude", "longitude", "memo", "preference");
+        assertThat(fields).containsExactlyInAnyOrder("streetMemoId", "latitude", "longitude", "memo", "preference", "isMine");
     }
 
     private record MemberSession(long memberId, String accessToken) {

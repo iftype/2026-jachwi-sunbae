@@ -50,14 +50,16 @@ public class StreetMemoController {
     @GetMapping
     @Operation(summary = "지도 영역의 거리 메모 조회",
             description = "사각형 영역의 경계를 포함해 모든 회원의 미삭제 메모를 조회합니다. "
+            + "isMine으로 현재 회원이 작성한 메모인지 확인할 수 있습니다. "
             + "정렬 순서와 결과 상한은 보장하지 않으며 결과가 없으면 빈 배열을 반환합니다.")
     public ApiResponse<List<StreetMemoResponse>> findAllWithin(
+            @AuthenticatedMemberId final Long memberId,
             @RequestParam(required = false) final BigDecimal minLatitude,
             @RequestParam(required = false) final BigDecimal maxLatitude,
             @RequestParam(required = false) final BigDecimal minLongitude,
             @RequestParam(required = false) final BigDecimal maxLongitude) {
         List<StreetMemoResponse> responses = streetMemoService
-                .findAllWithin(minLatitude, maxLatitude, minLongitude, maxLongitude)
+                .findAllWithin(memberId, minLatitude, maxLatitude, minLongitude, maxLongitude)
                 .stream().map(StreetMemoResponse::from).toList();
         return ApiResponse.of("거리 메모 목록을 조회했습니다.", responses);
     }

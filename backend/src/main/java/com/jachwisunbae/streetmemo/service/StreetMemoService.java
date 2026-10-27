@@ -36,14 +36,15 @@ public class StreetMemoService {
         StreetMemo streetMemo = StreetMemo.create(memberId, latitude, longitude, memo, preference,
                 LocalDateTime.now(clock));
         memberService.requireActiveMember(memberId);
-        return StreetMemoResult.from(streetMemoRepository.save(streetMemo));
+        return StreetMemoResult.from(streetMemoRepository.save(streetMemo), memberId);
     }
 
-    public List<StreetMemoResult> findAllWithin(final BigDecimal minLatitude, final BigDecimal maxLatitude,
+    public List<StreetMemoResult> findAllWithin(final Long memberId,
+                                               final BigDecimal minLatitude, final BigDecimal maxLatitude,
                                                final BigDecimal minLongitude, final BigDecimal maxLongitude) {
         validateBounds(minLatitude, maxLatitude, minLongitude, maxLongitude);
         return streetMemoRepository.findAllWithin(minLatitude, maxLatitude, minLongitude, maxLongitude)
-                .stream().map(StreetMemoResult::from).toList();
+                .stream().map(streetMemo -> StreetMemoResult.from(streetMemo, memberId)).toList();
     }
 
     @Transactional
