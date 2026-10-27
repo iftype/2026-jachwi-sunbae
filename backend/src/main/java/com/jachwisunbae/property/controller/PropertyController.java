@@ -3,14 +3,17 @@ package com.jachwisunbae.property.controller;
 import com.jachwisunbae.auth.web.AuthenticatedMemberId;
 import com.jachwisunbae.common.web.ApiResponse;
 import com.jachwisunbae.property.controller.dto.request.CreatePropertyRequest;
+import com.jachwisunbae.property.controller.dto.request.PropertyCommuteTimeRequest;
 import com.jachwisunbae.property.controller.dto.request.UpdatePropertyMemoRequest;
 import com.jachwisunbae.property.controller.dto.request.UpdatePropertyRequest;
 import com.jachwisunbae.property.controller.dto.response.CreatePropertyResponse;
+import com.jachwisunbae.property.controller.dto.response.PropertyCommuteTimesResponse;
 import com.jachwisunbae.property.controller.dto.response.PropertyDetailResponse;
 import com.jachwisunbae.property.controller.dto.response.PropertyListResponse;
 import com.jachwisunbae.property.controller.dto.response.PropertyMemoResponse;
 import com.jachwisunbae.property.controller.dto.response.UpdatePropertyResponse;
 import com.jachwisunbae.property.entity.Property;
+import com.jachwisunbae.property.service.PropertyCommuteService;
 import com.jachwisunbae.property.service.PropertyDeletionService;
 import com.jachwisunbae.property.service.PropertyService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -21,6 +24,7 @@ import java.net.URI;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -35,11 +39,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class PropertyController {
     private final PropertyService propertyService;
     private final PropertyDeletionService propertyDeletionService;
+    private final PropertyCommuteService propertyCommuteService;
 
     public PropertyController(final PropertyService propertyService,
-                              final PropertyDeletionService propertyDeletionService) {
+                              final PropertyDeletionService propertyDeletionService,
+                              final PropertyCommuteService propertyCommuteService) {
         this.propertyService = propertyService;
         this.propertyDeletionService = propertyDeletionService;
+        this.propertyCommuteService = propertyCommuteService;
     }
 
     @GetMapping
@@ -65,6 +72,16 @@ public class PropertyController {
         Property property = propertyService.create(memberId, request);
         return ResponseEntity.created(URI.create("/api/properties/" + property.getId()))
                 .body(ApiResponse.of("매물을 등록했습니다.", CreatePropertyResponse.from(property)));
+    }
+
+    @GetMapping("/commute-times")
+    @Operation(summary = "매물별 통근 시간 조회", description = "로그인 회원의 매물마다 목적지까지 대중교통으로 걸리는 시간을 "
+            + "최대 60분, 환승 2회 기준으로 조회합니다. 위치가 없는 매물은 NO_LOCATION, 60분 안에 닿지 못하면 UNREACHABLE입니다.")
+    public ApiResponse<PropertyCommuteTimesResponse> findCommuteTimes(
+            @AuthenticatedMemberId final Long memberId,
+            @Valid @ModelAttribute final PropertyCommuteTimeRequest request) {
+        return ApiResponse.of("매물별 통근 시간을 조회했습니다.", PropertyCommuteTimesResponse.from(
+                propertyCommuteService.findCommuteTimes(memberId, request.destination())));
     }
 
     @GetMapping("/{propertyId}")

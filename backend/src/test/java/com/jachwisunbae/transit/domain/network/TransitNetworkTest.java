@@ -15,6 +15,7 @@ import com.jachwisunbae.transit.domain.vo.Coordinate;
 import com.jachwisunbae.transit.domain.vo.Seconds;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -165,6 +166,112 @@ class TransitNetworkTest {
 
         assertThat(route.legs()).extracting(RouteLeg::type).containsExactly(RouteLeg.Type.WALK);
         assertThat(route.totalMinutes()).isEqualTo(4);
+    }
+
+    @Test
+    @DisplayName("출발지에서 걸어서 10분 안의 정류장까지 걷는 시간을 정류장의 통근 시간에 더한다")
+    void addsWalkFromOrigin() {
+        Coordinate nearB = new Coordinate(37.5100, 127.0040);
+
+        List<Optional<Seconds>> times = network.travelTimes(DESTINATION, List.of(nearB), new Seconds(3600), 2);
+
+        assertThat(times).containsExactly(Optional.of(new Seconds(walkSeconds(nearB, B) + 221 + 120 + 300)));
+    }
+
+    @Test
+    @DisplayName("목적지까지 걸어서 10분 안이면 정류장을 거치는 것보다 빠를 때 걷는 시간을 쓴다")
+    void walksDirectlyToDestination() {
+        Coordinate nearDestination = new Coordinate(37.5000, 127.0010);
+
+        List<Optional<Seconds>> times = network.travelTimes(DESTINATION, List.of(nearDestination),
+                new Seconds(3600), 2);
+
+        assertThat(times).containsExactly(Optional.of(new Seconds(
+                (int) Math.ceil(nearDestination.metersTo(DESTINATION) / TransitNetwork.WALKING_METERS_PER_SECOND))));
+    }
+
+    @Test
+    @DisplayName("제한 시간 안에 닿지 못하는 출발지는 비워 두고 출발지 순서를 지킨다")
+    void leavesUnreachableOriginsEmpty() {
+        Coordinate nearB = new Coordinate(37.5100, 127.0040);
+        Coordinate nearFar = new Coordinate(37.6000, 127.0010);
+        int nearBSeconds = walkSeconds(nearB, B) + 221 + 120 + 300;
+
+        assertThat(network.travelTimes(DESTINATION, List.of(nearFar, nearB), new Seconds(3600), 2))
+                .containsExactly(Optional.empty(), Optional.of(new Seconds(nearBSeconds)));
+        assertThat(network.travelTimes(DESTINATION, List.of(nearB), new Seconds(nearBSeconds - 1), 2))
+                .containsExactly(Optional.empty());
+    }
+
+    @Test
+    @DisplayName("100m 안의 버스 정류장과 역은 GTFS 환승이 없어도 걸어서 갈아탄다")
+    void walksBetweenNearbyBusStopAndStation() {
+        GtfsStop busStop = stop("P", 37.5100, 127.0300);
+        GtfsStop station = stop("R", 37.5108, 127.0300);
+        TransitNetwork mixed = busAndSubway(busStop, station);
+
+        CommuteRoute route = mixed.route("X", DESTINATION, new Seconds(3600), 2).orElseThrow();
+
+        assertThat(route.legs()).extracting(RouteLeg::type).containsExactly(RouteLeg.Type.BUS, RouteLeg.Type.WALK,
+                RouteLeg.Type.SUBWAY, RouteLeg.Type.WALK);
+        int walkSeconds = (int) Math.ceil(busStop.coordinate().metersTo(station.coordinate())
+                / TransitNetwork.WALKING_METERS_PER_SECOND) + TransitNetworkBuilder.WALK_TRANSFER_EXTRA_TIME.value();
+        assertThat(route.legs().get(1).rideTime().value()).isEqualTo(walkSeconds);
+        assertThat(route.transferCount()).isEqualTo(1);
+        assertThat(travelSeconds(mixed.reachableStops(DESTINATION, new Seconds(3600), 2)).get("X"))
+                .isEqualTo(route.totalTime().value());
+    }
+
+    @Test
+    @DisplayName("100m보다 멀리 떨어진 정류장끼리는 걸어서 갈아타지 않는다")
+    void doesNotWalkToFarStop() {
+        TransitNetwork mixed = busAndSubway(stop("P", 37.5100, 127.0300), stop("R", 37.5112, 127.0300));
+
+        assertThat(mixed.route("X", DESTINATION, new Seconds(3600), 2)).isEmpty();
+        assertThat(travelSeconds(mixed.reachableStops(DESTINATION, new Seconds(3600), 2))).doesNotContainKey("X");
+    }
+
+    @Test
+    @DisplayName("걸어서 갈아탄 뒤에 다시 걸어서 갈아타지 않는다")
+    void doesNotChainWalkTransfers() {
+        // P-Q, Q-R은 100m 안이지만 P-R은 100m보다 멀다.
+        TransitNetwork chained = new TransitNetwork(
+                List.of(A, stop("X", 37.5400, 127.0300), stop("P", 37.5100, 127.0300), stop("Q", 37.5108, 127.0300),
+                        stop("R", 37.5116, 127.0300)),
+                List.of(route("B1", 3, 120), route("S1", 1, 120)),
+                List.of(edge("B1", "X", "P", 300), edge("S1", "R", "A", 400)),
+                List.of());
+
+        assertThat(chained.route("X", DESTINATION, new Seconds(3600), 2)).isEmpty();
+        assertThat(travelSeconds(chained.reachableStops(DESTINATION, new Seconds(3600), 2))).doesNotContainKey("X");
+    }
+
+    @Test
+    @DisplayName("걸어서 갈아탄 뒤에 목적지까지 이어서 걷지 않는다")
+    void doesNotWalkToDestinationAfterWalkTransfer() {
+        // Q는 목적지에서 걸어서 10분 안이고 P는 아니다. P와 Q는 100m 안이다.
+        TransitNetwork walking = new TransitNetwork(
+                List.of(stop("X", 37.5400, 127.0000), stop("P", 37.5070, 127.0000), stop("Q", 37.5062, 127.0000)),
+                List.of(route("B1", 3, 120)),
+                List.of(edge("B1", "X", "P", 300)),
+                List.of());
+
+        assertThat(walking.route("X", DESTINATION, new Seconds(3600), 2)).isEmpty();
+        assertThat(travelSeconds(walking.reachableStops(DESTINATION, new Seconds(3600), 2)))
+                .containsOnlyKeys("Q");
+    }
+
+    // 버스 B1이 X에서 정류장 P까지, 지하철 S1이 역 R에서 도착 정류장 A까지 간다. P와 R 사이 GTFS 환승은 없다.
+    private static TransitNetwork busAndSubway(final GtfsStop busStop, final GtfsStop station) {
+        return new TransitNetwork(
+                List.of(A, stop("X", 37.5400, 127.0300), busStop, station),
+                List.of(route("B1", 3, 120), route("S1", 1, 120)),
+                List.of(edge("B1", "X", busStop.stopId(), 300), edge("S1", station.stopId(), "A", 400)),
+                List.of());
+    }
+
+    private static int walkSeconds(final Coordinate origin, final GtfsStop stop) {
+        return (int) Math.ceil(origin.metersTo(stop.coordinate()) / TransitNetwork.WALKING_METERS_PER_SECOND);
     }
 
     private static Map<String, Integer> travelSeconds(final List<ReachableStop> stops) {

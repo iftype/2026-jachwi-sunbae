@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.tuple;
 
 import com.jachwisunbae.property.entity.Property;
 import com.jachwisunbae.property.repository.query.PropertyListItemQuery;
+import com.jachwisunbae.property.repository.query.PropertyLocationQuery;
 import com.jachwisunbae.property.type.RoomOption;
 import com.jachwisunbae.property.type.UtilityOption;
 import java.sql.PreparedStatement;
@@ -110,6 +111,27 @@ class JdbcPropertyRepositoryTest {
         assertThat(saved.getRoomOptions()).containsExactlyInAnyOrder(RoomOption.BED, RoomOption.DESK);
         assertThat(updated.getRoomOptions()).containsExactly(RoomOption.BED);
         assertThat(updated.getUtilityOptions()).containsExactly(UtilityOption.INTERNET);
+    }
+
+    @Test
+    @DisplayName("통근 시간용 매물 위치는 회원의 삭제하지 않은 매물만 ID 내림차순으로 위치 없이도 돌려준다")
+    void findsLocationsOfOwnProperties() {
+        long member = insertMember();
+        long other = insertMember();
+        long located = insertProperty(member, "위치 있는 집");
+        jdbcTemplate.update("UPDATE properties SET latitude = 37.5000000, longitude = 127.0000000 WHERE id = ?",
+                located);
+        long unlocated = insertProperty(member, "위치 없는 집");
+        long deleted = insertProperty(member, "삭제한 집");
+        jdbcTemplate.update("UPDATE properties SET deleted_at = NOW(6) WHERE id = ?", deleted);
+        insertProperty(other, "남의 집");
+
+        List<PropertyLocationQuery> locations = propertyRepository.findLocationsByMemberId(member);
+
+        assertThat(locations).extracting(PropertyLocationQuery::propertyId, PropertyLocationQuery::hasLocation)
+                .containsExactly(tuple(unlocated, false), tuple(located, true));
+        assertThat(locations.get(1).latitude()).isEqualByComparingTo("37.5");
+        assertThat(locations.get(1).longitude()).isEqualByComparingTo("127.0");
     }
 
     // 익명 회원은 닉네임 없이 ID만 가진다(V3).
