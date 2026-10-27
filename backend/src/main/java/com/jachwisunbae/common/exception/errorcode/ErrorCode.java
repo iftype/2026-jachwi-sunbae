@@ -51,6 +51,10 @@ public enum ErrorCode {
     MAP_ADDRESS_NOT_FOUND("해당 위치의 주소를 찾을 수 없습니다."),
     MAP_PROVIDER_UNAVAILABLE("지도 정보를 불러오지 못했습니다."),
 
+    // 편의점 행사상품
+    PROMOTION_PROVIDER_UNAVAILABLE("행사상품 정보를 불러오지 못했습니다."),
+    PROMOTION_RESPONSE_INVALID("행사상품 정보를 불러오지 못했습니다."),
+
     // 날씨
     WEATHER_PROVIDER_UNAVAILABLE("날씨 정보를 불러오지 못했습니다."),
     WEATHER_RESPONSE_INVALID("날씨 정보를 불러오지 못했습니다."),
