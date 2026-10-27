@@ -27,4 +27,8 @@ public class MemberService {
     public MemberProfile findProfileById(final Long memberId) {
         return MemberProfile.from(findById(memberId));
     }
+
+    public void requireActiveMember(final Long memberId) {
+        findById(memberId);
+    }
 }
