@@ -37,6 +37,13 @@ public enum ErrorCode {
     PROPERTY_CHECK_RESULT_INVALID("체크 결과를 확인해 주세요."),
     PROPERTY_COMPARISON_EXPORT_FAILED("매물 비교 자료를 만들지 못했습니다."),
 
+    // 거리 메모
+    STREET_MEMO_CONTENT_INVALID("거리 메모 내용을 확인해 주세요."),
+    STREET_MEMO_LOCATION_INVALID("거리 메모 위치를 확인해 주세요."),
+    STREET_MEMO_QUERY_INVALID("거리 메모 조회 영역을 확인해 주세요."),
+    STREET_MEMO_PREFERENCE_INVALID("거리 메모의 좋아요·싫어요를 선택해 주세요."),
+    STREET_MEMO_NOT_FOUND("거리 메모를 찾을 수 없습니다."),
+
     // 사진
     PHOTO_NOT_FOUND("사진을 찾을 수 없습니다."),
     PHOTO_LIMIT_EXCEEDED("등록할 수 있는 사진 개수를 초과했습니다."),

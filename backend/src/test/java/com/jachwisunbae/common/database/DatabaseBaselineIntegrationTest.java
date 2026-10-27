@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.jachwisunbae.common.config.LocalDatabaseSampleConfig;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 import javax.sql.DataSource;
@@ -16,6 +17,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.autoconfigure.flyway.FlywayMigrationStrategy;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
@@ -48,12 +50,13 @@ class DatabaseBaselineIntegrationTest {
     @DisplayName("빈 DB에 마이그레이션하면 시스템 체크 항목만 기본 데이터로 들어간다")
     void migratesAnEmptyDatabaseWithSystemItems() {
         Flyway flyway = flyway();
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(6);
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(7);
         assertThat(jdbcTemplate.queryForList(
                 "SELECT script FROM flyway_schema_history ORDER BY installed_rank", String.class))
                 .containsExactly("V1__initial_schema.sql", "V2__add_bus_stops_coordinate_index.sql",
                         "V3__introduce_anonymous_authentication.sql", "V4__create_weather_forecasts.sql",
-                        "V5__create_weather_user_features.sql", "V6__create_promotion_products.sql");
+                        "V5__create_weather_user_features.sql", "V6__create_street_memos.sql",
+                        "V7__create_promotion_products.sql");
         assertAnonymousMemberSchema();
         assertEmptyWeatherTables();
         flyway.validate();
@@ -66,16 +69,16 @@ class DatabaseBaselineIntegrationTest {
     }
 
     @Test
-    @DisplayName("빈 DB에 V6까지 적용해도 버스정류장 좌표 인덱스가 위도·경도 순서로 생성된다")
+    @DisplayName("빈 DB에 V7까지 적용해도 버스정류장 좌표 인덱스가 위도·경도 순서로 생성된다")
     void migratesAnEmptyDatabaseUpToBusStopCoordinateIndex() {
         flyway().migrate();
 
-        assertThat(history()).containsExactly("1:SQL:1", "2:SQL:1", "3:SQL:1", "4:SQL:1", "5:SQL:1", "6:SQL:1");
+        assertThat(history()).containsExactly("1:SQL:1", "2:SQL:1", "3:SQL:1", "4:SQL:1", "5:SQL:1", "6:SQL:1", "7:SQL:1");
         assertThat(busStopCoordinateIndexColumns()).containsExactly("latitude", "longitude");
     }
 
     @Test
-    @DisplayName("기존 스키마 DB에 버전 1 기준선을 등록하면 기존 데이터를 유지한 채 V2–V6을 적용한다")
+    @DisplayName("기존 스키마 DB에 버전 1 기준선을 등록하면 기존 데이터를 유지한 채 V2–V7을 적용한다")
     void oneTimeBaselinePreservesExistingMembersChecklistsAndSystemItems() {
         new ResourceDatabasePopulator(
                 new ClassPathResource("db/migration/V1__initial_schema.sql")).execute(dataSource);
@@ -102,13 +105,13 @@ class DatabaseBaselineIntegrationTest {
                 .baselineOnMigrate(true)
                 .load();
 
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(5);
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(6);
         assertThat(jdbcTemplate.queryForList("SELECT * FROM bus_stops ORDER BY id")).isEqualTo(busStopsBefore);
         assertThat(jdbcTemplate.queryForList("SELECT id, created_at, updated_at FROM members ORDER BY id"))
                 .isEqualTo(membersBefore);
         assertThat(jdbcTemplate.queryForList("SELECT * FROM user_checklists ORDER BY id")).isEqualTo(checklistsBefore);
         assertThat(jdbcTemplate.queryForList("SELECT * FROM system_check_items ORDER BY id")).isEqualTo(systemItemsBefore);
-        assertThat(history()).containsExactly("1:BASELINE:1", "2:SQL:1", "3:SQL:1", "4:SQL:1", "5:SQL:1", "6:SQL:1");
+        assertThat(history()).containsExactly("1:BASELINE:1", "2:SQL:1", "3:SQL:1", "4:SQL:1", "5:SQL:1", "6:SQL:1", "7:SQL:1");
         assertThat(busStopCoordinateIndexColumns()).containsExactly("latitude", "longitude");
     }
 
@@ -131,8 +134,8 @@ class DatabaseBaselineIntegrationTest {
         prepareManuallyIndexedDatabase();
         var busStopsBefore = jdbcTemplate.queryForList("SELECT * FROM bus_stops ORDER BY id");
 
-        assertThat(baselineFlyway("2").migrate().migrationsExecuted).isEqualTo(4);
-        assertThat(history()).containsExactly("2:BASELINE:1", "3:SQL:1", "4:SQL:1", "5:SQL:1", "6:SQL:1");
+        assertThat(baselineFlyway("2").migrate().migrationsExecuted).isEqualTo(5);
+        assertThat(history()).containsExactly("2:BASELINE:1", "3:SQL:1", "4:SQL:1", "5:SQL:1", "6:SQL:1", "7:SQL:1");
         assertThat(busStopCoordinateIndexColumns()).containsExactly("latitude", "longitude");
         assertThat(jdbcTemplate.queryForList("SELECT * FROM bus_stops ORDER BY id")).isEqualTo(busStopsBefore);
         flyway().validate();
@@ -151,7 +154,7 @@ class DatabaseBaselineIntegrationTest {
 
     @ParameterizedTest
     @ValueSource(ints = {1, 2})
-    @DisplayName("V1·V2 DB를 V6으로 올리면 회원·매물·체크리스트를 보존하고 익명 인증과 날씨 테이블을 생성한다")
+    @DisplayName("V1·V2 DB를 V7로 올리면 회원·매물·체크리스트를 보존하고 익명 인증과 날씨 테이블을 생성한다")
     void upgradesLegacyMembersAndRecords(final int version) {
         Flyway.configure().dataSource(dataSource).target(Integer.toString(version)).load().migrate();
         // 인증 V3 적용 전에는 닉네임·비밀번호가 있는 기존 회원 스키마를 사용한다.
@@ -167,9 +170,9 @@ class DatabaseBaselineIntegrationTest {
         var busStopsBefore = jdbcTemplate.queryForList("SELECT * FROM bus_stops ORDER BY id");
         var systemItemsBefore = jdbcTemplate.queryForList("SELECT * FROM system_check_items ORDER BY id");
 
-        assertThat(flyway().migrate().migrationsExecuted).isEqualTo(6 - version);
+        assertThat(flyway().migrate().migrationsExecuted).isEqualTo(7 - version);
 
-        assertThat(history()).containsExactly("1:SQL:1", "2:SQL:1", "3:SQL:1", "4:SQL:1", "5:SQL:1", "6:SQL:1");
+        assertThat(history()).containsExactly("1:SQL:1", "2:SQL:1", "3:SQL:1", "4:SQL:1", "5:SQL:1", "6:SQL:1", "7:SQL:1");
         assertThat(jdbcTemplate.queryForList("SELECT id, created_at, updated_at FROM members ORDER BY id"))
                 .isEqualTo(membersBefore);
         assertThat(jdbcTemplate.queryForList("SELECT * FROM properties ORDER BY id")).isEqualTo(propertiesBefore);
@@ -183,7 +186,7 @@ class DatabaseBaselineIntegrationTest {
     }
 
     @Test
-    @DisplayName("익명 인증 V3 DB에는 V4–V6만 적용하며 회원·Refresh Token·연관 기록을 보존한다")
+    @DisplayName("익명 인증 V3 DB에는 V4~V7을 적용하며 회원·Refresh Token·연관 기록을 보존한다")
     void upgradesAnonymousAuthenticationWithWeatherTables() {
         Flyway.configure().dataSource(dataSource).target("3").load().migrate();
         jdbcTemplate.update("""
@@ -200,9 +203,9 @@ class DatabaseBaselineIntegrationTest {
         var propertiesBefore = jdbcTemplate.queryForList("SELECT * FROM properties ORDER BY id");
         var checklistsBefore = jdbcTemplate.queryForList("SELECT * FROM user_checklists ORDER BY id");
 
-        assertThat(flyway().migrate().migrationsExecuted).isEqualTo(3);
+        assertThat(flyway().migrate().migrationsExecuted).isEqualTo(4);
 
-        assertThat(history()).containsExactly("1:SQL:1", "2:SQL:1", "3:SQL:1", "4:SQL:1", "5:SQL:1", "6:SQL:1");
+        assertThat(history()).containsExactly("1:SQL:1", "2:SQL:1", "3:SQL:1", "4:SQL:1", "5:SQL:1", "6:SQL:1", "7:SQL:1");
         assertThat(jdbcTemplate.queryForList("SELECT * FROM members ORDER BY id")).isEqualTo(membersBefore);
         assertThat(jdbcTemplate.queryForList("SELECT * FROM refresh_tokens ORDER BY id")).isEqualTo(tokensBefore);
         assertThat(jdbcTemplate.queryForList("SELECT * FROM properties ORDER BY id")).isEqualTo(propertiesBefore);
@@ -287,6 +290,80 @@ class DatabaseBaselineIntegrationTest {
             assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM " + table, Integer.class))
                     .as(table).isZero();
         }
+    }
+
+    @Test
+    @DisplayName("V5 DB를 업그레이드하면 기존 익명 회원을 보존하고 거리 메모와 삭제 시각을 저장한다")
+    void upgradesVersion5DatabaseAndStoresStreetMemos() {
+        Flyway.configure().dataSource(dataSource).target("5").load().migrate();
+        insertStreetMemoAuthor();
+        var membersBefore = jdbcTemplate.queryForList("SELECT * FROM members ORDER BY id");
+
+        assertThat(flyway().migrate().migrationsExecuted).isEqualTo(2);
+
+        assertThat(jdbcTemplate.queryForList("SELECT * FROM members ORDER BY id")).isEqualTo(membersBefore);
+        insertStreetMemo(999L, new BigDecimal("37.3948000"), new BigDecimal("127.1112000"), "LIKE");
+        assertThat(jdbcTemplate.queryForMap("""
+                SELECT member_id, latitude, longitude, memo, preference, deleted_at FROM street_memos
+                """))
+                .containsEntry("member_id", 999L)
+                .containsEntry("latitude", new BigDecimal("37.3948000"))
+                .containsEntry("longitude", new BigDecimal("127.1112000"))
+                .containsEntry("memo", "이 골목에 무인 세탁소가 있어요 🧺")
+                .containsEntry("preference", "LIKE")
+                .containsEntry("deleted_at", null);
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM street_memos WHERE created_at IS NOT NULL AND updated_at IS NOT NULL
+                """, Integer.class)).isOne();
+
+        jdbcTemplate.update("UPDATE street_memos SET deleted_at = NOW(6) WHERE member_id = 999");
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM street_memos WHERE deleted_at IS NOT NULL", Integer.class)).isOne();
+        assertThat(flyway().migrate().migrationsExecuted).isZero();
+    }
+
+    @Test
+    @DisplayName("거리 메모의 위도와 경도 범위 제약을 DB에서도 적용한다")
+    void rejectsInvalidStreetMemoCoordinates() {
+        flyway().migrate();
+        insertStreetMemoAuthor();
+
+        assertThatThrownBy(() -> insertStreetMemo(999L, new BigDecimal("-90.0000001"), BigDecimal.ZERO, "LIKE"))
+                .isInstanceOf(DataAccessException.class).hasMessageContaining("chk_street_memos_latitude");
+        assertThatThrownBy(() -> insertStreetMemo(999L, BigDecimal.ZERO, new BigDecimal("180.0000001"), "LIKE"))
+                .isInstanceOf(DataAccessException.class).hasMessageContaining("chk_street_memos_longitude");
+    }
+
+    @Test
+    @DisplayName("거리 메모 선호는 올바른 대문자 코드만 허용하며 생략할 수 없다")
+    void rejectsInvalidOrMissingStreetMemoPreference() {
+        flyway().migrate();
+        insertStreetMemoAuthor();
+
+        assertThatThrownBy(() -> insertStreetMemo(999L, BigDecimal.ZERO, BigDecimal.ZERO, "like"))
+                .isInstanceOf(DataAccessException.class).hasMessageContaining("preference");
+        assertThatThrownBy(() -> insertStreetMemo(999L, BigDecimal.ZERO, BigDecimal.ZERO, "NEUTRAL"))
+                .isInstanceOf(DataAccessException.class).hasMessageContaining("preference");
+        assertThatThrownBy(() -> jdbcTemplate.update("""
+                INSERT INTO street_memos (member_id, latitude, longitude, memo, created_at, updated_at)
+                VALUES (999, 37.5, 127.0, '동네 메모', NOW(6), NOW(6))
+                """))
+                .isInstanceOf(DataAccessException.class).hasMessageContaining("preference");
+    }
+
+    private void insertStreetMemoAuthor() {
+        jdbcTemplate.update("""
+                INSERT INTO members (id, created_at, updated_at)
+                VALUES (999, NOW(6), NOW(6))
+                """);
+    }
+
+    private void insertStreetMemo(Long memberId, BigDecimal latitude, BigDecimal longitude, String preference) {
+        jdbcTemplate.update("""
+                INSERT INTO street_memos (member_id, latitude, longitude, memo, preference, created_at, updated_at)
+                VALUES (?, ?, ?, '이 골목에 무인 세탁소가 있어요 🧺', ?, NOW(6), NOW(6))
+                """, memberId, latitude, longitude, preference);
     }
 
     private Flyway baselineFlyway(String baselineVersion) {
