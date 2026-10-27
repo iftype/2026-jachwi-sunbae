@@ -252,13 +252,13 @@ describe('익명 자동 인증 흐름', () => {
     expect(getAccessToken()).toBe('still-valid-token');
   });
 
-  it('마이페이지는 로그아웃 없이 익명 회원 안내를 보여 준다', async () => {
+  it('마이페이지는 로그아웃 없이 마이 화면을 보여 준다', async () => {
     const user = userEvent.setup();
     renderRoutes('/');
 
     await user.click(await screen.findByRole('link', { name: '마이페이지' }));
 
-    expect(await screen.findByRole('heading', { name: '익명 회원' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '마이' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '로그아웃' })).not.toBeInTheDocument();
   });
 
