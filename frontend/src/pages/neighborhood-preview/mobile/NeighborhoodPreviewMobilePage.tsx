@@ -3,7 +3,9 @@ import { Outlet, useMatch } from 'react-router-dom';
 
 import { SERVICE_MAP_STYLE_ID } from '@/features/map/lib/mapStyle';
 import MapCanvas from '@/features/map/ui/map-canvas/MapCanvas';
+import MapTapActionSheet from '@/features/map/ui/map-tap-action-sheet/MapTapActionSheet';
 import ExplorationRecordAction from '@/features/onboarding/ui/exploration-record-action/ExplorationRecordAction';
+import StreetMemoSheet from '@/features/street-memo/ui/street-memo-sheet/StreetMemoSheet';
 import BottomSheet from '@/shared/ui/bottom-sheet/BottomSheet';
 import { Button } from '@/shared/ui/button/Button';
 import HorizontalRail from '@/shared/ui/horizontal-rail/HorizontalRail';
@@ -13,7 +15,7 @@ import RankedCard from '@/shared/ui/ranked-card/RankedCard';
 import useNeighborhoodMapView from '../hooks/useNeighborhoodMapView';
 import type { NeighborhoodPreviewContext } from '../hooks/useNeighborhoodPreview';
 import { COMMUTE_COLORS, commuteLegend } from '../model/commuteColors';
-import { areaCardDescription, emptyAreaMessage, rentLabel, transferLabel } from '../model/criteriaLabels';
+import { areaCardDescription, emptyAreaMessage, placesHint, rentLabel, transferLabel } from '../model/criteriaLabels';
 import type { NeighborhoodFilterField } from '../NeighborhoodFilters';
 import NeighborhoodFilters from '../NeighborhoodFilters';
 import AnalysisOverlay from '../ui/analysis-overlay/AnalysisOverlay';
@@ -39,7 +41,8 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
   const isRoutePage = useMatch(`${preview.mapPath}/areas/:adminDongCode/*`);
   const isDetailPage = useMatch(`${preview.mapPath}/areas/:adminDongCode/details`);
   const submitSearch = preview.startAnalysis;
-  const { isResultMap, mapProps, places } = useNeighborhoodMapView(preview);
+  const { isResultMap, mapProps, places, memo, tapPoint, tapActions, closeTap, closeLayers } =
+    useNeighborhoodMapView(preview);
   const recordArea = preview.selected ?? preview.topAreas[0];
 
   if (isDetailPage && !preview.isAnalyzing && !preview.error)
@@ -152,7 +155,7 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
                 variant="secondary"
                 className={shared.resultBack}
                 onClick={() => {
-                  places.closePlace();
+                  closeLayers();
                   preview.reset();
                 }}
               >
@@ -176,11 +179,7 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
                     </span>
                   ))}
                   <small className={shared.placesHint}>
-                    {places.isClose
-                      ? places.failed
-                        ? '주변 정류장·부동산을 불러오지 못했어요'
-                        : '정류장·부동산을 눌러 정보를 볼 수 있어요'
-                      : '동네를 고르거나 가까이 확대하면 정류장·부동산이 보여요'}
+                    {placesHint({ isClose: places.isClose, failed: places.failed || memo.isFailed })}
                   </small>
                 </div>
               </div>
@@ -227,6 +226,8 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
             {places.selectedPlace && (
               <NeighborhoodPlaceSheet place={places.selectedPlace} preview={preview} onClose={places.closePlace} />
             )}
+            {tapPoint !== null && <MapTapActionSheet actions={tapActions} onClose={closeTap} />}
+            <StreetMemoSheet layer={memo} />
             {isRoutePage && <Outlet context={preview} />}
             {filterField === 'rent' && (
               <BottomSheet

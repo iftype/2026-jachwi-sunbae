@@ -9,6 +9,7 @@ import { commuteBoundaryFixtures } from '@/app/mocks/fixtures/commuteBoundaryFix
 import { successEnvelope } from '@/app/mocks/fixtures/propertyFixtures';
 import { createCommuteAreaHandlers } from '@/app/mocks/handlers/commuteAreaHandlers';
 import { mapHandlers } from '@/app/mocks/handlers/mapHandlers';
+import { createStreetMemoHandlers } from '@/app/mocks/handlers/streetMemoHandlers';
 import NeighborhoodPreviewPage from '@/pages/neighborhood-preview/NeighborhoodPreviewPage';
 import NeighborhoodRoutePage from '@/pages/neighborhood-preview/NeighborhoodRoutePage';
 import { MapLocationError, readGeolocationPermission, requestCurrentMapLocation } from '@/features/map/lib/mapLocation';
@@ -47,6 +48,18 @@ vi.mock('@/features/map/ui/map-canvas/MapCanvas', async () => {
         {props.coordinateAction && (
           <button onClick={props.coordinateAction.onClick} disabled={props.coordinateAction.disabled}>
             {props.coordinateAction.label}
+          </button>
+        )}
+        {props.coordinateMenu?.actions.map((action) => (
+          <button key={action.id} onClick={action.onSelect}>
+            {`말풍선 ${action.label}`}
+          </button>
+        ))}
+        {props.selectedRegionId && (
+          <button
+            onClick={() => props.onSelectRegion?.(props.selectedRegionId!, { latitude: 37.5, longitude: 127.035 })}
+          >
+            고른 동네 안 찍기
           </button>
         )}
         {props.onBoundsChange && (
@@ -550,11 +563,11 @@ it('데스크탑은 동네를 고르면 왼쪽 목록에 시세·출발 정류�
   }
 });
 it('결과 지도를 가까이 확대하면 화면 안 정류장·부동산을 올리고 눌러 정보를 본다', async () => {
-  server.use(...mapHandlers);
+  server.use(...mapHandlers, ...createStreetMemoHandlers([]));
   show();
   const user = await choosePoint();
   await user.click(screen.getByRole('button', { name: /에서 찾기$/ }));
-  expect(await screen.findByText('동네를 고르거나 가까이 확대하면 정류장·부동산이 보여요')).toBeInTheDocument();
+  expect(await screen.findByText('동네를 고르거나 가까이 확대하면 정류장·부동산·메모가 보여요')).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: /^마커 / })).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: '가까이 확대' }));
   await waitFor(() =>
@@ -591,7 +604,7 @@ it('결과 지도를 가까이 확대하면 화면 안 정류장·부동산을 �
   expect(screen.getByRole('region', { name: '역삼역 정보' })).toBeInTheDocument();
 });
 it('동네를 고르면 확대하지 않아도 옮겨 간 화면의 정류장·부동산을 올린다', async () => {
-  server.use(...mapHandlers);
+  server.use(...mapHandlers, ...createStreetMemoHandlers([]));
   show();
   const user = await choosePoint();
   await user.click(screen.getByRole('button', { name: /에서 찾기$/ }));
@@ -606,10 +619,10 @@ it('동네를 고르면 확대하지 않아도 옮겨 간 화면의 정류장·�
       ]),
     ),
   );
-  expect(screen.getByText('정류장·부동산을 눌러 정보를 볼 수 있어요')).toBeInTheDocument();
+  expect(screen.getByText('마커를 눌러 정보를 보고, 고른 동네 안을 눌러 메모를 남겨요')).toBeInTheDocument();
 });
 it('데스크탑은 지도에서 고른 부동산·정류장 정보를 목록 옆 칸에 열고 랭킹은 그대로 둔다', async () => {
-  server.use(...mapHandlers);
+  server.use(...mapHandlers, ...createStreetMemoHandlers([]));
   const matchMedia = useDesktopViewport();
   try {
     show();
@@ -764,6 +777,7 @@ it('manifest의 해시가 바뀌면 이전 경계 캐시 대신 새 파일을 �
   }
 });
 it('결과 지도 클릭은 목적지·결과를 유지하고 다시 선택하기를 눌러야 새 위치를 고른다', async () => {
+  server.use(...createStreetMemoHandlers([]));
   show();
   const user = await choosePoint();
   await user.click(screen.getByRole('button', { name: '다른 위치 찍기' }));
@@ -772,10 +786,16 @@ it('결과 지도 클릭은 목적지·결과를 유지하고 다시 선택하�
   await screen.findByRole('region', { name: '행정동 프리셋 지도' });
   await user.click(screen.getByRole('button', { name: '역삼1동' }));
   await user.keyboard('{Escape}');
-  const markers = screen.getByLabelText('목적지 좌표').textContent;
+  const markers = JSON.parse(screen.getByLabelText('목적지 좌표').textContent ?? '[]');
+  // 결과 지도를 찍으면 목적지는 그대로 두고 찍은 자리에 핀만 더해 메모를 남길지 고르게 한다.
   await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
   expect(screen.getByRole('region', { name: '행정동 프리셋 지도' })).toBeInTheDocument();
-  expect(screen.getByLabelText('목적지 좌표').textContent).toBe(markers);
+  expect(JSON.parse(screen.getByLabelText('목적지 좌표').textContent ?? '[]')).toEqual([
+    ...markers,
+    expect.objectContaining({ id: 'tap-point', latitude: 37.4, longitude: 127.12 }),
+  ]);
+  expect(screen.getByRole('button', { name: '📝 여기에 메모 남기기' })).toBeInTheDocument();
+  await user.keyboard('{Escape}');
   await user.click(screen.getByRole('button', { name: '다시 선택하기' }));
   await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
   expect(screen.queryByRole('region', { name: '행정동 프리셋 지도' })).not.toBeInTheDocument();
@@ -827,3 +847,85 @@ it.each([false, true])(
     expect(screen.queryByRole('link', { name: /주변 시설 분석/ })).not.toBeInTheDocument();
   },
 );
+it('휴대폰은 고른 동네 안을 찍어 아래 시트에서 메모를 남기고, 본인 메모는 지울 수 있다', async () => {
+  const created: unknown[] = [];
+  server.use(...mapHandlers, ...createStreetMemoHandlers([]));
+  server.events.on('request:start', async ({ request }) => {
+    if (request.method === 'POST' && request.url.endsWith('/api/street-memos'))
+      created.push(await request.clone().json());
+  });
+  try {
+    show();
+    const user = await choosePoint();
+    await user.click(screen.getByRole('button', { name: /에서 찾기$/ }));
+    await user.click(await screen.findByRole('button', { name: /1위 역삼1동/ }));
+    await user.click(screen.getByRole('button', { name: '화면 범위 알림' }));
+    // 이미 고른 동네 안을 다시 찍으면 동네를 바꾸지 않고, 찍은 자리에 핀을 두고 아래 시트에서 할 일을 고른다.
+    await user.click(screen.getByRole('button', { name: '고른 동네 안 찍기' }));
+    expect(screen.queryByRole('button', { name: /^말풍선 / })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '📝 여기에 메모 남기기' }));
+    const form = within(await screen.findByRole('region', { name: '메모 남기기' }));
+    const submit = form.getByRole('button', { name: '메모 남기기' });
+    expect(submit).toBeDisabled();
+    await user.type(form.getByLabelText('메모'), '밤에도 밝아요');
+    // 좋아요·싫어요는 기본값이 없어 고르기 전에는 남길 수 없다.
+    expect(submit).toBeDisabled();
+    await user.click(form.getByRole('button', { name: '👍 좋아요' }));
+    await user.click(submit);
+    const details = within(await screen.findByRole('region', { name: '거리 메모' }));
+    expect(details.getByText('밤에도 밝아요')).toBeInTheDocument();
+    expect(details.getByText('내가 남긴 메모')).toBeInTheDocument();
+    expect(created).toEqual([{ latitude: 37.5, longitude: 127.035, memo: '밤에도 밝아요', preference: 'LIKE' }]);
+    await waitFor(() =>
+      expect(JSON.parse(screen.getByLabelText('목적지 좌표').textContent ?? '[]')).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ category: 'MEMO', variant: 'positive', label: '밤에도 밝아요' }),
+        ]),
+      ),
+    );
+    await user.click(details.getByRole('button', { name: '메모 지우기' }));
+    await user.click(details.getByRole('button', { name: '지우기' }));
+    await waitFor(() => expect(screen.queryByRole('region', { name: '거리 메모' })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getByLabelText('목적지 좌표')).not.toHaveTextContent('"category":"MEMO"'));
+  } finally {
+    server.events.removeAllListeners('request:start');
+  }
+});
+it('열린 정보가 있을 때 결과 지도를 찍으면 닫기만 하고 메모 시트를 띄우지 않는다', async () => {
+  server.use(...mapHandlers, ...createStreetMemoHandlers());
+  show();
+  const user = await choosePoint();
+  await user.click(screen.getByRole('button', { name: /에서 찾기$/ }));
+  await user.click(await screen.findByRole('button', { name: '가까이 확대' }));
+  await user.click(await screen.findByRole('button', { name: '마커 역삼역 공인중개사' }));
+  expect(screen.getByRole('region', { name: '역삼역 공인중개사 정보' })).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
+  expect(screen.queryByRole('region', { name: '역삼역 공인중개사 정보' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: '📝 여기에 메모 남기기' })).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
+  expect(screen.getByRole('button', { name: '📝 여기에 메모 남기기' })).toBeInTheDocument();
+});
+it('데스크탑은 찍은 자리 말풍선에서 메모를 고르고 목록 옆 칸에서 쓴다', async () => {
+  server.use(...mapHandlers, ...createStreetMemoHandlers([]));
+  const matchMedia = useDesktopViewport();
+  try {
+    show();
+    const user = await choosePoint();
+    await user.click(screen.getByRole('button', { name: '이 조건으로 동네 찾기' }));
+    await screen.findByRole('region', { name: '행정동 프리셋 지도' });
+    await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
+    // 데스크탑은 아래 시트 대신 찍은 자리 말풍선으로 고른다.
+    expect(screen.queryByRole('button', { name: '📝 여기에 메모 남기기' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '말풍선 📝 여기에 메모 남기기' }));
+    const form = within(await screen.findByRole('region', { name: '메모 남기기' }));
+    await user.click(form.getByRole('button', { name: '👎 싫어요' }));
+    await user.type(form.getByLabelText('메모'), '언덕이 가팔라요');
+    await user.click(form.getByRole('button', { name: '메모 남기기' }));
+    const details = within(await screen.findByRole('region', { name: '거리 메모' }));
+    expect(details.getByText('언덕이 가팔라요')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '메모 닫기' }));
+    expect(screen.queryByRole('region', { name: '거리 메모' })).not.toBeInTheDocument();
+  } finally {
+    matchMedia.mockRestore();
+  }
+});

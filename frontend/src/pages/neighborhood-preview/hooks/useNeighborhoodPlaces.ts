@@ -92,6 +92,7 @@ const useNeighborhoodPlaces = (enabled: boolean, hasSelectedArea: boolean) => {
       setSelectedId(`${STATION_PREFIX}${next.stopId}`);
     },
     closePlace: () => setSelectedId(null),
+    bounds,
     rememberBounds: setBounds,
     rememberLevel: setLevel,
   };

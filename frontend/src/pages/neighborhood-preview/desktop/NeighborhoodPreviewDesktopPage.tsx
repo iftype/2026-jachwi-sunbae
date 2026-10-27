@@ -4,6 +4,7 @@ import { Outlet, useMatch } from 'react-router-dom';
 import { SERVICE_MAP_STYLE_ID } from '@/features/map/lib/mapStyle';
 import MapCanvas from '@/features/map/ui/map-canvas/MapCanvas';
 import ExplorationRecordAction from '@/features/onboarding/ui/exploration-record-action/ExplorationRecordAction';
+import StreetMemoPanel from '@/features/street-memo/ui/street-memo-panel/StreetMemoPanel';
 import { Button } from '@/shared/ui/button/Button';
 import Icon from '@/shared/ui/icon/Icon';
 import ListDetailLayout from '@/shared/ui/list-detail-layout/ListDetailLayout';
@@ -12,7 +13,7 @@ import RankedCard from '@/shared/ui/ranked-card/RankedCard';
 import useNeighborhoodMapView from '../hooks/useNeighborhoodMapView';
 import type { NeighborhoodPreviewContext } from '../hooks/useNeighborhoodPreview';
 import { COMMUTE_COLORS, commuteLegend } from '../model/commuteColors';
-import { areaCardDescription, emptyAreaMessage, transferLabel } from '../model/criteriaLabels';
+import { areaCardDescription, emptyAreaMessage, placesHint, transferLabel } from '../model/criteriaLabels';
 import { RENT_OPTIONS } from '../NeighborhoodFilters';
 import AnalysisOverlay from '../ui/analysis-overlay/AnalysisOverlay';
 import AreaSummary from '../ui/area-summary/AreaSummary';
@@ -39,7 +40,10 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
   const isRoutePage = useMatch(`${preview.mapPath}/areas/:adminDongCode/*`);
   const isDetailPage = useMatch(`${preview.mapPath}/areas/:adminDongCode/details`);
   const submitSearch = preview.startAnalysis;
-  const { isResultMap, mapProps, places } = useNeighborhoodMapView(preview, { showAreaAction: false });
+  const { isResultMap, mapProps, places, memo, closeLayers } = useNeighborhoodMapView(preview, {
+    showAreaAction: false,
+    showCoordinateMenu: true,
+  });
   const recordArea = preview.selected ?? preview.topAreas[0];
   const hasDetail = isResultMap && !!isDetailPage;
 
@@ -56,7 +60,7 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
           variant="secondary"
           className={styles.reselect}
           onClick={() => {
-            places.closePlace();
+            closeLayers();
             preview.reset();
           }}
         >
@@ -95,7 +99,7 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
                   description={areaCardDescription(area)}
                   selected={isSelected}
                   onSelect={() => {
-                    places.closePlace();
+                    closeLayers();
                     preview.selectRegion(area.adminDongCode, { openDetails: false });
                   }}
                 />
@@ -106,6 +110,7 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
                       places.selectedPlace?.kind === 'station' ? places.selectedPlace.station.stopId : null
                     }
                     onSelectStation={(station) => {
+                      memo.close();
                       places.selectStation(station);
                       // 출발 정류장을 바꾼 지표(commute_departure_station_changed)는 동네 요약 목록에서 고를 때 남긴다.
                       preview.selectStation(station.stopId);
@@ -131,17 +136,21 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
     <main className={`${shared.page} ${styles.page}`} data-public-explore={preview.isPublicExplore || undefined}>
       <ListDetailLayout
         list={list}
-        // 지도에서 고른 정류장·부동산이 있으면 그 정보를, 없으면 동네 대중교통 상세를 목록 옆 칸에 연다.
+        // 지도에서 고른 거리 메모나 정류장·부동산이 있으면 그 정보를, 없으면 동네 대중교통 상세를 목록 옆 칸에 연다.
         // 정보를 닫으면 보고 있던 동네 상세로 돌아간다.
         detail={
-          places.selectedPlace ? (
+          memo.mode !== null ? (
+            <StreetMemoPanel layer={memo} showCloseButton={false} />
+          ) : places.selectedPlace ? (
             <NeighborhoodPlacePanel place={places.selectedPlace} preview={preview} />
           ) : hasDetail ? (
             <Outlet context={preview} />
           ) : undefined
         }
-        onCloseDetail={places.selectedPlace ? places.closePlace : preview.closeAreaDetails}
-        closeLabel={places.selectedPlace ? '정보 닫기' : '대중교통 상세 닫기'}
+        onCloseDetail={
+          memo.mode !== null ? memo.close : places.selectedPlace ? places.closePlace : preview.closeAreaDetails
+        }
+        closeLabel={memo.mode !== null ? '메모 닫기' : places.selectedPlace ? '정보 닫기' : '대중교통 상세 닫기'}
       >
         <section className={shared.mapPage} aria-label={isResultMap ? '행정동 프리셋 지도' : '지도에서 목적지 선택'}>
           <MapCanvas
@@ -174,11 +183,7 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
                   </span>
                 ))}
                 <small className={shared.placesHint}>
-                  {places.isClose
-                    ? places.failed
-                      ? '주변 정류장·부동산을 불러오지 못했어요'
-                      : '정류장·부동산을 눌러 정보를 볼 수 있어요'
-                    : '동네를 고르거나 가까이 확대하면 정류장·부동산이 보여요'}
+                  {placesHint({ isClose: places.isClose, failed: places.failed || memo.isFailed })}
                 </small>
               </div>
               <LocationControls preview={preview} isResult />
