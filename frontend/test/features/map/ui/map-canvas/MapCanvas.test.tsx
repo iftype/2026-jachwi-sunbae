@@ -226,7 +226,8 @@ describe('Naver 지도 상태 동기화', () => {
       .mocked(window.naver!.maps.Event.addListener)
       .mock.calls.find((call) => call[0] === original && call[1] === 'click')!;
     act(() => click[2]());
-    expect(onSelect).toHaveBeenCalledWith('a');
+    // 테스트 SDK는 클릭 좌표를 주지 않으므로 동 ID만 넘긴다.
+    expect(onSelect).toHaveBeenCalledWith('a', undefined);
     rerender(<MapCanvas center={center} regions={[{ ...region, paths: [...region.paths] }]} />);
     expect(overlayInstances).toHaveLength(1);
     expect(original.setPaths).toHaveBeenCalledOnce();

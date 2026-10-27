@@ -7,6 +7,7 @@ import { markerScale, markerSignature, markerZIndex } from '../lib/mapMarkerPres
 import { createMapRegionLayer, READY_TIMEOUT_MS } from '../lib/mapRegionLayer';
 import { type LiveMap, type LiveOverlay, naverEngine } from '../lib/naverMapEngine';
 import type { MapCanvasProps } from '../model/MapCanvas';
+import { createMapCoordinateMenuElement } from '../ui/map-coordinate-menu/MapCoordinateMenu';
 import { createMapMarkerElement } from '../ui/map-marker/MapMarkerView';
 
 import actionStyles from '../ui/map-canvas/MapCanvas.module.css';
@@ -19,6 +20,7 @@ type LiveMapProps = Pick<
   | 'center'
   | 'animateView'
   | 'coordinateAction'
+  | 'coordinateMenu'
   | 'level'
   | 'customStyleId'
   | 'markers'
@@ -40,6 +42,7 @@ const useNaverMap = ({
   center,
   animateView = false,
   coordinateAction,
+  coordinateMenu,
   level = 5,
   customStyleId,
   markers = EMPTY_MARKERS,
@@ -302,13 +305,32 @@ const useNaverMap = ({
 
   useEffect(() => {
     const map = mapRef.current;
+    if (!liveMode || !mapReady || map === null || !coordinateMenu) return;
+    const overlay = engine.createOverlay(
+      map,
+      {
+        id: 'coordinate-menu',
+        label: coordinateMenu.title ?? '',
+        latitude: coordinateMenu.latitude,
+        longitude: coordinateMenu.longitude,
+        // 말풍선 꼬리 끝(요소 아래 가운데)이 좌표에 오게 말풍선 핀과 같은 기준으로 놓는다.
+        tone: 'destination',
+      },
+      createMapCoordinateMenuElement(coordinateMenu),
+      40,
+    );
+    return () => overlay.setMap(null);
+  }, [coordinateMenu, engine, liveMode, mapReady]);
+
+  useEffect(() => {
+    const map = mapRef.current;
     const sdk = window.naver?.maps;
     if (!liveMode || !mapReady || map === null || sdk === undefined) return;
     const layer = createMapRegionLayer(
       map,
       sdk,
       engine,
-      (id) => regionCallbackRef.current?.(id),
+      (id, point) => regionCallbackRef.current?.(id, point),
       () => engine.getZoom(map),
     );
     regionLayerRef.current = layer;

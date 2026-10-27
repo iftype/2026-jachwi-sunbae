@@ -44,12 +44,21 @@ type Entry = {
   hovered: boolean;
 };
 
+/** 도형 클릭 이벤트에서 찍은 좌표를 읽는다. SDK가 좌표를 주지 않으면 undefined다. */
+const clickedPoint = (event?: { coord?: { lat?: () => number; lng?: () => number } }) => {
+  const latitude = event?.coord?.lat?.();
+  const longitude = event?.coord?.lng?.();
+  return latitude !== undefined && longitude !== undefined && Number.isFinite(latitude) && Number.isFinite(longitude)
+    ? { latitude, longitude }
+    : undefined;
+};
+
 /** 지도 하나가 소유한다. 좌표가 같은 동은 유지하고 스타일·라벨 변경만 반영한다. */
 export const createMapRegionLayer = (
   map: LiveMap,
   sdk: NaverMapsNamespace,
   engine: Engine,
-  onSelect: (id: string) => void,
+  onSelect: (id: string, point?: { latitude: number; longitude: number }) => void,
   getLevel: () => number = () => 4,
 ) => {
   const entries = new Map<string, Entry>();
@@ -101,7 +110,9 @@ export const createMapRegionLayer = (
       hovered: false,
     };
     entry.listeners = polygons.flatMap((polygon) => [
-      sdk.Event.addListener(polygon, 'click', () => onSelect(region.id)),
+      sdk.Event.addListener(polygon, 'click', (event?: { coord?: { lat?: () => number; lng?: () => number } }) =>
+        onSelect(region.id, clickedPoint(event)),
+      ),
       sdk.Event.addListener(polygon, 'mouseover', () => hover(entry, true)),
       sdk.Event.addListener(polygon, 'mouseout', () => hover(entry, false)),
     ]);

@@ -10,6 +10,7 @@ import { markerScale } from '../../lib/mapMarkerPresentation';
 import { regionLabelPosition, regionSummaryRows } from '../../lib/mapRegionSummary';
 import type { MapMarker } from '../../model/Map';
 import type { MapCanvasProps } from '../../model/MapCanvas';
+import MapCoordinateMenu from '../map-coordinate-menu/MapCoordinateMenu';
 import MapMarkerView from '../map-marker/MapMarkerView';
 
 import styles from './MapCanvas.module.css';
@@ -34,6 +35,7 @@ const MapCanvas = ({
   center,
   animateView = false,
   coordinateAction,
+  coordinateMenu,
   markers = EMPTY_MARKERS,
   circles = EMPTY_CIRCLES,
   level = 5,
@@ -58,6 +60,7 @@ const MapCanvas = ({
     center,
     animateView,
     coordinateAction,
+    coordinateMenu,
     markers,
     circles,
     radiusCenter,
@@ -118,6 +121,18 @@ const MapCanvas = ({
             >
               {coordinateAction.label}
             </button>
+          )}
+          {coordinateMenu && (
+            <div
+              className={styles.coordinateMenu}
+              style={demoMarkerStyle(
+                { ...coordinateMenu, id: 'coordinate-menu', label: '', tone: 'destination' },
+                boundedCenter,
+              )}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <MapCoordinateMenu menu={coordinateMenu} />
+            </div>
           )}
           {regions !== undefined && (
             <svg
