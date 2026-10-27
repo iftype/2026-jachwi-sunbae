@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import type { NotificationSlot, WeatherCondition } from '@/features/weather/model/weather';
 import { conditionLabels, SAMPLE_LOCATION } from '@/features/weather/model/weatherFixtures';
 import { useWeatherPrototype } from '@/features/weather/model/WeatherPrototypeProvider';
+import NotificationToggle from '@/features/weather/ui/notification-toggle/NotificationToggle';
 import ScenarioControl from '@/features/weather/ui/scenario-control/ScenarioControl';
 import { Button } from '@/shared/ui/button/Button';
 import Icon from '@/shared/ui/icon/Icon';
@@ -12,7 +13,7 @@ import TopNavigation from '@/shared/ui/top-navigation/TopNavigation';
 import styles from './WeatherSettingsPage.module.css';
 
 const WeatherSettingsPage = () => {
-  const { locationChoice, settings, toggleNotifications, scenario, previewId, notifications, showNotification } =
+  const { locationChoice, isLocationStale, scenario, previewId, notifications, showNotification } =
     useWeatherPrototype();
   const [slot, setSlot] = useState<NotificationSlot>('MORNING');
   const location = useLocation();
@@ -29,25 +30,7 @@ const WeatherSettingsPage = () => {
         생활에 맞춰 안내해 드려요.
       </p>
       <section className={styles.card} aria-label="알림 수신 설정">
-        <div className={styles.settingRow}>
-          <div>
-            <h2 id="weather-toggle-label">알림 수신</h2>
-            <p aria-live="polite">{settings.enabled ? '수신 동의 ON · 시연 상태' : '수신 동의 OFF'}</p>
-          </div>
-          <button
-            className={styles.toggle}
-            type="button"
-            role="switch"
-            aria-checked={settings.enabled}
-            aria-labelledby="weather-toggle-label"
-            onClick={toggleNotifications}
-          >
-            <span />
-          </button>
-        </div>
-        <p className={styles.caption}>
-          프로토타입의 임시 설정이에요. 켜도 서버에 저장되거나 실제 푸시가 발송되지 않아요.
-        </p>
+        <NotificationToggle />
       </section>
       <section className={styles.section} aria-labelledby="schedule-title">
         <h2 id="schedule-title">하루 두 번, 필요한 시간에</h2>
@@ -69,7 +52,9 @@ const WeatherSettingsPage = () => {
         <h2 id="notification-location-title">마지막으로 선택한 위치</h2>
         <p className={styles.location}>
           <Icon name="locate" size={18} />
-          {locationChoice === 'allowed' ? `${SAMPLE_LOCATION} (샘플 위치)` : '선택한 샘플 위치 없음'}
+          {locationChoice === 'allowed'
+            ? `${SAMPLE_LOCATION}${isLocationStale ? ' · 현재 위치를 찾지 못해 마지막 위치를 사용해요' : ''}`
+            : '저장된 위치 없음'}
         </p>
         <p className={styles.caption}>
           실제 알림은 마지막으로 저장한 위치를 사용해요. 수신 동의·저장된 위치·등록된 기기와 발송 가능한 예보가
@@ -77,7 +62,7 @@ const WeatherSettingsPage = () => {
         </p>
         {locationChoice !== 'allowed' && (
           <Link className={styles.textLink} to="/weather">
-            샘플 위치 선택하기
+            위치 선택하기
           </Link>
         )}
       </section>
@@ -94,11 +79,10 @@ const WeatherSettingsPage = () => {
       </section>
       <section className={styles.demo} aria-labelledby="push-demo-title">
         <div className={styles.demoHeading}>
-          <h2 id="push-demo-title">가상 알림 체험</h2>
-          <span>프로토타입</span>
+          <h2 id="push-demo-title">알림 미리보기</h2>
         </div>
-        <p className={styles.caption}>수신 동의가 OFF여도 예시를 볼 수 있어요. 화면 안에서만 표시되는 가상 푸시예요.</p>
-        <label htmlFor="notification-slot">시연할 발송 시간</label>
+        <p className={styles.caption}>알림을 켜지 않아도 받게 될 알림을 미리 볼 수 있어요.</p>
+        <label htmlFor="notification-slot">발송 시간</label>
         <select
           id="notification-slot"
           value={slot}
@@ -108,13 +92,13 @@ const WeatherSettingsPage = () => {
           <option value="EVENING">오후 10시 · 내일</option>
         </select>
         <Button variant="soft" fullWidth disabled={!canPreview} onClick={() => showNotification(slot)}>
-          가상 알림 확인하기
+          알림 미리보기
         </Button>
         {!canPreview && (
           <p className={styles.caption}>
             {locationChoice !== 'allowed'
-              ? '샘플 위치를 선택하면 가상 알림을 볼 수 있어요.'
-              : '필수 예보가 없으면 알림을 만들지 않아요. 다른 시나리오를 선택해 주세요.'}
+              ? '위치를 선택하면 알림을 미리 볼 수 있어요.'
+              : '필수 예보가 없으면 알림을 보내지 않아요.'}
           </p>
         )}
         <div aria-live="polite">
@@ -123,7 +107,7 @@ const WeatherSettingsPage = () => {
               <div className={styles.pushMeta}>
                 <span className={styles.appIcon}>자</span>
                 <b>자취선배</b>
-                <span>가상 알림 · {preview.slot === 'MORNING' ? '07:00' : '22:00'}</span>
+                <span>생활 날씨 · {preview.slot === 'MORNING' ? '07:00' : '22:00'}</span>
               </div>
               <strong>{preview.title}</strong>
               <p>{preview.body}</p>

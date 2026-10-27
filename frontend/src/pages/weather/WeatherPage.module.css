@@ -1,12 +1,6 @@
 .page {
   padding: 0 var(--page-inline-padding) 1.5rem;
 }
-.prototype {
-  margin: 0.2rem 0 1.25rem;
-  color: var(--color-ink-soft);
-  font-size: 0.68rem;
-  line-height: 1.6;
-}
 .location {
   display: flex;
   align-items: center;

@@ -27,14 +27,12 @@ const WeatherPage = () => {
   return (
     <main className={styles.page}>
       <TopNavigation title="생활 날씨" backTo="/me" backLabel="마이페이지로 돌아가기" />
-      <p className={styles.prototype}>프로토타입 · 실제 날씨가 아닌 샘플 데이터예요</p>
       {locationChoice !== 'allowed' ? (
         <LocationPrompt />
       ) : (
         <>
           <div className={styles.location}>
             <strong>{SAMPLE_LOCATION}</strong>
-            <span>샘플 위치</span>
           </div>
           <div className={styles.tabs} role="group" aria-label="예보 날짜">
             {([0, 1] as const).map((value) => (
@@ -107,7 +105,7 @@ const WeatherPage = () => {
               예보 발표:{' '}
               {hour.publishedAt === null
                 ? '정보 없음'
-                : `${displayDate(hour.publishedAt.slice(0, 10))} ${forecastHour(hour.publishedAt)}시 (샘플)`}
+                : `${displayDate(hour.publishedAt.slice(0, 10))} ${forecastHour(hour.publishedAt)}시`}
             </p>
           </section>
         </>

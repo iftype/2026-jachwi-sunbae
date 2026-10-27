@@ -1,50 +1,34 @@
-.section {
-  margin-top: 1.25rem;
-}
-.heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin-bottom: 0.6rem;
-}
-.heading h2 {
-  margin: 0;
-  font-size: 0.9rem;
-}
-.heading > span {
-  color: var(--color-ink-soft);
-  font-size: 0.6rem;
-}
 .card {
-  display: block;
-  padding: 1rem;
-  border-radius: var(--radius-md);
-  background: var(--color-card-surface);
+  padding: var(--my-card-padding, 1.15rem);
+  border-radius: var(--radius-card);
+  background: var(--my-card-surface, var(--color-card-surface));
   color: var(--color-ink);
-  text-decoration: none;
-}
-.card:hover {
-  background: var(--color-card-surface-hover);
 }
 .location {
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  font-size: 0.8rem;
+  color: var(--color-ink-soft);
+  font-size: var(--my-subtext-size, 0.78rem);
 }
 .location > span {
   color: var(--color-ink-soft);
-  font-size: 0.65rem;
+  font-size: var(--my-subtext-size, 0.78rem);
 }
-.location > svg:last-child {
-  margin-left: auto;
-}
+/* 켜짐(기온)·꺼짐(안내) 어느 쪽이든 같은 높이를 차지한다. */
 .weather {
   display: flex;
   align-items: center;
   gap: 0.7rem;
+  min-height: 3.6rem;
   margin: 1rem 0;
+}
+.stateIcon {
+  display: inline-flex;
+  flex-shrink: 0;
+  justify-content: center;
+  width: 46px;
+  color: var(--color-ink);
 }
 .temperature {
   font-size: 2.4rem;
@@ -52,32 +36,44 @@
   letter-spacing: -0.08rem;
 }
 .weather b {
-  font-size: 0.85rem;
+  font-size: var(--my-text-size, 0.95rem);
 }
 .weather p {
   margin: 0.3rem 0 0;
   color: var(--color-ink-soft);
-  font-size: 0.62rem;
+  font-size: var(--my-subtext-size, 0.78rem);
 }
 .range {
   display: flex;
+  margin: 0;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.35rem;
-  font-size: 0.7rem;
+  font-size: var(--my-subtext-size, 0.78rem);
 }
 .range > span {
   color: var(--color-ink-soft);
 }
-.detail {
+.today {
   margin-left: auto;
 }
-.settings {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 2.75rem;
-  color: var(--color-ink);
-  font-size: 0.78rem;
-  text-decoration: none;
+.divider {
+  margin-top: 1rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--color-border);
+}
+/* 알림을 켜고 끌 때 바뀐 내용이 살짝 올라오며 나타난다. 카드 높이는 그대로라 아래 내용은 움직이지 않는다. */
+.swap {
+  animation: swap-in 280ms ease-out;
+}
+@keyframes swap-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.4rem);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .swap {
+    animation: none;
+  }
 }

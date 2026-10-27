@@ -25,7 +25,7 @@ const LocationPrompt = () => {
       <h3>{isDenied ? '위치가 없어 날씨를 볼 수 없어요' : '우리 동네 날씨를 확인해 보세요'}</h3>
       <p>
         {isDenied
-          ? '위치 사용을 다시 선택하면 샘플 지역의 날씨를 볼 수 있어요.'
+          ? '위치 사용을 다시 선택하면 날씨를 볼 수 있어요.'
           : '현재 위치를 기반으로 오늘과 내일의 날씨를 알려드려요.'}
       </p>
       <Button ref={triggerRef} variant="soft" fullWidth onClick={() => setIsOpen(true)}>
@@ -40,12 +40,7 @@ const LocationPrompt = () => {
         returnFocusRef={triggerRef}
         onCancel={() => setIsOpen(false)}
         onConfirm={() => choose('allowed')}
-        description={
-          <p>
-            이 화면은 프로토타입이에요. 허용하면 서울 시청을 샘플 위치로 선택해요. 실제 GPS를 수집하거나 기기의 위치
-            권한을 요청하지 않아요.
-          </p>
-        }
+        description={<p>현재 위치를 기준으로 오늘과 내일의 날씨를 알려드려요.</p>}
       >
         <Button variant="secondary" fullWidth onClick={() => choose('denied')}>
           위치 사용 거부

@@ -50,3 +50,7 @@ export type WeatherNotificationResponse = {
 export type WeatherApiResponse<T> = { code: string; message: string; data: T };
 export type WeatherScenario = 'sunny' | 'rain' | 'snow' | 'swing' | 'laundry' | 'empty';
 export type LocationChoice = 'unknown' | 'allowed' | 'denied';
+/** 기기의 OS 알림 권한. iOS는 한 번 거부하면 앱에서 다시 물을 수 없어 설정 화면으로 안내한다. */
+export type DevicePermission = 'unknown' | 'granted' | 'denied';
+/** 푸시는 앱에서만 받을 수 있다. 실제 구현은 `window.__JACHWI_NATIVE_APP__` 존재 여부로 판단한다. */
+export type ClientPlatform = 'app' | 'web';

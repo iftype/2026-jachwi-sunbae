@@ -21,17 +21,16 @@ const WeatherNotificationPage = () => {
       <TopNavigation title="생활 날씨 알림 상세" backTo="/weather/settings" backLabel="알림 설정으로 돌아가기" />
       {notification === undefined ? (
         <EmptyState
-          title="이 가상 알림을 찾을 수 없어요"
-          description="새로고침하거나 시연을 초기화하면 임시 알림이 사라져요. 설정 화면에서 새 가상 알림을 만들어 주세요."
+          title="이 알림을 찾을 수 없어요"
+          description="알림 내용을 불러올 수 없어요. 알림 설정에서 다시 확인해 주세요."
           action={
             <ButtonLink to="/weather/settings" variant="soft">
-              가상 알림 만들러 가기
+              알림 설정으로 가기
             </ButtonLink>
           }
         />
       ) : (
         <>
-          <p className={styles.badge}>프로토타입 · 가상 알림</p>
           <h2 className={styles.title}>{notification.title}</h2>
           <p className={styles.body}>{notification.body}</p>
           <dl className={styles.metadata}>
@@ -49,7 +48,7 @@ const WeatherNotificationPage = () => {
             </div>
             <div>
               <dt>대상 위치</dt>
-              <dd>{SAMPLE_LOCATION} (샘플 위치)</dd>
+              <dd>{SAMPLE_LOCATION}</dd>
             </div>
           </dl>
           <section className={styles.notices} aria-labelledby="notices-title">
@@ -71,11 +70,11 @@ const WeatherNotificationPage = () => {
             )}
           </section>
           <p className={styles.note}>
-            가상 알림을 만든 당시 저장한 내용이에요. 이후 시나리오를 바꿔도 이 내용은 유지돼요. 모든 날짜와 시각은 한국
-            시간 기준이에요.
+            알림을 보낸 당시 저장한 내용이에요. 이후 예보가 바뀌어도 이 내용은 유지돼요. 모든 날짜와 시각은 한국 시간
+            기준이에요.
           </p>
           <ButtonLink to="/weather" variant="soft" fullWidth>
-            지금 선택한 시나리오의 날씨 보기
+            지금 날씨 보기
           </ButtonLink>
         </>
       )}

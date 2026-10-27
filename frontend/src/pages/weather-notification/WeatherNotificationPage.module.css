@@ -1,15 +1,6 @@
 .page {
   padding: 0 var(--page-inline-padding) 1.5rem;
 }
-.badge {
-  display: inline-block;
-  margin: 1rem 0;
-  padding: 0.4rem 0.6rem;
-  border-radius: var(--radius-sm);
-  background: var(--color-card-surface);
-  color: var(--color-ink-soft);
-  font-size: 0.7rem;
-}
 .title {
   margin: 0;
   font-size: 1.5rem;
