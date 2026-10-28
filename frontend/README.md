@@ -110,7 +110,6 @@ JWT secret, 지도 Client Secret, S3 자격증명은 프론트에 넣지 않습�
 | 체크리스트 상세·수정 | `/checklists/:checklistId`                                | 체크리스트 상세·수정                           |
 | 체크리스트 생성      | `/checklists/new`                                         | 기본·선택 항목 조합 생성                       |
 | 마이페이지           | `/me`                                                     | 계정·모드·주요 기능 이동·로그아웃              |
-| 지도                 | `/map`                                                    | 현재 위치·주소 검색·매물 핀 표시               |
 | 지도에서 위치 선택   | `/map/select-location`                                    | 현재 위치·접힌 주소 검색·역지오코딩            |
 | 매물 주변 분석       | `/properties/:propertyId/nearby`                          | 반경별 시설 개수·선택 시설 핀 상세·스크롤 목록 |
 

@@ -33,7 +33,7 @@ frontend/
 3. 도메인과 무관하게 재사용 가능한가? `shared/<segment>`
 4. 라우팅·Provider·전역 레이아웃처럼 앱을 조립하는가? `app/<segment>`
 
-공유 기능 컴포넌트는 `features/map/ui/map-canvas/MapCanvas.tsx`, 페이지 전용 컴포넌트는 `pages/map/ui/map-property-sheet/MapPropertySheet.tsx`, 공용 UI는 `shared/ui/button/Button.tsx`처럼 둡니다. 컴포넌트 폴더에는 TSX와 CSS Module을 함께 둡니다.
+공유 기능 컴포넌트는 `features/map/ui/map-canvas/MapCanvas.tsx`, 페이지 전용 컴포넌트는 `pages/design-records/ui/record-list/RecordList.tsx`, 공용 UI는 `shared/ui/button/Button.tsx`처럼 둡니다. 컴포넌트 폴더에는 TSX와 CSS Module을 함께 둡니다.
 
 `public`은 `/logo.svg`처럼 URL로 직접 제공하는 파일이고, `shared/assets`는 코드에서 import하여 Webpack이 처리하는 이미지·폰트입니다.
 
@@ -65,7 +65,7 @@ API 함수는 컴포넌트에서 직접 호출하지 않고 API 모듈이나 Que
 - 컴포넌트: `default export`
 - 일반 함수·상수·타입: `named export`
 - 타입만 가져올 때는 `import type` 사용
-- 다른 slice나 레이어는 `@/` 별칭(`src/`)으로, 같은 slice 안은 상대 경로로 가져옵니다. 예: `pages/map`에서 `@/features/map/...`, `./hooks/useMapFilters`
+- 다른 slice나 레이어는 `@/` 별칭(`src/`)으로, 같은 slice 안은 상대 경로로 가져옵니다. 예: `pages/design-records`에서 `@/features/map/...`, `./hooks/useRecords`
 - import 순서는 `simple-import-sort`가 정리합니다. 외부 패키지 → `@/app`·`@/pages`·`@/features`·`@/shared` → 상대 경로 → CSS 순서이며 `npm run lint:fix`로 맞춥니다.
 
 ```tsx
