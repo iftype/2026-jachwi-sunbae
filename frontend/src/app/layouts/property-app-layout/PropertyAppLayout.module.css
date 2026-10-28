@@ -128,23 +128,9 @@
   padding-bottom: 0;
 }
 
-.designBar {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  height: 3.25rem;
-  padding: env(safe-area-inset-top) 1rem 0;
-  background: var(--color-canvas);
-}
-
-.designHome {
-  display: inline-flex;
-  align-items: center;
-  margin-left: -0.35rem;
-  padding: 0.25rem 0.35rem;
-  border-radius: 0.75rem;
-  color: var(--color-ink);
-  text-decoration: none;
+/* 마이는 홈처럼 휴대폰 폭(24.375rem)에 가두지 않고, 화면 안에서 본문 폭(휴대폰 45rem·데스크탑 64rem)을 정한다. */
+.root[data-design-shell='true'][data-home-width-page='true'] {
+  width: 100%;
 }
 
 /*
@@ -159,14 +145,14 @@
   }
 }
 
-/* 데스크탑은 화면 전체 폭에 공용 헤더를 두고, 지도가 아닌 화면의 내용만 48rem 가운데 열에 둔다. */
+/* 데스크탑은 화면 전체 폭에 공용 헤더를 두고, 지도가 아닌 화면의 내용만 48rem 가운데 열에 둔다. 홈과 같은 폭을 쓰는 화면(마이)은 폭을 스스로 정한다. */
 @media (min-width: 1024px) {
   .root[data-design-shell='true'] {
     width: 100%;
     background: var(--color-canvas);
   }
 
-  .root[data-design-shell='true']:not([data-map-page='true']) .content > * {
+  .root[data-design-shell='true']:not([data-map-page='true']):not([data-home-width-page='true']) .content > * {
     width: min(100%, 48rem);
     margin-right: auto;
     margin-left: auto;

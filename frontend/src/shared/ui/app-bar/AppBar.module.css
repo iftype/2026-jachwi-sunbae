@@ -1,0 +1,37 @@
+.bar {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  height: 3.25rem;
+  padding: env(safe-area-inset-top) 1rem 0;
+  background: var(--color-canvas);
+}
+
+/* 화면 제목은 "<" 위치와 관계없이 상단 바 가운데에 둔다. */
+.title {
+  position: absolute;
+  left: 50%;
+  margin: 0;
+  font-size: 0.98rem;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  margin-left: -0.35rem;
+  padding: 0.25rem 0.35rem;
+  border: 0;
+  border-radius: 0.75rem;
+  background: none;
+  color: var(--color-ink);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.back:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}

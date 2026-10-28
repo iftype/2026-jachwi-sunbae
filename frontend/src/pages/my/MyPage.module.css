@@ -1,82 +1,22 @@
+/*
+ * 마이는 홈처럼 흰 바탕 위에 회색 카드를 둔다. 카드 안 글자는 본문(굵게)·보조 두 크기로만 쓰고,
+ * 데스크탑 화면이 같은 변수를 키운다.
+ */
 .page {
+  --my-card-padding: 1.15rem;
+  --my-text-size: 0.95rem;
+  --my-subtext-size: 0.78rem;
+
+  display: flex;
+  flex-direction: column;
   min-height: 100%;
   background: var(--color-canvas);
-}
-
-.container {
-  padding: 0 var(--page-inline-padding) 1.25rem;
-}
-
-.profileCard {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  padding: 0.8rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-}
-
-.avatar {
-  display: grid;
-  width: 2.5rem;
-  height: 2.5rem;
-  flex: 0 0 auto;
-  border-radius: 50%;
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  font-size: 0.82rem;
-  font-weight: 800;
-  place-items: center;
-}
-
-.memberInfo {
-  min-width: 0;
-}
-
-.memberInfo h2,
-.memberInfo p,
-.memberInfo small {
-  margin: 0;
-}
-
-.memberInfo h2 {
-  font-size: 0.76rem;
-}
-
-.memberInfo p {
-  margin-top: 0.12rem;
-  overflow: hidden;
-  color: var(--color-muted);
-  font-size: 0.6rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.memberInfo small {
-  display: inline-block;
-  margin-top: 0.25rem;
-  padding: 0.12rem 0.28rem;
-  border-radius: 999px;
-  background: var(--color-brand-100);
-  color: var(--color-primary-dark);
-  font-size: 0.5rem;
-  font-weight: 700;
-}
-
-.menu {
-  margin-top: 0.65rem;
-  padding: 0 0.7rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
 }
 
 .footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 7rem;
   color: var(--color-placeholder);
-  font-size: 0.5rem;
+  font-size: 0.66rem;
 }
