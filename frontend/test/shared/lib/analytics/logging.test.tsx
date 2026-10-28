@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { ButtonHTMLAttributes } from 'react';
+import { type ButtonHTMLAttributes, StrictMode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { LogClick, LogParamsProvider, LogScreen, withLogClick } from '@/shared/lib/analytics/logging';
@@ -29,6 +29,17 @@ describe('선언적 로깅 컴포넌트', () => {
     );
     expect(trackPostHogEvent).toHaveBeenCalledTimes(1);
     expect(trackPostHogEvent).toHaveBeenCalledWith('home_viewed', { screen: 'home' });
+  });
+
+  it('LogScreen은 StrictMode의 effect 중복 실행을 기록하지 않는다', () => {
+    render(
+      <StrictMode>
+        <LogScreen event="home_viewed">
+          <p>홈</p>
+        </LogScreen>
+      </StrictMode>,
+    );
+    expect(trackPostHogEvent).toHaveBeenCalledTimes(1);
   });
 
   it('LogClick은 상위 속성을 합쳐 로그를 보낸 뒤 원래 onClick을 실행한다', async () => {

@@ -1,4 +1,4 @@
-import { Children, cloneElement, isValidElement, type MouseEvent, type ReactElement } from 'react';
+import { Children, cloneElement, type MouseEvent, type ReactElement } from 'react';
 
 import type { LogParams } from './LogParamsContext';
 import useLogger from './useLogger';
@@ -11,11 +11,10 @@ type LogClickProps = {
   children: ReactElement<ClickableProps>;
 };
 
-/** 자식 하나의 onClick을 감싸 클릭 이벤트를 보낸 뒤 원래 핸들러를 실행한다. DOM을 추가로 만들지 않는다. */
+/** HOC로 감싸기 애매한 일회성 요소용이다. 자식 하나의 onClick을 감싸 로그를 보낸 뒤 원래 핸들러를 실행한다. */
 const LogClick = ({ event, params, children }: LogClickProps) => {
   const { log } = useLogger();
   const child = Children.only(children);
-  if (!isValidElement<ClickableProps>(child)) return child;
 
   return cloneElement(child, {
     onClick: (clickEvent: MouseEvent<HTMLElement>) => {
