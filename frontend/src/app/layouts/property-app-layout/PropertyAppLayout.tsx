@@ -12,15 +12,10 @@ import styles from './PropertyAppLayout.module.css';
 const PropertyAppLayout = () => {
   const member = useOutletContext<Member>();
   const location = useLocation();
-  // 데스크탑은 모든 화면 위에 홈 로고·주요 화면 메뉴가 있는 공용 헤더를 둔다. 지도 주소 판단도 이 값을 쓴다.
+  // 데스크탑은 모든 화면 위에 홈 로고·주요 화면 메뉴가 있는 공용 헤더를 둔다.
   const isDesktop = useIsDesktop();
-  // 지도에서 연 매물(`/map/:propertyId`)은 데스크탑이면 지도 화면, 휴대폰이면 상세 화면이다.
-  const isMapPropertyPath = /^\/map\/\d+$/.test(location.pathname);
-  const isPropertyDetailPath = /^\/properties\/\d+$/.test(location.pathname) || (!isDesktop && isMapPropertyPath);
-  const isMapPage =
-    location.pathname === '/map' ||
-    (isDesktop && isMapPropertyPath) ||
-    location.pathname.startsWith('/neighborhoods/map');
+  const isPropertyDetailPath = /^\/properties\/\d+$/.test(location.pathname);
+  const isMapPage = location.pathname === '/neighborhoods' || location.pathname.startsWith('/neighborhoods/areas/');
   const fullScreen =
     location.pathname === '/map/select-location' ||
     location.pathname.startsWith('/properties/new') ||
@@ -31,7 +26,7 @@ const PropertyAppLayout = () => {
 
   // 로그인 뒤 화면은 바텀탭 없이 홈으로 돌아가는 상단 바만 둔다.
   // 방 비교는 자체 상단 내비게이션이 홈으로 돌아가므로 상단 바를 겹쳐 두지 않는다.
-  // 인프라 지도·동네 찾기 지도는 지도·검색을 화면 위까지 쓰므로 상단 바를 두지 않는다.
+  // 동네 찾기 지도는 지도·검색을 화면 위까지 쓰므로 상단 바를 두지 않는다.
   const hidesDesignBar = location.pathname === '/compare' || isMapPage;
   // 마이는 동네 찾기 등과 같은 "<" 상단 바를 쓰고, 그 옆에 화면 제목을 둔다.
   const designBarTitle = location.pathname === '/me' ? '마이' : null;

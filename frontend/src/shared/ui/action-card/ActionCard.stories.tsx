@@ -24,7 +24,7 @@ const meta: Meta<typeof ActionCard> = {
     description: '주변 교통과 편의시설을 살펴봐요',
     tone: 'neutral',
     size: 'medium',
-    to: '/map',
+    to: '/neighborhoods',
     illustration: <ActionCardIllustration src={iconMap} width={192} height={192} />,
   },
   argTypes: {

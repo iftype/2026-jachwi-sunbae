@@ -33,6 +33,7 @@ const area = (adminDongCode: string): CommuteArea => ({
   stations: [],
   center: { latitude: 0, longitude: 0 },
   polygons: [],
+  rent: null,
 });
 const boundary = (name: string) => ({
   name,
@@ -46,6 +47,7 @@ it('결과 행정동의 시도 경계 파일만 받아 이름·중심·경계를
   vi.mocked(fetchCommuteAreas).mockResolvedValue({
     maxMinutes: 60,
     areaCount: 2,
+    rentPeriod: null,
     areas: [area('11230640'), area('23010510')],
   });
   vi.mocked(fetchAdminBoundaries).mockImplementation(async ({ file }): Promise<AdminBoundaries> =>
@@ -87,6 +89,7 @@ it('경계 파일에 없는 동은 코드 이름과 안내 문구, 원래 중심
   vi.mocked(fetchCommuteAreas).mockResolvedValue({
     maxMinutes: 60,
     areaCount: 1,
+    rentPeriod: null,
     areas: [{ ...area('11999999'), center: { latitude: 37.1, longitude: 127.1 } }],
   });
   vi.mocked(fetchAdminBoundaries).mockResolvedValue({});

@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import type { MapAddress } from '@/features/map/model/Map';
 import MapCanvas from '@/features/map/ui/map-canvas/MapCanvas';
 import type { PropertyInputDto } from '@/features/property/api/dtos/PropertyDto';
+import { RECORDS_PATH } from '@/shared/lib/navigation/appPaths';
 import TopNavigation from '@/shared/ui/top-navigation/TopNavigation';
 
 import useLocationConfirm from './hooks/useLocationConfirm';
@@ -41,7 +42,7 @@ const MapLocationSelectPage = () => {
         className={styles.mapNavigation}
         title="지도에서 위치 확인"
         {...(registrationDraft === undefined
-          ? { backTo: launchedFromForm ? returnTo : '/map' }
+          ? { backTo: launchedFromForm ? returnTo : RECORDS_PATH }
           : { onBack: () => navigate(returnTo, { replace: true, state: { registrationDraft } }) })}
         backLabel="이전 화면으로 돌아가기"
         meta="13-2"

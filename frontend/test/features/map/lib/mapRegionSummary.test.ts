@@ -23,7 +23,7 @@ it('닫힌 경계의 중복 끝점을 제외해 라벨 기준 좌표를 만든�
   expect(regionLabelPosition(region)).toEqual({ latitude: 38, longitude: 128 });
 });
 
-it('이동 시간과 거래 평균가를 두 칸으로 표시하고 클릭 시 동네를 선택한다', () => {
+it('이동 시간과 월세 시세를 두 칸으로 표시하고 클릭 시 동네를 선택한다', () => {
   const onSelect = vi.fn();
   const button = createRegionSummaryElement(region, true, onSelect);
   expect(button).toHaveAttribute('aria-pressed', 'true');
@@ -41,5 +41,5 @@ it('요약 데이터가 없으면 임의의 가격 줄을 표시하지 않는다
 it('거리 요약만 있으면 평균가 줄을 표시하지 않는다', () => {
   const button = createRegionSummaryElement({ ...region, summary: { travel: '25분' } }, false, () => {});
   expect(button.textContent).toContain('25분');
-  expect(button.textContent).not.toContain('거래 평균가');
+  expect(button.textContent).not.toContain('월세 시세');
 });

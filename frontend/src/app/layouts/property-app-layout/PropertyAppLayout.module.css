@@ -24,6 +24,11 @@
   padding-bottom: 0;
 }
 
+/* 지도 화면은 휴대폰 폭 기준(--app-max-width)보다 넓은 휴대폰에서도 양옆 빈칸 없이 화면을 채운다. */
+.root[data-map-page='true'] {
+  width: 100%;
+}
+
 .root[data-map-page='true'] .content {
   --map-sheet-bottom: calc(var(--bottom-navigation-height) + 1.1rem + env(safe-area-inset-bottom));
   padding-bottom: 0;

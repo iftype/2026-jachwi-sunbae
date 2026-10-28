@@ -10,6 +10,7 @@ import { markerScale } from '../../lib/mapMarkerPresentation';
 import { regionLabelPosition, regionSummaryRows } from '../../lib/mapRegionSummary';
 import type { MapMarker } from '../../model/Map';
 import type { MapCanvasProps } from '../../model/MapCanvas';
+import MapCoordinateMenu from '../map-coordinate-menu/MapCoordinateMenu';
 import MapMarkerView from '../map-marker/MapMarkerView';
 
 import styles from './MapCanvas.module.css';
@@ -23,7 +24,9 @@ const demoMarkerStyle = (marker: MapMarker, center: { latitude: number; longitud
   transform:
     marker.tone === 'property' || marker.tone === 'selected'
       ? 'translate(-50%, -120.710678%)'
-      : 'translate(-50%, -50%)',
+      : marker.tone === 'destination' || marker.tone === 'flash'
+        ? 'translate(-50%, -100%)'
+        : 'translate(-50%, -50%)',
   left: `${clamp(50 + (marker.longitude - center.longitude) * 3_100, 9, 91)}%`,
   top: `${clamp(50 - (marker.latitude - center.latitude) * 4_200, 10, 88)}%`,
 });
@@ -32,12 +35,14 @@ const MapCanvas = ({
   center,
   animateView = false,
   coordinateAction,
+  coordinateMenu,
   markers = EMPTY_MARKERS,
   circles = EMPTY_CIRCLES,
   level = 5,
   customStyleId,
   interactive = false,
   showCenterPin = false,
+  hideLoading = false,
   showRadiusLabels = false,
   selectedMarkerId = null,
   onSelectMarker,
@@ -55,6 +60,7 @@ const MapCanvas = ({
     center,
     animateView,
     coordinateAction,
+    coordinateMenu,
     markers,
     circles,
     radiusCenter,
@@ -115,6 +121,18 @@ const MapCanvas = ({
             >
               {coordinateAction.label}
             </button>
+          )}
+          {coordinateMenu && (
+            <div
+              className={styles.coordinateMenu}
+              style={demoMarkerStyle(
+                { ...coordinateMenu, id: 'coordinate-menu', label: '', tone: 'destination' },
+                boundedCenter,
+              )}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <MapCoordinateMenu menu={coordinateMenu} />
+            </div>
           )}
           {regions !== undefined && (
             <svg
@@ -255,7 +273,7 @@ const MapCanvas = ({
             ))}
         </div>
       )}
-      {isLoading && (
+      {isLoading && !hideLoading && (
         <div className={styles.mapLoading} role="status">
           <ProgressCircle size={24} label="지도를 불러오는 중이에요." />
           지도를 불러오고 있어요

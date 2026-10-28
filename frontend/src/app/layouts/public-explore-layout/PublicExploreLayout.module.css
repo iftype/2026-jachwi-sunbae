@@ -1,16 +1,10 @@
+/* 공개 동네 탐색은 화면 전체가 지도라, 휴대폰 폭 기준보다 넓은 휴대폰에서도 양옆 빈칸 없이 채운다. */
 .layout {
   position: relative;
-  width: min(100%, var(--app-max-width));
+  width: 100%;
   height: 100dvh;
   margin: auto;
   overflow: hidden;
   --map-sheet-bottom: 0px;
   background: white;
-}
-
-/* 태블릿부터는 공개 동네 탐색 지도도 화면 전체를 쓴다. 지도 위 카드·시트는 각자 최대 폭을 지킨다. */
-@media (min-width: 768px) {
-  .layout {
-    width: 100%;
-  }
 }

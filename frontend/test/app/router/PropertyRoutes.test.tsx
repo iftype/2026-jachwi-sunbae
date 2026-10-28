@@ -55,7 +55,8 @@ const renderAuthenticated = (path: string, state?: unknown) => {
 };
 
 it.each([
-  [{ returnTo: '/map' }, '매물 지도로 돌아가기', '/map'],
+  // 인프라 지도는 기록 화면으로 합쳐서 예전 상태로 열린 상세는 기록 화면으로 돌아간다.
+  [{ returnTo: '/map' }, '기록 화면으로 돌아가기', '/properties'],
   [{ returnTo: '/' }, '홈으로 돌아가기', '/'],
   [undefined, '기록 화면으로 돌아가기', '/properties'],
   [{ returnTo: 'https://other.example' }, '기록 화면으로 돌아가기', '/properties'],

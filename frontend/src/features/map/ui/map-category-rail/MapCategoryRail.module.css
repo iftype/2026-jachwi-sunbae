@@ -5,44 +5,36 @@
   right: 0.72rem;
   display: grid;
   overflow: hidden;
-  padding: 0.2rem;
-  border-radius: 1.05rem;
+  border-radius: 0.6rem;
   background: var(--color-surface, #fff);
-  box-shadow: 0 0.35rem 1.2rem rgb(42 48 35 / 18%);
+  box-shadow: 0 0.2rem 0.8rem rgb(42 48 35 / 16%);
 }
 
 .categoryButton {
   display: grid;
-  width: 2.7rem;
-  min-height: 2.8rem;
-  gap: 0.12rem;
-  padding: 0.3rem 0.1rem;
+  width: 2.6rem;
+  height: 2.5rem;
+  padding: 0;
   border: 0;
-  border-radius: 0.82rem;
   background: transparent;
-  color: #5d6258;
-  font-size: 0.58rem;
-  font-weight: 800;
+  color: #25282d;
+  font-size: 0.8rem;
+  font-weight: 600;
   cursor: pointer;
   place-items: center;
 }
 
+.categoryButton + .categoryButton {
+  border-top: 1px solid #ececec;
+}
+
+/* 켜진 카테고리는 추가 버튼과 같은 파란색으로 칠한다. */
 .categoryButton[aria-pressed='true'] {
-  background: var(--color-primary, #303030);
-  color: var(--color-on-primary, #fff);
+  background: #648fff;
+  color: #fff;
 }
 
-.icon {
-  font-size: 1.35rem;
-}
-
-@media (max-width: 340px) {
-  .rail {
-    right: 0.5rem;
-  }
-
-  .categoryButton {
-    width: 2.65rem;
-    min-height: 2.45rem;
-  }
+.categoryButton:focus-visible {
+  outline: 2px solid #25282d;
+  outline-offset: -2px;
 }

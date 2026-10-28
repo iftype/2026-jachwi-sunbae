@@ -227,3 +227,8 @@
   color: var(--color-ink);
   border: 1px solid var(--color-border);
 }
+
+.coordinateMenu {
+  position: absolute;
+  z-index: 40;
+}

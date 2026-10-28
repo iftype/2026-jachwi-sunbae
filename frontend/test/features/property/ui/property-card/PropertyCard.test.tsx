@@ -20,9 +20,9 @@ it.each(['사진', '정보'])('지도 카드의 %s을 눌러도 상세에 지도
     photos: [],
   };
   render(
-    <MemoryRouter initialEntries={['/map']}>
+    <MemoryRouter initialEntries={['/properties']}>
       <Routes>
-        <Route path="/map" element={<PropertyCard property={property} returnTo="/map" />} />
+        <Route path="/properties" element={<PropertyCard property={property} returnTo="/properties" />} />
         <Route path="/properties/:propertyId" element={<Destination />} />
       </Routes>
     </MemoryRouter>,
@@ -32,5 +32,5 @@ it.each(['사진', '정보'])('지도 카드의 %s을 눌러도 상세에 지도
       ? screen.getByRole('img', { name: '등록된 사진 없음' })
       : screen.getByRole('link', { name: property.name }),
   );
-  expect(screen.getByLabelText('복귀 화면')).toHaveTextContent('{"returnTo":"/map"}');
+  expect(screen.getByLabelText('복귀 화면')).toHaveTextContent('{"returnTo":"/properties"}');
 });

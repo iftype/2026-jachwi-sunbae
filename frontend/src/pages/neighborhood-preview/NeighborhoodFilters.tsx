@@ -12,11 +12,11 @@ type FilterValues = Pick<
   'maxMinutes' | 'changeMaxMinutes' | 'maxTransfers' | 'changeMaxTransfers' | 'maxRent' | 'changeMaxRent'
 >;
 export type NeighborhoodFilterField = 'minutes' | 'transfers' | 'rent';
-const RENT_OPTIONS = [
+export const RENT_OPTIONS = [
   { value: 0, label: '전체 가격' },
   ...Array.from({ length: 20 }, (_, index) => ({ value: (index + 1) * 10, label: `${(index + 1) * 10}만원 이하` })),
 ];
-const MINUTE_OPTIONS = Array.from({ length: 6 }, (_, index) => ({
+export const MINUTE_OPTIONS = Array.from({ length: 6 }, (_, index) => ({
   value: (index + 1) * 10,
   label: `${(index + 1) * 10}분 이내`,
 }));
@@ -38,7 +38,7 @@ const NeighborhoodFilters = ({
     <div className={styles.editor}>
       {field !== 'transfers' ? (
         <WheelPicker
-          label={field === 'rent' ? '최대 월세 평균가' : '최대 통근 시간'}
+          label={field === 'rent' ? '최대 월세 시세' : '최대 통근 시간'}
           options={field === 'rent' ? RENT_OPTIONS : MINUTE_OPTIONS}
           value={draft}
           onValueChange={setDraft}

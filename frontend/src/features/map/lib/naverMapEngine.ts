@@ -139,7 +139,12 @@ export const naverEngine = (clientId: string, customStyleId?: string): LiveEngin
     content.style.top = '0';
     // 회전된 물방울의 끝은 원형 이미지 중심에서 높이의 sqrt(2)/2만큼 아래에 있다.
     const isPin = marker.tone === 'property' || marker.tone === 'selected';
-    content.style.transform = isPin ? 'translate(-50%, -120.710678%)' : 'translate(-50%, -50%)';
+    // 말풍선 핀은 꼬리 끝(요소 아래 가운데)이 좌표에 오게 한다.
+    content.style.transform = isPin
+      ? 'translate(-50%, -120.710678%)'
+      : marker.tone === 'destination' || marker.tone === 'flash'
+        ? 'translate(-50%, -100%)'
+        : 'translate(-50%, -50%)';
     element.style.position = 'absolute';
     element.style.top = '0';
     element.style.left = '0';

@@ -21,7 +21,7 @@ export const useNearbyFacilities = (
   const needsNearby =
     options.loadAllCategories === true ||
     selectedCategories.length === 0 ||
-    selectedCategories.some((category) => category !== 'TRANSPORT');
+    selectedCategories.some((category) => category !== 'TRANSPORT' && category !== 'MEMO');
   const nearby = useQuery({
     queryKey: ['nearby-facilities', config.apiBaseUrl, center.latitude, center.longitude, radius],
     queryFn: ({ signal }) => fetchNearby(config, center.latitude, center.longitude, radius, CATEGORIES, signal),

@@ -1,6 +1,7 @@
 import { type CSSProperties, type KeyboardEvent, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
+import type { MapAddress } from '@/features/map/model/Map';
 import { trackExplorationRecordView } from '@/features/onboarding/lib/explorationJourney';
 import MoneyField from '@/features/property/ui/money-field/MoneyField';
 import { useKeyboardInset } from '@/shared/lib/hooks/useKeyboardInset';
@@ -23,6 +24,8 @@ const stepNotice = (revealedStep: number, isReadyToSubmit: boolean) => {
 
 /** 다른 화면 옆 패널로 열 때 쓴다. 닫기와 등록 뒤 이동을 패널을 연 화면이 정한다. */
 export type PropertyCreationPanel = {
+  /** 지도에서 찍은 위치로 열면 그 주소·좌표를 미리 채운다. */
+  initialLocation?: MapAddress;
   onClose: () => void;
   onCreated: (propertyId: number) => void;
 };
@@ -30,7 +33,9 @@ export type PropertyCreationPanel = {
 const CreatePropertyPage = ({ panel }: { panel?: PropertyCreationPanel }) => {
   const routeState = (useLocation().state as PropertyCreationRouteState | null) ?? {};
   const keyboardInset = useKeyboardInset();
-  const form = usePropertyCreationForm(panel ? {} : routeState, { onCreated: panel?.onCreated });
+  const form = usePropertyCreationForm(panel ? { selectedLocation: panel.initialLocation } : routeState, {
+    onCreated: panel?.onCreated,
+  });
   const { values, errors, revealedStep, nameStep } = form;
   useEffect(() => {
     if (routeState.fromExploration) trackExplorationRecordView();

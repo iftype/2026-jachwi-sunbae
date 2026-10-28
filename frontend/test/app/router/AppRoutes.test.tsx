@@ -81,8 +81,19 @@ describe('익명 자동 인증 흐름', () => {
   it('비인증 사용자도 동네 찾기 시안을 바텀탭 없이 볼 수 있다', async () => {
     renderRoutes('/neighborhoods');
 
-    expect(await screen.findByRole('heading', { name: '자취할 동네를 찾아보세요' })).toBeInTheDocument();
+    expect(await screen.findByRole('textbox', { name: '출퇴근 장소' })).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: '주요 메뉴' })).not.toBeInTheDocument();
+  });
+  it.each([
+    ['/explore/commute?mode=commute&utm_source=instagram', '/explore', '?utm_source=instagram'],
+    ['/explore/price/prices/4113510100?mode=price', '/explore', ''],
+    ['/neighborhoods/map?mode=price', '/neighborhoods', ''],
+  ])('기준을 고르던 예전 동네 찾기 주소 %s는 통합 지도로 보낸다', async (path, pathname, search) => {
+    renderRoutes(path);
+
+    expect(await screen.findByRole('textbox', { name: '출퇴근 장소' })).toBeInTheDocument();
+    expect(screen.getByTestId('route-path')).toHaveTextContent(pathname);
+    expect(screen.getByTestId('route-search').textContent).toBe(search);
   });
   it('인증 없이 개인정보 처리방침과 PostHog 수집 안내를 확인한다', async () => {
     renderRoutes('/privacy');

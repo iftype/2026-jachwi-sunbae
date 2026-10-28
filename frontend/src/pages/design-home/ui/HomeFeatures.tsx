@@ -1,13 +1,12 @@
 import ActionCard, { ActionCardIllustration } from '@/shared/ui/action-card/ActionCard';
 
-import cardInfrastructure from '../assets/card-infrastructure.webp';
 import cardNeighborhood from '../assets/card-neighborhood.webp';
 import guideGoose from '../assets/guide-goose.webp';
 import RecordCard from './RecordCard';
 
 import styles from './HomeFeatures.module.css';
 
-/** 홈의 주요 기능 카드: 왼쪽 큰 매물 기록 카드, 오른쪽 사용방법·인프라 지도·동네 찾기 카드. */
+/** 홈의 주요 기능 카드: 왼쪽 큰 매물 기록 카드, 오른쪽 사용방법·동네 찾기 카드. 시설·거리 메모 지도는 매물 기록 안에 있다. */
 const HomeFeatures = ({ className }: { className?: string }) => (
   <section className={`${styles.features} ${className ?? ''}`.trim()} aria-label="자취선배 주요 기능">
     <div className={styles.column}>
@@ -26,14 +25,6 @@ const HomeFeatures = ({ className }: { className?: string }) => (
         to="/guide"
         className={styles.guide}
         illustration={<ActionCardIllustration src={guideGoose} width={200} height={294} placement="peek" />}
-      />
-      <ActionCard
-        title="인프라 지도"
-        description="주변 교통과 편의시설을 살펴봐요"
-        aria-label="인프라 보는 지도"
-        to="/map"
-        className={styles.fill}
-        illustration={<ActionCardIllustration src={cardInfrastructure} width={320} height={320} />}
       />
       <ActionCard
         title="동네 찾기"

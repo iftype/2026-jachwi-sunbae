@@ -1,0 +1,22 @@
+/* 추가 모드 안내 토스트는 헤더를 거둔 위쪽에 띄운다. 공용 토스트의 아래쪽 위치를 이기도록 태그까지 건다. */
+aside.toast {
+  top: max(0.85rem, env(safe-area-inset-top));
+  bottom: auto;
+}
+
+/* 추가 모드 아래쪽에는 막대 없이 버튼만 띄운다. */
+.actions {
+  position: absolute;
+  right: 1rem;
+  bottom: max(1.5rem, env(safe-area-inset-bottom));
+  left: 1rem;
+  z-index: 30;
+  display: flex;
+  gap: 0.55rem;
+}
+
+.actions > button {
+  min-width: 0;
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 14%);
+}

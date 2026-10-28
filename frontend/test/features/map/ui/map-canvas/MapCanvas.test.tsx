@@ -155,6 +155,13 @@ describe('Naver 지도 상태 동기화', () => {
     await waitFor(() => expect(view.queryByRole('status')).not.toBeInTheDocument());
   });
 
+  it('화면이 자체 로딩으로 지도를 덮으면 지도 준비 안내를 띄우지 않는다', () => {
+    const view = renderWithConfig(
+      <MapCanvas center={{ latitude: 37.5, longitude: 127 }} customStyleId="style" interactive hideLoading />,
+    );
+    expect(view.queryByRole('status')).not.toBeInTheDocument();
+  });
+
   it('동네에 마우스를 올리면 채움이 진해지고 벗어나면 복원한다', async () => {
     const { unmount } = renderWithConfig(
       <MapCanvas
@@ -219,7 +226,8 @@ describe('Naver 지도 상태 동기화', () => {
       .mocked(window.naver!.maps.Event.addListener)
       .mock.calls.find((call) => call[0] === original && call[1] === 'click')!;
     act(() => click[2]());
-    expect(onSelect).toHaveBeenCalledWith('a');
+    // 테스트 SDK는 클릭 좌표를 주지 않으므로 동 ID만 넘긴다.
+    expect(onSelect).toHaveBeenCalledWith('a', undefined);
     rerender(<MapCanvas center={center} regions={[{ ...region, paths: [...region.paths] }]} />);
     expect(overlayInstances).toHaveLength(1);
     expect(original.setPaths).toHaveBeenCalledOnce();

@@ -4,12 +4,12 @@ import { useLocation } from 'react-router-dom';
 import { trackPostHogEvent } from '@/shared/lib/analytics/posthog';
 
 type DetailOptions = {
-  feature: 'rental' | 'commute';
   mock: boolean;
   ready: boolean;
   failed?: boolean;
   itemKey: string | null;
-  transactionCount?: number;
+  /** 상세에서 동네 월세 시세를 함께 보여줬는지. */
+  hasRent: boolean;
 };
 
 const useNeighborhoodDetailAnalytics = (options: DetailOptions) => {
@@ -20,31 +20,13 @@ const useNeighborhoodDetailAnalytics = (options: DetailOptions) => {
     const key = `${location.key}:${options.itemKey}:${options.failed ? 'failed' : 'viewed'}`;
     if (emitted.current === key) return;
     emitted.current = key;
-    trackPostHogEvent(
-      options.failed
-        ? 'commute_route_failed'
-        : options.feature === 'rental'
-          ? 'rental_information_viewed'
-          : 'commute_route_viewed',
-      {
-        feature: options.feature,
-        entrypoint: location.pathname.startsWith('/explore/') ? 'public_explore' : 'neighborhoods',
-        mock_data: options.mock,
-        ...(options.feature === 'rental'
-          ? { transaction_count: options.transactionCount ?? 0, has_transactions: (options.transactionCount ?? 0) > 0 }
-          : {}),
-      },
-    );
-  }, [
-    location.key,
-    location.pathname,
-    options.feature,
-    options.mock,
-    options.ready,
-    options.failed,
-    options.itemKey,
-    options.transactionCount,
-  ]);
+    trackPostHogEvent(options.failed ? 'commute_route_failed' : 'commute_route_viewed', {
+      feature: 'commute',
+      entrypoint: location.pathname.startsWith('/explore/') ? 'public_explore' : 'neighborhoods',
+      mock_data: options.mock,
+      has_rent: options.hasRent,
+    });
+  }, [location.key, location.pathname, options.mock, options.ready, options.failed, options.itemKey, options.hasRent]);
 };
 
 export default useNeighborhoodDetailAnalytics;

@@ -11,7 +11,6 @@ import styles from './DesktopHeader.module.css';
 /** 데스크탑 헤더에서 바로 옮겨 갈 수 있는 주요 화면. */
 const DESKTOP_NAV_ITEMS = [
   { label: '본 방 기록', to: RECORDS_PATH },
-  { label: '인프라 지도', to: '/map' },
   { label: '동네 찾기', to: '/neighborhoods' },
   { label: '체크리스트', to: '/checklists' },
   { label: '방 비교', to: '/compare' },

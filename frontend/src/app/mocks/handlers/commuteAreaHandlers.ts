@@ -1,6 +1,15 @@
 import { delay, http, HttpResponse } from 'msw';
 
-import { commuteAreaFixtures, mockRequiredTransfers } from '../fixtures/commuteAreaFixtures';
+import { distanceMeters } from '@/features/map/lib/mapViewportQuery';
+import { transitStopIdForBusStop } from '@/features/map/lib/transitStop';
+
+import {
+  commuteAreaFixtures,
+  mockAreaRents,
+  mockRentPeriod,
+  mockRequiredTransfers,
+} from '../fixtures/commuteAreaFixtures';
+import { fixedBusStops } from '../fixtures/placeFixtures';
 
 type MockOptions = {
   scenario?: 'success' | 'empty' | 'unreachable' | 'network-unavailable';
@@ -38,9 +47,20 @@ export const createCommuteAreaHandlers = ({ scenario = 'success', delayMs = 800 
     )
       return failure('INVALID_REQUEST', '요청 값을 확인해 주세요.', 400);
     await delay(delayMs);
-    const station = commuteAreaFixtures.flatMap((area) => area.stations).find((item) => item.stopId === stopId);
+    // 동네 결과의 출발 정류장 말고도, 지도에서 고른 주변 버스정류장(목 고정 좌표)에서 출발하는 경로를 거리로 어림해 돌려준다.
+    const fixedStop = fixedBusStops.find((item) => transitStopIdForBusStop(item.nodeId) === stopId);
+    const station =
+      commuteAreaFixtures.flatMap((area) => area.stations).find((item) => item.stopId === stopId) ??
+      (fixedStop && {
+        stopName: fixedStop.name,
+        latitude: fixedStop.latitude,
+        longitude: fixedStop.longitude,
+        // 지하철 속도(분당 약 500m)에 승하차 5분을 더해 어림한다.
+        travelMinutes: Math.max(5, Math.round(distanceMeters(fixedStop, { latitude, longitude }) / 500) + 5),
+      });
     if (!station) return failure('TRANSIT_STOP_NOT_FOUND', '정류장을 찾을 수 없습니다.', 404);
-    if (station.travelMinutes > maxMinutes || mockRequiredTransfers[stopId] > maxTransfers)
+    const transfers = mockRequiredTransfers[stopId] ?? 0;
+    if (station.travelMinutes > maxMinutes || transfers > maxTransfers)
       return failure('COMMUTE_ROUTE_NOT_FOUND', '조건에 맞는 경로가 없습니다.', 404);
     const start = { stopId, name: station.stopName, latitude: station.latitude, longitude: station.longitude };
     const destination = { stopId: null, name: '목적지', latitude, longitude };
@@ -56,7 +76,7 @@ export const createCommuteAreaHandlers = ({ scenario = 'success', delayMs = 800 
     const legs =
       ridingMinutes === 0
         ? []
-        : mockRequiredTransfers[stopId] === 1
+        : transfers === 1
           ? [
               {
                 type: 'BUS',
@@ -84,7 +104,7 @@ export const createCommuteAreaHandlers = ({ scenario = 'success', delayMs = 800 
             ];
     return success({
       totalMinutes: station.travelMinutes,
-      transferCount: mockRequiredTransfers[stopId],
+      transferCount: transfers,
       legs: [
         ...legs,
         {
@@ -97,7 +117,7 @@ export const createCommuteAreaHandlers = ({ scenario = 'success', delayMs = 800 
       ],
     });
   }),
-  http.get('*/api/commute-areas', async ({ request }) => {
+  http.get('*/api/commute-areas/with-rents', async ({ request }) => {
     const params = new URL(request.url).searchParams;
     const latitude = readNumber(params, 'latitude');
     const longitude = readNumber(params, 'longitude');
@@ -144,7 +164,17 @@ export const createCommuteAreaHandlers = ({ scenario = 'success', delayMs = 800 
                     station.travelMinutes <= maxMinutes && mockRequiredTransfers[station.stopId] <= maxTransfers,
                 )
                 .sort((a, b) => a.travelMinutes - b.travelMinutes);
-              return { ...area, stations, commuteMinutes: stations[0]?.travelMinutes ?? Infinity };
+              return {
+                ...area,
+                ...(mockAreaRents[area.adminDongCode] ?? {
+                  monthlyRentKrw: null,
+                  depositKrw: null,
+                  transactionCount: null,
+                  legalDongNames: [],
+                }),
+                stations,
+                commuteMinutes: stations[0]?.travelMinutes ?? Infinity,
+              };
             })
             .filter((area) => area.stations.length > 0)
             .sort(
@@ -154,6 +184,8 @@ export const createCommuteAreaHandlers = ({ scenario = 'success', delayMs = 800 
     return success({
       maxMinutes,
       areaCount: areas.length,
+      rentStartDate: mockRentPeriod.startDate,
+      rentEndDate: mockRentPeriod.endDate,
       areas,
     });
   }),

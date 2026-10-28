@@ -184,6 +184,15 @@ button.clusterMarker::before {
   background: #212124;
 }
 
+/* 거리 메모는 좋아요·싫어요를 색으로도 나누고, 내용은 마커 이름(aria-label)으로 읽는다. */
+.placeMarker[data-category='MEMO'][data-variant='positive'] {
+  background: var(--color-brand-blue, #6b9ae6);
+}
+
+.placeMarker[data-category='MEMO'][data-variant='negative'] {
+  background: var(--color-danger, #c96b6b);
+}
+
 /* 매물 군집은 숫자 배지로 구분한다. */
 .propertyClusterMarker {
   z-index: 8;
@@ -302,4 +311,84 @@ button.clusterMarker::before {
 
 :global([data-map-gesture='true']) .markerCaption {
   visibility: hidden;
+}
+
+/* 고른 장소(동네 찾기 목적지)는 이름이 든 말풍선 핀으로 그린다. 아래 꼬리 끝이 좌표를 가리킨다. */
+.destinationMarker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: auto;
+  height: auto;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  filter: drop-shadow(0 0.2rem 0.45rem rgb(25 30 40 / 28%));
+}
+.destinationLabel {
+  max-width: 11rem;
+  padding: 0.45rem 0.75rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-ink, #25282d);
+  color: white;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.destinationTail {
+  width: 0;
+  height: 0;
+  margin-top: -1px;
+  border-top: 0.45rem solid var(--color-ink, #25282d);
+  border-right: 0.4rem solid transparent;
+  border-left: 0.4rem solid transparent;
+}
+
+/* 방금 남긴 메모처럼 잠깐 알리는 말풍선. 그 자리에서 떠오르며 사라진다. */
+.flashMarker {
+  pointer-events: none;
+  animation: marker-flash 2.4s ease-out forwards;
+}
+.flashMarker .destinationLabel {
+  max-width: 14rem;
+  background: var(--color-brand-blue, #6b9ae6);
+}
+.flashMarker .destinationTail {
+  border-top-color: var(--color-brand-blue, #6b9ae6);
+}
+@keyframes marker-flash {
+  0% {
+    opacity: 0;
+    translate: 0 0.5rem;
+  }
+  12% {
+    opacity: 1;
+    translate: 0 0;
+  }
+  70% {
+    opacity: 1;
+    translate: 0 -0.6rem;
+  }
+  100% {
+    opacity: 0;
+    translate: 0 -2rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .flashMarker {
+    animation: marker-flash-fade 2.4s linear forwards;
+  }
+}
+@keyframes marker-flash-fade {
+  0%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }

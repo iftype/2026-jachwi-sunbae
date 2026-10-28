@@ -18,7 +18,7 @@ export const commuteAreaFixtures = [
         latitude: 37.5021,
         longitude: 127.0399,
         travelMinutes: 5,
-        direction: '북동',
+        direction: null,
       },
     ],
   },
@@ -59,3 +59,18 @@ export const mockRequiredTransfers: Record<string, number> = {
   'RS_ACC1_S-2-0230': 0,
   MOCK_JEONGJA: 1,
 };
+
+// 시세는 시안용 가상 값이다. 정자동은 거래가 5건보다 적어 서버가 금액을 비우는 경우를 보여준다.
+export const mockAreaRents: Record<
+  string,
+  { monthlyRentKrw: number; depositKrw: number; transactionCount: number; legalDongNames: string[] }
+> = {
+  '11230640': { monthlyRentKrw: 680000, depositKrw: 10000000, transactionCount: 42, legalDongNames: ['역삼동'] },
+  '11210690': {
+    monthlyRentKrw: 450000,
+    depositKrw: 5000000,
+    transactionCount: 18,
+    legalDongNames: ['신림동', '봉천동'],
+  },
+};
+export const mockRentPeriod = { startDate: '2026-03-31', endDate: '2026-09-30' };

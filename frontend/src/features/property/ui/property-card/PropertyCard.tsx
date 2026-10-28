@@ -49,7 +49,7 @@ type PropertyCardProps = {
   onClick?: MouseEventHandler<HTMLAnchorElement>;
   returnTo?: PropertyReturnPath;
   returnState?: unknown;
-  /** 상세 주소. 기본은 `/properties/:propertyId`이고, 지도에서는 `/map/:propertyId`처럼 화면별 주소를 준다. */
+  /** 상세 주소. 기본은 `/properties/:propertyId`이고, 화면별로 다른 주소를 줄 수 있다. */
   to?: string;
   /** 주면 사진·본문을 눌러도 상세로 이동하지 않고 이 함수를 부른다. 데스크탑 기록 화면처럼 옆에 상세를 열 때 쓴다. */
   onOpen?: () => void;
