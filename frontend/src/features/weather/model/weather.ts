@@ -1,4 +1,4 @@
-// PR #432 (fc812f9)의 응답 DTO. 위치 이름은 API 필드가 아닌 시연용 표시 정보다.
+// PR #432 (fc812f9)의 응답 DTO 중 생활 날씨 카드가 쓰는 부분. 위치 이름은 API 필드가 아닌 표시 정보다.
 export type WeatherHour = {
   forecastAt: string;
   publishedAt: string | null;
@@ -24,29 +24,7 @@ export type WeatherForecastResponse = {
   tmxPublishedAt: string | null;
 };
 
-export type WeatherLocationResponse = {
-  available: boolean;
-  gridX: number | null;
-  gridY: number | null;
-  updatedAt: string | null;
-};
-
 export type WeatherNotificationSettingsResponse = { enabled: boolean };
-export type WeatherDeviceResponse = { installationId: string; updatedAt: string };
-export type WeatherCondition = 'SNOW' | 'RAIN' | 'FREEZE' | 'TEMPERATURE_SWING' | 'LAUNDRY';
-export type NotificationSlot = 'MORNING' | 'EVENING';
-export type WeatherNotificationResponse = {
-  notificationId: string;
-  sendDate: string;
-  slot: NotificationSlot;
-  targetDate: string;
-  gridX: number;
-  gridY: number;
-  title: string;
-  body: string;
-  notices: Array<{ condition: WeatherCondition; message: string }>;
-};
-
 export type WeatherApiResponse<T> = { code: string; message: string; data: T };
 export type WeatherScenario = 'sunny' | 'rain' | 'snow' | 'swing' | 'laundry' | 'empty';
 export type LocationChoice = 'unknown' | 'allowed' | 'denied';
