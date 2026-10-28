@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>자취선배 랜딩 모션</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@500;700;800&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* 영상 전용 장면: 행정동 추천 지도 → 지도가 누우며 비행 → 매물 사진 속 3D 방 → 2D 비교·보고서 → 로고. */
+:root {
+  --floor: #f9fbfb; --floor-edge: #f2f3f6;
+  --ink: #212124; --soft: #5f6368; --muted: #868b94;
+  --card: #ffffff; --chip: #f1f2f4; --line: #eaebed;
+  --yellow: #f5b91e; --yellow-soft: #fdf1cf; --yellow-mid: #fbe1a0;
+  --blue: #6b9ae6; --blue-soft: #e4edfb; --good: #3f6fc4;
+  --caution-soft: #fde6e6; --caution: #d14d4d;
+  --ground: #f3f4f0; --block: #e7eae3; --block-2: #e0e4dc; --road: #ffffff; --road-edge: #e3e6e0;
+  --park: #d8e8cf; --water: #d2e3f1; --label: #a2a8a1; --shadow: #1a2133;
+  --dong: #eceee9; --dong-line: #ffffff;
+  --font: 'IBM Plex Sans KR', 'Apple SD Gothic Neo', sans-serif;
+  --font-display: 'Gothic A1', 'IBM Plex Sans KR', sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--floor); }
+#vp { position: relative; width: 1440px; height: 1152px; overflow: hidden; font-family: var(--font); color: var(--ink);
+  background: radial-gradient(ellipse 75% 75% at 50% 50%, var(--floor) 55%, var(--floor-edge) 100%);
+  perspective: 1880px; perspective-origin: 50% 50%; }
+#cam { position: absolute; left: 720px; top: 576px; width: 0; height: 0; transform-style: preserve-3d; }
+#region { position: absolute; left: -3000px; top: -3400px; width: 8400px; height: 9800px; }
+#map { position: absolute; left: 0; top: -1600px; width: 2400px; height: 5600px; border-radius: 24px; overflow: hidden; }
+#world { position: absolute; left: 0; top: 0; transform-style: preserve-3d; }
+.piece { position: absolute; left: 0; top: 0; transform-origin: 50% 100%; }
+.shadow { position: absolute; left: 0; top: 0; background: var(--shadow); transform-origin: 50% 100%; }
+
+.pin { display: flex; flex-direction: column; align-items: center; }
+.pin .bub { display: flex; align-items: baseline; gap: 6px; padding: 9px 14px; border-radius: 999px; background: var(--card); box-shadow: 0 0 0 1.5px var(--line); white-space: nowrap; }
+.pin .bub b { font-size: 21px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pin .bub span { font-size: 14px; color: var(--muted); font-weight: 600; }
+.pin .tip { width: 14px; height: 14px; background: var(--card); transform: rotate(45deg); margin-top: -8px; box-shadow: 1.5px 1.5px 0 0 var(--line); }
+.pin.sel .bub, .pin.sel .tip { background: var(--yellow); box-shadow: none; }
+.pin.sel .bub span { color: var(--ink); }
+.memo { width: 300px; padding: 16px 18px; border-radius: 18px; background: var(--card); display: flex; flex-direction: column; gap: 7px; }
+.memo .tag { align-self: flex-start; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 6px; background: var(--blue-soft); color: var(--good); }
+.memo p { margin: 0; font-size: 18px; line-height: 1.45; font-weight: 600; }
+.memo .who { font-size: 13px; color: var(--muted); }
+.memo.y { background: var(--yellow-soft); }
+.listing { width: 220px; border-radius: 16px; overflow: hidden; background: var(--card); }
+.listing .ph { height: 120px; }
+.listing .body { padding: 11px 14px 13px; display: flex; flex-direction: column; gap: 3px; }
+.listing b { font-size: 16px; }
+.listing span { font-size: 14px; color: var(--soft); font-variant-numeric: tabular-nums; }
+.ph1 { background: linear-gradient(180deg, #bcd6f2 0 42%, #d9d2c5 42% 72%, #b99a76 72%); }
+.ph2 { background: linear-gradient(160deg, #d9d2c5 0 55%, #b99a76 55%); }
+.chip { padding: 12px 20px; border-radius: 999px; font-size: 20px; font-weight: 700; white-space: nowrap; }
+.chip.good { background: var(--blue-soft); color: var(--good); }
+.chip.warn { background: var(--caution-soft); color: var(--caution); }
+.chip.plain { background: var(--card); color: var(--ink); }
+.tile { width: 56px; height: 56px; border-radius: 16px; background: var(--yellow); color: var(--ink); display: grid; place-items: center; font-family: var(--font-display); font-weight: 800; font-size: 28px; }
+
+/* 매물 카드: 기본 크기 1440 폭. 사진 영역(1440×1152)이 화면을 꽉 채우도록 설계했다. */
+.hcard { width: 1440px; height: 1482px; border-radius: 60px; background: var(--card); overflow: hidden; box-shadow: 0 50px 120px rgba(26,33,51,.16); }
+.hcard .photo { position: relative; width: 1440px; height: 1152px; overflow: hidden; }
+.hcard .body { height: 330px; padding: 52px 72px; display: flex; flex-direction: column; gap: 18px; }
+.hcard .body b { font-size: 92px; letter-spacing: -0.02em; line-height: 1.1; }
+.hcard .body span { font-size: 72px; color: var(--soft); font-variant-numeric: tabular-nums; }
+#target { position: absolute; left: 0; top: 0; transform-origin: 50% 100%; }
+
+/* 방 */
+.rv { position: absolute; inset: 0; perspective: 900px; perspective-origin: 50% 46%; overflow: hidden; background: #e2dbcf; }
+.rcam { position: absolute; left: 720px; top: 576px; width: 0; height: 0; transform-style: preserve-3d; }
+.face { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.back { width: 1200px; height: 800px; background: var(--wall-back); }
+.floorf { width: 1200px; height: 1400px; background: repeating-linear-gradient(90deg, var(--wood-1) 0 118px, var(--wood-2) 118px 120px), var(--wood-1); }
+.ceil { width: 1200px; height: 1400px; background: #f6f3ee; }
+.lwall, .rwall { width: 1400px; height: 800px; background: var(--wall-side); }
+.win { position: absolute; left: 330px; top: 150px; width: 540px; height: 360px; border-radius: 6px; background: linear-gradient(180deg, #a9cdf2, #d8e9f8); box-shadow: inset 0 0 0 16px #fff; }
+.win::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 14px; background: #fff; transform: translateX(-50%); }
+.win::after { content: ""; position: absolute; left: 16px; right: 16px; bottom: 16px; height: 70px; background: linear-gradient(180deg, transparent, rgba(255,255,255,.4)); }
+.sill { position: absolute; left: 310px; top: 510px; width: 580px; height: 22px; background: #fbfaf7; border-radius: 4px; }
+.door { position: absolute; left: 520px; top: 130px; width: 330px; height: 670px; background: #cdbfa9; border-radius: 6px 6px 0 0; box-shadow: inset 0 0 0 10px #bfae95; }
+.door i { position: absolute; right: 36px; top: 340px; width: 30px; height: 14px; border-radius: 6px; background: #8f7f68; }
+.counter { position: absolute; left: 380px; top: 470px; width: 760px; height: 330px; background: #fbfaf8; box-shadow: inset 0 22px 0 #d9d9d6; }
+.counter i { position: absolute; left: 240px; top: -70px; width: 18px; height: 80px; border-radius: 9px 9px 0 0; background: #b7bcc2; }
+.cabinet { position: absolute; left: 380px; top: 90px; width: 760px; height: 200px; background: #fbfaf8; box-shadow: inset 0 -6px 0 #e4e2dd; }
+.stain { position: absolute; left: 70px; top: 60px; width: 260px; height: 200px; border-radius: 50%; background: radial-gradient(closest-side, rgba(90,96,84,.45), rgba(90,96,84,.18) 60%, transparent); }
+.rchip { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.rchip .chip { font-size: 40px; padding: 18px 30px; box-shadow: 0 10px 30px rgba(26,33,51,.12); }
+.rchip .dot { width: 22px; height: 22px; border-radius: 50%; background: var(--card); box-shadow: 0 0 0 6px rgba(255,255,255,.5); }
+.flash { position: absolute; inset: 0; background: #fff; opacity: 0; }
+.finder { position: absolute; inset: 70px; opacity: 0; }
+.finder i { position: absolute; width: 70px; height: 70px; border: 0 solid #fff; }
+.finder i:nth-child(1) { left: 0; top: 0; border-width: 7px 0 0 7px; }
+.finder i:nth-child(2) { right: 0; top: 0; border-width: 7px 7px 0 0; }
+.finder i:nth-child(3) { left: 0; bottom: 0; border-width: 0 0 7px 7px; }
+.finder i:nth-child(4) { right: 0; bottom: 0; border-width: 0 7px 7px 0; }
+
+.panel { position: absolute; right: 44px; top: 70px; width: 420px; padding: 26px; border-radius: 30px; background: var(--card); box-shadow: 0 20px 60px rgba(26,33,51,.18); display: grid; }
+.panel > .stage { grid-area: 1 / 1; display: flex; flex-direction: column; gap: 16px; }
+.ph-head { display: flex; justify-content: space-between; align-items: baseline; }
+.ph-head b { font-size: 28px; letter-spacing: -0.02em; }
+.ph-head span { font-size: 16px; color: var(--muted); font-weight: 600; }
+.thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.thumb { height: 86px; border-radius: 12px; background: var(--chip); position: relative; overflow: hidden; }
+.thumb .img { position: absolute; inset: 0; opacity: 0; }
+.th1 { background: linear-gradient(180deg, #e2dbcf 0 18%, #a9cdf2 18% 66%, #e2dbcf 66%); }
+.th2 { background: linear-gradient(90deg, #e9e3d8 0 30%, #cdbfa9 30% 70%, #e9e3d8 70%); }
+.th3 { background: linear-gradient(180deg, #fbfaf8 0 35%, #e9e3d8 35% 55%, #d9d9d6 55% 60%, #fbfaf8 60%); }
+.field { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 18px; border-radius: 14px; background: var(--chip); }
+.field span { font-size: 17px; color: var(--muted); font-weight: 600; }
+.field b { font-size: 28px; font-variant-numeric: tabular-nums; }
+.field b small { font-size: 16px; color: var(--soft); margin-left: 2px; }
+.ck { display: flex; justify-content: space-between; align-items: center; padding: 13px 16px; border-radius: 14px; background: var(--chip); font-size: 20px; font-weight: 700; }
+.pill { font-size: 15px; font-weight: 700; padding: 5px 12px; border-radius: 999px; }
+.pill.good { background: var(--blue-soft); color: var(--good); }
+.pill.warn { background: var(--caution-soft); color: var(--caution); }
+.ring { position: relative; width: 52px; height: 52px; }
+.ring svg { width: 100%; height: 100%; rotate: -90deg; }
+.ring circle { fill: none; stroke-width: 6; }
+.ring .tr { stroke: var(--chip); }
+.ring .pr { stroke: var(--blue); stroke-linecap: round; stroke-dasharray: 125.7; }
+.ring b { position: absolute; inset: 0; display: grid; place-items: center; font-size: 14px; font-variant-numeric: tabular-nums; }
+.save { height: 60px; border-radius: 16px; background: var(--ink); color: #fff; display: grid; place-items: center; font-size: 21px; font-weight: 700; }
+.save.done { background: var(--blue); }
+
+/* 화면 공간 */
+.dof { position: absolute; inset: 0; pointer-events: none; opacity: 0; }
+.dof.far { backdrop-filter: blur(2.5px); mask-image: linear-gradient(to bottom, #000 0%, transparent 30%); -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 30%); }
+.dof.n1 { backdrop-filter: blur(3px); mask-image: linear-gradient(to bottom, transparent 62%, #000 74%); -webkit-mask-image: linear-gradient(to bottom, transparent 62%, #000 74%); }
+.dof.n2 { backdrop-filter: blur(9px); mask-image: linear-gradient(to bottom, transparent 74%, #000 88%); -webkit-mask-image: linear-gradient(to bottom, transparent 74%, #000 88%); }
+.dof.n3 { backdrop-filter: blur(20px); mask-image: linear-gradient(to bottom, transparent 86%, #000 100%); -webkit-mask-image: linear-gradient(to bottom, transparent 86%, #000 100%); }
+.haze { position: absolute; inset: 0; pointer-events: none; opacity: 0; background: linear-gradient(to bottom, var(--floor) 0%, rgba(249,251,251,.55) 9%, rgba(249,251,251,0) 26%); }
+
+#ui { position: absolute; inset: 0; pointer-events: none; }
+.c2 { position: absolute; left: 0; top: 0; transform-origin: 0 0; opacity: 0; }
+.rowlbl { position: absolute; left: 40px; font-size: 22px; font-weight: 700; color: var(--soft); opacity: 0; }
+.cell { position: absolute; width: 360px; height: 60px; display: grid; place-items: center; border-radius: 14px; font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; opacity: 0; }
+.cell.warn { color: var(--caution); }
+.btn2 { position: absolute; left: 50%; top: 950px; height: 76px; padding: 0 40px; border-radius: 20px; background: var(--ink); color: #fff; font-size: 26px; font-weight: 700; display: grid; place-items: center; opacity: 0; white-space: nowrap; }
+.report { position: absolute; left: 50%; top: 0; width: 640px; height: 880px; margin-left: -320px; border-radius: 22px; background: var(--card); box-shadow: 0 40px 120px rgba(26,33,51,.22); padding: 52px 56px; display: flex; flex-direction: column; gap: 24px; opacity: 0; }
+.report .kick { font-size: 17px; font-weight: 700; color: var(--muted); letter-spacing: .04em; }
+.report h2 { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: 44px; letter-spacing: -0.02em; }
+.report .sub { font-size: 18px; color: var(--soft); }
+.best { padding: 22px 26px; border-radius: 18px; background: var(--yellow-soft); display: flex; flex-direction: column; gap: 8px; }
+.best span { font-size: 16px; font-weight: 700; color: var(--soft); }
+.best b { font-size: 34px; }
+.best em { font-style: normal; font-size: 18px; color: var(--soft); }
+.bars { display: flex; flex-direction: column; gap: 14px; }
+.bar { display: grid; grid-template-columns: 120px 1fr 70px; align-items: center; gap: 14px; font-size: 18px; font-weight: 600; }
+.bar .tr { height: 14px; border-radius: 7px; background: var(--chip); overflow: hidden; }
+.bar .tr i { display: block; height: 100%; border-radius: 7px; background: var(--blue); transform-origin: 0 50%; }
+.bar .tr i.y { background: var(--yellow); }
+.bar b { text-align: right; font-variant-numeric: tabular-nums; }
+.rline { height: 14px; border-radius: 7px; background: var(--chip); }
+.stamp { position: absolute; right: 50px; bottom: 60px; width: 150px; height: 150px; border-radius: 50%; border: 6px solid var(--yellow); color: var(--ink); display: grid; place-items: center; text-align: center; font-family: var(--font-display); font-weight: 800; font-size: 24px; line-height: 1.2; opacity: 0; background: rgba(253,241,207,.6); }
+.logo { position: absolute; left: 0; right: 0; top: 400px; display: flex; flex-direction: column; align-items: center; gap: 22px; }
+.logo .lt { width: 132px; height: 132px; border-radius: 38px; background: var(--yellow); display: grid; place-items: center; font-family: var(--font-display); font-weight: 800; font-size: 64px; opacity: 0; }
+.logo .ln { font-family: var(--font-display); font-weight: 800; font-size: 80px; letter-spacing: -0.03em; opacity: 0; }
+.logo .tl { font-size: 28px; color: var(--muted); opacity: 0; }
+.white { position: absolute; inset: 0; background: var(--floor); opacity: 0; }
+</style>
+<style>
+/* v3 추가: 행정동 격자, 등록 시트, 비교표 */
+#region { left: -12000px; top: -9000px; width: 30000px; height: 24000px; }
+#map { left: -800px; top: -3800px; width: 7600px; height: 7600px; border-radius: 0; }
+.piece, .shadow { transform-origin: 50% 100%; }
+.sheet { position: absolute; left: 330px; top: 80px; width: 780px; padding: 34px; border-radius: 36px; background: var(--card); box-shadow: 0 30px 90px rgba(26,33,51,.22); display: flex; flex-direction: column; gap: 18px; }
+.sh-head { display: flex; justify-content: space-between; align-items: center; }
+.sh-head b { font-size: 34px; letter-spacing: -0.02em; }
+.sh-head span { font-size: 18px; color: var(--muted); font-weight: 600; }
+.fields { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.f { padding: 14px 18px; border-radius: 16px; background: var(--chip); display: flex; flex-direction: column; gap: 4px; min-height: 92px; }
+.f span { font-size: 16px; color: var(--muted); font-weight: 600; }
+.f b { font-size: 30px; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; white-space: nowrap; }
+.f.on { background: var(--yellow-soft); }
+.sec { display: flex; justify-content: space-between; align-items: center; }
+.sec b { font-size: 24px; }
+.cks { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.cki { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 14px; background: var(--chip); }
+.cki span { font-size: 17px; font-weight: 700; }
+.cki .pill { align-self: flex-start; }
+.pill.none { background: var(--card); color: var(--muted); box-shadow: inset 0 0 0 1.5px #c6c6c6; }
+.thumbs3 { display: flex; gap: 10px; }
+.thumbs3 span { width: 96px; height: 64px; border-radius: 12px; }
+.tbl-title { position: absolute; left: 120px; top: 52px; font-family: var(--font-display); font-weight: 800; font-size: 40px; letter-spacing: -0.02em; opacity: 0; }
+.tbl-sub { position: absolute; left: 120px; top: 104px; font-size: 20px; color: var(--soft); opacity: 0; display: none; }
+.rowline { position: absolute; left: 120px; width: 1200px; height: 1.5px; background: var(--line); transform-origin: 0 50%; }
+
+.page { position: absolute; top: 96px; width: 580px; padding: 30px; border-radius: 40px; background: var(--card); box-shadow: 0 30px 90px rgba(26,33,51,.22); display: flex; flex-direction: column; gap: 16px; opacity: 0; }
+#pg1 { left: 110px; } #pg2 { left: 750px; }
+.pg-top { display: flex; justify-content: space-between; align-items: center; min-height: 52px; }
+.pg-top > span { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; }
+.pg-top > b { font-size: 18px; color: var(--muted); font-weight: 600; }
+.rows { display: flex; flex-direction: column; gap: 10px; }
+.row { display: flex; justify-content: space-between; align-items: center; height: 76px; padding: 0 22px; border-radius: 16px; background: var(--chip); }
+.row span { font-size: 19px; color: var(--soft); font-weight: 600; }
+.row b { font-size: 30px; font-variant-numeric: tabular-nums; }
+.row.on { background: var(--card); box-shadow: inset 0 0 0 2.5px var(--yellow); }
+.cl { display: flex; flex-direction: column; gap: 8px; }
+.cr { display: flex; justify-content: space-between; align-items: center; height: 62px; padding: 0 10px 0 20px; border-radius: 14px; background: var(--chip); }
+.cr > span { font-size: 20px; font-weight: 700; }
+.opts { display: flex; gap: 6px; }
+.o { font-style: normal; font-size: 15px; font-weight: 700; padding: 8px 12px; border-radius: 999px; background: var(--card); color: var(--muted); }
+.o.good.on { background: var(--blue); color: #fff; }
+.o.warn.on { background: var(--caution); color: #fff; }
+.o.none.on { background: #9aa0a6; color: #fff; }
+.tap { position: absolute; left: 0; top: 0; width: 56px; height: 56px; margin: -28px 0 0 -28px; border-radius: 50%; background: rgba(33,33,36,.2); box-shadow: 0 0 0 3px rgba(255,255,255,.9); opacity: 0; }
+</style>
+</head>
+<body>
+<div id="vp">
+  <div id="cam">
+    <div id="region"></div>
+    <div id="map"></div>
+    <div id="world"></div>
+    <div id="target"></div>
+  </div>
+  <div class="dof far"></div><div class="dof n1"></div><div class="dof n2"></div><div class="dof n3"></div>
+  <div class="haze"></div>
+  <div id="ui"></div>
+</div>
+
+<script>
+(() => {
+  const P = 1880;
+  const clamp = (x, a = 0, b = 1) => Math.min(Math.max(x, a), b);
+  const ss = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const easeIO = (t) => { t = clamp(t); return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; };
+  const eo = (t) => 1 - Math.pow(1 - clamp(t), 3);
+  const expo = (t) => { t = clamp(t); return t === 1 ? 1 : 1 - Math.pow(2, -10 * t); };
+  const back = (t) => { t = clamp(t); const c = 1.7; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const pop = (el, t0, t, dur = 0.25, dy = 12) => { const e = eo((t - t0) / dur); el.style.opacity = e; el.style.transform = `translateY(${dy * (1 - e)}px) scale(${lerp(0.9, 1, e)})`; return e; };
+  const fmt = (n) => n.toLocaleString('ko-KR');
+
+  /* ---------- 행정동 격자 (5×4) ---------- */
+  const GX0 = -12000, GY0 = -9000, CS = 6000, COLS = 5, ROWS = 4;
+  const NAMES = [
+    ['운중동', '판교동', '금토동', '고등동', '시흥동'],
+    ['대장동', '백현동', '삼평동', '이매1동', '야탑1동'],
+    ['동원동', '정자1동', '서현1동', '서현2동', '야탑3동'],
+    ['구미동', '금곡동', '수내1동', '분당동', '율동'],
+  ];
+  const KEEP = { '삼평동': '교통', '백현동': '교통', '서현1동': '교통', '이매1동': '매물 기록', '정자1동': '매물 기록' };
+  const hash = (a, b) => { const s = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453; return s - Math.floor(s); };
+  const pt = (i, j) => {
+    const edge = i === 0 || j === 0 || i === COLS || j === ROWS;
+    return [GX0 + i * CS + (edge ? 0 : (hash(i, j) - 0.5) * 1800), GY0 + j * CS + (edge ? 0 : (hash(j, i + 9) - 0.5) * 1800)];
+  };
+  const mid = (a, b) => {
+    const [x1, y1] = a, [x2, y2] = b;
+    const onBorder = (x1 === x2 && (x1 === GX0 || x1 === GX0 + COLS * CS)) || (y1 === y2 && (y1 === GY0 || y1 === GY0 + ROWS * CS));
+    const k = hash(Math.round(x1 + x2), Math.round(y1 + y2));
+    const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy);
+    const off = onBorder ? 0 : (k - 0.5) * 1400;
+    return [[x1 + dx * 0.33 - (dy / len) * off * 0.6, y1 + dy * 0.33 + (dx / len) * off * 0.6], [x1 + dx * 0.66 + (dy / len) * off * 0.5, y1 + dy * 0.66 - (dx / len) * off * 0.5]];
+  };
+  const cells = [];
+  for (let j = 0; j < ROWS; j++) for (let i = 0; i < COLS; i++) {
+    const c = [pt(i, j), pt(i + 1, j), pt(i + 1, j + 1), pt(i, j + 1)];
+    const poly = [];
+    for (let e = 0; e < 4; e++) {
+      const a = c[e], b = c[(e + 1) % 4];
+      // 이웃 칸과 같은 경계를 쓰도록 꼭짓점 순서를 정렬해 중간점을 만든다.
+      const flip = a[0] > b[0] || (a[0] === b[0] && a[1] > b[1]);
+      const m = flip ? mid(b, a).reverse() : mid(a, b);
+      poly.push(a, ...m);
+    }
+    const cx = c.reduce((s, p) => s + p[0], 0) / 4, cy = c.reduce((s, p) => s + p[1], 0) / 4;
+    cells.push({ name: NAMES[j][i], poly, cx, cy, keep: KEEP[NAMES[j][i]] });
+  }
+  const RX = -GX0, RY = -GY0;
+  const svg = [`<svg width="30000" height="24000" viewBox="0 0 30000 24000" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Sans KR, sans-serif">
+    <defs><pattern id="blk" width="460" height="460" patternUnits="userSpaceOnUse"><rect x="50" y="50" width="360" height="360" rx="26" fill="var(--block)"/></pattern></defs>
+    <rect width="30000" height="24000" fill="var(--ground)"/><rect width="30000" height="24000" fill="url(#blk)"/>`];
+  cells.forEach((c, i) => svg.push(`<polygon id="cf${i}" points="${c.poly.map(([x, y]) => `${x + RX},${y + RY}`).join(' ')}" fill="transparent"/>`));
+  cells.forEach((c, i) => svg.push(`<polygon id="ce${i}" points="${c.poly.map(([x, y]) => `${x + RX},${y + RY}`).join(' ')}" fill="none" stroke="var(--ink)" stroke-width="110" stroke-linejoin="round" pathLength="1000" stroke-dasharray="1000" stroke-dashoffset="1000"/>`));
+  cells.forEach((c, i) => {
+    svg.push(`<g id="cl${i}" opacity="0"><text x="${c.cx + RX}" y="${c.cy + RY}" font-size="760" font-weight="700" fill="var(--ink)" text-anchor="middle">${c.name}</text>`);
+    if (c.keep) {
+      const blue = c.keep === '교통';
+      svg.push(`<g id="cb${i}" opacity="0"><rect x="${c.cx + RX - 1200}" y="${c.cy + RY + 280}" width="2400" height="760" rx="380" fill="${blue ? 'var(--blue)' : 'var(--yellow)'}"/><text x="${c.cx + RX}" y="${c.cy + RY + 830}" font-size="500" font-weight="800" text-anchor="middle" fill="${blue ? '#fff' : 'var(--ink)'}">${c.keep}</text></g>`);
+    }
+    svg.push('</g>');
+  });
+  svg.push('</svg>');
+  $('#region').innerHTML = svg.join('');
+  const cf = cells.map((_, i) => $(`#cf${i}`)), ce = cells.map((_, i) => $(`#ce${i}`)), cl = cells.map((_, i) => $(`#cl${i}`));
+  const cb = cells.map((c, i) => (c.keep ? $(`#cb${i}`) : null));
+  const ERASE = cells.map((c, i) => i).filter((i) => !cells[i].keep).sort((a, b) => hash(a, 3) - hash(b, 3));
+  const SAMPYEONG = cells.find((c) => c.name === '삼평동');
+
+  /* ---------- 삼평동 거리 지도 (지도 원점 -800, -3800) ---------- */
+  const MX = -800, MY = -3800, W = 7600;
+  let seed = 11;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const parts = [`<svg width="${W}" height="${W}" viewBox="0 0 ${W} ${W}" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Sans KR, sans-serif">`, `<rect width="${W}" height="${W}" fill="var(--ground)"/>`];
+  const step = 440, road = 44;
+  parts.push('<g transform="rotate(-32 3800 3800)">');
+  for (let gx = -2640; gx < W + 2640; gx += step) for (let gy = -2640; gy < W + 2640; gy += step) {
+    const x0 = gx + road / 2 + 16, y0 = gy + road / 2 + 16, s = step - road - 32;
+    if (rnd() < 0.08) { parts.push(`<rect x="${x0}" y="${y0}" width="${s}" height="${s}" rx="26" fill="var(--park)"/>`); continue; }
+    const cols = 1 + Math.floor(rnd() * 3), rows = 1 + Math.floor(rnd() * 2);
+    const cw = (s - (cols - 1) * 16) / cols, rh = (s - (rows - 1) * 16) / rows;
+    for (let c = 0; c < cols; c++) for (let r = 0; r < rows; r++) parts.push(`<rect x="${(x0 + c * (cw + 16)).toFixed(0)}" y="${(y0 + r * (rh + 16)).toFixed(0)}" width="${cw.toFixed(0)}" height="${rh.toFixed(0)}" rx="12" fill="${rnd() < 0.5 ? 'var(--block)' : 'var(--block-2)'}"/>`);
+  }
+  for (let g = -2640; g <= W + 2640; g += step) parts.push(`<rect x="${g - road / 2}" y="-2640" width="${road}" height="${W + 5280}" fill="var(--road)"/><rect x="-2640" y="${g - road / 2}" width="${W + 5280}" height="${road}" fill="var(--road)"/>`);
+  parts.push('</g>');
+  const label = (x, y, text, size) => parts.push(`<text x="${x - MX}" y="${y - MY}" font-size="${size}" font-weight="700" fill="var(--label)" text-anchor="middle">${text}</text>`);
+  label(2600, 600, '판교역', 120); label(3600, -400, '판교테크노밸리', 110); label(2400, 2600, '삼평동', 200); label(4300, 1600, '판교 공원', 90);
+  parts.push('</svg>');
+  const mapEl = $('#map');
+  mapEl.innerHTML = parts.join('');
+  mapEl.style.clipPath = `polygon(${SAMPYEONG.poly.map(([x, y]) => `${x - MX}px ${y - MY}px`).join(',')})`;
+
+  /* ---------- 비행 경로: 빨라지고, 돌고 ---------- */
+  const F0 = 4.0, FEND = 7.95;
+  const H0 = 0;
+  const TURNS = [];
+  const BURSTS = [[4.0, 4.75], [5.02, 5.75], [6.02, 6.75], [7.02, 7.6]];
+  const heading = (t) => { let h = H0; TURNS.forEach((r) => (h = lerp(h, r.h, easeIO((t - r.a) / (r.b - r.a))))); return h; };
+  const burst = (t) => Math.max(...BURSTS.map(([a, b]) => ss(a, a + 0.16, t) * (1 - ss(b - 0.24, b, t))));
+  const vel = (t) => (0.16 * (1 - ss(7.6, FEND, t)) + 0.84 * burst(t));
+  const CRUISE = 1250;
+  const DT = 0.002, NS = Math.ceil((FEND - F0) / DT);
+  const PX = new Float64Array(NS + 1), PY = new Float64Array(NS + 1);
+  PX[0] = 2500; PY[0] = 1400;
+  for (let i = 1; i <= NS; i++) {
+    const t = F0 + (i - 0.5) * DT, h = (heading(t) * Math.PI) / 180, v = vel(t) * CRUISE;
+    PX[i] = PX[i - 1] + Math.sin(h) * v * DT;
+    PY[i] = PY[i - 1] - Math.cos(h) * v * DT;
+  }
+  const at = (t) => { const i = Math.round(clamp((t - F0) / DT, 0, NS)); return [PX[i], PY[i]]; };
+  const side = (t, off) => { const [x, y] = at(t); const h = (heading(t) * Math.PI) / 180; return [x + Math.cos(h) * off, y + Math.sin(h) * off]; };
+  const ahead = (t, d) => { const [x, y] = at(t); const h = (heading(t) * Math.PI) / 180; return [x + Math.sin(h) * d, y - Math.cos(h) * d]; };
+
+  /* ---------- 지도 위 조각: 메모 위주, 매물은 적게 ---------- */
+  const world = $('#world');
+  const pin = (price, kind = '원룸') => `<div class="pin"><div class="bub"><b>${price}</b><span>${kind}</span></div><div class="tip"></div></div>`;
+  const memo = (text, who, cls = '') => `<div class="memo ${cls}"><span class="tag">거리 메모</span><p>${text}</p><span class="who">${who}</span></div>`;
+  const SPEC = [
+    { p: side(4.9, -250), html: memo('밤에도 골목 가로등이 밝아서 늦게 와도 괜찮아요', '2년 살았어요 · 밤 10시'), z: 120, spot: 4.9 },
+    { p: side(5.9, 270), html: memo('버스정류장이 바로 앞이라 판교역까지 한 번에 가요', '지금 살고 있어요', 'y'), z: 120, spot: 5.9 },
+    { p: side(6.9, -300), html: memo('편의점이 건물 바로 앞이라 편해요', '1년 살았어요'), z: 120, spot: 6.9 },
+    { p: side(4.45, -520), html: memo('주말 점심엔 카페 거리 쪽이 붐벼요', '1년 살았어요'), z: 110 },
+    { p: side(5.45, 560), html: memo('언덕이 없어서 자전거 타기 좋아요', '3년 살았어요', 'y'), z: 110 },
+    { p: side(6.45, -560), html: memo('밤엔 조용하고 창밖이 트였어요', '2년 살았어요'), z: 110 },
+    { p: side(4.3, 480), html: pin('58만'), z: 60 },
+    { p: side(6.3, 520), html: pin('72만'), z: 60 },
+  ];
+  const END = at(FEND);
+  SPEC.push({ p: [END[0], END[1]], html: pin('65만'), z: 30, target: true });
+  const pieces = SPEC.map((s) => {
+    const sh = document.createElement('div'); sh.className = 'shadow';
+    const el = document.createElement('div'); el.className = 'piece'; el.innerHTML = s.html;
+    world.append(sh, el);
+    return { base: s.html.includes('class="pin"') ? 1.4 : 1.55, ...s, x: s.p[0], y: s.p[1], el, sh, inner: el.firstElementChild };
+  });
+  pieces.forEach((p) => {
+    p.w = p.el.offsetWidth; p.h = p.el.offsetHeight;
+    p.sh.style.width = `${p.w}px`; p.sh.style.height = `${p.h}px`;
+    p.sh.style.borderRadius = p.inner.classList.contains('pin') ? '999px' : '18px';
+  });
+
+  /* ---------- 방과 매물 카드 ---------- */
+  const buildRoom = (pal) => `
+    <div class="rv" style="--wall-back:${pal.back};--wall-side:${pal.side};--wood-1:${pal.w1};--wood-2:${pal.w2};background:${pal.back}">
+      <div class="rcam">
+        <div class="face back" style="transform:translate3d(-600px,-400px,-1400px)"><span class="win"></span><span class="sill"></span></div>
+        <div class="face floorf" style="transform:translate3d(-600px,400px,-1400px) rotateX(90deg)"></div>
+        <div class="face ceil" style="transform:translate3d(-600px,-400px,-1400px) rotateX(90deg)"></div>
+        <div class="face lwall" style="transform:translate3d(-600px,-400px,-1400px) rotateY(-90deg)"><span class="door"><i></i></span></div>
+        <div class="face rwall" style="transform:translate3d(600px,-400px,-1400px) rotateY(-90deg)"><span class="cabinet"></span><span class="counter"><i></i></span></div>
+      </div>
+    </div>`;
+  const ROOMS = [
+    { back: '#e2dbcf', side: '#ebe5da', w1: '#b99a76', w2: '#a88a68' },
+    { back: '#dfe3e6', side: '#e8ecee', w1: '#c7ad8c', w2: '#b59b7b' },
+    { back: '#e6ddd3', side: '#eee6dd', w1: '#9f8467', w2: '#8e755a' },
+  ];
+  const hcard = (pal, name, price, extra = '') => `<div class="hcard"><div class="photo">${buildRoom(pal)}${extra}</div><div class="body"><b>${name}</b><span>${price}</span></div></div>`;
+  const FIELDS = [['보증금', '1,000만'], ['월세', '65만'], ['관리비', '8만'], ['면적', '23㎡'], ['층수', '3층'], ['방향', '남향']];
+  const CHECKS = [['채광', 'good', '괜찮음'], ['수압', 'good', '괜찮음'], ['곰팡이', 'warn', '주의'], ['소음', 'warn', '주의'], ['외풍', 'good', '괜찮음'], ['도어락', 'good', '괜찮음'], ['벌레', 'good', '괜찮음'], ['주차', 'none', '미확인']];
+  const PAGES = `
+    <div class="white" id="roomdim"></div>
+    <div class="flash"></div>
+    <div class="page" id="pg1">
+      <div class="pg-top"><span>매물 정보</span><div class="thumbs3"><span class="th1"></span><span class="th2"></span><span class="th3"></span></div></div>
+      <div class="rows">${FIELDS.map(([k, v]) => `<div class="row"><span>${k}</span><b data-v="${v}"></b></div>`).join('')}</div>
+    </div>
+    <div class="page" id="pg2">
+      <div class="pg-top"><span>체크리스트</span><div class="ring"><svg viewBox="0 0 52 52"><circle class="tr" cx="26" cy="26" r="20"/><circle class="pr" cx="26" cy="26" r="20"/></svg><b id="rn">0/8</b></div></div>
+      <div class="cl">${CHECKS.map(([k]) => `<div class="cr"><span>${k}</span><div class="opts"><i class="o good">괜찮음</i><i class="o warn">주의</i><i class="o none">미확인</i></div></div>`).join('')}</div>
+      <div class="save" id="save">저장하기</div>
+      <span class="tap" id="tap"></span>
+    </div>`;
+  const target = $('#target');
+  target.innerHTML = hcard(ROOMS[0], '삼평동 원룸', '1,000 / 65', PAGES);
+  const rcam = $('.rcam', target), rv = $('.rv', target), roomdim = $('#roomdim'), flash = $('.flash', target);
+  const pg1 = $('#pg1'), pg2 = $('#pg2'), tap = $('#tap');
+  const thumbs = $$('.thumbs3 span', target), rowEls = $$('.row', target), crEls = $$('.cr', target);
+  const ringPr = $('.ring .pr', target), rn = $('#rn'), save = $('#save');
+  const PICK = { good: 0, warn: 1, none: 2 };
+  // 각 줄에서 누를 버튼의 위치(페이지 기준)
+  const optPos = (el) => { let x = 0, y = 0, n = el; while (n && n !== pg2) { x += n.offsetLeft; y += n.offsetTop; n = n.offsetParent; } return [x + el.offsetWidth / 2, y + el.offsetHeight / 2]; };
+  const taps = CHECKS.map(([, c], i) => { const el = crEls[i].querySelectorAll('.o')[PICK[c]]; const [x, y] = optPos(el); return { el, x, y, t: 11.0 + i * 0.2 }; });
+  const SAVE_T = 12.7;
+  taps.push({ el: save, x: optPos(save)[0], y: optPos(save)[1], t: SAVE_T });
+  const TX = END[0], B = END[1] - 40, PHOTO_CY = B - 906;
+
+  /* ---------- 2D 비교표 ---------- */
+  const CMP = { scale: 0.2, top: 170 };
+  const COLX = [380, 720, 1060];
+  const CMP_LX = (TX - 720) + (720 - COLX[0]) / CMP.scale, CMP_LY = (B - 1482) + (576 - CMP.top) / CMP.scale;
+  const ROWS_T = [['월세', ['65만', '58만', '52만'], 2], ['관리비', ['8만', '10만', '5만'], 2], ['통근', ['18분', '22분', '27분'], 0], ['면적', ['23㎡', '26㎡', '19㎡'], 1], ['괜찮음', ['6', '8', '4'], 1], ['주의', ['2', '0', '4'], 1]];
+  const ui = $('#ui');
+  ui.innerHTML = `
+    <div class="tbl-title" id="ttl">원룸 3곳 비교표</div>
+    <div class="c2" id="c2a">${hcard(ROOMS[1], '백현동 원룸', '500 / 58')}</div>
+    <div class="c2" id="c2b">${hcard(ROOMS[2], '서현1동 원룸', '300 / 52')}</div>
+    <div id="tbl"></div>
+    <div class="white" id="fin"></div>
+    <div class="logo"><div class="lt" id="lt">집</div><div class="ln" id="ln">자취선배</div><div class="tl" id="tl">첫 자취방, 선배처럼 꼼꼼하게</div></div>`;
+  const c2 = [$('#c2a'), $('#c2b')], ttl = $('#ttl'), tbl = $('#tbl');
+  const tcells = [], tlabels = [], tlines = [];
+  ROWS_T.forEach(([label, vals, best], r) => {
+    const y = 500 + r * 80;
+    const line = document.createElement('div'); line.className = 'rowline'; line.style.top = `${y + 70}px`; tbl.append(line); tlines.push(line);
+    const l = document.createElement('div'); l.className = 'rowlbl'; l.style.left = '120px'; l.style.top = `${y + 18}px`; l.textContent = label; tbl.append(l); tlabels.push(l);
+    vals.forEach((v, c) => {
+      const el = document.createElement('div');
+      el.className = `cell${label === '주의' && v !== '0' ? ' warn' : ''}`;
+      el.style.left = `${COLX[c]}px`; el.style.width = '288px'; el.style.top = `${y + 5}px`;
+      el.textContent = v; tbl.append(el);
+      tcells.push({ el, r, c, best: c === best });
+    });
+  });
+  const fin = $('#fin'), lt = $('#lt'), ln = $('#ln'), tl = $('#tl');
+  const dofs = $$('.dof'), haze = $('.haze'), regionEl = $('#region');
+
+  /* ---------- 카메라 ---------- */
+  const OPEN = [2600, 400], OVER = [3000, 3000];
+  const scaleAt = (t) => {
+    // 판교에서 시작해 "퉁, 퉁" 두 박자로 줌아웃하고, 경계가 그려지는 동안 더 멀어진다.
+    if (t < 0.4) return lerp(0.36, 0.34, t / 0.4);
+    if (t < 0.9) return Math.exp(lerp(Math.log(0.34), Math.log(0.155), expo((t - 0.4) / 0.3)) + lerp(0, Math.log(0.15 / 0.155), clamp((t - 0.7) / 0.2)));
+    if (t < 1.4) return Math.exp(lerp(Math.log(0.15), Math.log(0.072), expo((t - 0.9) / 0.3)));
+    return Math.exp(lerp(Math.log(0.072), Math.log(0.04), eo((t - 1.4) / 1.5)));
+  };
+  const camera = (t) => {
+    if (t < 2.95) {
+      const m = easeIO((t - 1.3) / 1.4);
+      return { tilt: 0, yaw: 0, D: P / scaleAt(t), lx: lerp(OPEN[0], OVER[0], m), ly: lerp(OPEN[1], OVER[1], m) };
+    }
+    if (t < F0) {
+      const u = (t - 2.95) / (F0 - 2.95);
+      const z = easeIO(u);
+      return { tilt: 55 * easeIO(ss(0.35, 1, u)), yaw: 0, D: Math.exp(lerp(Math.log(P / 0.04), Math.log(1550), z)), lx: lerp(OVER[0], PX[0], z), ly: lerp(OVER[1], PY[0], z) };
+    }
+    if (t < FEND + 0.35) {
+      const [x, y] = at(t);
+      return { tilt: 55, yaw: 0, D: 1550, lx: x, ly: y };
+    }
+    if (t < 9.0) {
+      const u = easeIO((t - (FEND + 0.35)) / (9.0 - FEND - 0.35));
+      return { tilt: lerp(55, 0, u), yaw: 0, D: Math.exp(lerp(Math.log(1550), Math.log(P), u)), lx: TX, ly: lerp(END[1], PHOTO_CY, u) };
+    }
+    if (t < 13.1) return { tilt: 0, yaw: 0, D: P, lx: TX, ly: PHOTO_CY };
+    const u = easeIO((t - 13.1) / 0.55);
+    return { tilt: 0, yaw: 0, D: Math.exp(lerp(Math.log(P), Math.log(P / CMP.scale), u)), lx: lerp(TX, CMP_LX, u), ly: lerp(PHOTO_CY, CMP_LY, u) };
+  };
+
+  window.__seek = (t) => {
+    const c = camera(t);
+    $('#cam').style.transform = `translateZ(${P - c.D}px) rotateX(${c.tilt}deg) rotateZ(${c.yaw}deg) translate(${-c.lx}px, ${-c.ly}px)`;
+
+    /* 행정동: 경계 그리기 → 하나씩 지우기 → 다섯 곳 */
+    cells.forEach((cell, i) => {
+      const draw = eo((t - 1.3 - (i % 7) * 0.05) / 0.45);
+      const ei = ERASE.indexOf(i);
+      const gone = ei >= 0 ? ss(2.0 + ei * 0.035, 2.15 + ei * 0.035, t) : 0;
+      ce[i].setAttribute('stroke-dashoffset', 1000 * (1 - draw));
+      ce[i].setAttribute('opacity', (1 - gone) * (1 - ss(3.2, 3.6, t)));
+      ce[i].setAttribute('stroke', cell.keep && t > 2.55 ? (cell.keep === '교통' ? 'var(--blue)' : 'var(--yellow)') : 'var(--ink)');
+      cl[i].setAttribute('opacity', eo((t - 1.4 - (i % 7) * 0.04) / 0.3) * (1 - gone) * (1 - ss(3.1, 3.4, t)));
+      const tint = cell.keep ? ss(2.5, 2.7, t) * (1 - ss(3.3, 3.8, t)) : 0;
+      cf[i].setAttribute('fill', cell.keep ? (cell.keep === '교통' ? 'var(--blue-soft)' : 'var(--yellow-soft)') : 'transparent');
+      cf[i].setAttribute('opacity', tint * 0.9);
+      if (cb[i]) { const e = back((t - 2.55 - (i % 5) * 0.06) / 0.3); cb[i].setAttribute('opacity', clamp(e)); }
+    });
+    regionEl.style.opacity = 1 - ss(8.4, 8.9, t);
+    mapEl.style.opacity = (1 - 0.8 * ss(1.4, 2.0, t) * (1 - ss(3.0, 3.5, t))) * (1 - ss(8.4, 8.9, t));
+
+    /* 비행 조각: 카메라를 정면으로 보며 서 있다 */
+    const gate = ss(3.6, 4.1, t);
+    const fade = 1 - ss(8.1, 8.5, t);
+    const hdeg = -c.yaw;
+    const hr = (hdeg * Math.PI) / 180;
+    pieces.forEach((p) => {
+      const d = (p.x - c.lx) * Math.sin(hr) - (p.y - c.ly) * Math.cos(hr);
+      const k = (1 - ss(350, 1100, d)) * gate;
+      const z = lerp(3, p.z, k);
+      const a = c.tilt * k;
+      let s = p.base;
+      if (p.spot) s *= 1 + 0.12 * Math.max(0, Math.sin(clamp((t - p.spot + 0.2) / 0.5) * Math.PI));
+      let op = fade * gate;
+      if (p.target) {
+        s *= 1 + (t > 7.95 && t < 8.3 ? Math.sin(Math.PI * (t - 7.95) / 0.35) * 0.3 : 0);
+        p.inner.classList.toggle('sel', t >= 8.0);
+        op = gate * (1 - ss(8.4, 8.6, t));
+      }
+      const x = p.x - p.w / 2, y = p.y - p.h;
+      p.el.style.transform = `translate3d(${x}px, ${y}px, ${z}px) rotateZ(${hdeg}deg) rotateX(${-a}deg) scale(${s})`;
+      p.el.style.opacity = op;
+      const cos = Math.max(Math.cos((a * Math.PI) / 180), 0.2);
+      p.sh.style.transform = `translate3d(${x}px, ${y + 4 + 0.36 * z}px, 1px) rotateZ(${hdeg}deg) scale(${s}, ${s * cos})`;
+      p.sh.style.filter = `blur(${7 + 0.5 * z}px)`;
+      p.sh.style.opacity = 0.26 * op * clamp(z / 30);
+    });
+
+    /* 매물 카드 → 사진 속 방 */
+    const dT = (TX - c.lx) * Math.sin(hr) - (B - c.ly) * Math.cos(hr);
+    const kT = (1 - ss(350, 1100, dT)) * gate;
+    const u = easeIO((t - (FEND + 0.35)) / (9.0 - FEND - 0.35));
+    const bump = t > 7.95 && t < 8.3 ? Math.sin(Math.PI * (t - 7.95) / 0.35) * 0.1 : 0;
+    const ts = lerp(0.2, 1, u) * (1 + bump);
+    const ta = lerp(c.tilt * kT, 0, u);
+    const tz = lerp(lerp(3, 130, kT), 4, u);
+    target.style.transform = `translate3d(${TX - 720}px, ${B - 1482}px, ${tz}px) rotateZ(${hdeg * (1 - u)}deg) rotateX(${-ta}deg) scale(${ts})`;
+    target.style.opacity = gate;
+
+    // 방 하나에서 두 페이지: 왼쪽은 매물 정보 입력, 오른쪽은 체크리스트를 하나씩 누른다.
+    const dz = lerp(0, 760, easeIO((t - 8.4) / 3.2));
+    rcam.style.transform = `translateZ(${dz}px)`;
+    const roomOn = ss(9.25, 9.55, t) * (1 - ss(12.95, 13.2, t));
+    rv.style.filter = `blur(${4 * roomOn}px)`;
+    roomdim.style.opacity = 0.22 * roomOn;
+    flash.style.opacity = t >= 9.05 ? Math.max(0, 0.9 - (t - 9.05) / 0.22) : 0;
+    [[pg1, 9.25, -1], [pg2, 9.4, 1]].forEach(([pg, t0, dir]) => {
+      const e = eo((t - t0) / 0.35), out = ss(12.95, 13.15, t);
+      pg.style.opacity = e * (1 - out);
+      pg.style.transform = `translate(${dir * 90 * (1 - e)}px, ${50 * out}px)`;
+    });
+    thumbs.forEach((th, i) => { const e = back((t - 9.5 - i * 0.08) / 0.25); th.style.opacity = clamp(e); th.style.transform = `scale(${lerp(0.4, 1, e)})`; });
+    rowEls.forEach((row, i) => {
+      const t0 = 9.75 + i * 0.2;
+      const b = row.querySelector('b'), v = b.dataset.v;
+      const n = Math.round(clamp((t - t0) / 0.16) * v.length);
+      b.textContent = n > 0 ? v.slice(0, n) : '';
+      row.classList.toggle('on', t >= t0 - 0.02 && t < t0 + 0.24);
+    });
+    let tx = taps[0].x, ty = taps[0].y, press = 0;
+    for (let i = 0; i < taps.length; i++) {
+      const tp = taps[i], prev = taps[i - 1] || tp;
+      const m = easeIO((t - (tp.t - 0.14)) / 0.12);
+      if (t >= tp.t - 0.14) { tx = lerp(prev.x, tp.x, m); ty = lerp(prev.y, tp.y, m); }
+      if (t >= tp.t && t < tp.t + 0.12) press = Math.sin(Math.PI * (t - tp.t) / 0.12);
+    }
+    tap.style.opacity = ss(10.8, 10.95, t) * (1 - ss(12.85, 12.95, t));
+    tap.style.transform = `translate(${tx}px, ${ty}px) scale(${1 - 0.25 * press})`;
+    taps.slice(0, CHECKS.length).forEach((tp) => tp.el.classList.toggle('on', t >= tp.t));
+    const nck = taps.slice(0, CHECKS.length).filter((tp) => t >= tp.t).length;
+    rn.textContent = `${nck}/8`;
+    ringPr.style.strokeDashoffset = 125.7 * (1 - nck / 8);
+    save.style.transform = `scale(${1 - 0.05 * (t > SAVE_T && t < SAVE_T + 0.15 ? Math.sin(Math.PI * (t - SAVE_T) / 0.15) : 0)})`;
+    save.classList.toggle('done', t >= SAVE_T + 0.05);
+    save.textContent = t >= SAVE_T + 0.05 ? '저장했어요 ✓' : '저장하기';
+
+    const dofOn = ss(3.6, 4.0, t) * (1 - ss(8.1, 8.5, t));
+    dofs.forEach((d) => (d.style.opacity = dofOn));
+    haze.style.opacity = dofOn;
+
+    /* 2D 비교표 */
+    pop(ttl, 13.4, t, 0.3, 14);
+    c2.forEach((el, i) => {
+      const e = eo((t - 13.4 - i * 0.08) / 0.32);
+      el.style.opacity = e;
+      el.style.transform = `translate(${COLX[i + 1] + 140 * (1 - e)}px, ${CMP.top}px) scale(${CMP.scale})`;
+    });
+    tlines.forEach((l, r) => { l.style.transform = `scaleX(${eo((t - 13.7 - r * 0.08) / 0.3)})`; });
+    tlabels.forEach((l, r) => pop(l, 13.7 + r * 0.08, t, 0.2, 10));
+    tcells.forEach(({ el, r, c: col, best }) => {
+      pop(el, 13.75 + r * 0.08 + col * 0.03, t, 0.2, 10);
+      el.style.background = best && t >= 14.4 + r * 0.06 ? 'var(--yellow-soft)' : 'transparent';
+    });
+
+    /* 로고 */
+    fin.style.opacity = ss(15.6, 15.9, t);
+    const le = back((t - 15.85) / 0.4);
+    lt.style.opacity = clamp(le * 2); lt.style.transform = `scale(${lerp(0.4, 1, le)}) rotate(${lerp(-12, 0, clamp(le))}deg)`;
+    pop(ln, 15.98, t, 0.35, 20);
+    pop(tl, 16.15, t, 0.35, 14);
+  };
+  window.__total = 17.2;
+  window.__seek(0);
+
+  // 브라우저에서 바로 확인할 때: flyover.html#play 는 실시간 재생, #t=8.5 는 그 시점에 멈춘 화면.
+  const view = location.hash;
+  if (view === '#play') {
+    const start = performance.now();
+    const loop = () => { window.__seek(((performance.now() - start) / 1000) % window.__total); requestAnimationFrame(loop); };
+    requestAnimationFrame(loop);
+  } else if (view.startsWith('#t=')) {
+    window.__seek(Number(view.slice(3)) || 0);
+  }
+})();
+</script>
+</body>
+</html>

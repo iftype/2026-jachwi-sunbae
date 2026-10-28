@@ -1,0 +1,15 @@
+{
+  "name": "jachwi-landing-motion",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup": "playwright install chromium",
+    "shots": "node render.mjs --shots 0.2,1.1,2.9,3.5,5,8,10,12,14.5,16.5",
+    "render": "node render.mjs",
+    "render:preview": "node render.mjs --fps 30 --out out/flyover-30fps.mp4"
+  },
+  "dependencies": {
+    "ffmpeg-static": "5.3.0",
+    "playwright": "1.64.1"
+  }
+}
