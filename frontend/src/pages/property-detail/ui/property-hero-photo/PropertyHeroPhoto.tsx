@@ -54,13 +54,7 @@ const PropertyHeroPhoto = ({
         className={styles.backButton}
         to={backTo}
         state={backState}
-        aria-label={
-          backTo === '/map'
-            ? '매물 지도로 돌아가기'
-            : backTo === '/properties'
-              ? '기록 화면으로 돌아가기'
-              : '홈으로 돌아가기'
-        }
+        aria-label={backTo === '/properties' ? '기록 화면으로 돌아가기' : '홈으로 돌아가기'}
       >
         <Icon name="chevron-left" size={24} />
       </Link>

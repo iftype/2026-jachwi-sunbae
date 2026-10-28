@@ -872,17 +872,21 @@ it('휴대폰은 고른 동네 안을 찍어 아래 시트에서 메모를 남�
     expect(submit).toBeDisabled();
     await user.click(form.getByRole('button', { name: '👍 좋아요' }));
     await user.click(submit);
-    const details = within(await screen.findByRole('region', { name: '거리 메모' }));
-    expect(details.getByText('밤에도 밝아요')).toBeInTheDocument();
-    expect(details.getByText('내가 남긴 메모')).toBeInTheDocument();
-    expect(created).toEqual([{ latitude: 37.5, longitude: 127.035, memo: '밤에도 밝아요', preference: 'LIKE' }]);
+    // 남긴 뒤에는 상세를 열지 않고 그 자리에 쓴 글을 잠깐 띄운다.
     await waitFor(() =>
       expect(JSON.parse(screen.getByLabelText('목적지 좌표').textContent ?? '[]')).toEqual(
         expect.arrayContaining([
+          expect.objectContaining({ tone: 'flash', label: '밤에도 밝아요', latitude: 37.5, longitude: 127.035 }),
           expect.objectContaining({ category: 'MEMO', variant: 'positive', label: '밤에도 밝아요' }),
         ]),
       ),
     );
+    expect(screen.queryByRole('region', { name: '메모 남기기' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: '거리 메모' })).not.toBeInTheDocument();
+    expect(created).toEqual([{ latitude: 37.5, longitude: 127.035, memo: '밤에도 밝아요', preference: 'LIKE' }]);
+    await user.click(screen.getByRole('button', { name: '마커 밤에도 밝아요' }));
+    const details = within(await screen.findByRole('region', { name: '거리 메모' }));
+    expect(details.getByText('내가 남긴 메모')).toBeInTheDocument();
     await user.click(details.getByRole('button', { name: '메모 지우기' }));
     await user.click(details.getByRole('button', { name: '지우기' }));
     await waitFor(() => expect(screen.queryByRole('region', { name: '거리 메모' })).not.toBeInTheDocument());
@@ -921,10 +925,10 @@ it('데스크탑은 찍은 자리 말풍선에서 메모를 고르고 목록 옆
     await user.click(form.getByRole('button', { name: '👎 싫어요' }));
     await user.type(form.getByLabelText('메모'), '언덕이 가팔라요');
     await user.click(form.getByRole('button', { name: '메모 남기기' }));
-    const details = within(await screen.findByRole('region', { name: '거리 메모' }));
-    expect(details.getByText('언덕이 가팔라요')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: '메모 닫기' }));
+    // 목록 옆 칸을 닫고 그 자리에 쓴 글을 잠깐 띄운다.
+    await waitFor(() => expect(screen.queryByRole('region', { name: '메모 남기기' })).not.toBeInTheDocument());
     expect(screen.queryByRole('region', { name: '거리 메모' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('목적지 좌표')).toHaveTextContent('"tone":"flash"');
   } finally {
     matchMedia.mockRestore();
   }

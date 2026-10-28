@@ -6,6 +6,7 @@ import PropertyAppLayout from '@/app/layouts/property-app-layout/PropertyAppLayo
 import PublicExploreLayout from '@/app/layouts/public-explore-layout/PublicExploreLayout';
 import { isChecklistStage } from '@/features/checklist/model/checklist';
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
+import { RECORDS_PATH } from '@/shared/lib/navigation/appPaths';
 
 import LazyRouteBoundary from './LazyRouteBoundary';
 import ProtectedRoute from './ProtectedRoute';
@@ -28,7 +29,6 @@ const ChecklistDetailPage = lazy(() => import('@/pages/checklist-detail/Checklis
 const PropertyActiveChecklistPage = lazy(() => import('@/pages/property-active-checklist/PropertyActiveChecklistPage'));
 const PropertyChecklistPage = lazy(() => import('@/pages/property-checklist/PropertyChecklistPage'));
 const MyPage = lazy(() => import('@/pages/my/MyPage'));
-const MapPage = lazy(() => import('@/pages/map/MapPage'));
 const MapLocationSelectPage = lazy(() => import('@/pages/map-location-select/MapLocationSelectPage'));
 const NearbyAnalysisPage = lazy(() => import('@/pages/nearby-analysis/NearbyAnalysisPage'));
 const PropertyComparePage = lazy(() => import('@/pages/property-compare/PropertyComparePage'));
@@ -54,6 +54,12 @@ const RecordsRoute = () => {
   const propertyId = useParams().propertyId;
   if (isDesktop || propertyId === undefined) return lazyPage(<DesignRecordsPage />);
   return <PropertyAppLayout />;
+};
+
+/** 인프라 지도는 본 방 기록 지도로 합쳤다. 예전 주소(`/map`, `/map/:propertyId`)로 들어오면 기록 화면으로 보낸다. */
+const LegacyMapRoute = () => {
+  const propertyId = useParams().propertyId;
+  return <Navigate to={propertyId === undefined ? RECORDS_PATH : `${RECORDS_PATH}/${propertyId}`} replace />;
 };
 
 /** 광고에 쓰던 랜딩 주소는 홈으로 바로 보낸다. 유입 측정을 위해 쿼리(utm 등)는 그대로 넘긴다. */
@@ -128,7 +134,7 @@ const AppRoutes = () => (
         <Route path="/checklists/new" element={lazyPage(<CreateChecklistPage />)} />
         <Route path="/checklists/:resource" element={lazyPage(<ChecklistResourceRoute />)} />
         <Route path="/me" element={lazyPage(<MyPage />)} />
-        <Route path="/map/:propertyId?" element={lazyPage(<MapPage />)} />
+        <Route path="/map/:propertyId?" element={<LegacyMapRoute />} />
         <Route path="/map/select-location" element={lazyPage(<MapLocationSelectPage />)} />
         <Route path="/compare" element={lazyPage(<PropertyComparePage />)} />
         <Route path="/export" element={lazyPage(<UpcomingFeaturePage feature="export" />)} />

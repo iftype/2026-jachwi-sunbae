@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import type { MapBounds, MapMarker } from '@/features/map/model/Map';
 
@@ -7,6 +7,9 @@ import type { StreetMemo, StreetMemoPreference } from '../model/StreetMemo';
 
 export const STREET_MEMO_MARKER_PREFIX = 'street-memo:';
 const DRAFT_MARKER_ID = 'street-memo-draft';
+const FLASH_MARKER_ID = 'street-memo-flash';
+/** 방금 남긴 메모 글을 지도에 띄워 두는 시간. 말풍선 애니메이션(2.4초)과 맞춘다. */
+const FLASH_DURATION_MS = 2400;
 const LABEL_MAX_LENGTH = 20;
 
 type Point = { latitude: number; longitude: number };
@@ -17,6 +20,7 @@ const markerLabel = (memo: StreetMemo) =>
 /**
  * 지도 위 거리 메모 한 겹. 인프라 지도와 동네 찾기 지도가 함께 쓴다.
  * 켜져 있으면 화면 안 메모를 마커로 올리고, 메모 하나를 보거나(view) 찍은 위치에 새로 쓰는(compose) 상태를 가진다.
+ * 메모를 남기면 상세를 열지 않고 그 자리에 쓴 글을 잠깐 띄운다(flash).
  * 화면 모양(데스크탑 칸·휴대폰 시트)은 지도 화면이 고르고, 이 Hook은 무엇을 보여줄지만 정한다.
  */
 const useStreetMemoLayer = (enabled: boolean, bounds: MapBounds | null) => {
@@ -24,8 +28,13 @@ const useStreetMemoLayer = (enabled: boolean, bounds: MapBounds | null) => {
   const { create, remove } = useStreetMemoMutations();
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [draftPoint, setDraftPoint] = useState<Point | null>(null);
-  // 방금 쓴 메모는 메모 겹이 꺼져 있거나 다시 조회하기 전이어도 바로 열어 보여준다.
-  const [created, setCreated] = useState<StreetMemo | null>(null);
+  // 방금 남긴 메모는 상세를 열지 않고, 그 자리에 글을 잠깐 띄웠다가 지운다.
+  const [flash, setFlash] = useState<StreetMemo | null>(null);
+  useEffect(() => {
+    if (flash === null) return;
+    const timer = window.setTimeout(() => setFlash(null), FLASH_DURATION_MS);
+    return () => window.clearTimeout(timer);
+  }, [flash]);
 
   const memoMarkers = useMemo<MapMarker[]>(
     () =>
@@ -44,16 +53,24 @@ const useStreetMemoLayer = (enabled: boolean, bounds: MapBounds | null) => {
     [enabled, memos],
   );
   const markers = useMemo<MapMarker[]>(
-    () =>
-      draftPoint
-        ? [...memoMarkers, { ...draftPoint, id: DRAFT_MARKER_ID, label: '메모 위치', tone: 'destination' as const }]
-        : memoMarkers,
-    [memoMarkers, draftPoint],
+    () => [
+      ...memoMarkers,
+      ...(draftPoint ? [{ ...draftPoint, id: DRAFT_MARKER_ID, label: '메모 위치', tone: 'destination' as const }] : []),
+      ...(flash
+        ? [
+            {
+              id: `${FLASH_MARKER_ID}-${flash.id}`,
+              latitude: flash.latitude,
+              longitude: flash.longitude,
+              label: flash.memo,
+              tone: 'flash' as const,
+            },
+          ]
+        : []),
+    ],
+    [memoMarkers, draftPoint, flash],
   );
-  const selectedMemo =
-    selectedId === null
-      ? null
-      : (memos.find((memo) => memo.id === selectedId) ?? (created?.id === selectedId ? created : null));
+  const selectedMemo = selectedId === null ? null : (memos.find((memo) => memo.id === selectedId) ?? null);
 
   const close = () => {
     setSelectedId(null);
@@ -93,9 +110,8 @@ const useStreetMemoLayer = (enabled: boolean, bounds: MapBounds | null) => {
         { ...draftPoint, memo, preference },
         {
           onSuccess: (saved) => {
-            setCreated(saved);
             setDraftPoint(null);
-            setSelectedId(saved.id);
+            setFlash(saved);
             onCreated?.(saved);
           },
         },

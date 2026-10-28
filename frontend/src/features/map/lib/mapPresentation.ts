@@ -1,12 +1,13 @@
 import type { MapCategory } from '../model/Map';
 
+/** 지도 카테고리 레일 순서. 거리 메모를 가장 자주 켜서 맨 위에 둔다. */
 export const MAP_CATEGORY_OPTIONS: Array<{ value: MapCategory; label: string; shortLabel: string }> = [
+  { value: 'MEMO', label: '거리 메모', shortLabel: '메모' },
   { value: 'HOSPITAL', label: '병원', shortLabel: '병원' },
   { value: 'TRANSPORT', label: '교통', shortLabel: '교통' },
   { value: 'SCHOOL', label: '학교', shortLabel: '학교' },
   { value: 'CONVENIENCE', label: '편의점', shortLabel: '편의' },
   { value: 'AGENCY', label: '중개업소', shortLabel: '중개' },
-  { value: 'MEMO', label: '거리 메모', shortLabel: '메모' },
 ];
 
 /** 주변 시설 카테고리. 거리 메모는 시설이 아니라 주변 분석에서 뺀다. */

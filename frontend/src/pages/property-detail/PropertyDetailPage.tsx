@@ -65,13 +65,7 @@ const PropertyDetailPage = ({ panel, returnTo }: PropertyDetailPageProps) => {
   if (propertyId === null) {
     return (
       <ContentState title="올바른 매물 주소가 아니에요.">
-        <Link to={backTo}>
-          {backTo === '/map'
-            ? '매물 지도로 돌아가기'
-            : backTo === '/properties'
-              ? '기록 화면으로 돌아가기'
-              : '홈으로 돌아가기'}
-        </Link>
+        <Link to={backTo}>{backTo === '/properties' ? '기록 화면으로 돌아가기' : '홈으로 돌아가기'}</Link>
       </ContentState>
     );
   }
@@ -94,15 +88,7 @@ const ResolvedPropertyDetailPage = ({
       query={property}
       loadingTitle="매물 상세를 불러오는 중이에요."
       describeError={describeError}
-      errorAction={
-        <Link to={backTo}>
-          {backTo === '/map'
-            ? '매물 지도로 돌아가기'
-            : backTo === '/properties'
-              ? '기록 화면으로 돌아가기'
-              : '홈으로 돌아가기'}
-        </Link>
-      }
+      errorAction={<Link to={backTo}>{backTo === '/properties' ? '기록 화면으로 돌아가기' : '홈으로 돌아가기'}</Link>}
     >
       {(detail) => <PropertyDetailView propertyId={propertyId} detail={detail} backTo={backTo} panel={panel} />}
     </QueryState>
@@ -174,13 +160,7 @@ const PropertyDetailView = ({ propertyId, detail, backTo, panel }: PropertyDetai
                 event.preventDefault();
                 goBack();
               }}
-              aria-label={
-                backTo === '/map'
-                  ? '매물 지도로 돌아가기'
-                  : backTo === '/properties'
-                    ? '기록 화면으로 돌아가기'
-                    : '홈으로 돌아가기'
-              }
+              aria-label={backTo === '/properties' ? '기록 화면으로 돌아가기' : '홈으로 돌아가기'}
             >
               <Icon name="chevron-left" size={24} />
             </Link>

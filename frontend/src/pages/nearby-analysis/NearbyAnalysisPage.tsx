@@ -33,8 +33,8 @@ const PropertyNearbyAnalysisPage = ({ propertyId }: { propertyId: number }) => {
       <TopNavigation
         className={styles.mapNavigation}
         title="매물 주변 분석"
-        backTo="/map"
-        backLabel="매물 지도로 돌아가기"
+        backTo={`/properties/${propertyId}`}
+        backLabel="매물 상세로 돌아가기"
       />
       {property.isError ? (
         <div className={styles.fullState}>

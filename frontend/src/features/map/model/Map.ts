@@ -14,7 +14,8 @@ export type MapMarker = {
   /** 매물 제목과 금액을 고정 카드로 표시할 때 사용한다. */
   summary?: { amount: string };
   /** destination은 고른 장소를 이름이 든 말풍선 핀으로 그린다. 꼬리 끝이 좌표를 가리킨다. */
-  tone?: 'property' | 'current' | 'place' | 'selected' | 'destination' | 'cluster' | 'propertyCluster';
+  /** flash는 destination과 같은 말풍선을 잠깐 띄웠다가 위로 떠오르며 사라진다(방금 남긴 메모 등). */
+  tone?: 'property' | 'current' | 'place' | 'selected' | 'destination' | 'flash' | 'cluster' | 'propertyCluster';
   category?: MapCategory;
   /** 같은 카테고리 안에서 색으로 나눌 때 쓴다. 거리 메모의 좋아요(positive)·싫어요(negative). */
   variant?: 'positive' | 'negative';

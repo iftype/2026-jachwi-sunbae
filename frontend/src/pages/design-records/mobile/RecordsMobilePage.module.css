@@ -1,4 +1,54 @@
-/* 휴대폰·태블릿 본 방 기록 전용: 헤더(뒤로가기·지도/리스트 전환), 지도 위에 뜬 헤더, 지도 아래 선택 매물 카드. */
+/* 휴대폰·태블릿 본 방 기록: 화면 틀, 리스트 칸, 기록하기 버튼, 헤더(뒤로가기·지도/리스트 전환), 지도 위에 뜬 헤더. */
+.page {
+  height: 100dvh;
+  background: #f0f2f5;
+  color: #25282d;
+}
+.frame {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 48rem);
+  height: 100%;
+  margin: 0 auto;
+  background: white;
+  overflow: hidden;
+}
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.75rem 1rem 6rem;
+  background: white;
+}
+.add {
+  position: absolute;
+  right: 1rem;
+  bottom: max(1.5rem, env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 1rem 1.2rem;
+  border: 0;
+  border-radius: 2rem;
+  background: #648fff;
+  color: white;
+  box-shadow: 0 4px 16px #396ae837;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+.frame button:focus-visible {
+  outline: 2px solid #25282d;
+  outline-offset: 3px;
+}
 .header {
   display: grid;
   grid-template-columns: 2.5rem 1fr 2.5rem;
@@ -66,130 +116,24 @@
 .mapChrome nav {
   pointer-events: auto;
 }
-/* 지도 위에 뜬 헤더·뱃지 아래로 현재 위치 버튼을 내린다. 공용 지도 버튼 위치보다 우선하도록 화면 루트 아래로 한정한다. */
-.root .recenterBelowChrome {
-  top: calc(max(0.85rem, env(safe-area-inset-top)) + 8.15rem);
-}
-.selectedCard {
-  position: absolute;
-  z-index: 20;
-  right: 1.25rem;
-  bottom: 1.75rem;
-  left: 1.25rem;
-  display: flex;
-  align-items: stretch;
-  min-height: 8.5rem;
-  overflow: hidden;
-  border: 1px solid #eceef1;
-  border-radius: 0.8rem;
-  background: white;
-  box-shadow: 0 3px 14px #1e2b3d24;
-}
-.selectedMain {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  align-items: flex-start;
-  gap: 0.75rem;
-  color: inherit;
-  text-decoration: none;
-}
-.selectedPhoto,
-.selectedPhotoFallback {
-  display: grid;
-  width: 7rem;
-  min-height: 8.5rem;
-  flex: 0 0 auto;
-  object-fit: cover;
-  place-items: center;
-  background: #eff1f5;
-  color: #969da6;
-}
-.selectedPhoto:global(.authenticated-photo) {
-  box-sizing: border-box;
-  min-width: 0;
-  gap: 0.25rem;
-  padding: 0.35rem;
-  overflow: hidden;
-  font-size: 0.58rem;
-  line-height: 1.25;
-}
-.selectedPhoto:global(.authenticated-photo) > span {
-  display: -webkit-box;
-  max-width: 100%;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-}
-.selectedPhoto:global(.authenticated-photo) :global(.inline-button) {
-  min-height: 1.4rem;
-  max-width: 100%;
-  padding: 0.1rem 0.25rem;
-  font-size: 0.6rem;
-  line-height: 1.2;
-  white-space: nowrap;
-  text-underline-offset: 0.1rem;
-}
-.selectedDetails {
-  display: grid;
-  min-width: 0;
-  align-self: flex-start;
-  gap: 0.25rem;
-  padding: 0.8rem 0 0.65rem;
-}
-.selectedDetails strong,
-.selectedDetails > span,
-.selectedDetails small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.selectedDetails strong {
-  font-size: 0.9rem;
-}
-.selectedDetails > span {
-  color: #42464e;
-  font-size: 0.78rem;
-  font-weight: 700;
-}
-.dismissCard {
-  display: grid;
-  width: 2.5rem;
-  flex: 0 0 auto;
-  place-items: center;
-  border: 0;
-  background: transparent;
-  color: #9297a0;
-  cursor: pointer;
-}
 .back:focus-visible {
   outline: 2px solid #25282d;
   outline-offset: 3px;
 }
 /* 태블릿 너비부터는 배치는 그대로 두고 글자와 여백만 키운다. */
 @media (min-width: 768px) {
+  .list {
+    padding: 1rem 1.5rem 7rem;
+  }
+  .add {
+    right: 1.5rem;
+    font-size: 0.95rem;
+  }
   .header {
     padding: max(1.1rem, env(safe-area-inset-top)) 1.5rem 0.8rem;
   }
   .switch button {
     min-width: 6rem;
     font-size: 0.95rem;
-  }
-  .selectedCard {
-    right: 1.5rem;
-    left: 1.5rem;
-    min-height: 10rem;
-  }
-  .selectedPhoto,
-  .selectedPhotoFallback {
-    width: 9rem;
-    min-height: 10rem;
-  }
-  .selectedDetails strong {
-    font-size: 1.05rem;
-  }
-  .selectedDetails > span {
-    font-size: 0.92rem;
   }
 }

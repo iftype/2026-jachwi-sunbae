@@ -17,6 +17,7 @@ export const markerSignature = (marker: MapMarker, selectedMarkerId: string | nu
   ].join('|');
 
 export const markerZIndex = (marker: MapMarker, selectedMarkerId: string | null): number => {
+  if (marker.tone === 'flash') return 11;
   if (selectedMarkerId === marker.id) return 10;
   if (marker.tone === 'selected') return 9;
   if (marker.tone === 'property' || marker.tone === 'propertyCluster') return 8;

@@ -35,7 +35,8 @@ const markerClassName = (marker: MapMarker, selectedMarkerId: string | null | un
     marker.tone === 'property' ? styles.propertyMarker : '',
     marker.tone === 'current' ? styles.currentMarker : '',
     marker.tone === 'selected' ? styles.selectedMarker : '',
-    marker.tone === 'destination' ? styles.destinationMarker : '',
+    marker.tone === 'destination' || marker.tone === 'flash' ? styles.destinationMarker : '',
+    marker.tone === 'flash' ? styles.flashMarker : '',
     marker.tone === 'place' ? styles.placeMarker : '',
     marker.tone === 'cluster' ? styles.clusterMarker : '',
     marker.tone === 'propertyCluster' ? styles.propertyClusterMarker : '',
@@ -55,7 +56,7 @@ const MapMarkerView = ({ marker, selectedMarkerId = null, onSelectMarker }: MapM
           <small title={marker.summary.amount}>{marker.summary.amount}</small>
         </span>
       )}
-      {marker.tone === 'destination' ? (
+      {marker.tone === 'destination' || marker.tone === 'flash' ? (
         <>
           <span className={styles.destinationLabel}>{marker.label}</span>
           <span className={styles.destinationTail} aria-hidden="true" />

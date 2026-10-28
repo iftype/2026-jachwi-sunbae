@@ -20,7 +20,7 @@ type MapPoint = { latitude: number; longitude: number };
 type MapViewOptions = {
   /** 휴대폰은 고른 동네 위에 '대중교통 정보 보기' 말풍선을 띄운다. 데스크탑은 동네 정보를 왼쪽 목록에 펼치므로 띄우지 않는다. */
   showAreaAction?: boolean;
-  /** 데스크탑은 찍은 자리에 메모 말풍선을 띄운다. 휴대폰은 아래 시트(tapActions)로 고른다. */
+  /** 데스크탑은 찍은 자리에 메모 말풍선을 띄운다. 휴대폰은 아래쪽 버튼(tapActions)으로 고른다. */
   showCoordinateMenu?: boolean;
 };
 
@@ -113,7 +113,11 @@ const useNeighborhoodMapView = (
           preview.rememberResultLevel(level);
           places.rememberLevel(level);
         },
-        onBoundsChange: places.rememberBounds,
+        // 지도를 옮기면 찍어 둔 위치의 동작 버튼은 거둔다.
+        onBoundsChange: (bounds) => {
+          places.rememberBounds(bounds);
+          setTapPoint(null);
+        },
         selectedMarkerId: places.selectedMarkerId ?? memo.selectedMarkerId,
         onSelectMarker: selectMarker,
         onSelectLocation: tapLocation,
@@ -158,7 +162,6 @@ const useNeighborhoodMapView = (
     memo,
     tapPoint,
     tapActions,
-    closeTap: () => setTapPoint(null),
     /** 동네·조건을 바꾸거나 다시 고를 때 열어 둔 정류장·부동산·메모 정보를 모두 닫는다. */
     closeLayers,
   };

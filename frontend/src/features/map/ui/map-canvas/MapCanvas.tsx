@@ -24,7 +24,7 @@ const demoMarkerStyle = (marker: MapMarker, center: { latitude: number; longitud
   transform:
     marker.tone === 'property' || marker.tone === 'selected'
       ? 'translate(-50%, -120.710678%)'
-      : marker.tone === 'destination'
+      : marker.tone === 'destination' || marker.tone === 'flash'
         ? 'translate(-50%, -100%)'
         : 'translate(-50%, -50%)',
   left: `${clamp(50 + (marker.longitude - center.longitude) * 3_100, 9, 91)}%`,

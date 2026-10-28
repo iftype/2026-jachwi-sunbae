@@ -142,7 +142,7 @@ export const naverEngine = (clientId: string, customStyleId?: string): LiveEngin
     // 말풍선 핀은 꼬리 끝(요소 아래 가운데)이 좌표에 오게 한다.
     content.style.transform = isPin
       ? 'translate(-50%, -120.710678%)'
-      : marker.tone === 'destination'
+      : marker.tone === 'destination' || marker.tone === 'flash'
         ? 'translate(-50%, -100%)'
         : 'translate(-50%, -50%)';
     element.style.position = 'absolute';

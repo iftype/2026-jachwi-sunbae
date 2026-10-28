@@ -10,7 +10,6 @@ import styles from './MyPage.module.css';
 const myMenuItems: Array<{ to: string; icon: IconName; label: string }> = [
   { to: '/properties', icon: 'home', label: '내 매물 관리' },
   { to: '/checklists', icon: 'checklist', label: '내 체크리스트 관리' },
-  { to: '/map', icon: 'map', label: '지도와 주변 시설' },
   { to: '/compare', icon: 'external-link', label: '매물 비교 PDF' },
   { to: '/guide', icon: 'info', label: '사용 방법' },
 ];

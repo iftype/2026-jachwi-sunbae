@@ -1,6 +1,5 @@
 import { MAP_CATEGORY_OPTIONS } from '../../lib/mapPresentation';
 import type { MapCategory } from '../../model/Map';
-import MapCategoryIcon from '../map-category-icon/MapCategoryIcon';
 
 import styles from './MapCategoryRail.module.css';
 
@@ -13,6 +12,7 @@ type MapCategoryRailProps = {
   className?: string;
 };
 
+/** 지도 오른쪽에 세로로 쌓는 카테고리 버튼. 아이콘 없이 짧은 글자만 작게 둔다. */
 const MapCategoryRail = ({
   selectedCategories,
   counts,
@@ -34,8 +34,7 @@ const MapCategoryRail = ({
           aria-label={`${option.label} ${selected ? '숨기기' : '표시하기'}${count === undefined ? '' : `, ${count}개`}`}
           onClick={() => onToggle(option.value)}
         >
-          <MapCategoryIcon category={option.value} className={styles.icon} />
-          <span>{option.shortLabel}</span>
+          {option.shortLabel}
         </button>
       );
     })}
