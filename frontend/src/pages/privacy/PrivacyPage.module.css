@@ -1,15 +1,14 @@
+/* 마이와 같은 흰 바탕·회색 카드. 읽기 화면이라 넓은 화면에서도 본문은 40rem까지만 넓힌다. */
 .page {
   height: 100%;
   overflow-y: auto;
-  background: #fff;
+  background: var(--color-canvas);
 }
 
 .content {
-  width: min(100%, var(--app-max-width));
-  min-height: 100%;
+  width: min(100%, 40rem);
   margin: 0 auto;
   padding: 0 1rem calc(2rem + env(safe-area-inset-bottom));
-  background: var(--color-canvas);
 }
 
 .section {
@@ -34,6 +33,10 @@
 .section > p:last-child,
 .card p,
 .card li,
+.mailButton {
+  margin-top: 1rem;
+}
+
 .externalNotice {
   color: var(--color-muted);
   font-size: 0.72rem;
@@ -42,10 +45,9 @@
 
 .card {
   margin-top: 0.8rem;
-  padding: 1rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
+  padding: 1.15rem;
+  border-radius: var(--radius-card);
+  background: var(--color-card-surface);
 }
 
 .card h2 {

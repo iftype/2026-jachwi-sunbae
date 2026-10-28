@@ -1,0 +1,8 @@
+.sun {
+  display: inline-flex;
+  color: var(--color-brand-yellow);
+}
+.cloud {
+  display: inline-flex;
+  color: var(--color-check-good-ink);
+}

@@ -1,0 +1,43 @@
+.notice {
+  display: grid;
+  width: 100%;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  grid-template-columns: 1.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: var(--my-card-padding);
+  border-radius: var(--radius-card);
+  background: var(--my-card-surface, var(--color-card-surface));
+  color: var(--color-error);
+  text-decoration: none;
+}
+
+.notice span,
+.notice strong,
+.notice small {
+  display: block;
+}
+
+.notice strong {
+  font-size: var(--my-text-size, 0.95rem);
+  letter-spacing: -0.02em;
+}
+
+.notice small {
+  margin-top: 0.25rem;
+  word-break: keep-all;
+  color: color-mix(in srgb, var(--color-error) 70%, var(--color-muted));
+  font-size: var(--my-subtext-size, 0.78rem);
+}
+.noticeIcon {
+  display: grid;
+  place-items: center;
+}
+
+.notice:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
