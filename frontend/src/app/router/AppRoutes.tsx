@@ -5,7 +5,6 @@ import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-do
 import PropertyAppLayout from '@/app/layouts/property-app-layout/PropertyAppLayout';
 import PublicExploreLayout from '@/app/layouts/public-explore-layout/PublicExploreLayout';
 import { isChecklistStage } from '@/features/checklist/model/checklist';
-import WeatherPrototypeProvider from '@/features/weather/model/WeatherPrototypeProvider';
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
 
 import LazyRouteBoundary from './LazyRouteBoundary';
@@ -64,7 +63,7 @@ const LegacyLandingRoute = () => {
   const { search } = useLocation();
   return <Navigate to={{ pathname: '/', search }} replace />;
 };
-const RouteContent = () => (
+const AppRoutes = () => (
   <Routes>
     <Route element={<PublicExploreLayout />}>
       <Route path="/explore" element={lazyPage(<NeighborhoodEntryPage />)} />
@@ -126,12 +125,6 @@ const RouteContent = () => (
     </Route>
     <Route path="*" element={lazyPage(<NotFoundPage />)} />
   </Routes>
-);
-
-const AppRoutes = () => (
-  <WeatherPrototypeProvider>
-    <RouteContent />
-  </WeatherPrototypeProvider>
 );
 
 export default AppRoutes;

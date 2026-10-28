@@ -5,6 +5,7 @@ import { mapHandlers } from './mapHandlers';
 import { propertyChecklistHandlers } from './propertyChecklistHandlers';
 import { propertyHandlers } from './propertyHandlers';
 import { rentalHandlers } from './rentalHandlers';
+import { weatherHandlers } from './weatherHandlers';
 
 export const handlers = [
   ...authHandlers,
@@ -14,4 +15,5 @@ export const handlers = [
   ...mapHandlers,
   ...commuteAreaHandlers,
   ...rentalHandlers,
+  ...weatherHandlers,
 ];
