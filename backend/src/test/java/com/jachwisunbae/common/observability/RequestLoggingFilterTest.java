@@ -228,6 +228,41 @@ class RequestLoggingFilterTest {
                 .containsEntry("request_body", "{\"name\":\"원룸\"}");
     }
 
+    @Test
+    @DisplayName("응답 본문을 모아 두지 않고 쓰는 즉시 실제 응답으로 흘려보낸다")
+    void streamsResponseBodyWithoutBuffering() throws Exception {
+        byte[] photo = new byte[100 * 1024];
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        int[] writtenBeforeChainEnds = {-1};
+
+        filter.doFilter(new MockHttpServletRequest("GET", "/api/properties/1/photos/1"), response, (req, res) -> {
+            HttpServletResponse httpResponse = (HttpServletResponse) res;
+            httpResponse.setStatus(200);
+            httpResponse.setContentType(MediaType.IMAGE_JPEG_VALUE);
+            httpResponse.getOutputStream().write(photo);
+            // 필터가 끝나기 전에 이미 실제 응답에 써졌는지 본다. 모아 두는 방식이면 0이다.
+            writtenBeforeChainEnds[0] = response.getContentAsByteArray().length;
+        });
+
+        assertThat(writtenBeforeChainEnds[0]).isEqualTo(photo.length);
+        assertThat(response.getContentAsByteArray()).hasSize(photo.length);
+        assertThat(fields(onlyEvent())).doesNotContainKey("response_body");
+    }
+
+    @Test
+    @DisplayName("보관 한도보다 큰 실패 응답은 본문 대신 크기만 남긴다")
+    void omitsResponseBodyLargerThanCaptureLimit() throws Exception {
+        String largeBody = "{\"code\":\"FAIL\",\"message\":\"" + "a".repeat(20 * 1024) + "\"}";
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(jsonRequest("GET", "/api/properties", ""), response, respond(500, largeBody));
+
+        int bodyBytes = largeBody.getBytes(StandardCharsets.UTF_8).length;
+        assertThat(fields(onlyEvent()))
+                .containsEntry("response_body", HttpBodyLogFormatter.omittedLargeBody(bodyBytes));
+        assertThat(response.getContentAsString(StandardCharsets.UTF_8)).isEqualTo(largeBody);
+    }
+
     private static MockHttpServletRequest jsonRequest(String method, String uri, String body) {
         MockHttpServletRequest request = new MockHttpServletRequest(method, uri);
         request.setContentType(MediaType.APPLICATION_JSON_VALUE);
