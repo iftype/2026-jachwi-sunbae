@@ -91,6 +91,39 @@ class JdbcPropertyProgressRepositoryTest {
         assertThat(repository.findByPropertyIdAndStage(PROPERTY_ID)).isEmpty();
     }
 
+    @Test
+    @DisplayName("회원의 매물 단계별 진행 현황을 한 번에 모으고, 삭제한 매물과 다른 회원의 매물은 뺀다")
+    void collectsStagesOfMemberProperties() {
+        // given
+        insertProperty(11L, 1L, null);
+        insertProperty(12L, 1L, "NOW(6)");
+        jdbcTemplate.update("INSERT INTO members (id, created_at, updated_at) VALUES (2, NOW(6), NOW(6))");
+        insertProperty(13L, 2L, null);
+        long onSite = checklistRepository.save(PROPERTY_ID, null, "현장", CheckStage.ON_SITE);
+        itemRepository.saveAll(onSite, List.of(state(1, CheckStatus.GOOD), state(2, CheckStatus.UNCONFIRMED)));
+        long preContract = checklistRepository.save(11L, null, "계약 전", CheckStage.PRE_CONTRACT);
+        itemRepository.saveAll(preContract, List.of(state(1, CheckStatus.CAUTION)));
+        checklistRepository.save(12L, null, "삭제한 매물", CheckStage.ON_SITE);
+        checklistRepository.save(13L, null, "다른 회원", CheckStage.ON_SITE);
+
+        // when
+        List<PropertyChecklistProgressQuery> stages = repository.findByMemberIdAndStage(1L);
+
+        // then
+        assertThat(stages)
+                .extracting(stage -> stage.progress().propertyId(), PropertyChecklistProgressQuery::stage,
+                        stage -> stage.progress().totalCount(), stage -> stage.progress().completedCount())
+                .containsExactly(tuple(11L, CheckStage.PRE_CONTRACT, 1, 1),
+                        tuple(PROPERTY_ID, CheckStage.ON_SITE, 2, 1));
+    }
+
+    private void insertProperty(long id, long memberId, String deletedAt) {
+        jdbcTemplate.update("""
+                INSERT INTO properties (id, member_id, name, address, latitude, longitude, created_at, deleted_at)
+                VALUES (?, ?, '판교 원룸', '경기도 성남시 분당구 판교역로 166', 37.3948, 127.1112, NOW(6), %s)
+                """.formatted(deletedAt == null ? "NULL" : deletedAt), id, memberId);
+    }
+
     private PropertyChecklistItemStateQuery state(int order, CheckStatus status) {
         return new PropertyChecklistItemStateQuery(null, "질문 " + order, order, status, "");
     }
