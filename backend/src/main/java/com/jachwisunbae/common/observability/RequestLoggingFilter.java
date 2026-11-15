@@ -28,7 +28,6 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.ContentCachingRequestWrapper;
-import org.springframework.web.util.ContentCachingResponseWrapper;
 
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -52,6 +51,8 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
     private static final List<String> LOGGED_HEADERS = List.of(
             "user-agent", "content-type", "content-length", "accept", "origin");
     private static final int REQUEST_BODY_CACHE_LIMIT = 16 * 1024;
+    // 실패 로그에는 앞부분만 쓴다. 오류 응답은 작은 JSON이라 이 한도 안에 들어온다.
+    private static final int RESPONSE_BODY_CAPTURE_LIMIT = 16 * 1024;
     private static final String HANDLED_ERROR_ATTRIBUTE = RequestLoggingFilter.class.getName() + ".handledError";
     private static final String ERROR_MESSAGE_ATTRIBUTE = RequestLoggingFilter.class.getName() + ".errorMessage";
 
@@ -72,9 +73,11 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
         String requestId = UUID.randomUUID().toString();
         long startedAt = System.nanoTime();
         Throwable failure = null;
-        // 실패한 요청의 본문을 로그에 남기기 위해 요청·응답 본문을 메모리에 보관한다.
+        // 실패한 요청의 본문을 로그에 남기기 위해 요청 본문과 응답 본문의 앞부분을 보관한다.
+        // 응답은 모았다가 보내지 않고 그대로 흘려보낸다. 사진처럼 큰 응답이 메모리에 통째로 쌓이지 않게 하기 위해서다.
         ContentCachingRequestWrapper cachingRequest = new ContentCachingRequestWrapper(request, REQUEST_BODY_CACHE_LIMIT);
-        ContentCachingResponseWrapper cachingResponse = new ContentCachingResponseWrapper(response);
+        BodyCapturingResponseWrapper capturingResponse =
+                new BodyCapturingResponseWrapper(response, RESPONSE_BODY_CAPTURE_LIMIT);
 
         response.setHeader(REQUEST_ID_HEADER, requestId);
         MDC.put(REQUEST_ID, requestId);
@@ -82,7 +85,7 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
         MDC.put(PATH, isAdminRequest(request) ? "/api/admin" : request.getRequestURI());
 
         try {
-            chain.doFilter(cachingRequest, cachingResponse);
+            chain.doFilter(cachingRequest, capturingResponse);
         } catch (IOException | ServletException exception) {
             failure = exception;
             throw exception;
@@ -91,18 +94,18 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
             throw exception;
         } finally {
             try {
-                logCompletedRequest(cachingRequest, cachingResponse, startedAt, failure);
+                // PrintWriter로 쓴 본문은 내보내야 응답과 로그에 남는다.
+                capturingResponse.flushWriter();
+                logCompletedRequest(cachingRequest, capturingResponse, startedAt, failure);
             } finally {
                 restoreContext(previousContext);
-                // 보관한 응답 본문을 실제 응답으로 내보낸다. 빠뜨리면 클라이언트가 빈 응답을 받는다.
-                cachingResponse.copyBodyToResponse();
             }
         }
     }
 
     private void logCompletedRequest(
             final ContentCachingRequestWrapper request,
-            final ContentCachingResponseWrapper response,
+            final BodyCapturingResponseWrapper response,
             final long startedAt,
             final Throwable failure) {
         long durationMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
@@ -136,7 +139,7 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
     private void addRequestDetails(
             final LoggingEventBuilder event,
             final ContentCachingRequestWrapper request,
-            final ContentCachingResponseWrapper response) {
+            final BodyCapturingResponseWrapper response) {
         String queryString = request.getQueryString();
         if (queryString != null && !queryString.isBlank()) {
             event.addKeyValue(QUERY_STRING, decode(queryString));
@@ -152,8 +155,7 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
             event.addKeyValue(REQUEST_HEADERS, Collections.unmodifiableMap(headers));
         }
         requestBody(request).ifPresent(body -> event.addKeyValue(REQUEST_BODY, body));
-        HttpBodyLogFormatter.format(response.getContentAsByteArray(), response.getContentType())
-                .ifPresent(body -> event.addKeyValue(RESPONSE_BODY, body));
+        responseBody(response).ifPresent(body -> event.addKeyValue(RESPONSE_BODY, body));
     }
 
     // 요청 본문은 애플리케이션이 읽은 만큼만 보관된다. 읽기 전에 실패한 요청에는 남지 않는다.
@@ -163,6 +165,14 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
             return Optional.of(HttpBodyLogFormatter.omittedLargeBody(request.getContentLengthLong()));
         }
         return HttpBodyLogFormatter.format(content, request.getContentType());
+    }
+
+    // 응답은 앞부분만 보관한다. 한도를 넘은 본문은 잘린 JSON을 남기지 않도록 크기만 남긴다.
+    private Optional<String> responseBody(final BodyCapturingResponseWrapper response) {
+        if (response.isTruncated()) {
+            return Optional.of(HttpBodyLogFormatter.omittedLargeBody(response.totalBytes()));
+        }
+        return HttpBodyLogFormatter.format(response.capturedBody(), response.getContentType());
     }
 
     private String decode(final String queryString) {

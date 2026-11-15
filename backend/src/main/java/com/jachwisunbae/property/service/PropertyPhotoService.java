@@ -12,6 +12,7 @@ import com.jachwisunbae.property.service.dto.result.PropertyPhotoUploadResult;
 import com.jachwisunbae.property.storage.PhotoContent;
 import com.jachwisunbae.property.entity.photo.PhotoFile;
 import com.jachwisunbae.property.storage.PhotoStorage;
+import com.jachwisunbae.property.storage.PhotoStream;
 import com.jachwisunbae.property.storage.PhotoStorageKeyGenerator;
 import java.io.IOException;
 import java.time.Clock;
@@ -80,10 +81,19 @@ public class PropertyPhotoService {
     // 트랜잭션을 걸지 않는다. 걸면 S3에서 사진을 받는 동안에도 DB 커넥션을 잡고 있게 된다.
     // NOT_SUPPORTED도 트랜잭션 동기화 범위를 열어 처음 얻은 커넥션을 메서드가 끝날 때까지 묶어 두므로 쓰지 않는다.
     // 소유자·사진 조회는 각각 커넥션을 짧게 쓰고 반납한다. 조회 전용이라 두 조회를 한 트랜잭션으로 묶을 필요가 없다.
+    // 사진 바이트 전체가 필요한 곳(비교 PDF)에서만 쓴다. 응답으로 보낼 때는 openContent를 쓴다.
     public PhotoContent findContent(final Long memberId, final Long propertyId, final Long photoId) {
         findOwnedProperty(memberId, propertyId);
         PropertyPhoto photo = findPhoto(propertyId, photoId);
         return new PhotoContent(photoStorage.download(photo.getStorageKey()), photo.getContentType());
+    }
+
+    // 사진 원본을 메모리에 올리지 않고 S3 스트림 그대로 돌려준다. 트랜잭션을 걸지 않는 이유는 findContent와 같다.
+    // 반환한 스트림은 호출한 쪽이 응답으로 흘려보낸 뒤 닫는다.
+    public PhotoStream openContent(final Long memberId, final Long propertyId, final Long photoId) {
+        findOwnedProperty(memberId, propertyId);
+        PropertyPhoto photo = findPhoto(propertyId, photoId);
+        return photoStorage.openStream(photo.getStorageKey()).withContentType(photo.getContentType());
     }
 
     @Transactional
