@@ -6,5 +6,7 @@ public interface PhotoStorage {
 
     byte[] download(String key);
 
+    PhotoStream openStream(String key);
+
     void delete(String key);
 }

@@ -7,12 +7,15 @@ import com.jachwisunbae.property.controller.dto.response.PropertyPhotoResponse;
 import com.jachwisunbae.property.repository.query.PropertyPhotosQuery;
 import com.jachwisunbae.property.service.PropertyPhotoService;
 import com.jachwisunbae.property.service.dto.result.PropertyPhotoUploadResult;
-import com.jachwisunbae.property.storage.PhotoContent;
+import com.jachwisunbae.property.storage.PhotoStream;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.io.IOException;
 import java.net.URI;
 import java.util.List;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -66,15 +69,31 @@ public class PropertyPhotoController {
 
     @GetMapping("/{propertyId}/photos/{photoId}")
     @Operation(summary = "매물 사진 콘텐츠 조회", description = "소유자를 검증한 뒤 비공개 사진 바이트를 전달합니다.")
-    public ResponseEntity<byte[]> findPhotoContent(
+    public ResponseEntity<Resource> findPhotoContent(
             @AuthenticatedMemberId final Long memberId,
             @PathVariable final Long propertyId,
             @PathVariable final Long photoId) {
-        PhotoContent content = propertyPhotoService.findContent(memberId, propertyId, photoId);
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CACHE_CONTROL, "private, max-age=300")
-                .contentType(MediaType.parseMediaType(content.contentType()))
-                .body(content.bytes());
+        PhotoStream photo = propertyPhotoService.openContent(memberId, propertyId, photoId);
+        // 사진 원본을 메모리에 올리지 않고 S3에서 받는 대로 응답에 흘려보낸다. 다 쓰면 Spring이 스트림을 닫는다.
+        // 응답을 만들기 전에 실패하면 S3 연결이 남지 않도록 직접 닫는다.
+        try {
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CACHE_CONTROL, "private, max-age=300")
+                    .contentType(MediaType.parseMediaType(photo.contentType()))
+                    .contentLength(photo.contentLength())
+                    .body(new InputStreamResource(photo.content()));
+        } catch (RuntimeException exception) {
+            closeQuietly(photo, exception);
+            throw exception;
+        }
+    }
+
+    private static void closeQuietly(final PhotoStream photo, final RuntimeException cause) {
+        try {
+            photo.content().close();
+        } catch (IOException closeFailure) {
+            cause.addSuppressed(closeFailure);
+        }
     }
 
     @DeleteMapping("/{propertyId}/photos/{photoId}")

@@ -2,11 +2,13 @@ package com.jachwisunbae.property.storage;
 
 import com.jachwisunbae.common.exception.errorcode.ErrorCode;
 import com.jachwisunbae.common.exception.server.UpstreamServiceException;
+import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import org.springframework.stereotype.Component;
 
@@ -39,6 +41,20 @@ public class S3PhotoStorage implements PhotoStorage {
     public byte[] download(String key) {
         try {
             return s3Client.getObjectAsBytes(GetObjectRequest.builder().bucket(bucket).key(key).build()).asByteArray();
+        } catch (SdkException exception) {
+            throw storageFailure(exception);
+        }
+    }
+
+    // 응답 본문을 읽지 않은 채 스트림으로 돌려준다. 받는 쪽이 끝까지 읽고 닫아야 S3 연결이 풀로 돌아간다.
+    @Override
+    public PhotoStream openStream(String key) {
+        try {
+            ResponseInputStream<GetObjectResponse> stream =
+                    s3Client.getObject(GetObjectRequest.builder().bucket(bucket).key(key).build());
+            GetObjectResponse response = stream.response();
+            return new PhotoStream(new FailureLoggingInputStream(stream, key, response.contentLength()),
+                    response.contentLength(), response.contentType());
         } catch (SdkException exception) {
             throw storageFailure(exception);
         }
