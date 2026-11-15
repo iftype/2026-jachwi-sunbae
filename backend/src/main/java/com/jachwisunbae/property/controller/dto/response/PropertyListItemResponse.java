@@ -18,24 +18,6 @@ public record PropertyListItemResponse(
     PropertyProgress overallProgress,
     List<PropertyChecklistStageResponse> stages
 ) {
-    public static PropertyListItemResponse from(final PropertyListItemQuery row) {
-        PropertyRepresentativePhoto photo = row.photoId() == null ? null : new PropertyRepresentativePhoto(
-            row.photoId(), "/api/properties/" + row.propertyId() + "/photos/" + row.photoId(),
-            row.photoContentType());
-        return from(row, photo, progressFrom(row), List.of());
-    }
-
-    public static PropertyListItemResponse from(final PropertyListItemQuery row,
-                                                final PropertyRepresentativePhoto photo) {
-        return from(row, photo, progressFrom(row), List.of());
-    }
-
-    public static PropertyListItemResponse from(final PropertyListItemQuery row,
-                                                final PropertyRepresentativePhoto photo,
-                                                final PropertyProgress progress) {
-        return from(row, photo, progress, List.of());
-    }
-
     public static PropertyListItemResponse from(final PropertyListItemQuery row,
                                                 final PropertyRepresentativePhoto photo,
                                                 final PropertyProgress progress,
@@ -53,18 +35,6 @@ public record PropertyListItemResponse(
             photo,
             progress,
             List.copyOf(stages)
-        );
-    }
-
-    private static PropertyProgress progressFrom(final PropertyListItemQuery row) {
-        int rate = row.totalCount() == 0 ? 0 : row.completedCount() * 100 / row.totalCount();
-        return new PropertyProgress(
-            row.totalCount(),
-            row.completedCount(),
-            row.goodCount(),
-            row.cautionCount(),
-            row.unconfirmedCount(),
-            rate
         );
     }
 }
