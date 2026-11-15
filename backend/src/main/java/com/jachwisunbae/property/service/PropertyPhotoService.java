@@ -21,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
-@Transactional(readOnly = true)
 public class PropertyPhotoService {
     private final PropertyRepository propertyRepository;
     private final PropertyPhotoRepository propertyPhotoRepository;
@@ -41,6 +40,7 @@ public class PropertyPhotoService {
         this.clock = clock;
     }
 
+    @Transactional(readOnly = true)
     public PropertyPhotosQuery find(final Long memberId, final Long propertyId) {
         findOwnedProperty(memberId, propertyId);
         return new PropertyPhotosQuery(propertyId, propertyPhotoRepository.findByPropertyId(propertyId),
@@ -77,6 +77,33 @@ public class PropertyPhotoService {
         }
     }
 
+    // 트랜잭션을 걸지 않는다. 걸면 S3에서 사진을 받는 동안에도 DB 커넥션을 잡고 있게 된다.
+    // NOT_SUPPORTED도 트랜잭션 동기화 범위를 열어 처음 얻은 커넥션을 메서드가 끝날 때까지 묶어 두므로 쓰지 않는다.
+    // 소유자·사진 조회는 각각 커넥션을 짧게 쓰고 반납한다. 조회 전용이라 두 조회를 한 트랜잭션으로 묶을 필요가 없다.
+    public PhotoContent findContent(final Long memberId, final Long propertyId, final Long photoId) {
+        findOwnedProperty(memberId, propertyId);
+        PropertyPhoto photo = findPhoto(propertyId, photoId);
+        return new PhotoContent(photoStorage.download(photo.getStorageKey()), photo.getContentType());
+    }
+
+    @Transactional
+    public void delete(final Long memberId, final Long propertyId, final Long photoId) {
+        lockOwnedProperty(memberId, propertyId);
+        PropertyPhoto photo = findPhoto(propertyId, photoId);
+        photoStorage.delete(photo.getStorageKey());
+        propertyPhotoRepository.deleteById(photoId);
+        propertyPhotoRepository.ensureRepresentative(propertyId);
+    }
+
+    @Transactional
+    public void designateRepresentative(final Long memberId, final Long propertyId, final Long photoId) {
+        lockOwnedProperty(memberId, propertyId);
+        propertyPhotoRepository.findByIdAndPropertyId(photoId, propertyId)
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.PHOTO_NOT_FOUND,
+                        "사진을 찾을 수 없습니다."));
+        propertyPhotoRepository.setRepresentative(propertyId, photoId);
+    }
+
     private void lockOwnedProperty(final Long memberId, final Long propertyId) {
         propertyRepository.findByIdAndMemberIdForUpdate(propertyId, memberId)
             .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.PROPERTY_NOT_FOUND,
@@ -99,30 +126,6 @@ public class PropertyPhotoService {
             throw new InternalSystemException(ErrorCode.PHOTO_FILE_READ_FAILURE,
                 "업로드 사진을 읽을 수 없습니다.", exception);
         }
-    }
-
-    public PhotoContent findContent(final Long memberId, final Long propertyId, final Long photoId) {
-        findOwnedProperty(memberId, propertyId);
-        PropertyPhoto photo = findPhoto(propertyId, photoId);
-        return new PhotoContent(photoStorage.download(photo.getStorageKey()), photo.getContentType());
-    }
-
-    @Transactional
-    public void delete(final Long memberId, final Long propertyId, final Long photoId) {
-        lockOwnedProperty(memberId, propertyId);
-        PropertyPhoto photo = findPhoto(propertyId, photoId);
-        photoStorage.delete(photo.getStorageKey());
-        propertyPhotoRepository.deleteById(photoId);
-        propertyPhotoRepository.ensureRepresentative(propertyId);
-    }
-
-    @Transactional
-    public void designateRepresentative(final Long memberId, final Long propertyId, final Long photoId) {
-        lockOwnedProperty(memberId, propertyId);
-        propertyPhotoRepository.findByIdAndPropertyId(photoId, propertyId)
-            .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.PHOTO_NOT_FOUND,
-                "사진을 찾을 수 없습니다."));
-        propertyPhotoRepository.setRepresentative(propertyId, photoId);
     }
 
     private void findOwnedProperty(final Long memberId, final Long propertyId) {
