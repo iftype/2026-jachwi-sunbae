@@ -3,11 +3,13 @@ package com.jachwisunbae.property.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.jachwisunbae.checklist.type.CheckStage;
 import com.jachwisunbae.common.exception.JachwiException;
 import com.jachwisunbae.common.exception.errorcode.ErrorCode;
 import com.jachwisunbae.property.controller.dto.request.CreatePropertyRequest;
 import com.jachwisunbae.property.controller.dto.request.UpdatePropertyMemoRequest;
 import com.jachwisunbae.property.controller.dto.request.UpdatePropertyRequest;
+import com.jachwisunbae.property.controller.dto.response.PropertyChecklistStageResponse;
 import com.jachwisunbae.property.controller.dto.response.PropertyDetailResponse;
 import com.jachwisunbae.property.controller.dto.response.PropertyListItemResponse;
 import com.jachwisunbae.property.entity.Property;
@@ -17,6 +19,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -167,6 +172,28 @@ class PropertyServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("목록은 매물마다 그 매물의 단계별 진행 현황을 붙인다")
+    void attachesEachPropertysStageProgressInList() {
+        // given
+        Property checked = service.create(MEMBER_ID, createRequest("판교 원룸"));
+        Property unchecked = service.create(MEMBER_ID, createRequest("정자 투룸"));
+        markFirstItem(checked.getId(), "GOOD");
+
+        // when
+        Map<Long, PropertyListItemResponse> items = service.findList(MEMBER_ID).items().stream()
+                .collect(Collectors.toMap(PropertyListItemResponse::id, Function.identity()));
+
+        // then
+        PropertyChecklistStageResponse checkedOnSite = stage(items.get(checked.getId()), CheckStage.ON_SITE);
+        PropertyChecklistStageResponse uncheckedOnSite = stage(items.get(unchecked.getId()), CheckStage.ON_SITE);
+        assertThat(checkedOnSite.propertyChecklistId()).isEqualTo(checklistId(checked.getId(), "ON_SITE"));
+        assertThat(uncheckedOnSite.propertyChecklistId()).isEqualTo(checklistId(unchecked.getId(), "ON_SITE"));
+        assertThat(checkedOnSite.progress().goodCount()).isOne();
+        assertThat(uncheckedOnSite.progress().goodCount()).isZero();
+        assertThat(items.get(checked.getId()).overallProgress().completedCount()).isOne();
+    }
+
+    @Test
     @DisplayName("다른 회원의 매물은 조회, 수정, 메모 저장 모두 찾을 수 없다")
     void rejectsOtherMembersProperty() {
         // given
@@ -198,6 +225,22 @@ class PropertyServiceIntegrationTest {
         return jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM property_checklists WHERE property_id = ? AND stage = ?",
                 Integer.class, propertyId, stage);
+    }
+
+    private PropertyChecklistStageResponse stage(PropertyListItemResponse item, CheckStage stage) {
+        return item.stages().stream().filter(response -> response.stage() == stage).findFirst().orElseThrow();
+    }
+
+    private long checklistId(long propertyId, String stage) {
+        return jdbcTemplate.queryForObject("SELECT id FROM property_checklists WHERE property_id = ? AND stage = ?",
+                Long.class, propertyId, stage);
+    }
+
+    private void markFirstItem(long propertyId, String status) {
+        jdbcTemplate.update("""
+                UPDATE property_checklist_items SET status = ?
+                WHERE property_checklist_id = ? ORDER BY display_order, id LIMIT 1
+                """, status, checklistId(propertyId, "ON_SITE"));
     }
 
     private void insertMember(long id) {

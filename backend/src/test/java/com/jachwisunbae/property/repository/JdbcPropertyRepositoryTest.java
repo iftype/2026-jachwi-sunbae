@@ -147,36 +147,7 @@ class JdbcPropertyRepositoryTest {
     }
 
     @Test
-    @DisplayName("매물 목록은 회원의 매물마다 체크 항목 진행률을 집계하고 다른 회원의 항목은 섞지 않는다")
-    void countsProgressOfOwnPropertiesOnly() {
-        // given
-        long checked = insertProperty(MEMBER_ID, "체크한 집");
-        long empty = insertProperty(MEMBER_ID, "체크리스트 없는 집");
-        long othersProperty = insertProperty(OTHER_MEMBER_ID, "남의 집");
-        long onSite = insertChecklist(checked, "ON_SITE");
-        insertItem(onSite, 101, "GOOD");
-        insertItem(onSite, 102, "CAUTION");
-        insertItem(onSite, 103, "UNCONFIRMED");
-        long preContract = insertChecklist(checked, "PRE_CONTRACT");
-        insertItem(preContract, 201, "GOOD");
-        long othersChecklist = insertChecklist(othersProperty, "ON_SITE");
-        insertItem(othersChecklist, 101, "GOOD");
-        insertItem(othersChecklist, 102, "GOOD");
-
-        // when
-        List<PropertyListItemQuery> list = repository.findListByMemberId(MEMBER_ID);
-
-        // then
-        assertThat(list).extracting(PropertyListItemQuery::propertyId, PropertyListItemQuery::totalCount,
-                        PropertyListItemQuery::completedCount, PropertyListItemQuery::goodCount,
-                        PropertyListItemQuery::cautionCount, PropertyListItemQuery::unconfirmedCount)
-                .containsExactly(
-                        tuple(empty, 0, 0, 0, 0, 0),
-                        tuple(checked, 4, 3, 2, 1, 1));
-    }
-
-    @Test
-    @DisplayName("삭제한 매물은 목록에도 진행률 집계에도 나오지 않는다")
+    @DisplayName("삭제한 매물은 목록에 나오지 않는다")
     void excludesDeletedProperties() {
         // given
         long deleted = insertProperty(MEMBER_ID, "삭제한 집");

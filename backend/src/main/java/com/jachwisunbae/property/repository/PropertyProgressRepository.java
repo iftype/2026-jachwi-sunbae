@@ -8,4 +8,6 @@ public interface PropertyProgressRepository {
     PropertyProgressSummary findByPropertyId(long propertyId);
 
     List<PropertyChecklistProgressQuery> findByPropertyIdAndStage(long propertyId);
+
+    List<PropertyChecklistProgressQuery> findByMemberIdAndStage(long memberId);
 }

@@ -17,9 +17,12 @@ import com.jachwisunbae.property.entity.Property;
 import com.jachwisunbae.property.repository.PropertyPhotoRepository;
 import com.jachwisunbae.property.repository.PropertyProgressRepository;
 import com.jachwisunbae.property.repository.PropertyRepository;
+import com.jachwisunbae.property.repository.query.PropertyChecklistProgressQuery;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,6 +51,9 @@ public class PropertyService {
     }
 
     public PropertyListResponse findList(final Long memberId) {
+        Map<Long, List<PropertyChecklistProgressQuery>> progressByProperty =
+            propertyProgressRepository.findByMemberIdAndStage(memberId).stream()
+                .collect(Collectors.groupingBy(query -> query.progress().propertyId()));
         List<PropertyListItemResponse> items = propertyRepository.findListByMemberId(memberId).stream()
             .map(row -> {
                 PropertyRepresentativePhoto photo = row.photoId() == null ? null
@@ -55,7 +61,7 @@ public class PropertyService {
                         "/api/properties/" + row.propertyId() + "/photos/" + row.photoId(),
                         row.photoContentType());
                 PropertyChecklistOverviewResponse overview = PropertyChecklistOverviewResponse.from(
-                    row.propertyId(), propertyProgressRepository.findByPropertyIdAndStage(row.propertyId()));
+                    row.propertyId(), progressByProperty.getOrDefault(row.propertyId(), List.of()));
                 return PropertyListItemResponse.from(row, photo, overview.overallProgress(), overview.stages());
             })
             .toList();

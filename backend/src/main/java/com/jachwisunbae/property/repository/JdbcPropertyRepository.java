@@ -42,12 +42,7 @@ public class JdbcPropertyRepository implements PropertyRepository {
         rs.getObject("photo_id", Long.class),
         rs.getString("storage_key"),
         rs.getString("content_type"),
-        rs.getInt("photo_count"),
-        rs.getInt("total_count"),
-        rs.getInt("completed_count"),
-        rs.getInt("good_count"),
-        rs.getInt("caution_count"),
-        rs.getInt("unconfirmed_count")
+        rs.getInt("photo_count")
     );
 
     public JdbcPropertyRepository(final JdbcTemplate jdbcTemplate) {
@@ -61,32 +56,15 @@ public class JdbcPropertyRepository implements PropertyRepository {
                        p.address, p.latitude, p.longitude,
                        pd.discovery_source,
                        ph.id AS photo_id, ph.storage_key, ph.content_type,
-                       (SELECT COUNT(*) FROM property_photos pph WHERE pph.property_id = p.id AND pph.deleted_at IS NULL) AS photo_count,
-                       COALESCE(progress.total_count, 0) AS total_count,
-                       COALESCE(progress.completed_count, 0) AS completed_count,
-                       COALESCE(progress.good_count, 0) AS good_count,
-                       COALESCE(progress.caution_count, 0) AS caution_count,
-                       COALESCE(progress.unconfirmed_count, 0) AS unconfirmed_count
+                       (SELECT COUNT(*) FROM property_photos pph WHERE pph.property_id = p.id AND pph.deleted_at IS NULL) AS photo_count
                 FROM properties p
                 LEFT JOIN property_details pd ON pd.property_id = p.id
                 LEFT JOIN main_property_photos mp ON mp.property_id = p.id
                 LEFT JOIN property_photos ph ON ph.id = mp.property_photos_id AND ph.deleted_at IS NULL
-                LEFT JOIN (
-                    SELECT pc.property_id, COUNT(pci.id) AS total_count,
-                           SUM(pci.status IN ('GOOD', 'CAUTION')) AS completed_count,
-                           SUM(pci.status = 'GOOD') AS good_count,
-                           SUM(pci.status = 'CAUTION') AS caution_count,
-                           SUM(pci.status = 'UNCONFIRMED') AS unconfirmed_count
-                    FROM properties owned
-                    JOIN property_checklists pc ON pc.property_id = owned.id
-                    LEFT JOIN property_checklist_items pci ON pci.property_checklist_id = pc.id
-                    WHERE owned.member_id = ? AND owned.deleted_at IS NULL
-                    GROUP BY pc.property_id
-                ) progress ON progress.property_id = p.id
                 WHERE p.member_id = ? AND p.deleted_at IS NULL
                 ORDER BY p.id DESC
                 """;
-        return jdbcTemplate.query(sql, propertyListRowMapper, memberId, memberId);
+        return jdbcTemplate.query(sql, propertyListRowMapper, memberId);
     }
 
     @Override
