@@ -113,6 +113,8 @@ export const PROPERTY_DETAIL_TAB_PARAM = 'tab';
 export const RECORDS_VIEW_PARAM = 'view';
 /** 본 방 기록을 지도 보기로 연다. 매물은 지도의 빈 곳을 눌러 등록한다. */
 export const RECORDS_MAP_PATH = `${RECORDS_PATH}?${RECORDS_VIEW_PARAM}=map`;
+/** 본 방 기록을 리스트 보기로 연다. */
+export const RECORDS_LIST_PATH = `${RECORDS_PATH}?${RECORDS_VIEW_PARAM}=list`;
 /** 예전 저렴한 한 끼 탭(`/cheap-meals?tab=`). 들어오면 탭 주소로 바꾼다. */
 export const CHEAP_MEALS_TAB_PARAM = 'tab';
 /** 저렴한 한 끼 식당 탭에서 연 가게 상세(`?store=`)와 주소 검색(`?search=1`). 식당 탭 주소에만 붙는다. */

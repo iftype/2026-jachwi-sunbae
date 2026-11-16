@@ -90,7 +90,7 @@ const WeatherSummaryCard = () => {
         <div className={styles.weather}>
           {showsWeather ? (
             <>
-              <WeatherSymbol hour={hour} size={46} />
+              <WeatherSymbol hour={hour} size={34} />
               <strong className={styles.temperature}>{weatherValue(hour.tmp, '°')}</strong>
               <div>
                 <b>{weatherLabel(hour)}</b>
@@ -100,7 +100,7 @@ const WeatherSummaryCard = () => {
           ) : (
             <>
               <span className={styles.stateIcon}>
-                <IconBase size={40}>
+                <IconBase size={30}>
                   <path d={state.icon} />
                 </IconBase>
               </span>
@@ -160,7 +160,7 @@ const styles = {
   card: css`
     label: WeatherSummaryCard-card;
     padding: var(--my-card-padding, 1.15rem);
-    border-radius: var(--radius-card);
+    border-radius: var(--radius-md);
     background: var(--my-card-surface, var(--color-card-surface));
     color: var(--color-ink);
   `,
@@ -184,16 +184,16 @@ const styles = {
     label: WeatherSummaryCard-weather;
     display: flex;
     align-items: center;
-    gap: 0.7rem;
-    min-height: 3.6rem;
-    margin: 1rem 0;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+    margin: 0.4rem 0;
 
     & b {
       font-size: var(--my-text-size, 0.95rem);
     }
 
     & p {
-      margin: 0.3rem 0 0;
+      margin: 0.15rem 0 0;
       color: var(--color-ink-soft);
       font-size: var(--my-subtext-size, 0.78rem);
     }
@@ -204,13 +204,13 @@ const styles = {
     display: inline-flex;
     flex-shrink: 0;
     justify-content: center;
-    width: 46px;
+    width: 34px;
     color: var(--color-ink);
   `,
 
   temperature: css`
     label: WeatherSummaryCard-temperature;
-    font-size: 2.4rem;
+    font-size: 1.65rem;
     font-weight: 750;
     letter-spacing: -0.08rem;
   `,
@@ -236,8 +236,8 @@ const styles = {
 
   divider: css`
     label: WeatherSummaryCard-divider;
-    margin-top: 1rem;
-    padding-top: 0.8rem;
+    margin-top: 0.55rem;
+    padding-top: 0.45rem;
     border-top: 1px solid var(--color-border);
   `,
 

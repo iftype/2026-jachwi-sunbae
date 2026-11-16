@@ -11,9 +11,10 @@ export const notice = css`
   grid-template-columns: 1.5rem minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.75rem;
-  padding: var(--my-card-padding);
-  border-radius: var(--radius-card);
-  background: var(--my-card-surface, var(--color-card-surface));
+  min-height: 2.75rem;
+  padding: 0.4rem var(--my-card-padding);
+  border-radius: 0;
+  background: transparent;
   color: var(--color-error);
   text-decoration: none;
 
@@ -29,7 +30,7 @@ export const notice = css`
   }
 
   & small {
-    margin-top: 0.25rem;
+    margin-top: 0.1rem;
     word-break: keep-all;
     color: color-mix(in srgb, var(--color-error) 70%, var(--color-muted));
     font-size: var(--my-subtext-size, 0.78rem);
@@ -37,7 +38,7 @@ export const notice = css`
 
   &:focus-visible {
     outline: 2px solid var(--color-focus);
-    outline-offset: 2px;
+    outline-offset: -2px;
   }
 `;
 

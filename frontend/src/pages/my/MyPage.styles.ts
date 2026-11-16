@@ -1,14 +1,11 @@
 import { css } from '@emotion/css';
 
-/*
- * 마이는 홈처럼 흰 바탕 위에 회색 카드를 둔다. 카드 안 글자는 본문(굵게)·보조 두 크기로만 쓰고,
- * 데스크탑 화면이 같은 변수를 키운다.
- */
+/** 계정, 도구, 서비스 설정이 같은 여백과 글자 크기를 사용한다. */
 export const page = css`
   label: MyPage-page;
-  --my-card-padding: 1.15rem;
-  --my-text-size: 0.95rem;
-  --my-subtext-size: 0.78rem;
+  --my-card-padding: 0.75rem;
+  --my-text-size: 0.9rem;
+  --my-subtext-size: 0.75rem;
   display: flex;
   flex-direction: column;
   min-height: 100%;

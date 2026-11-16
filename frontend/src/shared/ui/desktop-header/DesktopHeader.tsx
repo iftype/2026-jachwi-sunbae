@@ -19,9 +19,13 @@ import { useRegisterDesktopHeaderSlot } from './DesktopHeaderSlot';
 const { src: logo, src2x: logo2x } = LOGO_DUCK;
 
 /** 데스크탑 헤더에서 바로 옮겨 갈 수 있는 주요 화면. */
-const DESKTOP_NAV_ITEMS = [
+const HOME_NAV_ITEMS = [
   { label: '본 방 기록', to: RECORDS_PATH },
   { label: '동네 찾기', to: NEIGHBORHOODS_PATH },
+] as const;
+
+const DESKTOP_NAV_ITEMS = [
+  ...HOME_NAV_ITEMS,
   { label: '체크리스트', to: CHECKLISTS_PATH },
   { label: '방 비교', to: COMPARE_PATH },
   { label: '저렴한 한 끼', to: CHEAP_MEALS_PATH },
@@ -29,6 +33,7 @@ const DESKTOP_NAV_ITEMS = [
 
 type DesktopHeaderProps = {
   className?: string;
+  homeNavigation?: boolean;
   /** 화면 전용 요소 자리(홈의 날씨 등). 로고와 메뉴 사이 빈 곳 가운데에 둔다. */
   center?: ReactNode;
 };
@@ -38,8 +43,9 @@ type DesktopHeaderProps = {
  * 오른쪽 메뉴로 주요 화면을 바로 옮겨 다니며,
  * 맨 오른쪽 프로필로 마이페이지에 간다. 홈 헤더와 로고·프로필 위치를 맞춘다.
  */
-const DesktopHeader = ({ className, center }: DesktopHeaderProps) => {
+const DesktopHeader = ({ className, center, homeNavigation = false }: DesktopHeaderProps) => {
   const registerSlot = useRegisterDesktopHeaderSlot();
+  const navItems = homeNavigation ? HOME_NAV_ITEMS : DESKTOP_NAV_ITEMS;
 
   return (
     <header className={`${styles.header} ${className ?? ''}`.trim()}>
@@ -50,7 +56,7 @@ const DesktopHeader = ({ className, center }: DesktopHeaderProps) => {
       <div ref={registerSlot} className={styles.slot} />
       {center !== undefined && <div className={styles.center}>{center}</div>}
       <nav className={styles.nav} aria-label="주요 화면">
-        {DESKTOP_NAV_ITEMS.map((item) => (
+        {navItems.map((item) => (
           <NavLink key={item.to} to={item.to}>
             {item.label}
           </NavLink>

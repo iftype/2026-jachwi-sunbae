@@ -9,7 +9,7 @@ import {
   PRIVACY_PATH,
 } from '@/shared/lib/navigation/appPaths';
 
-/** 서비스 소개(랜딩)는 돌아가기 버튼이 홈으로 오게 진입 위치를 함께 넘긴다. 사용 방법은 홈의 카드로 가므로 푸터에 두지 않는다. */
+/** 서비스 소개(랜딩)는 돌아가기 버튼이 홈으로 오게 진입 위치를 함께 넘긴다. 사용 방법은 마이페이지에 둔다. */
 const FOOTER_LINKS: { label: string; to: string; state?: LandingEntryState }[] = [
   { label: '자취선배 소개', to: LANDING_PATH, state: landingEntryState('home_footer', HOME_PATH) },
   { label: '개인정보·광고 측정 안내', to: PRIVACY_PATH },

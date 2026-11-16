@@ -58,7 +58,7 @@ const meta = {
   title: '페이지/홈/공통/RecentRooms',
   component: RecentRooms,
   args: {
-    inSideColumn: false,
+    isDesktop: false,
   },
   parameters: {
     layout: 'padded',
@@ -85,8 +85,8 @@ export const Empty: Story = {
   },
 };
 
-export const InSideColumn: Story = {
+export const Desktop: Story = {
   args: {
-    inSideColumn: true,
+    isDesktop: true,
   },
 };

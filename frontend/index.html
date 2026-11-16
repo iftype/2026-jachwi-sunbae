@@ -55,27 +55,21 @@
         box-sizing: border-box;
         max-width: 720px;
         margin: 0 auto;
-        padding: 19px 20px 0;
-        gap: 22px;
+        padding: 10px 16px 0;
+        gap: 6px;
       }
       .boot-skeleton__body span {
         display: block;
-        border-radius: 18px;
+        border-radius: 12px;
         background: #f4f5f7;
       }
-      .boot-skeleton__body span:nth-child(1) {
-        height: 83px;
-      }
-      .boot-skeleton__body span:nth-child(2) {
-        height: 304px;
-      }
-      .boot-skeleton__body span:nth-child(3) {
-        height: 83px;
-        margin-top: -11px;
-      }
+      .boot-skeleton__body span:nth-child(1),
       .boot-skeleton__body span:nth-child(4) {
-        height: 102px;
-        margin-top: 6px;
+        height: 48px;
+      }
+      .boot-skeleton__body span:nth-child(2),
+      .boot-skeleton__body span:nth-child(3) {
+        height: 92px;
       }
       @media (min-width: 1024px) {
         .boot-skeleton__header {
@@ -84,30 +78,25 @@
           border-bottom: 1px solid #eceef1;
         }
         .boot-skeleton--home .boot-skeleton__body {
-          max-width: 1024px;
-          padding: 20px 32px 0;
-          grid-template-columns: minmax(0, 1fr) 304px;
-          column-gap: 32px;
-          row-gap: 22px;
-        }
-        .boot-skeleton__body span:nth-child(n) {
-          margin-top: 0;
+          max-width: 1200px;
+          padding: clamp(24px, 4vw, 52px) 32px 0;
+          grid-template-columns: minmax(0, 2.15fr) minmax(240px, 1fr);
+          column-gap: clamp(16px, 2.6vw, 32px);
+          row-gap: 12px;
         }
         .boot-skeleton__body span:nth-child(1) {
           grid-area: 1 / 1;
-          height: 99px;
         }
         .boot-skeleton__body span:nth-child(2) {
           grid-area: 2 / 1;
-          height: 384px;
+          height: 216px;
         }
         .boot-skeleton__body span:nth-child(3) {
-          grid-area: 1 / 2;
-          height: 99px;
+          grid-area: 1 / 2 / span 2;
+          height: 144px;
         }
         .boot-skeleton__body span:nth-child(4) {
-          grid-area: 2 / 2;
-          height: 210px;
+          grid-area: 3 / 1;
         }
       }
     </style>

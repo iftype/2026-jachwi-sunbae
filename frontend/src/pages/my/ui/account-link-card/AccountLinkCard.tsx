@@ -202,8 +202,8 @@ const AccountLinkCard = ({ memberId, reloadPage = () => window.location.reload()
           </h2>
           <p className={styles.description}>
             {linkedLabel === null
-              ? '계정을 연결하면 기록을 보관하고 다른 기기에서도 이어서 쓸 수 있어요.'
-              : '다른 기기에서도 같은 계정으로 인증하면 이 기록을 이어서 써요. 다른 계정을 쓰려면 로그아웃한 뒤 연결해 주세요.'}
+              ? '다른 기기에서도 방 기록을 이어서 볼 수 있어요.'
+              : '다른 계정을 쓰려면 로그아웃한 뒤 연결해 주세요.'}
           </p>
         </div>
       </div>
@@ -249,9 +249,9 @@ const styles = {
   card: css`
     label: AccountLinkCard-card;
     display: grid;
-    gap: 0.875rem;
+    gap: 0.55rem;
     padding: var(--my-card-padding);
-    border-radius: var(--radius-card);
+    border-radius: var(--radius-md);
     background: var(--my-card-surface, var(--color-card-surface));
     color: var(--color-ink);
   `,
@@ -259,8 +259,8 @@ const styles = {
   header: css`
     label: AccountLinkCard-header;
     display: grid;
-    grid-template-columns: 1.5rem minmax(0, 1fr);
-    gap: 0.75rem;
+    grid-template-columns: 1.25rem minmax(0, 1fr);
+    gap: 0.45rem;
     align-items: start;
   `,
 
@@ -280,17 +280,18 @@ const styles = {
 
   description: css`
     label: AccountLinkCard-description;
-    margin: 0.25rem 0 0;
+    margin: 0.15rem 0 0;
     color: var(--color-ink-soft);
     font-size: var(--my-subtext-size, 0.78rem);
-    line-height: 1.5;
+    line-height: 1.35;
     word-break: keep-all;
   `,
 
   actions: css`
     label: AccountLinkCard-actions;
     display: grid;
-    gap: 0.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
+    gap: 0.4rem;
   `,
 
   /*
@@ -305,9 +306,8 @@ const styles = {
     align-items: center;
     justify-content: center;
     width: 100%;
-    min-width: 140px;
     height: 2.75rem;
-    padding: 0 1rem;
+    padding: 0 0.4rem;
     border: 0;
     border-radius: 12px;
     font: inherit;

@@ -1,21 +1,16 @@
 import { css } from '@emotion/css';
 
-import { useMember } from '@/features/auth/api/useCurrentMember';
-import WeatherSummaryCard from '@/features/weather/ui/weather-summary-card/WeatherSummaryCard';
 import { usePublicConfig } from '@/shared/config/PublicConfigContext';
 import TopNavigation from '@/shared/ui/top-navigation/TopNavigation';
 
 import { formatAppVersionLabel } from '../lib/appVersionLabel';
-import AccountLinkCard from '../ui/account-link-card/AccountLinkCard';
-import AccountWithdrawCard from '../ui/account-withdraw-card/AccountWithdrawCard';
-import PrivacyLinkCard from '../ui/privacy-link-card/PrivacyLinkCard';
+import MyPageContent from '../ui/MyPageContent';
 
 import * as shared from '../MyPage.styles';
 
 /** 데스크탑 마이. 공용 헤더로 이동하므로 뒤로 가기 없이 제목만 두고, 좁은 한 열에 카드를 위에서 아래로 쌓는다. */
 const MyDesktopPage = () => {
   const config = usePublicConfig();
-  const member = useMember();
 
   return (
     <main className={shared.page}>
@@ -23,12 +18,7 @@ const MyDesktopPage = () => {
         <div className={styles.heading}>
           <TopNavigation title="마이" />
         </div>
-        <WeatherSummaryCard />
-        <div className={styles.links}>
-          <AccountLinkCard memberId={member.memberId} />
-          <PrivacyLinkCard />
-          <AccountWithdrawCard />
-        </div>
+        <MyPageContent />
       </div>
       <footer className={`${shared.footer} ${styles.footer}`}>
         <span>{formatAppVersionLabel(config)}</span>
@@ -49,14 +39,11 @@ const styles = {
     margin-left: auto;
     padding-right: 1rem;
     padding-left: 1rem;
-    --my-card-padding: 1.1rem;
-    --my-text-size: 0.92rem;
-    --my-subtext-size: 0.76rem;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     align-items: start;
-    gap: 0.9rem;
-    padding-top: 1.5rem;
+    gap: 0.6rem;
+    padding-top: 1rem;
     padding-bottom: 2rem;
   `,
 
@@ -69,7 +56,7 @@ const styles = {
     padding-left: 1rem;
     /* 바닥 문구는 카드 아래에 떠 있지 않고 화면 맨 아래에 둔다. */
     margin-top: auto;
-    padding-top: 3rem;
+    padding-top: 1.5rem;
     padding-bottom: 1.25rem;
   `,
 
@@ -77,13 +64,6 @@ const styles = {
     label: MyDesktopPage-heading;
     grid-column: 1 / -1;
     margin-bottom: 0.5rem;
-  `,
-
-  /* 개인정보 처리방침과 회원 탈퇴는 한 묶음으로 쌓는다. */
-  links: css`
-    label: MyDesktopPage-links;
-    display: grid;
-    gap: 0.9rem;
   `,
 };
 
