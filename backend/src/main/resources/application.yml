@@ -58,6 +58,12 @@ photo:
     bucket: ${PHOTO_STORAGE_BUCKET:jachwi-sunbae-photos}
     key-prefix: ${PHOTO_STORAGE_KEY_PREFIX:}
 
+property:
+  ai:
+    bedrock:
+      region: ap-northeast-2
+      model-id: global.anthropic.claude-sonnet-5-5
+
 map:
   provider:
     mode: ${MAP_PROVIDER_MODE:demo}
