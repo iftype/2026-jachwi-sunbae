@@ -5,7 +5,8 @@ import { useRecordPropertyComparisonView } from '@/features/property/api/useProp
 import { usePublicConfig } from '@/shared/config/PublicConfigContext';
 import { trackPostHogEvent } from '@/shared/lib/analytics/posthog';
 
-export const MIN_SELECTION = 2;
+/** 한 개만 골라도 그 매물 기록을 PDF로 받을 수 있다. */
+export const MIN_SELECTION = 1;
 export const MAX_SELECTION = 5;
 
 const downloadBlob = (blob: Blob, fileName: string) => {
