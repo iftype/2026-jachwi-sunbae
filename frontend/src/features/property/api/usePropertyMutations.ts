@@ -8,7 +8,7 @@ import type { PropertyCreationEntrypoint } from '../lib/propertyAnalytics';
 import { trackPropertyEvent } from '../lib/propertyAnalytics';
 import { rememberRecentEdit } from '../lib/recentEdit';
 import { rememberMovedProperty } from '../model/movedProperty';
-import type { PropertyBasicInfo, PropertyDetail, PropertyPage } from '../model/Property';
+import type { PropertyBasicInfo, PropertyDetail, PropertyMemoDocument, PropertyPage } from '../model/Property';
 import type {
   PropertyInputDto,
   SavePropertyMemoDocumentRequestDto,
@@ -17,6 +17,7 @@ import type {
 import { removePropertyPhoto, setRepresentativePropertyPhoto, uploadPropertyPhoto } from './photoApi';
 import {
   createProperty,
+  importPropertyFromImages,
   recordPropertyComparisonView,
   removeProperty,
   savePropertyMemoDocument,
@@ -121,6 +122,22 @@ export const useSavePropertyMemoDocument = (propertyId: number) => {
       trackPropertyEvent('property_memo_saved', { property_id: propertyId });
     },
     onError: () => trackPropertyEvent('property_memo_save_failed', { property_id: propertyId, error_kind: 'request' }),
+  });
+};
+
+/** 분석과 저장을 서버가 한 번에 끝내므로, 응답의 메모를 바로 넣고 상세는 서버 값으로 다시 읽는다. */
+export const useImportPropertyFromImages = (propertyId: number) => {
+  const config = usePublicConfig();
+  return useMutation({
+    mutationFn: (files: File[]) => importPropertyFromImages(config, propertyId, files),
+    onSuccess: async ({ freeMemo }) => {
+      queryClient.setQueryData<PropertyMemoDocument>(propertyQueryKeys.memo(propertyId), { propertyId, freeMemo });
+      rememberRecentEdit(propertyId, 'info');
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: propertyQueryKeys.detail(propertyId), exact: true }),
+        queryClient.invalidateQueries({ queryKey: propertyQueryKeys.lists() }),
+      ]);
+    },
   });
 };
 

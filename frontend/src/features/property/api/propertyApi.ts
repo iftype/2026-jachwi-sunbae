@@ -4,6 +4,7 @@ import type { PublicConfig } from '@/shared/config/publicConfigTypes';
 
 import type {
   CreatedProperty,
+  PropertyAiImport,
   PropertyBasicInfo,
   PropertyChecklistDetail,
   PropertyChecklistItemStatus,
@@ -21,6 +22,7 @@ import type {
 import {
   parseCreatedProperty,
   parseNoContent,
+  parsePropertyAiImport,
   parsePropertyBasicInfo,
   parsePropertyChecklistDetail,
   parsePropertyChecklistOverview,
@@ -124,6 +126,24 @@ export const updateProperty = (
     body: request,
     parseData: parsePropertyBasicInfo,
   });
+
+/** 매물 캡처 이미지를 분석해 매물 정보와 메모를 서버에 바로 저장한다. */
+export const importPropertyFromImages = (
+  config: PublicConfig,
+  propertyId: number,
+  files: File[],
+): Promise<PropertyAiImport> => {
+  const formData = new FormData();
+  files.forEach((file) => formData.append('images', file));
+
+  return apiRequest({
+    config,
+    path: `/api/properties/${propertyId}/ai-import`,
+    method: 'POST',
+    formData,
+    parseData: parsePropertyAiImport,
+  });
+};
 
 export const fetchPropertyMemo = (
   config: PublicConfig,
