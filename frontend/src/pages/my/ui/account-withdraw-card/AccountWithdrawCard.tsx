@@ -46,14 +46,10 @@ const AccountWithdrawCard = () => {
   return (
     <>
       <button ref={triggerRef} className={styles.notice} type="button" onClick={() => setIsOpen(true)}>
-        <span className={styles.noticeIcon}>
-          <Icon name="refresh" size={16} />
-        </span>
         <span>
           <strong>회원 탈퇴</strong>
-          <small>계정과 기록을 삭제해요.</small>
         </span>
-        <Icon name="arrow-right" size={15} />
+        <Icon name="chevron-right" size={16} />
       </button>
       <ConfirmDialog
         isOpen={isOpen}

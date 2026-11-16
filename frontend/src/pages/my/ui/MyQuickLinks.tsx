@@ -1,71 +1,45 @@
 import { css } from '@emotion/css';
-import { Link } from 'react-router-dom';
 
+import cheapMealIcon from '@/pages/design-home/assets/cheap-meal-goose.webp';
+import guideIcon from '@/pages/design-home/assets/guide-goose.webp';
+import checklistIcon from '@/pages/design-home/assets/icon-checklist.webp';
 import { CHEAP_MEALS_PATH, CHECKLISTS_PATH, GUIDE_PATH } from '@/shared/lib/navigation/appPaths';
-import Icon from '@/shared/ui/icon/Icon';
+import ShortcutTile from '@/shared/ui/shortcut-tile/ShortcutTile';
 
+/** 예전 홈 빠른 메뉴와 같은 그림 타일. 이름만으로 알 수 있어 설명 줄은 두지 않는다. */
 const links = [
-  { to: CHECKLISTS_PATH, title: '내 체크리스트 관리', description: '방을 볼 때 쓸 항목을 만들고 수정해요.' },
-  { to: CHEAP_MEALS_PATH, title: '저렴한 한 끼', description: '주변 식당·편의점·배달 할인 보기' },
-  { to: GUIDE_PATH, title: '사용방법 알아보기', description: '자취선배의 방 기록 방법을 확인해요.' },
+  { to: CHECKLISTS_PATH, label: '체크리스트', icon: checklistIcon },
+  { to: CHEAP_MEALS_PATH, label: '저렴한 한 끼', icon: cheapMealIcon },
+  { to: GUIDE_PATH, label: '사용방법', icon: guideIcon },
 ] as const;
 
 const MyQuickLinks = () => (
   <nav className={styles.links} aria-label="내 도구">
-    {links.map(({ to, title, description }) => (
-      <Link key={to} to={to}>
-        <span>
-          <strong>{title}</strong>
-          <small>{description}</small>
-        </span>
-        <Icon name="chevron-right" size={16} />
-      </Link>
+    {links.map((link) => (
+      <ShortcutTile key={link.to} {...link} />
     ))}
   </nav>
 );
 
 const styles = {
+  /* 회색 화면 바탕 위에 흰 타일을 한 줄 4칸으로 왼쪽부터 채운다. 빈 칸은 자리만 남는다. */
   links: css`
-    overflow: hidden;
-    padding-inline: var(--my-card-padding);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    background: var(--color-surface);
+    label: MyQuickLinks-links;
+    /* 공용 타일의 그림 칸 바탕은 투명하게 두고, 그림과 이름을 함께 감싼 흰 카드 하나로 보이게 한다. */
+    --color-card-surface: transparent;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.65rem;
 
-    & a {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.5rem;
-      min-height: 2.75rem;
-      padding-block: 0.35rem;
-      color: var(--color-ink);
-      text-decoration: none;
+    & > a {
+      padding: 0.35rem 0.35rem 0.6rem;
+      border-radius: var(--my-card-radius);
+      background: var(--my-card-surface);
     }
 
-    & a + a {
-      border-top: 1px solid var(--color-border);
-    }
-    & a:hover strong {
-      text-decoration: underline;
-    }
-
-    & a:focus-visible {
-      outline: 2px solid var(--color-focus);
-      outline-offset: -2px;
-    }
-
-    & strong,
-    & small {
-      display: block;
-    }
-    & strong {
-      font-size: var(--my-text-size);
-    }
-
-    & small {
-      color: var(--color-ink-soft);
-      font-size: var(--my-subtext-size);
+    /* 칸이 넓어져도 타일이 휴대폰 크기를 넘지 않게 상한을 둔다. */
+    @media (min-width: 768px) {
+      grid-template-columns: repeat(4, minmax(0, 5.5rem));
     }
   `,
 };

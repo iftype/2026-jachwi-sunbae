@@ -50,26 +50,29 @@ it('휴대폰 홈에서 최근 기록과 비교, 전체 보기, 추가 링크를
   expect(await screen.findByText('신림역 원룸')).toBeInTheDocument();
   expect(screen.getByText('망원동 투룸')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: '방 비교 PDF 받기' })).toHaveAttribute('href', '/compare');
-  expect(screen.getByRole('link', { name: '전체 기록 보기' })).toHaveAttribute('href', '/properties?view=list');
+  // 보기 방식을 주소에 넣지 않아 본 방 기록에서 마지막으로 고른 보기로 열린다.
+  expect(screen.getByRole('link', { name: '전체 보기' })).toHaveAttribute('href', '/properties');
   expect(screen.getByRole('link', { name: '방 기록하기' })).toHaveAttribute('href', '/properties?view=map');
+  expect(screen.getByRole('link', { name: /^동네 찾기/ })).toHaveAttribute('href', '/neighborhoods');
   expect(screen.getByRole('img', { name: '자취선배' })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: '자취선배 홈 새로고침' })).toHaveAttribute('href', '/');
 });
 
 it.each([
   ['방 비교 PDF 받기', '방 비교 화면'],
-  ['전체 기록 보기', '본 방 기록 화면'],
+  ['전체 보기', '본 방 기록 화면'],
   ['방 기록하기', '본 방 기록 화면'],
   [/^동네 찾기/, '동네 찾기 화면'],
   ['마이페이지', '마이페이지 화면'],
 ] as const)('%s는 기존 앱 화면(%s)으로 이동한다', async (name, heading) => {
   const user = userEvent.setup();
   renderHome();
-  await user.click(await screen.findByRole('link', { name }));
+  await screen.findByText('신림역 원룸');
+  await user.click(screen.getByRole('link', { name }));
   expect(screen.getByRole('heading', { name: heading })).toBeInTheDocument();
 });
 
-it('최근 기록 영역에 방 7곳을 최신순으로 넣고 전체 수를 표시한다', async () => {
+it('최근 기록 영역에 방 7곳을 최신순으로 넣는다', async () => {
   const [base] = getMockProperties();
   setMockProperties(Array.from({ length: 7 }, (_, index) => ({ ...base, id: 100 + index, name: `기록 ${index + 1}` })));
   renderHome();
@@ -84,19 +87,22 @@ it('최근 기록 영역에 방 7곳을 최신순으로 넣고 전체 수를 표
     '기록 2',
     '기록 1',
   ]);
-  expect(screen.getByText('총 7곳')).toBeInTheDocument();
 });
 
-it('기록이 없는 사용자는 지도에서 첫 방을 기록할 수 있다', async () => {
+it('등록한 방이 없으면 미리보기 매물 카드를 보이고, 지도에서 방을 기록할 수 있다', async () => {
   setMockProperties([]);
   renderHome();
 
-  expect(await screen.findByRole('link', { name: '첫 방 기록하기' })).toHaveAttribute('href', '/properties?view=map');
+  const list = within(await screen.findByRole('region', { name: '최근 기록한 방 목록' }));
+  expect(list.getByRole('link', { name: '(미리보기) 코엑스 근처' })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: '방 기록하기' })).toHaveAttribute('href', '/properties?view=map');
+  // 미리보기 매물은 비교하거나 전체 목록에서 볼 기록이 아니다.
   expect(screen.queryByRole('link', { name: '방 비교 PDF 받기' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: '전체 보기' })).not.toBeInTheDocument();
   expect(screen.getByRole('link', { name: /^동네 찾기/ })).toHaveAttribute('href', '/neighborhoods');
 });
 
-it('데스크탑 홈에서는 동네 찾기 다음에 PDF 바로가기를 표시한다', async () => {
+it('데스크탑 홈은 기록 목록과 비교, 전체 보기, 동네 찾기 카드를 보여 준다', async () => {
   const matchMedia = window.matchMedia;
   vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
     ...matchMedia(query),
@@ -106,10 +112,12 @@ it('데스크탑 홈에서는 동네 찾기 다음에 PDF 바로가기를 표시
 
   expect(await screen.findByRole('heading', { name: '내가 기록한 방' })).toBeInTheDocument();
   await screen.findByText('망원동 투룸');
-  expect(screen.getByRole('link', { name: '전체 기록 보기' })).toHaveAttribute('href', '/properties?view=list');
+  expect(screen.getByRole('link', { name: '전체 보기' })).toHaveAttribute('href', '/properties');
   expect(screen.getByRole('link', { name: '방 기록하기' })).toHaveAttribute('href', '/properties?view=map');
+  expect(screen.getByRole('link', { name: '방 비교 PDF 받기' })).toHaveAttribute('href', '/compare');
   const tools = within(screen.getByRole('complementary', { name: '방 구하기 도구' }));
-  expect(tools.getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual(['/neighborhoods', '/compare']);
+  expect(tools.getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual(['/neighborhoods']);
+  expect(tools.getByText('통근 시간으로 동네 찾기')).toBeInTheDocument();
 });
 
 it('최근 기록을 불러오지 못하면 안내와 다시 시도 버튼을 보여주고, 다시 시도하면 기록을 불러온다', async () => {

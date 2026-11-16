@@ -1,5 +1,6 @@
 import { css } from '@emotion/css';
 
+import HomeFooter from '@/pages/design-home/ui/HomeFooter';
 import { usePublicConfig } from '@/shared/config/PublicConfigContext';
 
 import { formatAppVersionLabel } from '../lib/appVersionLabel';
@@ -16,6 +17,8 @@ const MyMobilePage = () => {
       <div className={styles.container}>
         <MyPageContent />
       </div>
+      {/* 홈과 같은 서비스 안내 푸터를 두고, 그 아래에 앱 버전을 작게 적는다. */}
+      <HomeFooter className={styles.siteFooter} />
       <footer className={`${shared.footer} ${styles.footer}`}>
         <span>{formatAppVersionLabel(config)}</span>
       </footer>
@@ -24,6 +27,13 @@ const MyMobilePage = () => {
 };
 
 const styles = {
+  /* 서비스 안내 푸터는 카드 아래에 떠 있지 않고 화면 맨 아래에 둔다. */
+  siteFooter: css`
+    width: min(100%, 26rem);
+    margin: auto auto 0;
+    padding-top: 2rem;
+    padding-inline: 1rem;
+  `,
   container: css`
     label: MyMobilePage-container;
     width: min(100%, 26rem);
@@ -38,9 +48,7 @@ const styles = {
     margin-left: auto;
     padding-right: 1rem;
     padding-left: 1rem;
-    /* 바닥 문구는 카드 아래에 떠 있지 않고 화면 맨 아래에 둔다. */
-    margin-top: auto;
-    padding-top: 1.5rem;
+    padding-top: 0.5rem;
     padding-bottom: 1.25rem;
   `,
 };
