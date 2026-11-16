@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.jachwisunbae.checklist.type.CheckStage;
 import com.jachwisunbae.common.exception.JachwiException;
 import com.jachwisunbae.common.exception.errorcode.ErrorCode;
+import com.jachwisunbae.property.ai.PropertyExtraction;
 import com.jachwisunbae.property.controller.dto.request.CreatePropertyRequest;
 import com.jachwisunbae.property.controller.dto.request.UpdatePropertyMemoRequest;
 import com.jachwisunbae.property.controller.dto.request.UpdatePropertyRequest;
@@ -20,6 +21,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
@@ -137,6 +139,48 @@ class PropertyServiceIntegrationTest {
 
         // then
         assertThat(service.findMemoByMemberIdAndPropertyId(MEMBER_ID, property.getId())).isEqualTo("아침에 해가 잘 든다");
+    }
+
+    @Test
+    @DisplayName("AI 추출 값만 반영하고 읽지 못한 값과 추출 대상이 아닌 값은 그대로 둔다")
+    void appliesOnlyExtractedValues() {
+        // given
+        Property property = service.create(MEMBER_ID, createRequest("판교 원룸"));
+        PropertyExtraction extraction = new PropertyExtraction(
+                20_000_000L, null, null, 0L, Set.of(), null, null);
+
+        // when
+        service.applyAiExtraction(MEMBER_ID, property.getId(), extraction);
+
+        // then
+        Property updated = repository.findByIdAndMemberId(property.getId(), MEMBER_ID).orElseThrow();
+        assertThat(updated).extracting(Property::getDepositAmount, Property::getMonthlyRentAmount,
+                        Property::getAvailableMoveInDate, Property::getMaintenanceFeeAmount)
+                .containsExactly(20_000_000L, 50L, LocalDate.of(2026, 12, 1), 0L);
+        assertThat(updated.getUtilityOptions()).isEmpty();
+        assertThat(updated.getRoomOptions()).containsExactlyInAnyOrder(RoomOption.BED, RoomOption.DESK);
+        assertThat(updated).extracting(Property::getName, Property::getAddress, Property::getDiscoverySource,
+                        Property::getVisitScheduledAt)
+                .containsExactly("판교 원룸", "경기도 성남시 분당구 판교역로 166", "직방",
+                        LocalDateTime.of(2026, 11, 10, 14, 0));
+    }
+
+    @Test
+    @DisplayName("AI 추출 메모는 기존 메모 뒤에 덧붙인다")
+    void appendsExtractedMemo() {
+        // given
+        Property property = service.create(MEMBER_ID, createRequest("판교 원룸"));
+        service.updateMemoByMemberIdAndPropertyId(MEMBER_ID, property.getId(),
+                new UpdatePropertyMemoRequest("아침에 해가 잘 든다"));
+        PropertyExtraction extraction = new PropertyExtraction(
+                null, null, null, null, null, null, "3층, 엘리베이터 없음");
+
+        // when
+        service.applyAiExtraction(MEMBER_ID, property.getId(), extraction);
+
+        // then
+        assertThat(service.findMemoByMemberIdAndPropertyId(MEMBER_ID, property.getId()))
+                .isEqualTo("아침에 해가 잘 든다\n\n3층, 엘리베이터 없음");
     }
 
     @Test

@@ -16,7 +16,8 @@ spring:
   servlet:
     multipart:
       max-file-size: 10MB
-      max-request-size: 11MB
+      # AI 매물 정보 채우기의 이미지 10장(장당 3MB)을 한 요청으로 받는다. 파일 한 개 제한은 그대로 둔다.
+      max-request-size: 31MB
 
 auth:
   jwt:

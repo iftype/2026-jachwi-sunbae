@@ -59,6 +59,7 @@ public enum ErrorCode {
     PROPERTY_CHECKLIST_ITEM_NOT_FOUND("매물 체크 항목을 찾을 수 없습니다."),
     PROPERTY_CHECK_RESULT_INVALID("체크 결과를 확인해 주세요."),
     PROPERTY_COMPARISON_EXPORT_FAILED("매물 비교 자료를 만들지 못했습니다."),
+    PROPERTY_AI_IMAGE_INVALID("이미지는 1~10장, 장당 3MB 이하로 올려 주세요."),
     PROPERTY_AI_PROVIDER_UNAVAILABLE("이미지 분석을 잠시 이용할 수 없습니다. 잠시 후 다시 시도해 주세요."),
     PROPERTY_AI_RESPONSE_INVALID("이미지에서 매물 정보를 읽지 못했습니다."),
 
