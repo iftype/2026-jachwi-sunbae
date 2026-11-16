@@ -184,6 +184,27 @@ class PropertyServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("덧붙인 메모가 2,000자를 넘으면 기존 메모는 지키고 추출 메모를 잘라 저장한다")
+    void truncatesExtractedMemoToMemoLimit() {
+        // given
+        Property property = service.create(MEMBER_ID, createRequest("판교 원룸"));
+        String currentMemo = "가".repeat(1_990);
+        service.updateMemoByMemberIdAndPropertyId(MEMBER_ID, property.getId(),
+                new UpdatePropertyMemoRequest(currentMemo));
+        PropertyExtraction extraction = new PropertyExtraction(
+                30_000_000L, null, null, null, null, null, "나".repeat(100));
+
+        // when
+        service.applyAiExtraction(MEMBER_ID, property.getId(), extraction);
+
+        // then
+        assertThat(service.findMemoByMemberIdAndPropertyId(MEMBER_ID, property.getId()))
+                .isEqualTo(currentMemo + "\n\n" + "나".repeat(8));
+        assertThat(repository.findByIdAndMemberId(property.getId(), MEMBER_ID).orElseThrow().getDepositAmount())
+                .isEqualTo(30_000_000L);
+    }
+
+    @Test
     @DisplayName("상세는 사진, 대표 사진, 체크 진행률을 함께 보여 준다")
     void findsDetailWithPhotosAndProgress() {
         // given

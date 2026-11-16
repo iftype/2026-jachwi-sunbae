@@ -23,6 +23,9 @@ import {
   updatePropertyResponse,
 } from '../mockStore';
 
+/** jsdom 테스트에서는 request.formData()가 File 파트를 읽지 못해 multipart 본문에서 images 파트 수만 센다. */
+export const countImageParts = (multipartBody: string) => multipartBody.match(/name="images"/g)?.length ?? 0;
+
 type PropertyWriteRequest = {
   name: string;
   depositAmount?: number;
@@ -172,6 +175,27 @@ export const propertyHandlers = [
     const memo = { propertyId: property.id, freeMemo: body.freeMemo ?? '' };
     setMockMemosByProperty(new Map(getMockMemosByProperty()).set(property.id, memo));
     return success(memo);
+  }),
+  // 실제 서버는 이미지를 AI로 분석해 저장한다. 목은 이미지 수만 확인하고 정해 둔 추출 결과를 저장한다.
+  http.post('*/api/properties/:propertyId/ai-import', async ({ params, request }) => {
+    const property = getProperty(params.propertyId);
+    if (property === undefined) return failure('PROPERTY_NOT_FOUND', 404);
+    const imageCount = countImageParts(await request.text());
+    if (imageCount === 0 || imageCount > 10) return failure('PROPERTY_AI_IMAGE_INVALID', 400);
+    const updated = {
+      ...property,
+      depositAmount: 20_000_000,
+      monthlyRentAmount: 650_000,
+      maintenanceFeeAmount: 80_000,
+    };
+    setMockProperties(getMockProperties().map((candidate) => (candidate.id === updated.id ? updated : candidate)));
+    const currentMemo = getMockMemosByProperty().get(property.id)?.freeMemo ?? '';
+    const memo = {
+      propertyId: property.id,
+      freeMemo: currentMemo === '' ? '4층, 엘리베이터 있음' : `${currentMemo}\n\n4층, 엘리베이터 있음`,
+    };
+    setMockMemosByProperty(new Map(getMockMemosByProperty()).set(property.id, memo));
+    return success({ property: updatePropertyResponse(updated), freeMemo: memo.freeMemo });
   }),
   http.get('*/api/properties/:propertyId/photos', ({ params }) => {
     const property = getProperty(params.propertyId);
