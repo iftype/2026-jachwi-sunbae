@@ -6,7 +6,6 @@ import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'reac
 import { describePropertyLoadError } from '@/features/property/api/propertyErrorMessages';
 import { usePropertyDetail } from '@/features/property/api/useProperties';
 import { useRemoveProperty } from '@/features/property/api/usePropertyMutations';
-import { parsePositiveId } from '@/features/property/lib/propertyFormat';
 import {
   getPropertyReturnPath,
   getPropertyReturnState,
@@ -14,6 +13,7 @@ import {
   type PropertyReturnPath,
 } from '@/features/property/lib/propertyNavigation';
 import type { PropertyDetail } from '@/features/property/model/Property';
+import { parsePropertyRouteId } from '@/features/property/model/sampleProperties';
 import PropertyPhotoManager from '@/features/property/ui/property-photo-manager/PropertyPhotoManager';
 import PropertyPhotoViewer from '@/features/property/ui/property-photo-viewer/PropertyPhotoViewer';
 import { LogScreen } from '@/shared/lib/analytics/logging';
@@ -29,6 +29,7 @@ import TopNavigationMenu from '@/shared/ui/top-navigation-menu/TopNavigationMenu
 import { type DetailTab, parseDetailTab } from './model/detailTab';
 import type { PropertyEditField } from './model/editField';
 import PropertyDetailSkeleton from './PropertyDetailSkeleton';
+import PreviewNotSavedToast from './ui/PreviewNotSavedToast';
 import PropertyAdditionalInfoSection from './ui/property-additional-info-section/PropertyAdditionalInfoSection';
 import PropertyBasicInfoSection from './ui/property-basic-info-section/PropertyBasicInfoSection';
 import PropertyChecklistSection from './ui/property-checklist-section/PropertyChecklistSection';
@@ -62,7 +63,7 @@ type PropertyDetailPageProps = {
 };
 
 const PropertyDetailPage = ({ panel, returnTo }: PropertyDetailPageProps) => {
-  const routePropertyId = parsePositiveId(useParams().propertyId);
+  const routePropertyId = parsePropertyRouteId(useParams().propertyId);
   const propertyId = panel?.propertyId ?? routePropertyId;
   const backTo = getPropertyReturnPath(useLocation().state, returnTo);
   if (propertyId === null) {
@@ -325,6 +326,7 @@ const PropertyDetailView = ({ propertyId, detail, backTo, panel }: PropertyDetai
           />
         )}
       </div>
+      <PreviewNotSavedToast />
     </Root>
   );
 };

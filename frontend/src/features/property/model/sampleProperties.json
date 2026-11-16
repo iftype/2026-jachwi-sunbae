@@ -1,0 +1,164 @@
+{
+  "_note": "첫 방을 기록하기 전 홈과 본 방 기록에 보여 주는 미리보기 매물. 사용자가 방을 하나라도 등록하면 화면에서 사라진다. 값은 PR #652(refactor/649-remove-example-property)에서 지운 예전 예시 매물(exampleProperty.ts)을 옮겼다. photo는 shared/assets 안 파일 이름이다.",
+  "properties": [
+    {
+      "propertyId": -1,
+      "name": "(미리보기) 코엑스 근처",
+      "depositAmount": 30000000,
+      "monthlyRentAmount": 550000,
+      "discoverySource": {
+        "type": "TEXT",
+        "value": "예시 매물"
+      },
+      "location": {
+        "address": "서울 강남구 영동대로 513",
+        "latitude": 37.51252,
+        "longitude": 127.0595
+      },
+      "representativePhoto": null,
+      "progress": {
+        "totalCount": 12,
+        "completedCount": 8,
+        "goodCount": 6,
+        "cautionCount": 2,
+        "unconfirmedCount": 4,
+        "progressRate": 67
+      },
+      "stages": [
+        {
+          "stage": "ON_SITE",
+          "applied": true,
+          "propertyChecklistId": -1,
+          "checklistName": "예시 체크리스트",
+          "sourceChecklistId": null,
+          "progress": {
+            "totalCount": 12,
+            "completedCount": 8,
+            "goodCount": 6,
+            "cautionCount": 2,
+            "unconfirmedCount": 4,
+            "progressRate": 67
+          }
+        }
+      ],
+      "photoCount": 1,
+      "photo": "sample-property-coex.webp",
+      "memo": "직접 수정하고 체크해 볼 수 있는 예시 매물이에요. 내 매물을 처음 등록하면 사라져요.",
+      "maintenanceFeeAmount": 150000,
+      "availableMoveInDate": null,
+      "visitScheduledAt": null,
+      "roomOptions": ["REFRIGERATOR", "MICROWAVE", "DESK"],
+      "utilityOptions": ["WATER", "ELECTRICITY"],
+      "checklistItems": [
+        {
+          "itemId": -1,
+          "systemCheckItemId": null,
+          "question": "현관문 잠금장치 잘 작동하는지",
+          "displayOrder": 1,
+          "status": "GOOD",
+          "memo": "",
+          "category": "SECURITY"
+        },
+        {
+          "itemId": -2,
+          "systemCheckItemId": null,
+          "question": "공동 현관 출입 통제되는지",
+          "displayOrder": 2,
+          "status": "CAUTION",
+          "memo": "방문할 때 한 번 더 확인해 보세요. (예시)",
+          "category": "SECURITY"
+        },
+        {
+          "itemId": -3,
+          "systemCheckItemId": null,
+          "question": "햇빛 잘 들어오는지",
+          "displayOrder": 3,
+          "status": "UNCONFIRMED",
+          "memo": "",
+          "category": "WINDOW_LIGHT"
+        },
+        {
+          "itemId": -4,
+          "systemCheckItemId": null,
+          "question": "창문·방충망 상태 괜찮은지",
+          "displayOrder": 4,
+          "status": "GOOD",
+          "memo": "",
+          "category": "WINDOW_LIGHT"
+        },
+        {
+          "itemId": -5,
+          "systemCheckItemId": null,
+          "question": "싱크대·샤워기 물 잘 나오는지",
+          "displayOrder": 5,
+          "status": "GOOD",
+          "memo": "",
+          "category": "WATER_BATHROOM"
+        },
+        {
+          "itemId": -6,
+          "systemCheckItemId": null,
+          "question": "온수 잘 나오는지",
+          "displayOrder": 6,
+          "status": "GOOD",
+          "memo": "",
+          "category": "WATER_BATHROOM"
+        },
+        {
+          "itemId": -7,
+          "systemCheckItemId": null,
+          "question": "배수구·변기 물 잘 내려가는지",
+          "displayOrder": 7,
+          "status": "UNCONFIRMED",
+          "memo": "",
+          "category": "WATER_BATHROOM"
+        },
+        {
+          "itemId": -8,
+          "systemCheckItemId": null,
+          "question": "벽지·창틀에 곰팡이 있는지",
+          "displayOrder": 8,
+          "status": "GOOD",
+          "memo": "",
+          "category": "ROOM_CONDITION"
+        },
+        {
+          "itemId": -9,
+          "systemCheckItemId": null,
+          "question": "천장·벽에 물 얼룩 있는지",
+          "displayOrder": 9,
+          "status": "CAUTION",
+          "memo": "",
+          "category": "ROOM_CONDITION"
+        },
+        {
+          "itemId": -10,
+          "systemCheckItemId": null,
+          "question": "외부 소음 심하지 않은지",
+          "displayOrder": 10,
+          "status": "UNCONFIRMED",
+          "memo": "",
+          "category": "ROOM_CONDITION"
+        },
+        {
+          "itemId": -11,
+          "systemCheckItemId": null,
+          "question": "에어컨·냉장고 작동하는지",
+          "displayOrder": 11,
+          "status": "GOOD",
+          "memo": "",
+          "category": "BASIC_OPTIONS"
+        },
+        {
+          "itemId": -12,
+          "systemCheckItemId": null,
+          "question": "옵션·수납공간 충분한지",
+          "displayOrder": 12,
+          "status": "UNCONFIRMED",
+          "memo": "",
+          "category": "BASIC_OPTIONS"
+        }
+      ]
+    }
+  ]
+}

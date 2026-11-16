@@ -3,8 +3,8 @@ import { Link, useLocation, useParams } from 'react-router-dom';
 
 import { describePropertyLoadError } from '@/features/property/api/propertyErrorMessages';
 import { usePropertyDetail } from '@/features/property/api/useProperties';
-import { parsePositiveId } from '@/features/property/lib/propertyFormat';
 import { cameFromPropertyDetail } from '@/features/property/lib/propertyNavigation';
+import { parsePropertyRouteId } from '@/features/property/model/sampleProperties';
 import PropertyPhotoManager from '@/features/property/ui/property-photo-manager/PropertyPhotoManager';
 import { HOME_PATH, propertyDetailPath } from '@/shared/lib/navigation/appPaths';
 import useReturnNavigation from '@/shared/lib/navigation/useReturnNavigation';
@@ -18,7 +18,7 @@ const backToList = <Link to={HOME_PATH}>홈으로 돌아가기</Link>;
 const describeError = describePropertyLoadError('사진 목록을 불러오지 못했어요.');
 
 const PropertyPhotosPage = () => {
-  const propertyId = parsePositiveId(useParams().propertyId);
+  const propertyId = parsePropertyRouteId(useParams().propertyId);
   if (propertyId === null) return <ContentState title="올바른 매물 주소가 아니에요.">{backToList}</ContentState>;
   return <ResolvedPropertyPhotosPage propertyId={propertyId} />;
 };

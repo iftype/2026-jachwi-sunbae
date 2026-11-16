@@ -5,6 +5,14 @@ import type { PublicConfig } from '@/shared/config/publicConfigTypes';
 
 import { fetchPropertyPhotos } from './photoApi';
 import {
+  orPreview,
+  previewPropertyChecklistDetail,
+  previewPropertyChecklistOverview,
+  previewPropertyDetail,
+  previewPropertyMemo,
+  previewPropertyPhotos,
+} from './previewPropertyApi';
+import {
   fetchProperties,
   fetchPropertyChecklistDetail,
   fetchPropertyChecklistOverview,
@@ -38,7 +46,8 @@ export const usePropertyCommuteTimes = (destination: { latitude: number; longitu
 
 export const getPropertyDetailQueryOptions = (config: PublicConfig, propertyId: number) => ({
   queryKey: propertyQueryKeys.detail(propertyId),
-  queryFn: ({ signal }: { signal: AbortSignal }) => fetchPropertyDetail(config, propertyId, signal),
+  queryFn: ({ signal }: { signal: AbortSignal }) =>
+    orPreview(propertyId, previewPropertyDetail, () => fetchPropertyDetail(config, propertyId, signal)),
 });
 
 export const usePropertyDetail = (propertyId: number) => {
@@ -50,7 +59,8 @@ export const usePropertyMemo = (propertyId: number) => {
   const config = usePublicConfig();
   return useQuery({
     queryKey: propertyQueryKeys.memo(propertyId),
-    queryFn: ({ signal }) => fetchPropertyMemo(config, propertyId, signal),
+    queryFn: ({ signal }) =>
+      orPreview(propertyId, previewPropertyMemo, () => fetchPropertyMemo(config, propertyId, signal)),
   });
 };
 
@@ -58,7 +68,10 @@ export const usePropertyChecklistOverview = (propertyId: number) => {
   const config = usePublicConfig();
   return useQuery({
     queryKey: propertyQueryKeys.checklists(propertyId),
-    queryFn: ({ signal }) => fetchPropertyChecklistOverview(config, propertyId, signal),
+    queryFn: ({ signal }) =>
+      orPreview(propertyId, previewPropertyChecklistOverview, () =>
+        fetchPropertyChecklistOverview(config, propertyId, signal),
+      ),
   });
 };
 
@@ -66,7 +79,10 @@ export const usePropertyChecklistDetail = (propertyId: number, propertyChecklist
   const config = usePublicConfig();
   return useQuery({
     queryKey: propertyQueryKeys.checklist(propertyId, propertyChecklistId),
-    queryFn: ({ signal }) => fetchPropertyChecklistDetail(config, propertyId, propertyChecklistId, signal),
+    queryFn: ({ signal }) =>
+      orPreview(propertyId, previewPropertyChecklistDetail, () =>
+        fetchPropertyChecklistDetail(config, propertyId, propertyChecklistId, signal),
+      ),
   });
 };
 
@@ -74,6 +90,7 @@ export const usePropertyPhotos = (propertyId: number) => {
   const config = usePublicConfig();
   return useQuery({
     queryKey: propertyQueryKeys.photos(propertyId),
-    queryFn: ({ signal }) => fetchPropertyPhotos(config, propertyId, signal),
+    queryFn: ({ signal }) =>
+      orPreview(propertyId, previewPropertyPhotos, () => fetchPropertyPhotos(config, propertyId, signal)),
   });
 };

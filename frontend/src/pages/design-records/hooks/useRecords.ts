@@ -11,6 +11,7 @@ import type { MapMarker } from '@/features/map/model/Map';
 import { usePropertyList } from '@/features/property/api/useProperties';
 import usePropertyMarkerPhotos from '@/features/property/hooks/usePropertyMarkerPhotos';
 import { takeMovedProperty } from '@/features/property/model/movedProperty';
+import { withPreviewProperties } from '@/features/property/model/sampleProperties';
 import { PROPERTY_PLACEHOLDER } from '@/shared/assets/propertyImageAssets';
 
 import { recordPresentation } from '../model/recordPresentation';
@@ -36,8 +37,12 @@ const useRecords = (selection?: RecordsSelection) => {
 
   const properties = usePropertyList();
   const allRecords = useMemo(
-    () => properties.data?.pages.flatMap((page) => page.content).map(recordPresentation) ?? [],
-    [properties.data],
+    () =>
+      withPreviewProperties(
+        properties.data?.pages.flatMap((page) => page.content) ?? [],
+        properties.isSuccess,
+      ).properties.map(recordPresentation),
+    [properties.data, properties.isSuccess],
   );
   // 주소가 없는 매물도 `주소 미등록` 뱃지로 모아 보여 준다.
   const districts = ['전체', ...new Set(allRecords.map((record) => record.district))];

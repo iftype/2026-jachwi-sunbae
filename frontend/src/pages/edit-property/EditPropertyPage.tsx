@@ -7,8 +7,8 @@ import { describePropertyLoadError } from '@/features/property/api/propertyError
 import { usePropertyDetail } from '@/features/property/api/useProperties';
 import { useUpdateProperty } from '@/features/property/api/usePropertyMutations';
 import { formatAmountForInput } from '@/features/property/lib/propertyForm';
-import { parsePositiveId } from '@/features/property/lib/propertyFormat';
 import type { PropertyDetail } from '@/features/property/model/Property';
+import { parsePropertyRouteId } from '@/features/property/model/sampleProperties';
 import PropertyForm from '@/features/property/ui/property-form/PropertyForm';
 import {
   HOME_PATH,
@@ -26,7 +26,7 @@ const backToList = <Link to={HOME_PATH}>홈으로 돌아가기</Link>;
 const describeError = describePropertyLoadError('매물 정보를 불러오지 못했어요.');
 
 const EditPropertyPage = () => {
-  const propertyId = parsePositiveId(useParams().propertyId);
+  const propertyId = parsePropertyRouteId(useParams().propertyId);
   if (propertyId === null) return <ContentState title="올바른 매물 주소가 아니에요.">{backToList}</ContentState>;
   return <ResolvedEditPropertyPage propertyId={propertyId} />;
 };
