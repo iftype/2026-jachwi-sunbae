@@ -83,6 +83,18 @@ public class PropertyPhotoService {
         return photoStorage.openStream(photo.getStorageKey()).withContentType(photo.getContentType());
     }
 
+    // 목록 카드와 지도 마커용. 썸네일이 없는 사진(HEIC, 썸네일 도입 전 사진)은 원본을 대신 돌려준다.
+    // 트랜잭션을 걸지 않는 이유와 스트림을 닫는 책임은 openContent와 같다.
+    public PhotoStream openThumbnail(final Long memberId, final Long propertyId, final Long photoId) {
+        findOwnedProperty(memberId, propertyId);
+        PropertyPhoto photo = findPhoto(propertyId, photoId);
+        if (!photo.hasThumbnail()) {
+            return photoStorage.openStream(photo.getStorageKey()).withContentType(photo.getContentType());
+        }
+        return photoStorage.openStream(photo.getThumbnailStorageKey())
+            .withContentType(PhotoThumbnailGenerator.CONTENT_TYPE);
+    }
+
     @Transactional
     public void delete(final Long memberId, final Long propertyId, final Long photoId) {
         lockOwnedProperty(memberId, propertyId);

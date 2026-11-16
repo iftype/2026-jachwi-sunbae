@@ -73,9 +73,22 @@ public class PropertyPhotoController {
             @AuthenticatedMemberId final Long memberId,
             @PathVariable final Long propertyId,
             @PathVariable final Long photoId) {
-        PhotoStream photo = propertyPhotoService.openContent(memberId, propertyId, photoId);
-        // 사진 원본을 메모리에 올리지 않고 S3에서 받는 대로 응답에 흘려보낸다. 다 쓰면 Spring이 스트림을 닫는다.
-        // 응답을 만들기 전에 실패하면 S3 연결이 남지 않도록 직접 닫는다.
+        return streamPhoto(propertyPhotoService.openContent(memberId, propertyId, photoId));
+    }
+
+    @GetMapping("/{propertyId}/photos/{photoId}/thumbnail")
+    @Operation(summary = "매물 사진 썸네일 조회",
+            description = "목록 카드·지도 마커용 긴 변 480px JPEG를 전달합니다. 썸네일이 없는 사진은 원본을 전달합니다.")
+    public ResponseEntity<Resource> findPhotoThumbnail(
+            @AuthenticatedMemberId final Long memberId,
+            @PathVariable final Long propertyId,
+            @PathVariable final Long photoId) {
+        return streamPhoto(propertyPhotoService.openThumbnail(memberId, propertyId, photoId));
+    }
+
+    // 사진을 메모리에 올리지 않고 S3에서 받는 대로 응답에 흘려보낸다. 다 쓰면 Spring이 스트림을 닫는다.
+    // 응답을 만들기 전에 실패하면 S3 연결이 남지 않도록 직접 닫는다.
+    private static ResponseEntity<Resource> streamPhoto(final PhotoStream photo) {
         try {
             return ResponseEntity.ok()
                     .header(HttpHeaders.CACHE_CONTROL, "private, max-age=300")
