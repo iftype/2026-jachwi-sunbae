@@ -19,6 +19,7 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
@@ -27,17 +28,23 @@ public class PropertyPhotoService {
     private final PropertyPhotoRepository propertyPhotoRepository;
     private final PhotoStorage photoStorage;
     private final PhotoStorageKeyGenerator storageKeyGenerator;
+    private final PhotoThumbnailGenerator thumbnailGenerator;
+    private final TransactionTemplate transactionTemplate;
     private final Clock clock;
 
     public PropertyPhotoService(final PropertyRepository propertyRepository,
                                 final PropertyPhotoRepository propertyPhotoRepository,
                                 final PhotoStorage photoStorage,
                                 final PhotoStorageKeyGenerator storageKeyGenerator,
+                                final PhotoThumbnailGenerator thumbnailGenerator,
+                                final TransactionTemplate transactionTemplate,
                                 final Clock clock) {
         this.propertyRepository = propertyRepository;
         this.propertyPhotoRepository = propertyPhotoRepository;
         this.photoStorage = photoStorage;
         this.storageKeyGenerator = storageKeyGenerator;
+        this.thumbnailGenerator = thumbnailGenerator;
+        this.transactionTemplate = transactionTemplate;
         this.clock = clock;
     }
 
@@ -48,34 +55,14 @@ public class PropertyPhotoService {
             propertyPhotoRepository.findRepresentativePhotoId(propertyId).orElse(null));
     }
 
-    @Transactional
+    // 파일 검증과 썸네일 생성은 CPU만 쓰므로 트랜잭션 밖에서 먼저 끝낸다.
+    // 트랜잭션 안에서 하면 사진을 디코딩·축소하는 동안 DB 커넥션과 매물 락을 잡고 있게 된다.
+    // 남의 매물이면 썸네일을 만들기 전에 거절하고, 소유자와 사진 수는 락을 잡은 뒤 다시 확인한다.
     public PropertyPhotoUploadResult upload(final Long memberId, final Long propertyId, final MultipartFile file) {
-        lockOwnedProperty(memberId, propertyId);
-        validatePhotoLimit(propertyId);
-
+        findOwnedProperty(memberId, propertyId);
         PhotoFile photoFile = loadPhotoFile(file);
-
-        String storageKey = storageKeyGenerator.generate(memberId, propertyId, photoFile);
-        photoStorage.upload(storageKey, photoFile.bytes(), photoFile.getContentType());
-        try {
-            PropertyPhoto saved = propertyPhotoRepository.save(memberId,
-                PropertyPhoto.create(propertyId, storageKey, photoFile.getContentType(), photoFile.size(),
-                    LocalDateTime.now(clock)));
-
-            propertyPhotoRepository.ensureRepresentative(propertyId);
-            boolean representative = propertyPhotoRepository.findRepresentativePhotoId(propertyId)
-                .map(saved.getId()::equals)
-                .orElse(false);
-
-            return new PropertyPhotoUploadResult(saved, representative);
-        } catch (RuntimeException exception) {
-            try {
-                photoStorage.delete(storageKey);
-            } catch (RuntimeException compensationFailure) {
-                exception.addSuppressed(compensationFailure);
-            }
-            throw exception;
-        }
+        byte[] thumbnail = thumbnailGenerator.generate(photoFile.bytes()).orElse(null);
+        return transactionTemplate.execute(status -> store(memberId, propertyId, photoFile, thumbnail));
     }
 
     // 트랜잭션을 걸지 않는다. 걸면 S3에서 사진을 받는 동안에도 DB 커넥션을 잡고 있게 된다.
@@ -101,6 +88,9 @@ public class PropertyPhotoService {
         lockOwnedProperty(memberId, propertyId);
         PropertyPhoto photo = findPhoto(propertyId, photoId);
         photoStorage.delete(photo.getStorageKey());
+        if (photo.hasThumbnail()) {
+            photoStorage.delete(photo.getThumbnailStorageKey());
+        }
         propertyPhotoRepository.deleteById(photoId);
         propertyPhotoRepository.ensureRepresentative(propertyId);
     }
@@ -112,6 +102,46 @@ public class PropertyPhotoService {
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.PHOTO_NOT_FOUND,
                         "사진을 찾을 수 없습니다."));
         propertyPhotoRepository.setRepresentative(propertyId, photoId);
+    }
+
+    private PropertyPhotoUploadResult store(final Long memberId, final Long propertyId, final PhotoFile photoFile,
+                                            final byte[] thumbnail) {
+        lockOwnedProperty(memberId, propertyId);
+        validatePhotoLimit(propertyId);
+
+        String storageKey = storageKeyGenerator.generate(memberId, propertyId, photoFile);
+        // 썸네일을 만들지 못했으면(null) 원본만 저장하고, 조회할 때 원본으로 대신한다.
+        String thumbnailKey = thumbnail == null ? null : storageKeyGenerator.thumbnailKeyOf(storageKey);
+        photoStorage.upload(storageKey, photoFile.bytes(), photoFile.getContentType());
+        try {
+            if (thumbnailKey != null) {
+                photoStorage.upload(thumbnailKey, thumbnail, PhotoThumbnailGenerator.CONTENT_TYPE);
+            }
+            PropertyPhoto saved = propertyPhotoRepository.save(memberId,
+                    PropertyPhoto.create(propertyId, storageKey, thumbnailKey, photoFile.getContentType(),
+                            photoFile.size(), LocalDateTime.now(clock)));
+
+            propertyPhotoRepository.ensureRepresentative(propertyId);
+            boolean representative = propertyPhotoRepository.findRepresentativePhotoId(propertyId)
+                    .map(saved.getId()::equals)
+                    .orElse(false);
+
+            return new PropertyPhotoUploadResult(saved, representative);
+        } catch (RuntimeException exception) {
+            deleteQuietly(storageKey, exception);
+            if (thumbnailKey != null) {
+                deleteQuietly(thumbnailKey, exception);
+            }
+            throw exception;
+        }
+    }
+
+    private void deleteQuietly(final String storageKey, final RuntimeException cause) {
+        try {
+            photoStorage.delete(storageKey);
+        } catch (RuntimeException compensationFailure) {
+            cause.addSuppressed(compensationFailure);
+        }
     }
 
     private void lockOwnedProperty(final Long memberId, final Long propertyId) {

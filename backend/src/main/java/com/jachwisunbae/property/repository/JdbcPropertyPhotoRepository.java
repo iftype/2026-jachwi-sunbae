@@ -23,8 +23,11 @@ public class JdbcPropertyPhotoRepository implements PropertyPhotoRepository {
         long photoId = rs.getLong("id");
         try {
             return PropertyPhoto.reconstruct(
-                    photoId, rs.getLong("property_id"), rs.getString("storage_key"),
-                    rs.getString("content_type"), rs.getLong("size_bytes"),
+                    photoId, rs.getLong("property_id"),
+                    rs.getString("storage_key"),
+                    rs.getString("thumbnail_storage_key"),
+                    rs.getString("content_type"),
+                    rs.getLong("size_bytes"),
                     rs.getTimestamp("created_at").toLocalDateTime());
         } catch (ClientException exception) {
             throw new DataInconsistencyException(ErrorCode.INTERNAL_SERVER_ERROR,
@@ -39,7 +42,7 @@ public class JdbcPropertyPhotoRepository implements PropertyPhotoRepository {
     @Override
     public List<PropertyPhoto> findByPropertyId(final long propertyId) {
         String sql = """
-                SELECT id, property_id, storage_key, content_type, size_bytes, created_at
+                SELECT id, property_id, storage_key, thumbnail_storage_key, content_type, size_bytes, created_at
                 FROM property_photos
                 WHERE property_id = ?
                 ORDER BY created_at ASC, id ASC
@@ -57,27 +60,28 @@ public class JdbcPropertyPhotoRepository implements PropertyPhotoRepository {
     @Override
     public PropertyPhoto save(final long memberId, final PropertyPhoto photo) {
         String sql = "INSERT INTO property_photos "
-                + "(property_id, member_id, storage_key, content_type, size_bytes, created_at) "
-                + "VALUES (?, ?, ?, ?, ?, ?)";
+                + "(property_id, member_id, storage_key, thumbnail_storage_key, content_type, size_bytes, created_at) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?)";
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
             statement.setLong(1, photo.getPropertyId());
             statement.setLong(2, memberId);
             statement.setString(3, photo.getStorageKey());
-            statement.setString(4, photo.getContentType());
-            statement.setLong(5, photo.getSizeBytes());
-            statement.setObject(6, photo.getCreatedAt());
+            statement.setString(4, photo.getThumbnailStorageKey());
+            statement.setString(5, photo.getContentType());
+            statement.setLong(6, photo.getSizeBytes());
+            statement.setObject(7, photo.getCreatedAt());
             return statement;
         }, keyHolder);
         return PropertyPhoto.reconstruct(keyHolder.getKey().longValue(), photo.getPropertyId(), photo.getStorageKey(),
-                photo.getContentType(), photo.getSizeBytes(), photo.getCreatedAt());
+                photo.getThumbnailStorageKey(), photo.getContentType(), photo.getSizeBytes(), photo.getCreatedAt());
     }
 
     @Override
     public Optional<PropertyPhoto> findByIdAndPropertyId(final long photoId, final long propertyId) {
         return jdbcTemplate.query("""
-                SELECT id, property_id, storage_key, content_type, size_bytes, created_at
+                SELECT id, property_id, storage_key, thumbnail_storage_key, content_type, size_bytes, created_at
                 FROM property_photos WHERE id = ? AND property_id = ?
                 """, propertyPhotoRowMapper, photoId, propertyId).stream().findFirst();
     }

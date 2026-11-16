@@ -11,15 +11,19 @@ public class PropertyPhoto {
     private final Long id;
     private final Long propertyId;
     private final String storageKey;
+    // 목록·지도용 썸네일의 저장 키. 만들지 못한 사진과 썸네일 도입 전 사진은 null이며, 조회할 때 원본으로 대신한다.
+    private final String thumbnailStorageKey;
     private final String contentType;
     private final Long sizeBytes;
     private final LocalDateTime createdAt;
 
     private PropertyPhoto(final Long id, final Long propertyId, final String storageKey,
-                           final String contentType, final Long sizeBytes, final LocalDateTime createdAt) {
+                           final String thumbnailStorageKey, final String contentType, final Long sizeBytes,
+                           final LocalDateTime createdAt) {
         this.id = id;
         this.propertyId = propertyId;
         this.storageKey = storageKey;
+        this.thumbnailStorageKey = thumbnailStorageKey;
         this.contentType = contentType;
         this.sizeBytes = sizeBytes;
         this.createdAt = createdAt;
@@ -28,15 +32,33 @@ public class PropertyPhoto {
     public static PropertyPhoto create(final Long propertyId, final String storageKey,
                                        final String contentType, final Long sizeBytes,
                                        final LocalDateTime createdAt) {
-        return new PropertyPhoto(null, validateId(propertyId), validateText(storageKey), validateContentType(contentType),
+        return create(propertyId, storageKey, null, contentType, sizeBytes, createdAt);
+    }
+
+    public static PropertyPhoto create(final Long propertyId, final String storageKey,
+                                       final String thumbnailStorageKey, final String contentType,
+                                       final Long sizeBytes, final LocalDateTime createdAt) {
+        return new PropertyPhoto(null, validateId(propertyId), validateText(storageKey),
+                validateOptionalText(thumbnailStorageKey), validateContentType(contentType),
                 validateSize(sizeBytes), requireCreatedAt(createdAt));
     }
 
     public static PropertyPhoto reconstruct(final Long id, final Long propertyId, final String storageKey,
                                            final String contentType, final Long sizeBytes,
                                            final LocalDateTime createdAt) {
-        return new PropertyPhoto(id, validateId(propertyId), validateText(storageKey), validateContentType(contentType),
+        return reconstruct(id, propertyId, storageKey, null, contentType, sizeBytes, createdAt);
+    }
+
+    public static PropertyPhoto reconstruct(final Long id, final Long propertyId, final String storageKey,
+                                           final String thumbnailStorageKey, final String contentType,
+                                           final Long sizeBytes, final LocalDateTime createdAt) {
+        return new PropertyPhoto(id, validateId(propertyId), validateText(storageKey),
+                validateOptionalText(thumbnailStorageKey), validateContentType(contentType),
                 validateSize(sizeBytes), requireCreatedAt(createdAt));
+    }
+
+    public boolean hasThumbnail() {
+        return thumbnailStorageKey != null;
     }
 
     // 매물 ID, 저장 키, 크기, 업로드 시각은 서버가 채우는 값이다.
@@ -51,6 +73,13 @@ public class PropertyPhoto {
     private static String validateText(final String value) {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException("사진 저장 키는 필수입니다.");
+        }
+        return value;
+    }
+
+    private static String validateOptionalText(final String value) {
+        if (value != null && value.isBlank()) {
+            throw new IllegalArgumentException("사진 썸네일 저장 키는 비어 있을 수 없습니다.");
         }
         return value;
     }
