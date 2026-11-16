@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 
 import { UNSUPPORTED_ADDRESS_MESSAGE } from '@/features/map/lib/mapAddress';
 import { formatPropertyPrice, hasPropertyPrice } from '@/features/property/lib/propertyFormat';
@@ -22,6 +22,8 @@ type PropertyBasicInfoSectionProps = {
   onEditLocation: () => void;
   /** 방금 저장한 항목. 그 줄 값 아래에 잠깐 저장했다고 알린다. */
   savedField: PropertyEditField | null;
+  /** 주소 줄 바로 아래에 붙이는 내용. 매물 상세는 주변 지도와 시설 요약을 둔다. */
+  afterAddress?: ReactNode;
 };
 
 /** 새 매물은 보증금과 월세를 0으로 만든다. 둘 다 0이면 비워 두어 입력을 권하는 안내(`emptyText`)를 보인다. */
@@ -41,6 +43,7 @@ const PropertyBasicInfoSection = ({
   onCancel,
   onEditLocation,
   savedField,
+  afterAddress,
 }: PropertyBasicInfoSectionProps) => {
   const [isEditingName, setIsEditingName] = useState(false);
   return (
@@ -74,6 +77,7 @@ const PropertyBasicInfoSection = ({
           onEdit={onEditLocation}
           feedback={savedField === 'location' ? SAVED_TEXT : undefined}
         />
+        {afterAddress !== undefined && <div>{afterAddress}</div>}
       </PropertyInfoSection>
     </>
   );

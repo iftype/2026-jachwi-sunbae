@@ -8,6 +8,7 @@ export const markerSignature = (marker: MapMarker, selectedMarkerId: string | nu
     marker.tone ?? '',
     marker.category ?? '',
     marker.variant ?? '',
+    marker.color ?? '',
     marker.count ?? '',
     marker.rank ?? '',
     marker.label,

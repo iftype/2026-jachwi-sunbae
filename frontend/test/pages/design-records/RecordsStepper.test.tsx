@@ -140,6 +140,7 @@ it('데스크탑 상세 칸에서도 이전 다음으로 리스트 순서대로 
     renderRecords();
     // 기본 목록은 망원동 투룸, 신림역 원룸 순서다.
     await screen.findByRole('button', { name: '신림역 원룸' });
+    // 상세 칸에도 주변 지도가 하나 더 생기므로, 상세를 열기 전에 본 방 기록 지도를 잡아 둔다.
     const map = within(screen.getByLabelText('예시 지도'));
     await user.click(map.getByRole('button', { name: '신림역 원룸' }));
     let detail = within(screen.getByRole('complementary', { name: '선택한 매물 상세' }));
@@ -150,7 +151,7 @@ it('데스크탑 상세 칸에서도 이전 다음으로 리스트 순서대로 
     detail = within(screen.getByRole('complementary', { name: '선택한 매물 상세' }));
     expect(await detail.findByRole('heading', { level: 1, name: '망원동 투룸' })).toBeInTheDocument();
     expect(detail.getByRole('button', { name: '이전 매물' })).toBeDisabled();
-    expect(screen.getByLabelText('지도 중심')).toHaveTextContent('37.5551234,126.9101234');
+    expect(map.getByLabelText('지도 중심')).toHaveTextContent('37.5551234,126.9101234');
     expect(map.getByRole('button', { name: '망원동 투룸' })).toHaveAttribute('aria-pressed', 'true');
   } finally {
     matchMedia.mockRestore();
