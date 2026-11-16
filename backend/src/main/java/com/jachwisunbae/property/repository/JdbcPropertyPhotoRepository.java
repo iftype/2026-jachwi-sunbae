@@ -125,4 +125,26 @@ public class JdbcPropertyPhotoRepository implements PropertyPhotoRepository {
         jdbcTemplate.update("INSERT INTO main_property_photos (property_id, property_photos_id) VALUES (?, ?)",
                 propertyId, photoId);
     }
+
+    // 썸네일이 없는 사진을 ID 순서로 나눠 읽는다. 썸네일을 만들 수 없는 사진(HEIC)도 계속 NULL이므로,
+    // 같은 사진을 반복해서 읽지 않도록 마지막으로 처리한 ID 다음부터 읽는다. 탈퇴로 지워진 사진은 제외한다.
+    @Override
+    public List<PropertyPhoto> findWithoutThumbnailAfter(final long afterPhotoId, final int limit) {
+        return jdbcTemplate.query("""
+                SELECT id, property_id, storage_key, thumbnail_storage_key, content_type, size_bytes, created_at
+                FROM property_photos
+                WHERE id > ? AND thumbnail_storage_key IS NULL AND deleted_at IS NULL
+                ORDER BY id ASC
+                LIMIT ?
+                """, propertyPhotoRowMapper, afterPhotoId, limit);
+    }
+
+    // 그사이 사진이 지워졌거나 다른 요청이 먼저 썸네일을 기록했으면 바꾸지 않고 false를 돌려준다.
+    @Override
+    public boolean updateThumbnailStorageKey(final long photoId, final String thumbnailStorageKey) {
+        return jdbcTemplate.update("""
+                UPDATE property_photos SET thumbnail_storage_key = ?
+                WHERE id = ? AND thumbnail_storage_key IS NULL AND deleted_at IS NULL
+                """, thumbnailStorageKey, photoId) == 1;
+    }
 }
