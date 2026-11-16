@@ -1,4 +1,5 @@
 import { css } from '@emotion/css';
+import { useState } from 'react';
 import { Outlet, useMatch } from 'react-router-dom';
 
 import { formatManwon } from '@/features/map/api/commuteApi';
@@ -53,11 +54,13 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
   });
   const recordArea = preview.selected ?? preview.topAreas[0];
   // 지도 안 왼쪽 아래 카드에 보일 정보 하나: 누른 마커, 고른 동네, `My` 매물 목록 가운데 하나.
+  // 동네 카드만 닫은 동네. 카드는 숨기되 지도의 선택 테두리는 남긴다. 다른 동네를 고르면 다시 카드를 보인다.
+  const [closedAreaId, setClosedAreaId] = useState<string | null>(null);
   const infoSubject: MapInfoSubject | null = !isResultMap
     ? null
     : places.selectedPlace
       ? { kind: 'place', place: places.selectedPlace }
-      : preview.selected
+      : preview.selected && preview.selected.adminDongCode !== closedAreaId
         ? { kind: 'area', area: preview.selected }
         : railSelection === 'MY'
           ? { kind: 'my' }
@@ -65,7 +68,7 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
   /** 지도 안 정보 카드를 닫는다. */
   const closeInfo = () => {
     if (infoSubject?.kind === 'place') closeLayers();
-    else if (infoSubject?.kind === 'area') preview.selectRegion(null);
+    else if (infoSubject?.kind === 'area') setClosedAreaId(infoSubject.area.adminDongCode);
     else mapView.clearRail();
   };
   const hasDetail = isResultMap && !!isDetailPage;
@@ -78,15 +81,6 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
           {/* 윗줄에는 출퇴근 장소, 아랫줄에는 걸러 낸 조건(통근, 환승, 월세)을 줄을 나눠 둔다. */}
           <p className={styles.areaDestination}>{preview.destination.name}</p>
           <p className={styles.areaCriteria}>{criteriaSummary(preview)}</p>
-          {/* 지도 색 기준은 지도 위 슬라이더 아래가 아니라 이 머리에 둔다. */}
-          <div className={styles.areaLegend} aria-label="통근 시간 색상 기준">
-            {commuteLegend(preview.maxMinutes).map(([group, label]) => (
-              <span key={group}>
-                <i style={{ background: COMMUTE_COLORS[group].fillColor }} />
-                {label}
-              </span>
-            ))}
-          </div>
         </div>
         <Button
           variant="secondary"
@@ -99,6 +93,15 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
           <Icon name="refresh" size={18} />
           다시 선택하기
         </Button>
+        {/* 지도 색 기준은 지도 위 슬라이더 아래가 아니라 이 머리에 둔다. 버튼 옆 좁은 칸에서 줄이 꺾이지 않게 머리 전체 폭 한 줄로 둔다. */}
+        <div className={styles.areaLegend} aria-label="통근 시간 색상 기준">
+          {commuteLegend(preview.maxMinutes).map(([group, label]) => (
+            <span key={group}>
+              <i style={{ background: COMMUTE_COLORS[group].fillColor }} />
+              {label}
+            </span>
+          ))}
+        </div>
       </header>
       {/* 이번 검색으로 받은 동네 카드를 통근 시간 짧은 순(같으면 출퇴근 장소에서 가까운 순)으로 늘어놓는다. */}
       {preview.resultAreas.length === 0 ? (
@@ -391,6 +394,7 @@ const styles = {
   areaHeader: css`
     label: NeighborhoodPreviewDesktopPage-areaHeader;
     display: flex;
+    flex-wrap: wrap;
     align-items: flex-start;
     justify-content: space-between;
     gap: 0.75rem;
@@ -410,12 +414,11 @@ const styles = {
   areaDestination: css`
     label: NeighborhoodPreviewDesktopPage-areaDestination;
     margin-top: 0.35rem;
-    overflow: hidden;
     color: var(--color-ink);
     font-size: 0.88rem;
     font-weight: 600;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    /* 좁은 칸에서 주소 끝이 말줄임으로 잘리지 않게 두 줄까지 늘린다. */
+    word-break: keep-all;
   `,
 
   /* 아랫줄: 필터링 조건. 옅은 회색 작은 글씨. */
@@ -431,8 +434,9 @@ const styles = {
     label: NeighborhoodPreviewDesktopPage-areaLegend;
     display: flex;
     flex-wrap: wrap;
+    flex-basis: 100%;
     gap: 0.3rem 0.9rem;
-    margin-top: 0.6rem;
+    margin-top: -0.2rem;
     color: var(--color-ink-soft);
     font-size: 0.72rem;
     font-weight: 700;

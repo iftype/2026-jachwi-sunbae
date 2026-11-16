@@ -9,7 +9,7 @@ import {
 } from '@/shared/api/responseParsers';
 import type { PublicConfig } from '@/shared/config/publicConfigTypes';
 
-import type { MapRegion } from '../model/MapCanvas';
+import type { MapRegion, MapRegionRentLabel } from '../model/MapCanvas';
 
 type Coordinate = { latitude: number; longitude: number };
 export type CommuteArea = {
@@ -188,3 +188,21 @@ const manwonNumberFormat = new Intl.NumberFormat('ko-KR');
 
 /** 원 단위 금액을 만원 단위 문구로 바꾼다. */
 export const formatManwon = (krw: number) => `${manwonNumberFormat.format(Math.round(krw / 10000))}만원`;
+
+/**
+ * 이 건수보다 적은 거래로 낸 시세는 지도 라벨에서 회색으로 흐리게 한다. 건수는 읽기 도구에만 알린다.
+ * 서버는 5건 미만이면 시세를 비운다. 강남역 40분 결과 290개 동의 거래 건수는 중앙값 301건, 하위 10% 경계 31건이라
+ * 5건이나 10건 기준으로는 거의 걸리지 않아(각 3%) 하위 10%쯤인 30건을 기준으로 한다.
+ */
+export const SPARSE_RENT_TRANSACTIONS = 30;
+
+/** 지도 라벨에 붙일 월세 줄. 시세가 없는(거래 5건 미만) 동네는 줄을 두지 않는다. */
+export const rentLabelOf = (area: CommuteArea, filteredOut: boolean): MapRegionRentLabel | undefined =>
+  area.rent
+    ? {
+        price: `${manwonNumberFormat.format(Math.round(area.rent.monthlyRentKrw / 10000))}만`,
+        count: area.rent.transactionCount,
+        sparse: area.rent.transactionCount < SPARSE_RENT_TRANSACTIONS,
+        filteredOut,
+      }
+    : undefined;

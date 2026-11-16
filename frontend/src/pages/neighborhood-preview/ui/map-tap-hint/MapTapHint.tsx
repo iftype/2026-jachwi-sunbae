@@ -26,6 +26,15 @@ const styles = {
   overlay: css`
     label: MapTapHint-overlay;
     z-index: 15;
+
+    /* 밝은 지도 글자와 손 그림 위에서도 읽히게 안내 글만 반투명한 어두운 판 위에 둔다. */
+    & > p {
+      padding: 0.8rem 1.1rem;
+      border-radius: 0.9rem;
+      background: rgb(20 23 28 / 72%);
+      text-shadow: none;
+      backdrop-filter: blur(6px);
+    }
   `,
 };
 

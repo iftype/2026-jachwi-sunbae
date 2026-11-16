@@ -89,3 +89,54 @@ export const cells = css`
     background: color-mix(in srgb, var(--region-accent) 18%, white);
   }
 `;
+
+/** 동 이름과 평균 월세를 붙인 작은 라벨. 지도 색칠 위에서도 읽히게 흰 바탕과 옅은 테두리를 둔다. */
+export const rentLabel = css`
+  label: MapRegionSummary-rentLabel;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: max-content;
+  max-width: 96px;
+  padding: 2px 6px 3px;
+  border: 1px solid rgb(0 0 0 / 14%);
+  border-radius: 6px;
+  background: rgb(255 255 255 / 92%);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 16%);
+  color: #222;
+  cursor: pointer;
+  font-family: inherit;
+  line-height: 1.25;
+  text-align: center;
+
+  & > strong {
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  & > span {
+    display: flex;
+    align-items: baseline;
+    gap: 3px;
+    white-space: nowrap;
+  }
+
+  & b {
+    font-size: 11px;
+    color: #3f6fc4;
+  }
+
+  &[data-sparse='true'] b {
+    color: #8a909a;
+    font-weight: 500;
+  }
+
+  &[data-filtered-out='true'] {
+    opacity: 0.5;
+  }
+
+  &[aria-pressed='true'] {
+    border-color: #3f6fc4;
+    box-shadow: 0 0 0 1px #3f6fc4;
+  }
+`;
