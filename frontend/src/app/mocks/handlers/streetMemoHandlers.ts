@@ -14,7 +14,7 @@ export type MockStreetMemo = {
 };
 
 /**
- * 서울시청 근처에 다른 회원이 남긴 메모 두 개와, 동네 찾기 목업 결과의 역삼1동(`11230640`)에 남긴 메모 세 개.
+ * 서울시청 근처에 내가 남긴 메모 두 개와, 동네 찾기 목업 결과의 역삼1동(`11230640`)에 남긴 메모 세 개.
  * 역삼1동의 마지막 메모는 행정동 코드가 없어 동네 찾기 지도에서 가까이 확대했을 때만 보인다.
  */
 const SEED_MEMOS: MockStreetMemo[] = [
@@ -24,7 +24,7 @@ const SEED_MEMOS: MockStreetMemo[] = [
     longitude: 126.9772,
     memo: '늦게까지 여는 세탁소가 있어요.',
     preference: 'LIKE',
-    isMine: false,
+    isMine: true,
     adminDongCode: '11140550',
   },
   {
@@ -33,7 +33,7 @@ const SEED_MEMOS: MockStreetMemo[] = [
     longitude: 126.9795,
     memo: '저녁에 배달 오토바이가 많이 다녀요.',
     preference: 'DISLIKE',
-    isMine: false,
+    isMine: true,
     adminDongCode: '11140550',
   },
   {
@@ -42,7 +42,7 @@ const SEED_MEMOS: MockStreetMemo[] = [
     longitude: 127.0359,
     memo: '역까지 평지라 걷기 편해요.',
     preference: 'LIKE',
-    isMine: false,
+    isMine: true,
     adminDongCode: '11230640',
   },
   {
@@ -51,7 +51,7 @@ const SEED_MEMOS: MockStreetMemo[] = [
     longitude: 127.0331,
     memo: '골목에 늦게까지 여는 식당이 많아요.',
     preference: 'LIKE',
-    isMine: false,
+    isMine: true,
     adminDongCode: '11230640',
   },
   {
@@ -60,7 +60,7 @@ const SEED_MEMOS: MockStreetMemo[] = [
     longitude: 127.0387,
     memo: '큰길 쪽은 밤에도 차 소리가 커요.',
     preference: 'DISLIKE',
-    isMine: false,
+    isMine: true,
     adminDongCode: null,
   },
 ];
@@ -70,7 +70,10 @@ const readBound = (params: URLSearchParams, key: string) => {
   return value === null ? null : Number(value);
 };
 
-/** 호출마다 저장소를 새로 만든다. 테스트끼리 메모가 섞이지 않게 테스트는 매번 새로 만들어 쓴다. 새로 쓴 메모는 본인 메모가 된다. */
+/**
+ * 호출마다 저장소를 새로 만든다. 테스트끼리 메모가 섞이지 않게 테스트는 매번 새로 만들어 쓴다. 새로 쓴 메모는 본인 메모가 된다.
+ * 서버처럼 본인 메모(`isMine`)만 돌려준다.
+ */
 export const createStreetMemoHandlers = (initial: MockStreetMemo[] = SEED_MEMOS) => {
   const memos = initial.map((memo) => ({ ...memo }));
   let nextId = Math.max(0, ...memos.map((memo) => memo.streetMemoId)) + 1;
@@ -86,7 +89,11 @@ export const createStreetMemoHandlers = (initial: MockStreetMemo[] = SEED_MEMOS)
       return success(
         memos.filter(
           (memo) =>
-            memo.latitude >= south && memo.latitude <= north && memo.longitude >= west && memo.longitude <= east,
+            memo.isMine &&
+            memo.latitude >= south &&
+            memo.latitude <= north &&
+            memo.longitude >= west &&
+            memo.longitude <= east,
         ),
       );
     }),
