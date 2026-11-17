@@ -19,18 +19,23 @@ import com.jachwisunbae.property.entity.Property;
 import com.jachwisunbae.property.repository.JdbcPropertyRepository;
 import com.jachwisunbae.property.type.RoomOption;
 import com.jachwisunbae.property.type.UtilityOption;
+import com.zaxxer.hikari.HikariDataSource;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.sql.SQLException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Base64;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.IntStream;
 import javax.imageio.ImageIO;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -44,13 +49,14 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 // Bedrock 호출은 비용과 AWS 인증이 필요하므로 추출기만 대역으로 두고, 검증·병합·저장은 실제 MySQL로 확인한다.
-// 트랜잭션 롤백을 커밋된 DB 상태로 확인하려고 테스트에는 트랜잭션을 걸지 않고 매번 데이터를 지운다.
+// 트랜잭션 롤백과 커넥션 점유를 실제 상태로 확인하려고 테스트에는 트랜잭션을 걸지 않고 매번 데이터를 지운다.
 @Testcontainers
 @SpringBootTest
 @ActiveProfiles("test")
@@ -77,6 +83,9 @@ class PropertyAiImportServiceIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbc;
+
+    @Autowired
+    private DataSource dataSource;
 
     @MockitoBean
     private BedrockPropertyExtractor extractor;
@@ -136,6 +145,28 @@ class PropertyAiImportServiceIntegrationTest {
         assertThat(captor.getValue()).extracting(PropertyImage::contentType)
                 .containsExactly("image/png", "image/jpeg", "image/png", "image/jpeg", "image/png",
                         "image/jpeg", "image/png", "image/jpeg", "image/png", "image/jpeg");
+    }
+
+    @Test
+    @DisplayName("Bedrock 응답을 기다리는 동안 트랜잭션과 DB 커넥션을 잡지 않는다")
+    void analyzesWithoutHoldingConnection() throws SQLException {
+        // given
+        AtomicBoolean transactionActive = new AtomicBoolean(true);
+        AtomicInteger activeConnections = new AtomicInteger(-1);
+        HikariDataSource pool = dataSource.unwrap(HikariDataSource.class);
+        given(extractor.extract(anyList())).willAnswer(invocation -> {
+            transactionActive.set(TransactionSynchronizationManager.isActualTransactionActive());
+            activeConnections.set(pool.getHikariPoolMXBean().getActiveConnections());
+            return EXTRACTION;
+        });
+
+        // when
+        service.importFromImages(MEMBER_ID, propertyId, List.of(png("capture.png")));
+
+        // then
+        assertThat(transactionActive).isFalse();
+        assertThat(activeConnections).hasValue(0);
+        assertThat(findSaved().getDepositAmount()).isEqualTo(20_000_000L);
     }
 
     @Test

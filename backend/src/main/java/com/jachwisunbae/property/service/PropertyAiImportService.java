@@ -14,7 +14,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
@@ -36,9 +35,10 @@ public class PropertyAiImportService {
         this.propertyService = propertyService;
     }
 
-    // TODO llm 호출 트랜잭션 이후 검토(DB커넥션)
-    // PropertyService.applyAiExtraction은 이 트랜잭션에 참여한다.
-    @Transactional
+    // 트랜잭션을 걸지 않는다. 걸면 Bedrock 응답을 기다리는 동안(최대 60초) DB 커넥션을 잡고 있어 요청이 몰리면 커넥션 풀이 고갈되어 다른 API까지 느려진다.
+    // 소유권 확인은 커넥션을 짧게 쓰고 반납하고, 저장은 PropertyService.applyAiExtraction의 트랜잭션이 맡는다.
+    // 같은 클래스 안이 아니라 다른 Bean을 거쳐 호출해야 트랜잭션 프록시가 적용된다.
+    @org.springframework.transaction.annotation.Transactional
     public Property importFromImages(final Long memberId, final Long propertyId, final List<MultipartFile> files) {
         // 남의 매물에 대해 Bedrock을 호출하지 않도록 분석 전에 소유자를 먼저 확인한다.
         if (!propertyRepository.existsByIdAndMemberId(propertyId, memberId)) {
