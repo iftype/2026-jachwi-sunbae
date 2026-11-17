@@ -63,19 +63,36 @@
         border-radius: 12px;
         background: #f4f5f7;
       }
+      /* 휴대폰: 실제 홈의 최근 기록(제목 48, 방 두 줄 92, 전체 기록 줄 44)과 그 아래 동네 찾기 줄(48) 크기에 맞춘다. */
+      .boot-skeleton--home .boot-skeleton__header {
+        height: 48px;
+      }
+      .boot-skeleton--home .boot-skeleton__body {
+        padding-top: 10px;
+        gap: 8px;
+      }
       .boot-skeleton__body span:nth-child(1),
-      .boot-skeleton__body span:nth-child(4) {
+      .boot-skeleton__body span:nth-child(5) {
         height: 48px;
       }
       .boot-skeleton__body span:nth-child(2),
       .boot-skeleton__body span:nth-child(3) {
         height: 92px;
       }
+      .boot-skeleton__body span:nth-child(3) {
+        margin-top: -2px;
+      }
+      .boot-skeleton__body span:nth-child(4) {
+        height: 44px;
+      }
       @media (min-width: 1024px) {
         .boot-skeleton__header {
           box-sizing: border-box;
           height: 71px;
           border-bottom: 1px solid #eceef1;
+        }
+        .boot-skeleton--home .boot-skeleton__header {
+          height: 71px;
         }
         .boot-skeleton--home .boot-skeleton__body {
           max-width: 1200px;
@@ -84,8 +101,13 @@
           column-gap: clamp(16px, 2.6vw, 32px);
           row-gap: 12px;
         }
+        /* 데스크탑: 왼쪽 최근 기록 판(안쪽 여백 16 포함 364)과 오른쪽 동네 찾기 카드(141). 휴대폰용 아래 줄은 숨긴다. */
+        .boot-skeleton__body span:nth-child(n) {
+          margin-top: 0;
+        }
         .boot-skeleton__body span:nth-child(1) {
           grid-area: 1 / 1;
+          margin-top: 16px;
         }
         .boot-skeleton__body span:nth-child(2) {
           grid-area: 2 / 1;
@@ -93,10 +115,14 @@
         }
         .boot-skeleton__body span:nth-child(3) {
           grid-area: 1 / 2 / span 2;
-          height: 144px;
+          height: 141px;
         }
         .boot-skeleton__body span:nth-child(4) {
           grid-area: 3 / 1;
+          margin-bottom: 16px;
+        }
+        .boot-skeleton__body span:nth-child(5) {
+          display: none;
         }
       }
     </style>
@@ -106,7 +132,7 @@
     <div id="root">
       <div class="boot-skeleton boot-skeleton--home" role="progressbar" aria-label="화면을 불러오는 중이에요.">
         <div class="boot-skeleton__header"></div>
-        <div class="boot-skeleton__body"><span></span><span></span><span></span><span></span></div>
+        <div class="boot-skeleton__body"><span></span><span></span><span></span><span></span><span></span></div>
       </div>
     </div>
     <script>

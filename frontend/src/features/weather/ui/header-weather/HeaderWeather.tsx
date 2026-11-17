@@ -6,8 +6,9 @@ import { Link } from 'react-router-dom';
 import { useRecentEdit } from '@/features/property/hooks/useRecentEdit';
 import { openNativeSettings, supportsNativePush } from '@/shared/lib/native-app/nativePush';
 
-import { readLastWeatherCoordinate } from '../../lib/lastWeatherCoordinate';
-import { readWeatherLocationChoice } from '../../lib/weatherLocationPreference';
+import { readLastWeatherCoordinate, writeLastWeatherCoordinate } from '../../lib/lastWeatherCoordinate';
+import { requestWeatherLocation } from '../../lib/weatherLocation';
+import { readWeatherLocationChoice, writeWeatherLocationEnabled } from '../../lib/weatherLocationPreference';
 import { weatherLabel } from '../../lib/weatherPresentation';
 import { useHeaderWeather } from '../../model/useHeaderWeather';
 import { useWeatherPushSync } from '../../model/useWeatherPushSync';
@@ -27,7 +28,24 @@ type Slide = { key: string; node: (isActive: boolean) => ReactNode };
  * 안내가 둘 이상이면 번갈아 보인다. 날씨는 12초, 나머지 안내는 5초 보이고, 마우스를 올리면 멈춘다.
  */
 const HeaderWeather = ({ className }: { className?: string }) => {
-  const { placeName, hour, precipitation } = useHeaderWeather();
+  const { placeName, hour, precipitation, needsLocation, permission } = useHeaderWeather();
+  const [locationStatus, setLocationStatus] = useState<'idle' | 'busy' | 'denied'>('idle');
+  const askLocation = () => {
+    if (locationStatus === 'busy') return;
+    if (permission === 'denied' && supportsNativePush()) {
+      void openNativeSettings().catch(() => undefined);
+      return;
+    }
+    setLocationStatus('busy');
+    // 클릭 처리기 안에서 바로 불러야 브라우저의 위치 허용 창이 뜬다. 받은 위치는 현재 위치 저장소에 올라가 날씨가 바로 보인다.
+    requestWeatherLocation()
+      .then((coordinate) => {
+        writeWeatherLocationEnabled(true);
+        writeLastWeatherCoordinate(coordinate);
+        setLocationStatus('idle');
+      })
+      .catch(() => setLocationStatus('denied'));
+  };
   const settings = useWeatherPushSync();
   const pushToggle = useWeatherPushToggle('header');
   const resumeEdit = useRecentEdit();
@@ -80,6 +98,29 @@ const HeaderWeather = ({ className }: { className?: string }) => {
     });
   }
 
+  if (needsLocation) {
+    slides.push({
+      key: 'location',
+      node: (isActive) => (
+        <button
+          type="button"
+          className={`${styles.item} ${styles.prompt}`}
+          data-active={isActive}
+          tabIndex={isActive ? 0 : -1}
+          disabled={locationStatus === 'busy'}
+          aria-busy={locationStatus === 'busy'}
+          onClick={askLocation}
+        >
+          <span className={styles.promptMessage} role={locationStatus === 'denied' ? 'status' : undefined}>
+            {locationStatus === 'denied'
+              ? '위치를 못 받았어요. 브라우저 설정에서 허용해 주세요'
+              : '위치를 허용하면 날씨를 볼 수 있어요'}
+          </span>
+          <span className={styles.promptAction}>{locationStatus === 'busy' ? '확인 중' : '위치 허용'}</span>
+        </button>
+      ),
+    });
+  }
   if (supportsNativePush() && settings.data !== undefined && !settings.data.enabled) {
     const needsDeviceSetting = settings.data.problem === 'permission';
     const memberId = settings.memberId;

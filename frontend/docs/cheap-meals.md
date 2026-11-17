@@ -36,12 +36,12 @@ GET /api/delivery-discount-offers
 - `features/good-price`: 업소 API 응답 검증·Query Hook·화면 모델
 - `features/meal-deals`: API 응답 검증·Query Hook은 `api`, 화면 모델·표시 상수는 `model`, 표시 함수는 `lib`에 둔다.
 - `pages/cheap-meals`: 탭 탐색, 지도·상세 이력 Hook, 카테고리 패널과 상세 시트. 공유 타입은 `model`에 두고 지도 Hook은 `openList`·`closeList`처럼 의도가 드러나는 동작을 제공한다. 화면은 `desktop`, `mobile`로 나누고 탭 목록과 패널은 `ui/meal-tab-list`, `ui/meal-tab-panels`를 함께 쓴다. 이벤트 이름과 속성은 `lib/cheapMealAnalytics.ts`가 소유한다. 편의점 상품의 행사 유형 필터·상품명 검색·가격 정렬은 순수 함수 `lib/convenienceProducts.ts`의 `selectProducts`가 맡는다.
-- `pages/design-home/ui/CheapMealCard.tsx`: 공용 `ActionCard`로 만든 모바일, 데스크탑 공통 진입 카드
+- `pages/my/ui/MyQuickLinks.tsx`: 마이의 도구 타일 가운데 `저렴한 한 끼` 타일이 진입점이다
 - `features/map`: 기존 지도 컴포넌트 재사용 및 늦은 SDK 인증 실패에 대한 정리 보호
 
 `/cheap-meals/:mealTab?`는 기존 ProtectedRoute 안에 lazy route로 추가한다. `/map`의 매물 경로와 리다이렉트, 홈의 방 찾기·동네 찾기·체크리스트·방 비교는 유지한다.
 
-화면은 공용 `TopNavigation`, `EmptyState`, `ContentState`, `InlineNotice`, `InfoValue`, `SegmentedControl`, `SearchField`, `ActionCard`, `Button`을 쓴다. 세 탭의 빈 상태는 `MealEmptyState`(공용 `EmptyState`에 오리 그림)로, 식당 오류는 다른 탭과 같은 `ContentState` 오류 화면으로 그린다. 상품 사진은 받은 그대로 정사각형 칸 안에 통째로 넣어 세로로 긴 사진도 자르지 않는다. 그림자는 `--shadow-floating`, `--shadow-dialog` 토큰을 쓴다.
+화면은 공용 `TopNavigation`, `EmptyState`, `ContentState`, `InlineNotice`, `InfoValue`, `SegmentedControl`, `SearchField`, `Button`을 쓴다. 세 탭의 빈 상태는 `MealEmptyState`(공용 `EmptyState`에 오리 그림)로, 식당 오류는 다른 탭과 같은 `ContentState` 오류 화면으로 그린다. 상품 사진은 받은 그대로 정사각형 칸 안에 통째로 넣어 세로로 긴 사진도 자르지 않는다. 그림자는 `--shadow-floating`, `--shadow-dialog` 토큰을 쓴다.
 
 ## PostHog 이벤트
 
