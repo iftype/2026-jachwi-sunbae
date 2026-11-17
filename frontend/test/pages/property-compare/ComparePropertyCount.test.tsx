@@ -1,4 +1,5 @@
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -89,20 +90,21 @@ describe.each([
     withProperties([]);
     renderPage(Page);
 
-    expect(screen.getByText('비교하려면 매물이 2개 필요해요.')).toBeInTheDocument();
-    expect(screen.queryByText('매물을 하나 더 등록하면 비교할 수 있어요.')).not.toBeInTheDocument();
+    expect(screen.getByText('PDF로 받을 매물이 아직 없어요.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /PDF 받기/ })).not.toBeInTheDocument();
   });
 
-  it('매물이 1개면 그 매물을 보이고, PDF 버튼 대신 하나 더 등록하라고 안내한다', () => {
+  it('매물이 1개여도 그 매물을 보이고, 골라서 PDF로 받을 수 있다', async () => {
     withProperties([property(1, '성수동 투룸')]);
     renderPage(Page);
+    const user = userEvent.setup();
 
     expect(screen.getByText('성수동 투룸')).toBeInTheDocument();
-    expect(screen.queryByText('비교하려면 매물이 2개 필요해요.')).not.toBeInTheDocument();
-    expect(screen.getByText('매물을 하나 더 등록하면 비교할 수 있어요.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '본 방 기록에서 등록하기' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /PDF 받기/ })).not.toBeInTheDocument();
+    expect(screen.queryByText('PDF로 받을 매물이 아직 없어요.')).not.toBeInTheDocument();
+    const download = within(screen.getByRole('main')).getByRole('button', { name: /PDF 받기/ });
+    expect(download).toBeDisabled();
+    await user.click(screen.getByRole('checkbox', { name: /성수동 투룸/ }));
+    expect(within(screen.getByRole('main')).getByRole('button', { name: '선택한 1개 PDF 받기' })).toBeEnabled();
   });
 
   it('매물이 2개 이상이면 목록과 PDF 받기 버튼을 보인다', () => {
@@ -112,6 +114,6 @@ describe.each([
     expect(screen.getByText('성수동 투룸')).toBeInTheDocument();
     expect(screen.getByText('망원동 원룸')).toBeInTheDocument();
     expect(within(screen.getByRole('main')).getByRole('button', { name: /PDF 받기/ })).toBeDisabled();
-    expect(screen.queryByText('매물을 하나 더 등록하면 비교할 수 있어요.')).not.toBeInTheDocument();
+    expect(screen.getByText('PDF로 받을 매물을 골라 주세요.')).toBeInTheDocument();
   });
 });

@@ -87,7 +87,7 @@ describe('FE-2 매물 비교 PDF', () => {
     await waitFor(() => expect(comparisonViewCalls).toBe(1));
   });
 
-  it('2~5개 매물을 선택한 뒤 저장 기록 PDF를 요청한다', async () => {
+  it('1~5개 매물을 선택한 뒤 저장 기록 PDF를 요청한다', async () => {
     let requestedIds: unknown;
     server.use(
       http.get(`${config.apiBaseUrl}/api/properties`, () =>

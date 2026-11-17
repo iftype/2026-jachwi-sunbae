@@ -29,7 +29,7 @@ public class PropertyExportController {
 
     @PostMapping(value = "/export.pdf", produces = MediaType.APPLICATION_PDF_VALUE)
     @Operation(summary = "선택 매물 기록 비교 PDF",
-            description = "소유한 매물 2~5개를 선택해 기본 정보, 사진, 메모와 두 단계 체크 기록을 PDF로 내려받습니다."
+            description = "소유한 매물 1~5개를 선택해 기본 정보, 사진, 메모와 두 단계 체크 기록을 PDF로 내려받습니다."
                     + " 점수나 추천은 생성하지 않습니다.")
     public ResponseEntity<byte[]> exportPdf(
             @AuthenticatedMemberId final Long memberId,

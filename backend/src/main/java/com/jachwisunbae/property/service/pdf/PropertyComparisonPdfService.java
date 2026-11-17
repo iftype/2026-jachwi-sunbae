@@ -22,7 +22,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class PropertyComparisonPdfService {
-    private static final int MIN_PROPERTIES = 2;
+    private static final int MIN_PROPERTIES = 1;
     private static final int MAX_PROPERTIES = 5;
 
     private final PropertyRepository propertyRepository;
@@ -108,7 +108,7 @@ public class PropertyComparisonPdfService {
                 || propertyIds.stream().anyMatch(id -> id == null || id <= 0)
                 || new HashSet<>(propertyIds).size() != propertyIds.size()) {
             throw new InvalidInputException(ErrorCode.PROPERTY_INPUT_INVALID,
-                    "비교할 서로 다른 매물을 2개 이상 5개 이하로 선택해야 합니다.");
+                    "PDF로 받을 서로 다른 매물을 1개 이상 5개 이하로 선택해야 합니다.");
         }
     }
 }
