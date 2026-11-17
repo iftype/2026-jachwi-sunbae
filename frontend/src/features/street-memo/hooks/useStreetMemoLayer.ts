@@ -26,10 +26,11 @@ type Point = { latitude: number; longitude: number };
 const POP_STAGGER_MS = 60;
 const POP_STAGGER_STEPS = 6;
 
-/** 노출과 열람 이벤트에 함께 싣는 메모 정보. 거리 메모는 본인만 보는 개인 기록이라 내용은 싣지 않는다. */
+/** 메모 순위를 볼 수 있게 노출과 열람 이벤트에 함께 싣는 메모 정보. 거리 메모는 지도에서 누구나 보는 공개 글이라 내용도 싣는다. */
 export const memoLogParams = (memo: StreetMemo) => ({
   memo_id: memo.id,
   preference: memo.preference,
+  memo: memo.memo,
 });
 
 /**
