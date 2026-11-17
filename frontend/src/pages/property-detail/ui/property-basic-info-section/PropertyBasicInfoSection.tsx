@@ -1,12 +1,15 @@
+import { css } from '@emotion/css';
 import { useState } from 'react';
 
 import { UNSUPPORTED_ADDRESS_MESSAGE } from '@/features/map/lib/mapAddress';
 import { formatPropertyPrice, hasPropertyPrice } from '@/features/property/lib/propertyFormat';
 import type { PropertyDetail } from '@/features/property/model/Property';
+import { usePropertyAiImport } from '@/features/property/model/usePropertyAiImport';
 import InfoValue from '@/shared/ui/info-value/InfoValue';
 
 import type { BasicEditField, PropertyEditField } from '../../model/editField';
 import PropertyInfoSection from '../property-info-section/PropertyInfoSection';
+import PropertyAiImportButton from './PropertyAiImportButton';
 import PropertyNameInput from './PropertyNameInput';
 import PropertyPriceInput from './PropertyPriceInput';
 
@@ -43,9 +46,19 @@ const PropertyBasicInfoSection = ({
   savedField,
 }: PropertyBasicInfoSectionProps) => {
   const [isEditingName, setIsEditingName] = useState(false);
+  const aiImport = usePropertyAiImport(property.propertyId);
   return (
     <>
-      <PropertyInfoSection title="기본 정보" label="매물 기본 정보">
+      <PropertyInfoSection
+        title="기본 정보"
+        label="매물 기본 정보"
+        action={
+          <PropertyAiImportButton
+            isImporting={aiImport.isImporting}
+            onSelectFiles={(files) => void aiImport.importFiles(files)}
+          />
+        }
+      >
         <InfoValue
           label="매물 이름"
           value={property.name}
@@ -75,8 +88,37 @@ const PropertyBasicInfoSection = ({
           feedback={savedField === 'location' ? SAVED_TEXT : undefined}
         />
       </PropertyInfoSection>
+      {aiImport.isImporting ? (
+        <p className={styles.aiImportFeedback} role="status">
+          이미지를 분석하고 있어요. 1분 정도 걸릴 수 있어요.
+        </p>
+      ) : (
+        aiImport.feedback !== null && (
+          <p
+            className={styles.aiImportFeedback}
+            data-tone={aiImport.feedback.tone}
+            role={aiImport.feedback.tone === 'error' ? 'alert' : 'status'}
+          >
+            {aiImport.feedback.message}
+          </p>
+        )
+      )}
     </>
   );
+};
+
+const styles = {
+  aiImportFeedback: css`
+    label: PropertyBasicInfoSection-aiImportFeedback;
+    margin: 0 0 0.75rem;
+    color: var(--color-muted);
+    font-size: 0.75rem;
+    line-height: 1.5;
+
+    &[data-tone='error'] {
+      color: var(--color-error);
+    }
+  `,
 };
 
 export default PropertyBasicInfoSection;

@@ -4,6 +4,7 @@ import com.jachwisunbae.common.exception.client.BusinessRuleViolationException;
 import com.jachwisunbae.common.exception.client.ResourceNotFoundException;
 import com.jachwisunbae.common.exception.errorcode.ErrorCode;
 import com.jachwisunbae.member.repository.MemberRepository;
+import com.jachwisunbae.property.ai.PropertyExtraction;
 import com.jachwisunbae.property.controller.dto.request.CreatePropertyRequest;
 import com.jachwisunbae.property.controller.dto.request.UpdatePropertyMemoRequest;
 import com.jachwisunbae.property.controller.dto.request.UpdatePropertyRequest;
@@ -22,6 +23,7 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +31,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional(readOnly = true)
 public class PropertyService {
+    // PropertyMemo의 자유 메모 길이 제한과 같다.
+    private static final int MAX_MEMO_LENGTH = 2000;
+
     private final PropertyRepository propertyRepository;
     private final MemberRepository memberRepository;
     private final PropertyPhotoRepository propertyPhotoRepository;
@@ -116,6 +121,54 @@ public class PropertyService {
             request.availableMoveInDate(), request.maintenanceFeeAmount(), request.visitScheduledAt(),
             request.roomOptions(), request.utilityOptions(), request.discoverySource(), LocalDateTime.now(clock));
         return propertyRepository.update(property);
+    }
+
+    // 추출하지 못한 값(null)과 추출 대상이 아닌 값은 기존 값을 유지하고, 메모는 기존 메모 뒤에 덧붙인다.
+    // 기본 정보·부가 정보·메모를 한 트랜잭션에서 저장한다.
+    @Transactional
+    public Property applyAiExtraction(final Long memberId, final Long propertyId,
+                                      final PropertyExtraction extraction) {
+        Property property = propertyRepository.findByIdAndMemberIdForUpdate(propertyId, memberId)
+            .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.PROPERTY_NOT_FOUND,
+                "매물을 찾을 수 없습니다."));
+        property.replaceBasicInfo(property.getName(),
+            valueOrCurrent(extraction.depositAmount(), property.getDepositAmount()),
+            valueOrCurrent(extraction.monthlyRentAmount(), property.getMonthlyRentAmount()),
+            property.getAddress(), property.getLatitude(), property.getLongitude(),
+            valueOrCurrent(extraction.availableMoveInDate(), property.getAvailableMoveInDate()),
+            valueOrCurrent(extraction.maintenanceFeeAmount(), property.getMaintenanceFeeAmount()),
+            property.getVisitScheduledAt(),
+            optionCodes(valueOrCurrent(extraction.roomOptions(), property.getRoomOptions())),
+            optionCodes(valueOrCurrent(extraction.utilityOptions(), property.getUtilityOptions())),
+            property.getDiscoverySource(), LocalDateTime.now(clock));
+        property.replaceMemo(appendMemo(property.getMemo(), extraction.freeMemo()));
+        propertyRepository.update(property);
+        propertyRepository.updateMemo(property);
+        return property;
+    }
+
+    private static <T> T valueOrCurrent(final T extracted, final T current) {
+        if (extracted == null) {
+            return current;
+        }
+        return extracted;
+    }
+
+    private static List<String> optionCodes(final Set<? extends Enum<?>> options) {
+        return options.stream().map(Enum::name).toList();
+    }
+
+    // 덧붙인 메모가 자유 메모 길이 제한을 넘으면 분석 결과 전체를 버리지 않도록 추출 메모를 잘라 넣는다.
+    private static String appendMemo(final String currentMemo, final String extractedMemo) {
+        if (extractedMemo == null) {
+            return currentMemo;
+        }
+        String separator = currentMemo.isEmpty() ? "" : "\n\n";
+        int room = MAX_MEMO_LENGTH - currentMemo.length() - separator.length();
+        if (room <= 0) {
+            return currentMemo;
+        }
+        return currentMemo + separator + extractedMemo.substring(0, Math.min(room, extractedMemo.length()));
     }
 
     public String findMemoByMemberIdAndPropertyId(final Long memberId, final Long propertyId) {

@@ -16,7 +16,8 @@ spring:
   servlet:
     multipart:
       max-file-size: 10MB
-      max-request-size: 11MB
+      # AI 매물 정보 채우기의 이미지 10장(장당 3MB)을 한 요청으로 받는다. 파일 한 개 제한은 그대로 둔다.
+      max-request-size: 31MB
 
 auth:
   jwt:
@@ -57,6 +58,12 @@ photo:
     region: ${PHOTO_STORAGE_REGION:us-east-1}
     bucket: ${PHOTO_STORAGE_BUCKET:jachwi-sunbae-photos}
     key-prefix: ${PHOTO_STORAGE_KEY_PREFIX:}
+
+property:
+  ai:
+    bedrock:
+      region: ap-northeast-2
+      model-id: global.anthropic.claude-sonnet-5-5
 
 map:
   provider:
