@@ -73,8 +73,8 @@ class StreetMemoAcceptanceTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"LIKE", "DISLIKE"})
-    @DisplayName("매물이 없는 회원도 메모를 작성하고 다른 회원이 작성자 정보 없이 조회한다")
-    void createsAndSharesWithoutAuthorInformation(final String preference) throws Exception {
+    @DisplayName("매물이 없는 회원도 메모를 작성해 본인만 조회하고 다른 회원에게는 보이지 않는다")
+    void createsMemoVisibleOnlyToAuthor(final String preference) throws Exception {
         MemberSession reader = login();
         ObjectNode body = validBody().put("preference", preference)
                 .put("memo", "  늦게까지 여는 세탁소예요. 🧺\n<script>alert('hi')</script>  ")
@@ -87,22 +87,21 @@ class StreetMemoAcceptanceTest {
         assertThat(created.path("preference").asText()).isEqualTo(preference);
         assertThat(jdbc.queryForObject("SELECT member_id FROM street_memos WHERE id = ?", Long.class, id))
                 .isEqualTo(author.memberId());
-        mvc.perform(viewport(author)).andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[0].isMine").value(true));
-
-        JsonNode shared = data(mvc.perform(viewport(reader))
+        JsonNode own = data(mvc.perform(viewport(author))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("SUCCESS"))
                 .andExpect(jsonPath("$.data.length()").value(1))
                 .andReturn().getResponse().getContentAsString()).get(0);
-        assertPublicFields(shared);
-        ObjectNode expected = created.deepCopy();
-        expected.put("isMine", false);
-        assertThat(shared).isEqualTo(expected);
+        assertPublicFields(own);
+        assertThat(own).isEqualTo(created);
+
+        mvc.perform(viewport(reader)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("SUCCESS"))
+                .andExpect(jsonPath("$.data").isEmpty());
     }
 
     @Test
-    @DisplayName("지도 영역의 경계를 포함하고 영역 밖과 삭제된 메모를 제외한다")
+    @DisplayName("지도 영역의 경계를 포함하고 영역 밖, 삭제된 메모와 다른 회원의 메모를 제외한다")
     void filtersViewportIncludingEdgesAndExcludingDeleted() throws Exception {
         MemberSession other = login();
         long first = create(author, validBody().put("latitude", 37).put("longitude", 126))
@@ -117,14 +116,11 @@ class StreetMemoAcceptanceTest {
         mvc.perform(authorized(delete("/api/street-memos/{streetMemoId}", deleted), author))
                 .andExpect(status().isNoContent());
 
-        JsonNode items = data(mvc.perform(viewport(other))
-                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        List<Long> ids = new ArrayList<>();
-        items.forEach(item -> ids.add(item.path("streetMemoId").asLong()));
-        assertThat(ids).containsExactlyInAnyOrder(first, second);
-        items.forEach(item -> assertThat(item.path("isMine").booleanValue())
-                .isEqualTo(item.path("streetMemoId").asLong() == second));
-        mvc.perform(authorized(get("/api/street-memos"), other)
+        assertThat(viewportIds(author)).containsExactly(first);
+        assertThat(viewportIds(other)).containsExactly(second);
+        data(mvc.perform(viewport(author)).andReturn().getResponse().getContentAsString())
+                .forEach(item -> assertThat(item.path("isMine").booleanValue()).isTrue());
+        mvc.perform(authorized(get("/api/street-memos"), author)
                         .param("minLatitude", "37").param("maxLatitude", "37")
                         .param("minLongitude", "126").param("maxLongitude", "126"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(1))
@@ -150,7 +146,7 @@ class StreetMemoAcceptanceTest {
                 """, Long.class, id)).isEqualTo(1L);
         assertThat(jdbc.queryForMap("SELECT memo, preference FROM street_memos WHERE id = ?", id))
                 .containsEntry("memo", "세탁소가 있어요.").containsEntry("preference", "LIKE");
-        mvc.perform(viewport(other)).andExpect(status().isOk()).andExpect(jsonPath("$.data").isEmpty());
+        mvc.perform(viewport(author)).andExpect(status().isOk()).andExpect(jsonPath("$.data").isEmpty());
         for (long missingId : new long[]{id, Long.MAX_VALUE}) {
             mvc.perform(authorized(delete("/api/street-memos/{streetMemoId}", missingId), author))
                     .andExpect(status().isNotFound())
@@ -280,6 +276,13 @@ class StreetMemoAcceptanceTest {
         return authorized(get("/api/street-memos"), member)
                 .param("minLatitude", "37").param("maxLatitude", "38")
                 .param("minLongitude", "126").param("maxLongitude", "128");
+    }
+
+    private List<Long> viewportIds(final MemberSession member) throws Exception {
+        List<Long> ids = new ArrayList<>();
+        data(mvc.perform(viewport(member)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString())
+                .forEach(item -> ids.add(item.path("streetMemoId").asLong()));
+        return ids;
     }
 
     private MockHttpServletRequestBuilder authorized(final MockHttpServletRequestBuilder request,
