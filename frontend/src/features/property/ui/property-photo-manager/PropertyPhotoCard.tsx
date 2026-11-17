@@ -41,7 +41,8 @@ const PropertyPhotoCard = ({ propertyId, photo, position }: PropertyPhotoCardPro
       <AuthenticatedPhoto
         propertyId={propertyId}
         photoId={photo.photoId}
-        contentUrl={photo.contentUrl}
+        kind="thumbnail"
+        contentUrl={photo.thumbnailUrl}
         alt={accessibleName}
       />
       <button
@@ -85,7 +86,8 @@ const PropertyPhotoCard = ({ propertyId, photo, position }: PropertyPhotoCardPro
           <AuthenticatedPhoto
             propertyId={propertyId}
             photoId={photo.photoId}
-            contentUrl={photo.contentUrl}
+            kind="thumbnail"
+            contentUrl={photo.thumbnailUrl}
             alt={`삭제할 ${accessibleName}`}
             className={dialogStyles.photo}
           />

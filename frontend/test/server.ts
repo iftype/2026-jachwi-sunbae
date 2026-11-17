@@ -65,6 +65,10 @@ export const server = setupServer(
     }),
   ),
   http.get(
+    '*/api/properties/:propertyId/photos/:photoId/thumbnail',
+    () => new HttpResponse(new Uint8Array([255, 216, 255]), { headers: { 'Content-Type': 'image/jpeg' } }),
+  ),
+  http.get(
     '*/api/properties/:propertyId/photos/:photoId',
     () => new HttpResponse(new Uint8Array([255, 216, 255]), { headers: { 'Content-Type': 'image/jpeg' } }),
   ),

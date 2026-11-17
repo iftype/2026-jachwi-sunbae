@@ -15,6 +15,6 @@ export const propertyQueryKeys = {
     [...propertyQueryKeys.checklists(propertyId), propertyChecklistId] as const,
   photos: (propertyId: number) => [...propertyQueryKeys.detail(propertyId), 'photos'] as const,
   photoContents: (propertyId: number) => [...propertyQueryKeys.photos(propertyId), 'content'] as const,
-  photoContent: (propertyId: number, photoId: number) =>
-    [...propertyQueryKeys.photoContents(propertyId), photoId] as const,
+  photoContent: (propertyId: number, photoId: number, kind: 'original' | 'thumbnail' = 'original') =>
+    [...propertyQueryKeys.photoContents(propertyId), photoId, kind] as const,
 };

@@ -19,6 +19,7 @@ const makePhotos = (count: number): PropertyPhoto[] =>
   Array.from({ length: count }, (_, index) => ({
     photoId: index + 1,
     contentUrl: `/api/properties/10/photos/${index + 1}/content`,
+    thumbnailUrl: `/api/properties/10/photos/${index + 1}/thumbnail`,
     contentType: 'image/jpeg',
     sizeBytes: 600_000 + index * 10_000,
     createdAt: `2026-10-2${index % 10}T14:00:00+09:00`,
@@ -30,7 +31,7 @@ const photoQueryData = (photos: PropertyPhoto[]) => {
   return [
     [propertyQueryKeys.photos(10), list],
     ...photos.map((photo, index) => [
-      propertyQueryKeys.photoContent(10, photo.photoId),
+      propertyQueryKeys.photoContent(10, photo.photoId, 'thumbnail'),
       photoBlob(colors[index % colors.length]),
     ]),
   ];

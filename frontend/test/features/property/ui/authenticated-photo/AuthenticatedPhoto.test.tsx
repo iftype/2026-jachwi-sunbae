@@ -48,6 +48,43 @@ describe('인증 사진 표시', () => {
     expect(vi.mocked(URL.createObjectURL)).toHaveBeenCalledOnce();
   });
 
+  it('같은 사진의 원본과 썸네일을 동시에 인증 요청하고 별도로 캐시한다', async () => {
+    setAuthentication({ accessToken: 'photo-token', tokenType: 'Bearer', expiresIn: 60 });
+    const original = vi.fn();
+    const thumbnail = vi.fn();
+    server.use(
+      ...[
+        { suffix: '', spy: original, bytes: [1, 2, 3] },
+        { suffix: '/thumbnail', spy: thumbnail, bytes: [4, 5] },
+      ].map(({ suffix, spy, bytes }) =>
+        http.get(`${config.apiBaseUrl}/api/properties/10/photos/81${suffix}`, ({ request }) => {
+          expect(request.headers.get('Authorization')).toBe('Bearer photo-token');
+          spy();
+          return new HttpResponse(new Uint8Array(bytes), { headers: { 'Content-Type': 'image/jpeg' } });
+        }),
+      ),
+    );
+    render(
+      <PublicConfigProvider config={config}>
+        <QueryClientProvider client={queryClient}>
+          <AuthenticatedPhoto propertyId={10} photoId={81} contentUrl="/api/properties/10/photos/81" alt="원본" />
+          <AuthenticatedPhoto
+            propertyId={10}
+            photoId={81}
+            kind="thumbnail"
+            contentUrl="/api/properties/10/photos/81/thumbnail"
+            alt="썸네일"
+          />
+        </QueryClientProvider>
+      </PublicConfigProvider>,
+    );
+    await screen.findByRole('img', { name: '원본' });
+    await screen.findByRole('img', { name: '썸네일' });
+    expect(original).toHaveBeenCalledOnce();
+    expect(thumbnail).toHaveBeenCalledOnce();
+    expect(screen.getByAltText('원본').getAttribute('src')).not.toBe(screen.getByAltText('썸네일').getAttribute('src'));
+  });
+
   it('사진 읽기 실패를 접근 가능한 대체 상태와 재시도로 표시한다', async () => {
     setAuthentication({ accessToken: 'photo-token', tokenType: 'Bearer', expiresIn: 60 });
     let attempts = 0;

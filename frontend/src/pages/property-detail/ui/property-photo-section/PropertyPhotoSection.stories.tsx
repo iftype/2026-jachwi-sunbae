@@ -15,15 +15,30 @@ const photoBlob = (label: string, color: string) =>
   );
 
 const photos: PropertyPhotoPreview[] = [
-  { photoId: 101, contentUrl: '/api/properties/10/photos/101/content', createdAt: '2026-10-20T14:31:00' },
-  { photoId: 102, contentUrl: '/api/properties/10/photos/102/content', createdAt: '2026-10-20T14:32:00' },
-  { photoId: 103, contentUrl: '/api/properties/10/photos/103/content', createdAt: '2026-10-20T14:33:00' },
+  {
+    photoId: 101,
+    contentUrl: '/api/properties/10/photos/101/content',
+    thumbnailUrl: '/api/properties/10/photos/101/thumbnail',
+    createdAt: '2026-10-20T14:31:00',
+  },
+  {
+    photoId: 102,
+    contentUrl: '/api/properties/10/photos/102/content',
+    thumbnailUrl: '/api/properties/10/photos/102/thumbnail',
+    createdAt: '2026-10-20T14:32:00',
+  },
+  {
+    photoId: 103,
+    contentUrl: '/api/properties/10/photos/103/content',
+    thumbnailUrl: '/api/properties/10/photos/103/thumbnail',
+    createdAt: '2026-10-20T14:33:00',
+  },
 ];
 
 const photoQueryData = [
-  [propertyQueryKeys.photoContent(10, 101), photoBlob('거실', '#7a9cc6')],
-  [propertyQueryKeys.photoContent(10, 102), photoBlob('주방', '#c69a7a')],
-  [propertyQueryKeys.photoContent(10, 103), photoBlob('욕실', '#7ac6a4')],
+  [propertyQueryKeys.photoContent(10, 101, 'thumbnail'), photoBlob('거실', '#7a9cc6')],
+  [propertyQueryKeys.photoContent(10, 102, 'thumbnail'), photoBlob('주방', '#c69a7a')],
+  [propertyQueryKeys.photoContent(10, 103, 'thumbnail'), photoBlob('욕실', '#7ac6a4')],
 ];
 
 const meta = {

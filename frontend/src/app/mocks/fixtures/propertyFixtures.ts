@@ -17,6 +17,7 @@ export const propertySummaryFixture = {
   representativePhoto: {
     photoId: 81,
     contentUrl: '/api/properties/10/photos/81',
+    thumbnailUrl: '/api/properties/10/photos/81/thumbnail',
     contentType: 'image/jpeg' as const,
   },
   progress: {
@@ -105,6 +106,7 @@ export const propertyDetailFixture = {
       {
         photoId: 81,
         contentUrl: '/api/properties/10/photos/81',
+        thumbnailUrl: '/api/properties/10/photos/81/thumbnail',
         createdAt: '2026-08-10T07:35:00Z',
       },
     ],
@@ -116,6 +118,7 @@ export const propertyDetailFixture = {
 export const photoFixture = {
   photoId: 81,
   contentUrl: '/api/properties/10/photos/81',
+  thumbnailUrl: '/api/properties/10/photos/81/thumbnail',
   contentType: 'image/jpeg',
   sizeBytes: 245_760,
   createdAt: '2026-08-10T07:35:00Z',
@@ -127,6 +130,7 @@ export const propertyPhotoResponseFixture = (photo: PropertyPhotoFixtureInput = 
   id: photo.photoId,
   propertyId: 10,
   url: photo.contentUrl,
+  thumbnailUrl: photo.thumbnailUrl,
   contentType: photo.contentType,
   sizeBytes: photo.sizeBytes,
   representative: 'representative' in photo ? Boolean(photo.representative) : false,
@@ -158,6 +162,7 @@ export const propertyDetailResponseFixture = (property: PropertyDetailFixtureInp
   photos: property.photoPreview.photos.map((photo) => ({
     id: photo.photoId,
     url: photo.contentUrl,
+    thumbnailUrl: photo.thumbnailUrl,
     contentType: 'image/jpeg',
     sizeBytes: 245_760,
     representative: photo.photoId === property.representativePhoto?.photoId,
@@ -169,6 +174,7 @@ export const propertyDetailResponseFixture = (property: PropertyDetailFixtureInp
       : {
           id: property.representativePhoto.photoId,
           url: property.representativePhoto.contentUrl,
+          thumbnailUrl: property.representativePhoto.thumbnailUrl,
           contentType: property.representativePhoto.contentType,
         },
   overallProgress: property.progress,
@@ -192,7 +198,7 @@ export const propertyPageFixture = (content: Array<Record<string, unknown>>) => 
   totalCount: content.length,
   items: content.map((property) => {
     const representativePhoto = property.representativePhoto as
-      { photoId: number; contentUrl: string; contentType: string } | null | undefined;
+      { photoId: number; contentUrl: string; thumbnailUrl: string; contentType: string } | null | undefined;
 
     return {
       id: property.propertyId,
@@ -221,6 +227,7 @@ export const propertyPageFixture = (content: Array<Record<string, unknown>>) => 
           : {
               id: representativePhoto.photoId,
               url: representativePhoto.contentUrl,
+              thumbnailUrl: representativePhoto.thumbnailUrl,
               contentType: representativePhoto.contentType,
             },
       overallProgress: property.progress,

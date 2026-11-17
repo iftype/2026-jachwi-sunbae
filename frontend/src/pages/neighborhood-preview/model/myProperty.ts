@@ -10,5 +10,5 @@ export type MyPropertyRow = {
   latitude: number | null;
   longitude: number | null;
   commute: PropertyCommuteTime | null;
-  representativePhoto: { photoId: number; contentUrl: string } | null;
+  representativePhoto: { photoId: number; contentUrl: string; thumbnailUrl: string } | null;
 };

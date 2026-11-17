@@ -66,7 +66,8 @@ const RecentRooms = ({ inSideColumn = false }: RecentRoomsProps) => {
                       <AuthenticatedPhoto
                         propertyId={property.propertyId}
                         photoId={property.representativePhoto.photoId}
-                        contentUrl={property.representativePhoto.contentUrl}
+                        kind="thumbnail"
+                        contentUrl={property.representativePhoto.thumbnailUrl}
                         alt={`${property.name} 대표 사진`}
                         className={styles.roomPicture}
                         errorMode="retry-only"

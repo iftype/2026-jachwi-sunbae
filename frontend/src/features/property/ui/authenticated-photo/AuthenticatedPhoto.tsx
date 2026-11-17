@@ -9,6 +9,7 @@ type AuthenticatedPhotoProps = {
   propertyId: number;
   photoId: number;
   contentUrl: string;
+  kind?: 'original' | 'thumbnail';
   alt: string;
   className?: string;
   errorMode?: 'message' | 'retry-only';
@@ -18,11 +19,12 @@ const AuthenticatedPhoto = ({
   propertyId,
   photoId,
   contentUrl,
+  kind = 'original',
   alt,
   className = '',
   errorMode = 'message',
 }: AuthenticatedPhotoProps) => {
-  const photo = useAuthenticatedPhoto(propertyId, photoId, contentUrl);
+  const photo = useAuthenticatedPhoto(propertyId, photoId, contentUrl, kind);
   const isWaiting = photo.isPending || photo.objectUrl === null;
   // 금방 받은 사진은 로딩 문구 없이 같은 크기의 빈 칸에서 바로 바뀌고, 오래 걸릴 때만 스피너와 문구를 보여 준다.
   const isLoadingVisible = useDelayedLoading(isWaiting);

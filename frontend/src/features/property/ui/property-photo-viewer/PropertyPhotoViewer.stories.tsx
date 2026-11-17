@@ -17,6 +17,7 @@ const photoBlob = (color: string) =>
 const photos: PropertyPhoto[] = [1, 2, 3].map((photoId) => ({
   photoId,
   contentUrl: `/api/properties/10/photos/${photoId}/content`,
+  thumbnailUrl: `/api/properties/10/photos/${photoId}/thumbnail`,
   contentType: 'image/jpeg',
   sizeBytes: 700_000,
   createdAt: '2026-10-20T14:00:00+09:00',

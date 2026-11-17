@@ -50,7 +50,8 @@ const CompareTable = ({ properties, selectedIds, maxSelection, onToggle }: Compa
                   <AuthenticatedPhoto
                     propertyId={property.propertyId}
                     photoId={property.representativePhoto.photoId}
-                    contentUrl={property.representativePhoto.contentUrl}
+                    kind="thumbnail"
+                    contentUrl={property.representativePhoto.thumbnailUrl}
                     alt=""
                   />
                 )}

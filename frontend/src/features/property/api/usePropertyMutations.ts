@@ -182,7 +182,9 @@ export const useRemovePropertyPhoto = (propertyId: number) => {
   return useMutation({
     mutationFn: (photoId: number) => removePropertyPhoto(config, propertyId, photoId),
     onSuccess: async (_, photoId) => {
-      queryClient.removeQueries({ queryKey: propertyQueryKeys.photoContent(propertyId, photoId), exact: true });
+      for (const kind of ['original', 'thumbnail'] as const) {
+        queryClient.removeQueries({ queryKey: propertyQueryKeys.photoContent(propertyId, photoId, kind), exact: true });
+      }
       await invalidatePhotoAggregates(propertyId);
     },
     onError: async (error) => {

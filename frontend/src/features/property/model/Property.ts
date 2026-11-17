@@ -46,11 +46,13 @@ export type PropertySummary = {
   representativePhoto: {
     photoId: number;
     contentUrl: string;
+    thumbnailUrl: string;
     contentType: 'image/jpeg' | 'image/png' | 'image/webp';
   } | null;
   photos?: Array<{
     photoId: number;
     contentUrl: string;
+    thumbnailUrl: string;
     contentType?: 'image/jpeg' | 'image/png' | 'image/webp';
   }>;
   photoUrls?: string[];
@@ -85,6 +87,7 @@ export type PropertyPage = {
 export type PropertyPhotoPreview = {
   photoId: number;
   contentUrl: string;
+  thumbnailUrl: string;
   createdAt: string;
 };
 
@@ -124,6 +127,7 @@ export type PropertyAiImport = {
 export type PropertyPhoto = {
   photoId: number;
   contentUrl: string;
+  thumbnailUrl: string;
   contentType: 'image/jpeg' | 'image/png' | 'image/webp';
   sizeBytes: number;
   createdAt: string;
