@@ -14,12 +14,7 @@ const PropertyAiImportButton = ({ isImporting, onSelectFiles }: PropertyAiImport
   const inputRef = useRef<HTMLInputElement>(null);
   return (
     <>
-      <button
-        type="button"
-        className={styles.button}
-        disabled={isImporting}
-        onClick={() => inputRef.current?.click()}
-      >
+      <button type="button" className={styles.button} disabled={isImporting} onClick={() => inputRef.current?.click()}>
         <Icon name="sparkles" size={14} />
         {isImporting ? '분석 중…' : '매물정보 자동 입력'}
       </button>
