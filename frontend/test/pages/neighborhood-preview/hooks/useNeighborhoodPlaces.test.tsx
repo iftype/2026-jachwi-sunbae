@@ -36,7 +36,7 @@ it('결과 지도를 떠났다 돌아오면 지도가 다시 멈추기 전까지
   expect(result.current.isClose).toBe(true);
 });
 
-it('휠로 6.5 언저리를 오가도 한 번 올린 정류장과 부동산을 거뒀다 올렸다 하지 않는다', () => {
+it('휠로 7.5 언저리를 오가도 한 번 올린 정류장과 부동산을 거뒀다 올렸다 하지 않는다', () => {
   const { result } = renderHook(useNeighborhoodPlaces, { initialProps: true });
   act(() => {
     result.current.rememberLevel(6.36);
@@ -44,19 +44,19 @@ it('휠로 6.5 언저리를 오가도 한 번 올린 정류장과 부동산을 �
   });
   expect(result.current.isClose).toBe(true);
 
-  // 데스크탑 휠 한 칸은 0.15단계라 6.36과 6.51을 오간다.
-  for (const level of [6.51, 6.36, 6.51, 6.66, 6.95]) {
+  // 데스크탑 휠 한 칸은 0.15단계라 7.36과 7.51을 오간다.
+  for (const level of [7.51, 7.36, 7.51, 7.66, 7.95]) {
     act(() => result.current.rememberLevel(level));
     expect(result.current.isClose).toBe(true);
     expect(result.current.markers).toHaveLength(1);
   }
 
-  act(() => result.current.rememberLevel(7.11));
+  act(() => result.current.rememberLevel(8.11));
   expect(result.current.isClose).toBe(false);
-  // 거둔 뒤에는 다시 6.5 안쪽으로 다가가야 올린다.
-  act(() => result.current.rememberLevel(6.95));
+  // 거둔 뒤에는 다시 7.5 안쪽으로 다가가야 올린다.
+  act(() => result.current.rememberLevel(7.95));
   expect(result.current.isClose).toBe(false);
-  act(() => result.current.rememberLevel(6.5));
+  act(() => result.current.rememberLevel(7.5));
   expect(result.current.isClose).toBe(true);
 });
 

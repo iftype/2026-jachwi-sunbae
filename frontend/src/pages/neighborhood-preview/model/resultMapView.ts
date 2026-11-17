@@ -1,16 +1,16 @@
 import type { MapCoordinate } from '@/features/map/lib/mapLocation';
 
 /**
- * 이 확대 단계(작을수록 가까움) 이하로 다가가면 화면 안의 정류장, 부동산을 올린다. 축척 200~300m 화면 정도다.
+ * 이 확대 단계(작을수록 가까움) 이하로 다가가면 화면 안의 정류장, 부동산을 올린다. 축척 500m 화면 정도다.
  * 동네나 출발 정류장을 고르면 경로 전체가 보이게 멀리 둘 수 있어(`routeFocusView`), 그때는 더 다가가야 마커가 보인다.
  */
-export const PLACES_SHOW_LEVEL = 6.5;
+export const PLACES_SHOW_LEVEL = 7.5;
 /**
  * 한 번 올린 마커는 이 단계보다 멀어져야 거둔다. 데스크탑 휠은 한 칸에 0.15단계씩 소수로 멈춰,
  * 올리고 거두는 기준이 같으면 6.36과 6.51을 오갈 때마다 마커가 꺼졌다 켜진다.
  * 반 단계(휠 세 칸) 여유를 둔다. 더 멀리 두면 화면이 조회 반경(최대 2km)보다 훨씬 넓어져 가장자리가 빈다.
  */
-export const PLACES_HIDE_LEVEL = 7;
+export const PLACES_HIDE_LEVEL = 8;
 
 /**
  * 지도가 멈춘 확대 단계로 마커를 올릴지 정한다. 이미 올렸으면 `PLACES_HIDE_LEVEL`까지 유지한다.

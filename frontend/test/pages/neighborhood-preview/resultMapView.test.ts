@@ -69,13 +69,13 @@ it('경계를 아직 받지 못한 동네는 정해 둔 단계로 다가간다',
   expect(areaFocusLevel([])).toBe(AREA_FOCUS_FALLBACK_LEVEL);
   expect(nextPlacesVisible(false, AREA_FOCUS_FALLBACK_LEVEL)).toBe(true);
 });
-it('마커는 6.5 이하에서 올리고, 올린 뒤에는 7을 넘어야 거둔다', () => {
-  expect(nextPlacesVisible(false, 6.51)).toBe(false);
+it('마커는 7.5 이하에서 올리고, 올린 뒤에는 8을 넘어야 거둔다', () => {
+  expect(nextPlacesVisible(false, 7.51)).toBe(false);
   expect(nextPlacesVisible(false, PLACES_SHOW_LEVEL)).toBe(true);
-  // 지도가 6.5로 옮겨 6.5000001에 멈춰도 올린다.
+  // 지도가 7.5로 옮겨 7.5000001에 멈춰도 올린다.
   expect(nextPlacesVisible(false, PLACES_SHOW_LEVEL + 1e-7)).toBe(true);
   expect(nextPlacesVisible(true, PLACES_HIDE_LEVEL)).toBe(true);
-  expect(nextPlacesVisible(true, 7.11)).toBe(false);
+  expect(nextPlacesVisible(true, 8.11)).toBe(false);
 });
 
 describe('routeFocusView', () => {

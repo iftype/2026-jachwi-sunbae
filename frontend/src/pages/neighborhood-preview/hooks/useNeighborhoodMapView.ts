@@ -161,7 +161,7 @@ const useNeighborhoodMapView = (
       return;
     }
     closeLayers();
-    preview.selectRegion(id, showAreaAction ? undefined : { openDetails: false });
+    preview.selectRegion(id, showAreaAction ? { focus: 'none' } : { openDetails: false, focus: 'none' });
   };
   /** 마커를 누르면 그 마커 하나의 정보를 열고 지도를 그 자리로 옮긴다. */
   const selectMarker = (marker: MapMarker) => {
