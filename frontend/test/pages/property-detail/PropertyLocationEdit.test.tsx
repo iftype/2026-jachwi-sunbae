@@ -2,14 +2,13 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http } from 'msw';
-import { createMemoryRouter, RouterProvider } from 'react-router-dom';
+import { createMemoryRouter, RouterProvider, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 import { mapHandlers } from '@/app/mocks/handlers/mapHandlers';
 import { propertyChecklistHandlers } from '@/app/mocks/handlers/propertyChecklistHandlers';
 import { propertyHandlers } from '@/app/mocks/handlers/propertyHandlers';
-import { failure } from '@/app/mocks/mockStore';
-import MapLocationSelectPage from '@/pages/map-location-select/MapLocationSelectPage';
+import { failure, getMockProperties, resetMockStore, setMockProperties } from '@/app/mocks/mockStore';
 import PropertyDetailPage from '@/pages/property-detail/PropertyDetailPage';
 import { resetAuthenticationForTests, setAuthentication } from '@/features/auth/model/authStore';
 import type { MapCanvasProps } from '@/features/map/model/MapCanvas';
@@ -20,13 +19,17 @@ import { PublicConfigProvider } from '@/shared/config/PublicConfigContext';
 import { server } from '../../server';
 
 const MOVED = { latitude: 37.5662, longitude: 126.9785 };
-// 앞 테스트가 목 매물 위치를 바꿔 두므로 테스트마다 다른 자리로 끈다.
-const drag = vi.hoisted(() => ({ to: { latitude: 37.5662, longitude: 126.9785 } }));
+const tap = vi.hoisted(() => ({ to: { latitude: 37.5662, longitude: 126.9785 } }));
 
+// 상세 안 주변 지도. 위치를 고르는 동안에만 지도를 누를 수 있다.
 vi.mock('@/features/map/ui/map-canvas/MapCanvas', () => ({
-  default: ({ onCenterChange }: MapCanvasProps) => (
-    <button type="button" onClick={() => onCenterChange?.(drag.to.latitude, drag.to.longitude)}>
-      지도 끌기
+  default: ({ onSelectLocation }: MapCanvasProps) => (
+    <button
+      type="button"
+      disabled={onSelectLocation === undefined}
+      onClick={() => onSelectLocation?.(tap.to.latitude, tap.to.longitude)}
+    >
+      지도 누르기
     </button>
   ),
 }));
@@ -38,15 +41,20 @@ beforeEach(() => {
 afterEach(() => {
   resetAuthenticationForTests();
   resetMovedPropertyForTests();
+  resetMockStore();
   queryClient.clear();
   sessionStorage.clear();
+  tap.to = MOVED;
 });
+
+/** 좌표가 없는 매물이 넘어오는 위치 선택 화면. 받은 state만 보인다. */
+const LocationSelectStub = () => <output aria-label="위치 선택 화면">{JSON.stringify(useLocation().state)}</output>;
 
 const renderDetail = () => {
   const router = createMemoryRouter(
     [
       { path: '/properties/:propertyId', element: <PropertyDetailPage /> },
-      { path: '/map/select-location', element: <MapLocationSelectPage /> },
+      { path: '/map/select-location', element: <LocationSelectStub /> },
     ],
     {
       initialEntries: [{ pathname: '/properties/10', search: '?tab=details', state: { returnTo: '/properties' } }],
@@ -74,66 +82,66 @@ const captureUpdates = () => {
   return { bodies, stop: () => server.events.removeListener('request:start', track) };
 };
 
-// 지도를 멈춘 뒤 주소를 묻기까지 실제로 기다리므로, 부하가 큰 환경에서도 끝나게 테스트 제한 시간을 넉넉히 둔다.
 const openLocationEditor = async () => {
   const user = userEvent.setup();
   await user.click(await screen.findByRole('button', { name: /^주소 .*수정$/ }));
-  await screen.findByRole('button', { name: '이 위치로 저장' });
+  await screen.findByText('지도를 눌러 새 위치를 고르세요.');
   return user;
 };
 
-it('지도를 옮기자마자 저장을 누르면 옮기기 전 위치로 닫지 않고, 새 주소를 받을 때까지 기다렸다가 저장한다', async () => {
+it('좌표가 있는 매물은 상세 안 주변 지도를 눌러 고른 자리의 주소와 좌표로 저장하고, 옮긴 매물을 기억한다', async () => {
   renderDetail();
   const user = await openLocationEditor();
   const updates = captureUpdates();
   try {
-    await user.click(screen.getByRole('button', { name: '지도 끌기' }));
-    await user.click(screen.getByRole('button', { name: '이 위치로 저장' }));
-    // 주소를 받는 동안 버튼이 막혀 있어 아직 저장하지 않는다.
-    expect(screen.getByRole('button', { name: '이 위치로 저장' })).toBeDisabled();
-    expect(updates.bodies).toEqual([]);
-    await waitFor(() => expect(screen.getByRole('button', { name: '이 위치로 저장' })).toBeEnabled(), {
-      timeout: 8000,
-    });
-    await user.click(screen.getByRole('button', { name: '이 위치로 저장' }));
-    // 지도를 멈춘 뒤 주소를 묻기까지 잠깐 기다리므로 넉넉히 기다린다.
-    await waitFor(() => expect(updates.bodies).toHaveLength(1), { timeout: 8000 });
+    await user.click(screen.getByRole('button', { name: '지도 누르기' }));
+    expect(await screen.findByText('MSW 테스트 위치 (37.56620, 126.97850)')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '이 위치로 변경' }));
+
+    await waitFor(() => expect(updates.bodies).toHaveLength(1));
     expect(updates.bodies[0]).toEqual(
       expect.objectContaining({ ...MOVED, address: 'MSW 테스트 위치 (37.56620, 126.97850)' }),
     );
+    // 저장하면 고르기를 끝내고 안내를 닫는다.
+    await waitFor(() => expect(screen.queryByRole('button', { name: '이 위치로 변경' })).not.toBeInTheDocument());
     // 본 방 기록 지도가 새 자리로 가도록 옮긴 매물을 기억한다.
-    await waitFor(() =>
-      expect(takeMovedProperty(() => MOVED)).toEqual(expect.objectContaining({ propertyId: 10, ...MOVED })),
-    );
+    expect(takeMovedProperty(() => MOVED)).toEqual(expect.objectContaining({ propertyId: 10, ...MOVED }));
   } finally {
     updates.stop();
   }
-}, 20_000);
+});
 
-it.each([
-  ['주소를 찾지 못하면', () => failure('MAP_ADDRESS_NOT_FOUND', 404), { latitude: 34.9, longitude: 125.1 }],
-  ['주소 조회가 실패하면', () => failure('INTERNAL_SERVER_ERROR', 500), { latitude: 34.8, longitude: 125.2 }],
-])(
-  '옮긴 자리의 %s 지원하지 않는 주소라고 보이고, 주소 없이 좌표만 저장한다',
-  async (_, respond, to) => {
-    server.use(http.get('*/api/maps/reverse-geocode', respond));
-    drag.to = to;
-    renderDetail();
-    const user = await openLocationEditor();
-    const updates = captureUpdates();
-    try {
-      await user.click(screen.getByRole('button', { name: '지도 끌기' }));
-      expect(await screen.findByText('지원하지 않는 주소입니다', {}, { timeout: 8000 })).toBeInTheDocument();
-      await user.click(screen.getByRole('button', { name: '이 위치로 저장' }));
-      await waitFor(() => expect(updates.bodies).toHaveLength(1), { timeout: 8000 });
-      expect(updates.bodies[0]).toEqual(expect.objectContaining({ ...to, address: '' }));
-      // 저장한 뒤 상세의 주소 칸도 빈칸 대신 지원하지 않는 주소라고 보인다.
-      expect(await screen.findByRole('button', { name: /^주소 .*수정$/ })).toHaveTextContent(
-        '지원하지 않는 주소입니다',
-      );
-    } finally {
-      updates.stop();
-    }
-  },
-  20_000,
-);
+it('누른 자리의 주소를 찾지 못하면 다른 곳을 누르라고 안내하고 저장하지 않는다', async () => {
+  server.use(http.get('*/api/maps/reverse-geocode', () => failure('MAP_ADDRESS_NOT_FOUND', 404)));
+  tap.to = { latitude: 34.9, longitude: 125.1 };
+  renderDetail();
+  const user = await openLocationEditor();
+  const updates = captureUpdates();
+  try {
+    await user.click(screen.getByRole('button', { name: '지도 누르기' }));
+    expect(await screen.findByText('이 자리의 주소를 찾지 못했어요. 다른 곳을 눌러 주세요.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '이 위치로 변경' })).not.toBeInTheDocument();
+
+    // 취소하면 고르기를 끝내고 아무것도 저장하지 않는다.
+    await user.click(screen.getByRole('button', { name: '취소' }));
+    expect(screen.queryByText(/이 자리의 주소를 찾지 못했어요/)).not.toBeInTheDocument();
+    expect(updates.bodies).toEqual([]);
+  } finally {
+    updates.stop();
+  }
+});
+
+it('좌표가 없는 매물은 주소 수정을 누르면 위치 선택 화면으로 간다', async () => {
+  setMockProperties(
+    getMockProperties().map((property) =>
+      property.id === 10 ? { ...property, latitude: null, longitude: null } : property,
+    ),
+  );
+  renderDetail();
+  const user = userEvent.setup();
+  await user.click(await screen.findByRole('button', { name: /^주소 .*수정$/ }));
+
+  const state = await screen.findByLabelText('위치 선택 화면');
+  expect(JSON.parse(state.textContent ?? 'null')).toEqual({ returnTo: '/properties/10?tab=details', propertyId: 10 });
+  expect(screen.queryByRole('button', { name: '지도 누르기' })).not.toBeInTheDocument();
+});

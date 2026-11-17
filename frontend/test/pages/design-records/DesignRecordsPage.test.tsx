@@ -318,13 +318,15 @@ it('데스크탑 리스트에서 방을 누르면 옆 칸에 상세를 열고 �
   try {
     renderRecords();
     await screen.findByRole('heading', { name: '모든 기록' });
+    // 상세 칸에도 주변 지도가 하나 더 생기므로, 상세를 열기 전에 본 방 기록 지도를 잡아 둔다.
+    const map = within(screen.getByLabelText('예시 지도'));
     const target = getMockProperties().find((property) => property.name === '신림역 원룸');
-    expect(screen.getByLabelText('지도 중심')).not.toHaveTextContent(`${target?.latitude},${target?.longitude}`);
-    const level = screen.getByLabelText('지도 배율').textContent;
+    expect(map.getByLabelText('지도 중심')).not.toHaveTextContent(`${target?.latitude},${target?.longitude}`);
+    const level = map.getByLabelText('지도 배율').textContent;
 
     await user.click(screen.getByRole('link', { name: /신림역 원룸/ }));
-    expect(screen.getByLabelText('지도 중심')).toHaveTextContent(`${target?.latitude},${target?.longitude}`);
-    expect(screen.getByLabelText('지도 배율')).toHaveTextContent(level ?? '');
+    expect(map.getByLabelText('지도 중심')).toHaveTextContent(`${target?.latitude},${target?.longitude}`);
+    expect(map.getByLabelText('지도 배율')).toHaveTextContent(level ?? '');
     expect(
       await within(screen.getByRole('complementary', { name: '선택한 매물 상세' })).findByRole('heading', {
         level: 1,
