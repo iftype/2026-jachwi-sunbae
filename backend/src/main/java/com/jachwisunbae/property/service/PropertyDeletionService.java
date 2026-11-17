@@ -27,8 +27,12 @@ public class PropertyDeletionService {
         propertyRepository.findByIdAndMemberIdForUpdate(propertyId, memberId)
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.PROPERTY_NOT_FOUND,
                         "매물을 찾을 수 없습니다."));
-        propertyPhotoRepository.findByPropertyId(propertyId)
-                .forEach(photo -> photoStorage.delete(photo.getStorageKey()));
+        propertyPhotoRepository.findByPropertyId(propertyId).forEach(photo -> {
+            photoStorage.delete(photo.getStorageKey());
+            if (photo.hasThumbnail()) {
+                photoStorage.delete(photo.getThumbnailStorageKey());
+            }
+        });
         propertyRepository.deleteById(propertyId);
     }
 }

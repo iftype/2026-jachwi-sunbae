@@ -72,6 +72,8 @@ export type MapRegion = {
   drawStage?: number;
   /** 구역 위 두 칸으로 표시할 요약. 화면이 아니라 지도 좌표에 고정한다. */
   summary?: { travel?: string; price?: string };
+  /** 지도에 가까이 다가갔을 때 동 이름 아래에 붙이는 월세 줄. 없으면 동 이름만 둔다. */
+  rentLabel?: MapRegionRentLabel;
   center?: { latitude: number; longitude: number };
   /** MultiPolygon의 분리된 면과 각 면의 내부 링을 유지한다. */
   polygons?: { latitude: number; longitude: number }[][][];
@@ -80,4 +82,15 @@ export type MapRegion = {
     medium: { latitude: number; longitude: number }[][][];
   };
   paths: { latitude: number; longitude: number }[][];
+};
+
+export type MapRegionRentLabel = {
+  /** 평균 월세 글자(예: `55만`). */
+  price: string;
+  /** 월세 시세를 낸 거래 건수. */
+  count: number;
+  /** 거래가 적어 시세가 흔들릴 수 있는 동네. 숫자를 회색으로 흐리게 하고, 건수는 읽기 도구에만 알린다. */
+  sparse: boolean;
+  /** 월세 조건 밖이라 지도에서 회색으로 깐 동네. 라벨도 함께 흐리게 한다. */
+  filteredOut: boolean;
 };

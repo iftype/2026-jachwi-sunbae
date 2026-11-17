@@ -14,11 +14,6 @@ public record PropertyListItemQuery(
     Long photoId,
     String photoUrl,
     String photoContentType,
-    int photoCount,
-    int totalCount,
-    int completedCount,
-    int goodCount,
-    int cautionCount,
-    int unconfirmedCount
+    int photoCount
 ) {
 }

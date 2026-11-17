@@ -52,8 +52,9 @@ export const field = css`
   overflow-wrap: anywhere;
   cursor: text;
 
+  /* 올리면 목록 호버와 같은 옅은 파랑으로 바꿔 누를 수 있음을 알린다. 흰색으로 바꾸면 칸이 사라진 것처럼 보인다. */
   &:hover {
-    background: var(--color-surface);
+    background: color-mix(in srgb, var(--color-brand-blue) 7%, #fff);
   }
 `;
 

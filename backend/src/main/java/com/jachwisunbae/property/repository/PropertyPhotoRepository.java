@@ -22,4 +22,8 @@ public interface PropertyPhotoRepository {
     Optional<Long> findRepresentativePhotoId(long propertyId);
 
     void setRepresentative(long propertyId, long photoId);
+
+    List<PropertyPhoto> findWithoutThumbnailAfter(long afterPhotoId, int limit);
+
+    boolean updateThumbnailStorageKey(long photoId, String thumbnailStorageKey);
 }

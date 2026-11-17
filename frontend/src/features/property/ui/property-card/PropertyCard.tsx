@@ -280,6 +280,8 @@ const styles = {
     label: PropertyCard-stageProgress;
     display: grid;
     gap: 0.3rem;
+    /* 넓은 목록에서 막대가 카드 끝(스크롤 막대)까지 길게 늘어지지 않게 폭을 제한한다. */
+    width: min(100%, 16rem);
     margin-top: 0.2rem;
     padding-top: 0.1rem;
   `,

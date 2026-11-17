@@ -3,13 +3,16 @@ package com.jachwisunbae.property.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.jachwisunbae.checklist.type.CheckStage;
 import com.jachwisunbae.common.exception.JachwiException;
 import com.jachwisunbae.common.exception.errorcode.ErrorCode;
+import com.jachwisunbae.property.ai.PropertyExtraction;
 import com.jachwisunbae.property.controller.dto.request.CreatePropertyRequest;
 import com.jachwisunbae.property.controller.dto.request.UpdatePropertyMemoRequest;
 import com.jachwisunbae.property.controller.dto.request.UpdatePropertyRequest;
-import com.jachwisunbae.property.controller.dto.response.PropertyDetailResponse;
+import com.jachwisunbae.property.controller.dto.response.PropertyChecklistStageResponse;
 import com.jachwisunbae.property.controller.dto.response.PropertyListItemResponse;
+import com.jachwisunbae.property.controller.dto.response.PropertyDetailResponse;
 import com.jachwisunbae.property.entity.Property;
 import com.jachwisunbae.property.repository.JdbcPropertyRepository;
 import com.jachwisunbae.property.type.RoomOption;
@@ -17,6 +20,10 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -135,6 +142,69 @@ class PropertyServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("AI 추출 값만 반영하고 읽지 못한 값과 추출 대상이 아닌 값은 그대로 둔다")
+    void appliesOnlyExtractedValues() {
+        // given
+        Property property = service.create(MEMBER_ID, createRequest("판교 원룸"));
+        PropertyExtraction extraction = new PropertyExtraction(
+                20_000_000L, null, null, 0L, Set.of(), null, null);
+
+        // when
+        service.applyAiExtraction(MEMBER_ID, property.getId(), extraction);
+
+        // then
+        Property updated = repository.findByIdAndMemberId(property.getId(), MEMBER_ID).orElseThrow();
+        assertThat(updated).extracting(Property::getDepositAmount, Property::getMonthlyRentAmount,
+                        Property::getAvailableMoveInDate, Property::getMaintenanceFeeAmount)
+                .containsExactly(20_000_000L, 50L, LocalDate.of(2026, 12, 1), 0L);
+        assertThat(updated.getUtilityOptions()).isEmpty();
+        assertThat(updated.getRoomOptions()).containsExactlyInAnyOrder(RoomOption.BED, RoomOption.DESK);
+        assertThat(updated).extracting(Property::getName, Property::getAddress, Property::getDiscoverySource,
+                        Property::getVisitScheduledAt)
+                .containsExactly("판교 원룸", "경기도 성남시 분당구 판교역로 166", "직방",
+                        LocalDateTime.of(2026, 11, 10, 14, 0));
+    }
+
+    @Test
+    @DisplayName("AI 추출 메모는 기존 메모 뒤에 덧붙인다")
+    void appendsExtractedMemo() {
+        // given
+        Property property = service.create(MEMBER_ID, createRequest("판교 원룸"));
+        service.updateMemoByMemberIdAndPropertyId(MEMBER_ID, property.getId(),
+                new UpdatePropertyMemoRequest("아침에 해가 잘 든다"));
+        PropertyExtraction extraction = new PropertyExtraction(
+                null, null, null, null, null, null, "3층, 엘리베이터 없음");
+
+        // when
+        service.applyAiExtraction(MEMBER_ID, property.getId(), extraction);
+
+        // then
+        assertThat(service.findMemoByMemberIdAndPropertyId(MEMBER_ID, property.getId()))
+                .isEqualTo("아침에 해가 잘 든다\n\n3층, 엘리베이터 없음");
+    }
+
+    @Test
+    @DisplayName("덧붙인 메모가 2,000자를 넘으면 기존 메모는 지키고 추출 메모를 잘라 저장한다")
+    void truncatesExtractedMemoToMemoLimit() {
+        // given
+        Property property = service.create(MEMBER_ID, createRequest("판교 원룸"));
+        String currentMemo = "가".repeat(1_990);
+        service.updateMemoByMemberIdAndPropertyId(MEMBER_ID, property.getId(),
+                new UpdatePropertyMemoRequest(currentMemo));
+        PropertyExtraction extraction = new PropertyExtraction(
+                30_000_000L, null, null, null, null, null, "나".repeat(100));
+
+        // when
+        service.applyAiExtraction(MEMBER_ID, property.getId(), extraction);
+
+        // then
+        assertThat(service.findMemoByMemberIdAndPropertyId(MEMBER_ID, property.getId()))
+                .isEqualTo(currentMemo + "\n\n" + "나".repeat(8));
+        assertThat(repository.findByIdAndMemberId(property.getId(), MEMBER_ID).orElseThrow().getDepositAmount())
+                .isEqualTo(30_000_000L);
+    }
+
+    @Test
     @DisplayName("상세는 사진, 대표 사진, 체크 진행률을 함께 보여 준다")
     void findsDetailWithPhotosAndProgress() {
         // given
@@ -162,8 +232,31 @@ class PropertyServiceIntegrationTest {
         service.create(OTHER_MEMBER_ID, createRequest("남의 집"));
 
         // when & then
-        assertThat(service.findList(MEMBER_ID).items()).extracting(PropertyListItemResponse::id)
+        assertThat(service.findList(MEMBER_ID)).extracting(result -> result.row().propertyId())
                 .containsExactly(own.getId());
+    }
+
+    @Test
+    @DisplayName("목록은 매물마다 그 매물의 단계별 진행 현황을 붙인다")
+    void attachesEachPropertysStageProgressInList() {
+        // given
+        Property checked = service.create(MEMBER_ID, createRequest("판교 원룸"));
+        Property unchecked = service.create(MEMBER_ID, createRequest("정자 투룸"));
+        markFirstItem(checked.getId(), "GOOD");
+
+        // when
+        Map<Long, PropertyListItemResponse> items = service.findList(MEMBER_ID).stream()
+                .map(PropertyListItemResponse::from)
+                .collect(Collectors.toMap(PropertyListItemResponse::id, Function.identity()));
+
+        // then
+        PropertyChecklistStageResponse checkedOnSite = stage(items.get(checked.getId()), CheckStage.ON_SITE);
+        PropertyChecklistStageResponse uncheckedOnSite = stage(items.get(unchecked.getId()), CheckStage.ON_SITE);
+        assertThat(checkedOnSite.propertyChecklistId()).isEqualTo(checklistId(checked.getId(), "ON_SITE"));
+        assertThat(uncheckedOnSite.propertyChecklistId()).isEqualTo(checklistId(unchecked.getId(), "ON_SITE"));
+        assertThat(checkedOnSite.progress().goodCount()).isOne();
+        assertThat(uncheckedOnSite.progress().goodCount()).isZero();
+        assertThat(items.get(checked.getId()).overallProgress().completedCount()).isOne();
     }
 
     @Test
@@ -198,6 +291,22 @@ class PropertyServiceIntegrationTest {
         return jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM property_checklists WHERE property_id = ? AND stage = ?",
                 Integer.class, propertyId, stage);
+    }
+
+    private PropertyChecklistStageResponse stage(PropertyListItemResponse item, CheckStage stage) {
+        return item.stages().stream().filter(response -> response.stage() == stage).findFirst().orElseThrow();
+    }
+
+    private long checklistId(long propertyId, String stage) {
+        return jdbcTemplate.queryForObject("SELECT id FROM property_checklists WHERE property_id = ? AND stage = ?",
+                Long.class, propertyId, stage);
+    }
+
+    private void markFirstItem(long propertyId, String status) {
+        jdbcTemplate.update("""
+                UPDATE property_checklist_items SET status = ?
+                WHERE property_checklist_id = ? ORDER BY display_order, id LIMIT 1
+                """, status, checklistId(propertyId, "ON_SITE"));
     }
 
     private void insertMember(long id) {

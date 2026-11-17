@@ -57,6 +57,21 @@ class JdbcPropertyPhotoRepositoryTest {
     }
 
     @Test
+    @DisplayName("썸네일 저장 키를 함께 저장하고, 없으면 비워 둔다")
+    void savesThumbnailStorageKey() {
+        // when
+        PropertyPhoto withThumbnail = repository.save(MEMBER_ID, PropertyPhoto.create(PROPERTY_ID, "photos/1.png",
+                "photos/thumbnails/1.jpg", "image/png", 68L, NOW));
+        PropertyPhoto withoutThumbnail = save(PROPERTY_ID, "photos/2.png", NOW);
+
+        // then
+        assertThat(repository.findByIdAndPropertyId(withThumbnail.getId(), PROPERTY_ID)).get()
+                .extracting(PropertyPhoto::getThumbnailStorageKey).isEqualTo("photos/thumbnails/1.jpg");
+        assertThat(repository.findByIdAndPropertyId(withoutThumbnail.getId(), PROPERTY_ID)).get()
+                .extracting(PropertyPhoto::hasThumbnail).isEqualTo(false);
+    }
+
+    @Test
     @DisplayName("매물의 사진은 올린 순서대로 조회하고 다른 매물의 사진은 섞지 않는다")
     void findsPhotosInUploadOrder() {
         // given

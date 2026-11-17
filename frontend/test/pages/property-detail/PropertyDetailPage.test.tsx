@@ -7,10 +7,11 @@ import { afterEach, beforeEach, expect, it } from 'vitest';
 
 import { errorEnvelope } from '@/app/mocks/fixtures/propertyFixtures';
 import { propertyChecklistHandlers } from '@/app/mocks/handlers/propertyChecklistHandlers';
-import { propertyHandlers } from '@/app/mocks/handlers/propertyHandlers';
+import { countImageParts, propertyHandlers } from '@/app/mocks/handlers/propertyHandlers';
 import { resetMockStore } from '@/app/mocks/mockStore';
 import PropertyDetailPage from '@/pages/property-detail/PropertyDetailPage';
 import { resetAuthenticationForTests, setAuthentication } from '@/features/auth/model/authStore';
+import { formatPropertyPrice } from '@/features/property/lib/propertyFormat';
 import { queryClient } from '@/shared/api/queryClient';
 import { PublicConfigProvider } from '@/shared/config/PublicConfigContext';
 
@@ -152,4 +153,85 @@ it('사진 아래에는 중복 이름이 없고 더보기 메뉴는 상단 헤�
   expect(heading.closest('header')).toContainElement(menu);
   expect(screen.queryByText('신림역 원룸', { selector: 'p' })).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: '매물 이름 신림역 원룸, 수정' })).toBeInTheDocument();
+});
+
+const capture = (name: string, type = 'image/png', size = 1_024) => new File([new Uint8Array(size)], name, { type });
+const aiImportInput = () => {
+  const input = document.querySelector<HTMLInputElement>('input[type="file"][accept="image/png,image/jpeg"]');
+  if (input === null) throw new Error('이미지로 정보 채우기 파일 입력이 없습니다.');
+  return input;
+};
+
+it('이미지로 정보를 채우면 저장된 기본 정보와 메모로 화면을 바꾸고 다시 열어도 유지한다', async () => {
+  const user = userEvent.setup();
+  renderDetail();
+  await screen.findByRole('button', { name: '이미지로 정보 채우기' });
+
+  await user.upload(aiImportInput(), capture('capture.png'));
+
+  expect(await screen.findByText('이미지에서 읽은 정보를 저장했어요.')).toBeInTheDocument();
+  const updatedPrice = formatPropertyPrice(20_000_000, 650_000, 'plain');
+  expect(await screen.findByText(updatedPrice)).toBeInTheDocument();
+  expect(screen.getByText(/관리비 포함 항목을 다시 확인하기\s+4층, 엘리베이터 있음/)).toBeInTheDocument();
+
+  cleanup();
+  queryClient.clear();
+  renderDetail();
+  expect(await screen.findByText(updatedPrice)).toBeInTheDocument();
+  expect(await screen.findByText(/4층, 엘리베이터 있음/)).toBeInTheDocument();
+});
+
+it('이미지 10장을 한 번에 보내고 분석하는 동안 버튼을 막는다', async () => {
+  let sentCount = 0;
+  let release: () => void = () => undefined;
+  const responded = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  server.use(
+    http.post('*/api/properties/10/ai-import', async ({ request }) => {
+      sentCount = countImageParts(await request.text());
+      await responded;
+      return HttpResponse.json(errorEnvelope('PROPERTY_AI_RESPONSE_INVALID'), { status: 502 });
+    }),
+  );
+  const user = userEvent.setup();
+  renderDetail();
+  await screen.findByRole('button', { name: '이미지로 정보 채우기' });
+
+  await user.upload(
+    aiImportInput(),
+    Array.from({ length: 10 }, (_, index) => capture(`capture${index}.jpg`, 'image/jpeg')),
+  );
+
+  expect(await screen.findByRole('button', { name: /분석 중/ })).toBeDisabled();
+  expect(screen.getByText('이미지를 분석하고 있어요. 1분 정도 걸릴 수 있어요.')).toBeInTheDocument();
+  release();
+  expect(await screen.findByRole('alert')).toHaveTextContent('이미지에서 매물 정보를 읽지 못했어요.');
+  expect(sentCount).toBe(10);
+});
+
+it('보낼 수 없는 이미지는 요청하지 않고 이유를 알린다', async () => {
+  let requestCount = 0;
+  server.use(
+    http.post('*/api/properties/10/ai-import', () => {
+      requestCount += 1;
+      return HttpResponse.json(errorEnvelope('INTERNAL_SERVER_ERROR'), { status: 500 });
+    }),
+  );
+  const user = userEvent.setup({ applyAccept: false });
+  renderDetail();
+  await screen.findByRole('button', { name: '이미지로 정보 채우기' });
+
+  await user.upload(
+    aiImportInput(),
+    Array.from({ length: 11 }, (_, index) => capture(`capture${index}.png`)),
+  );
+  expect(await screen.findByRole('alert')).toHaveTextContent('이미지는 10장까지 고를 수 있어요.');
+
+  await user.upload(aiImportInput(), capture('capture.webp', 'image/webp'));
+  expect(await screen.findByRole('alert')).toHaveTextContent('PNG 또는 JPG 이미지를 골라 주세요.');
+
+  await user.upload(aiImportInput(), capture('large.png', 'image/png', 3 * 1024 * 1024 + 1));
+  expect(await screen.findByRole('alert')).toHaveTextContent('이미지 한 장은 3MB 이하만 올릴 수 있어요.');
+  expect(requestCount).toBe(0);
 });

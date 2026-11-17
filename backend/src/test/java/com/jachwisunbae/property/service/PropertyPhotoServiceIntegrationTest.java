@@ -3,20 +3,25 @@ package com.jachwisunbae.property.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.jachwisunbae.common.exception.JachwiException;
 import com.jachwisunbae.common.exception.errorcode.ErrorCode;
+import com.jachwisunbae.common.exception.server.UpstreamServiceException;
 import com.jachwisunbae.property.entity.photo.PropertyPhoto;
 import com.jachwisunbae.property.repository.JdbcPropertyPhotoRepository;
 import com.jachwisunbae.property.service.dto.result.PropertyPhotoUploadResult;
 import com.jachwisunbae.property.storage.PhotoContent;
 import com.jachwisunbae.property.storage.PhotoStorage;
+import com.jachwisunbae.property.storage.PhotoStream;
+import java.io.InputStream;
 import java.util.Base64;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -172,6 +177,68 @@ class PropertyPhotoServiceIntegrationTest {
         assertError(() -> service.designateRepresentative(MEMBER_ID, PROPERTY_ID, photoId), ErrorCode.PHOTO_NOT_FOUND);
         assertError(() -> service.delete(MEMBER_ID, PROPERTY_ID, photoId), ErrorCode.PHOTO_NOT_FOUND);
         verify(photoStorage, never()).delete(anyString());
+    }
+
+    @Test
+    @DisplayName("사진을 올리면 썸네일도 JPEG로 만들어 저장하고 저장 키를 기록한다")
+    void uploadsThumbnail() {
+        // when
+        PropertyPhoto photo = service.upload(MEMBER_ID, PROPERTY_ID, png()).photo();
+
+        // then
+        assertThat(photo.getThumbnailStorageKey()).endsWith("/thumbnails/"
+                + photo.getStorageKey().substring(photo.getStorageKey().lastIndexOf('/') + 1).replace(".png", ".jpg"));
+        verify(photoStorage).upload(eq(photo.getThumbnailStorageKey()), any(byte[].class), eq("image/jpeg"));
+        assertThat(repository.findByIdAndPropertyId(photo.getId(), PROPERTY_ID).orElseThrow()
+                .getThumbnailStorageKey()).isEqualTo(photo.getThumbnailStorageKey());
+    }
+
+    @Test
+    @DisplayName("썸네일을 올리지 못하면 원본도 저장소에서 지우고 사진을 저장하지 않는다")
+    void compensatesWhenThumbnailUploadFails() {
+        // given
+        willThrow(new UpstreamServiceException(ErrorCode.PHOTO_STORAGE_FAILURE, "썸네일 업로드 실패"))
+                .given(photoStorage).upload(anyString(), any(byte[].class), eq("image/jpeg"));
+
+        // when & then
+        assertError(() -> service.upload(MEMBER_ID, PROPERTY_ID, png()), ErrorCode.PHOTO_STORAGE_FAILURE);
+        verify(photoStorage).delete(argThat(key -> !key.contains("/thumbnails/")));
+        verify(photoStorage).delete(argThat(key -> key.contains("/thumbnails/")));
+        assertThat(repository.countByPropertyId(PROPERTY_ID)).isZero();
+    }
+
+    @Test
+    @DisplayName("썸네일 조회는 썸네일이 있으면 썸네일을, 없으면 원본을 돌려준다")
+    void opensThumbnailOrOriginal() {
+        // given
+        PropertyPhoto withThumbnail = service.upload(MEMBER_ID, PROPERTY_ID, png()).photo();
+        long withoutThumbnail = insertPhoto(PROPERTY_ID, MEMBER_ID, "photos/legacy.png");
+        given(photoStorage.openStream(anyString()))
+                .willAnswer(invocation -> new PhotoStream(InputStream.nullInputStream(), 0, "application/octet-stream"));
+
+        // when
+        PhotoStream thumbnail = service.openThumbnail(MEMBER_ID, PROPERTY_ID, withThumbnail.getId());
+        PhotoStream original = service.openThumbnail(MEMBER_ID, PROPERTY_ID, withoutThumbnail);
+
+        // then
+        verify(photoStorage).openStream(withThumbnail.getThumbnailStorageKey());
+        verify(photoStorage).openStream("photos/legacy.png");
+        assertThat(thumbnail.contentType()).isEqualTo("image/jpeg");
+        assertThat(original.contentType()).isEqualTo("image/png");
+    }
+
+    @Test
+    @DisplayName("사진을 지우면 썸네일도 저장소에서 지운다")
+    void deletesThumbnail() {
+        // given
+        PropertyPhoto photo = service.upload(MEMBER_ID, PROPERTY_ID, png()).photo();
+
+        // when
+        service.delete(MEMBER_ID, PROPERTY_ID, photo.getId());
+
+        // then
+        verify(photoStorage).delete(photo.getStorageKey());
+        verify(photoStorage).delete(photo.getThumbnailStorageKey());
     }
 
     private MockMultipartFile png() {

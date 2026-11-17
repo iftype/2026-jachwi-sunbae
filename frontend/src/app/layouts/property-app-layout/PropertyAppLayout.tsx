@@ -40,7 +40,8 @@ const PropertyAppLayout = () => {
     isMapPage,
     isPropertyDetailPath,
     isHomeWidthPage: location.pathname === MY_PATH || isChecklistPage,
-    isWidePage: isChecklistPage,
+    // 방 비교도 휴대폰에서 좌우 빈 공간 없이 화면 폭을 다 쓴다.
+    isWidePage: isChecklistPage || location.pathname === COMPARE_PATH,
   };
 
   return (

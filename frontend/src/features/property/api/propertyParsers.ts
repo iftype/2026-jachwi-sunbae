@@ -13,6 +13,7 @@ import type {
   CreatedProperty,
   DiscoverySource,
   PropertyAdditionalInfo,
+  PropertyAiImport,
   PropertyBasicInfo,
   PropertyChecklistDetail,
   PropertyChecklistItemStatus,
@@ -265,6 +266,14 @@ export const parsePropertyBasicInfo = (value: unknown): PropertyBasicInfo => {
 export const parseCreatedProperty = (value: unknown): CreatedProperty => {
   const record = readRecord(value);
   return parsePropertyBasicInfo(record);
+};
+
+export const parsePropertyAiImport = (value: unknown): PropertyAiImport => {
+  const record = readRecord(value);
+  return {
+    basicInfo: parsePropertyBasicInfo(record.property),
+    freeMemo: readString(record, 'freeMemo', { allowEmpty: true, maximumCodePoints: 2_000 }),
+  };
 };
 
 export const parsePropertyMemoDocument = (value: unknown): PropertyMemoDocument => {

@@ -1,35 +1,22 @@
 import { css } from '@emotion/css';
 
-import { RECORDS_MAP_PATH } from '@/shared/lib/navigation/appPaths';
-import { Button, ButtonLink } from '@/shared/ui/button/Button';
+import { Button } from '@/shared/ui/button/Button';
 
 import { MIN_SELECTION } from '../../hooks/usePropertyComparison';
 
 type CompareActionBarProps = {
-  /** 등록한 매물 수. 비교에 필요한 수보다 적으면 내려받기 대신 매물을 더 등록하라고 안내한다. */
-  propertyCount: number;
   selectedCount: number;
   isExporting: boolean;
   onDownload: () => void;
 };
 
-const CompareActionBar = ({ propertyCount, selectedCount, isExporting, onDownload }: CompareActionBarProps) => {
-  if (propertyCount < MIN_SELECTION) {
-    return (
-      <div className={styles.actionBar}>
-        <p>매물을 하나 더 등록하면 비교할 수 있어요.</p>
-        <ButtonLink to={RECORDS_MAP_PATH} fullWidth>
-          본 방 기록에서 등록하기
-        </ButtonLink>
-      </div>
-    );
-  }
-
+/** 매물이 하나라도 있으면 보이는 아래 고정 바. 하나만 골라도 PDF로 받는다. */
+const CompareActionBar = ({ selectedCount, isExporting, onDownload }: CompareActionBarProps) => {
   return (
     <div className={styles.actionBar}>
       <p>
         {selectedCount < MIN_SELECTION
-          ? `${MIN_SELECTION - selectedCount}개 더 선택해 주세요.`
+          ? 'PDF로 받을 매물을 골라 주세요.'
           : `${selectedCount}개 매물의 모든 기록을 PDF로 만들어요.`}
       </p>
       <Button

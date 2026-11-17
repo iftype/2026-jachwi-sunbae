@@ -112,6 +112,7 @@ const PropertyAdditionalInfoSection = ({
           resizable={false}
           closeLabel="닫기"
           onClose={onCancel}
+          className={styles.sheet}
         >
           <div className={styles.sheetBody}>
             <PropertyAdditionalInfoForm
@@ -129,6 +130,18 @@ const PropertyAdditionalInfoSection = ({
 };
 
 const styles = {
+  /*
+   * 휴대폰 상세는 페이지 전체가 스크롤되므로, 시트를 화면에 고정해 스크롤해도 따라 내려가지 않게 한다.
+   * 데스크탑은 상세가 본 방 기록 옆 칸 안에 열려, 화면에 고정하면 칸을 넘어 지도를 덮는다. 그래서 휴대폰에서만 고정한다.
+   */
+  sheet: css`
+    label: PropertyAdditionalInfoSection-sheet;
+    @media (max-width: 1023px) {
+      && {
+        position: fixed;
+      }
+    }
+  `,
   sheetBody: css`
     label: PropertyAdditionalInfoSection-sheetBody;
     padding: 0 1rem calc(1rem + env(safe-area-inset-bottom));

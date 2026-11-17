@@ -49,7 +49,7 @@ public class StreetMemoService {
                                                final BigDecimal minLatitude, final BigDecimal maxLatitude,
                                                final BigDecimal minLongitude, final BigDecimal maxLongitude) {
         validateBounds(minLatitude, maxLatitude, minLongitude, maxLongitude);
-        return streetMemoRepository.findAllWithin(minLatitude, maxLatitude, minLongitude, maxLongitude)
+        return streetMemoRepository.findAllWithin(memberId, minLatitude, maxLatitude, minLongitude, maxLongitude)
                 .stream().map(streetMemo -> StreetMemoResult.from(streetMemo, memberId)).toList();
     }
 

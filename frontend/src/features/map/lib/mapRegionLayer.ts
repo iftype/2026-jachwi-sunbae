@@ -1,5 +1,5 @@
 import type { MapRegion } from '../model/MapCanvas';
-import { createRegionSummaryElement, regionLabelPosition } from './mapRegionSummary';
+import { createRegionRentLabelElement, createRegionSummaryElement, regionLabelPosition } from './mapRegionSummary';
 import type { LiveMap, LiveOverlay, naverEngine } from './naverMapEngine';
 
 type Engine = Pick<ReturnType<typeof naverEngine>, 'latLng' | 'createOverlay' | 'removeListener'> &
@@ -8,6 +8,11 @@ type Engine = Pick<ReturnType<typeof naverEngine>, 'latLng' | 'createOverlay' | 
 const STAGE_CHUNK = 40;
 /** GL 준비 신호를 못 받아도 이 시간이 지나면 그린다. */
 export const READY_TIMEOUT_MS = 3000;
+/**
+ * 이 확대 단계(작을수록 가까움) 이하로 다가가면 동 이름 아래에 평균 월세 라벨을 올린다.
+ * 더 멀리서는 동 수백 개 라벨이 겹쳐 읽히지 않는다.
+ */
+export const RENT_LABEL_SHOW_LEVEL = 11;
 type Polygon = InstanceType<NaverMapsNamespace['Polygon']>;
 const anchorOf = (region: MapRegion) => region.center ?? region.polygons?.[0]?.[0]?.[0] ?? region.paths[0]?.[0];
 /** 화면 중심에서 가까운 순서를 정하는 용도라 위도에 따른 경도 축척만 맞춘 근사 거리다. */
@@ -180,16 +185,21 @@ export const createMapRegionLayer = (
         );
       }
       // 요약이 없는 통근 경계에는 불필요한 DOM을 만들지 않는다.
+      const showsRentLabel = region.rentLabel !== undefined && region.name !== '' && level <= RENT_LABEL_SHOW_LEVEL;
       const labelKey = region.summary
         ? JSON.stringify([region.name, region.summary, region.center, region.appearance, selected])
-        : '';
+        : showsRentLabel
+          ? JSON.stringify(['rent', region.name, region.rentLabel, region.center, selected])
+          : '';
       if (entry.labelKey !== labelKey) {
         entry.label?.setMap(null);
         entry.label = null;
         entry.summary = null;
         entry.labelKey = labelKey;
-        if (region.summary) {
-          const summary = createRegionSummaryElement(region, selected, () => onSelect(region.id));
+        if (region.summary || showsRentLabel) {
+          const summary = region.summary
+            ? createRegionSummaryElement(region, selected, () => onSelect(region.id))
+            : createRegionRentLabelElement(region, selected, () => onSelect(region.id));
           summary.dataset.hovered = String(entry.hovered);
           summary.addEventListener('mouseenter', () => hover(entry, true));
           summary.addEventListener('mouseleave', () => hover(entry, false));

@@ -115,6 +115,12 @@ export type PropertyBasicInfo = PropertyAdditionalInfo & {
 
 export type CreatedProperty = PropertyBasicInfo;
 
+/** 이미지 분석 결과를 반영해 저장한 매물 기본 정보와 추출 메모를 덧붙인 자유 메모. */
+export type PropertyAiImport = {
+  basicInfo: PropertyBasicInfo;
+  freeMemo: string;
+};
+
 export type PropertyPhoto = {
   photoId: number;
   contentUrl: string;

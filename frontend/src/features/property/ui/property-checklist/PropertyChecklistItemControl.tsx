@@ -104,7 +104,6 @@ const PropertyChecklistItemControl = ({ propertyId, propertyChecklistId, item }:
               aria-disabled={statusMutation.isPending || undefined}
               onClick={() => selectStatus(option.value)}
             >
-              {item.status === option.value && <span aria-hidden="true">✓</span>}
               {option.label}
             </Button>
           ))}
@@ -124,12 +123,39 @@ const styles = {
     label: PropertyChecklistItemControl-item;
     /* 항목 사이에는 줄을 긋지 않는다. 가로선은 카테고리 사이에만 있다. */
   `,
+  /*
+   * 첫 줄은 질문과 상태 버튼, 그 아래 메모와 안내는 버튼 밑까지 가로를 다 쓴다.
+   * 질문 칸(question)은 display: contents로 풀어 그 안의 질문, 메모, 안내가 바로 이 격자에 놓이게 한다.
+   */
   row: css`
     label: PropertyChecklistItemControl-row;
-    display: flex;
-    align-items: flex-start;
-    gap: var(--space-sm);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    column-gap: var(--space-sm);
+    row-gap: 0.6rem;
     padding: 0.9rem 0;
+
+    & > div:first-child {
+      display: contents;
+    }
+    & > div:first-child > * {
+      grid-column: 1 / -1;
+    }
+    & > div:first-child > strong {
+      grid-row: 1;
+      grid-column: 1;
+    }
+    & > div:last-child {
+      grid-row: 1;
+      grid-column: 2;
+    }
+
+    /* 메모를 쓰는 동안 회색 바탕 없이 검은 글자로 보인다. */
+    && .TextField-field[data-variant='inline'] textarea:focus-visible {
+      background: transparent;
+      color: var(--color-ink);
+    }
   `,
   question: css`
     label: PropertyChecklistItemControl-question;
@@ -145,6 +171,10 @@ const styles = {
       line-height: 1.55;
       word-break: keep-all;
       overflow-wrap: anywhere;
+    }
+    /* 메모는 질문보다 한 단계 작게 쓴다. */
+    & textarea {
+      font-size: 0.8rem;
     }
   `,
   statuses: css`
@@ -171,13 +201,6 @@ const styles = {
     & > span {
       justify-content: center;
       gap: 0.2rem;
-    }
-    /* 선택하면 앞에 붙는 체크(✓) 글자 때문에 버튼 폭이 바뀌어 옆 질문 글자가 흔들리지 않게, 체크가 든 폭으로 늘 고정한다. */
-    &[data-status='GOOD'] {
-      min-width: 4.5rem;
-    }
-    &[data-status='CAUTION'] {
-      min-width: 3.7rem;
     }
     &[data-status='GOOD'][aria-pressed='true'] {
       background: color-mix(in srgb, var(--color-check-good-ink) 14%, var(--color-surface));

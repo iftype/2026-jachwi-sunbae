@@ -6,5 +6,5 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 
 public record ExportPropertyComparisonRequest(
-        @NotNull @Size(min = 2, max = 5) List<@NotNull @Positive Long> propertyIds) {
+        @NotNull @Size(min = 1, max = 5) List<@NotNull @Positive Long> propertyIds) {
 }
