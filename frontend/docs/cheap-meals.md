@@ -16,7 +16,7 @@
 - 편의점: 이마트24·세븐일레븐, 전체/1+1/2+1/할인/기타 행사 필터를 제공한다. 기타 행사는 3+1·골라담기를 포함한다. `UNKNOWN` 상품도 유지한다. 상품명 검색은 입력할 때마다 반영하고 대소문자·공백 차이를 무시하며, 검색 중에는 결과 상품 수를 표시한다. 정렬은 기본순(API 순서)·가격 낮은 순·가격 높은 순이며 판매가격 기준이고 같은 가격은 기존 순서를 지킨다. 검색·필터·정렬을 전체 상품에 적용한 뒤 24개씩 표시하고, 조건을 바꾸면 24개로 초기화한다. 이미지 오류는 대체 UI로 처리한다. 공식 출처·마지막 수집 시각·매장별 적용 및 재고 차이를 안내한다. 판매가격을 행사 수량으로 나누지 않는다.
 - 배달: 전체·배민·쿠팡이츠, 할인금액·최소 주문·기간·조건·한국 시간의 마지막 확인 시각을 보여준다. null은 정보 없음으로 표시하며 결제금액이나 주문 링크를 생성하지 않는다.
 
-데스크탑(1024px 이상)은 진입점에서 `useIsDesktop()`으로 화면을 고른다. 공용 데스크탑 헤더 아래 왼쪽 13rem 칸에 `저렴한 한 끼` 제목과 세로 탭 (`aria-orientation="vertical"`, 위/아래 방향키로 이동)을 두고 오른쪽에 본문을 둔다. 편의점은 브랜드와 행사 유형을 한 줄 도구 막대에 나란히 두고 그 아래 검색창과 정렬 메뉴를 한 줄로 두며, 상품 칸을 폭에 맞춰 늘리며(휴대폰 2열, 태블릿 3~4열, 데스크탑 11rem 이상 칸), 배달 혜택은 2열로 놓는다. 휴대폰은 위쪽 가로 탭을 세 칸으로 나누고, 편의점은 브랜드 → 검색·정렬 → 행사 유형 순으로 쌓는다. 식당 탭은 `ListDetailLayout`으로 왼쪽에 주소 검색과 가게 목록, 그 옆에 가게 상세, 오른쪽에 지도를 화면 끝까지 둔다. 홈 진입 카드는 옅은 노란 그라데이션에 진한 글자이고, 휴대폰 홈에서는 기능 카드 묶음 아래에, 데스크탑 홈에서는 사용방법 카드와 같은 줄의 오른쪽 열에 둔다.
+데스크탑(1024px 이상)은 진입점에서 `useIsDesktop()`으로 화면을 고른다. 공용 데스크탑 헤더 아래 왼쪽 13rem 칸에 `저렴한 한 끼` 제목과 세로 탭 (`aria-orientation="vertical"`, 위/아래 방향키로 이동)을 두고 오른쪽에 본문을 둔다. 편의점은 브랜드와 행사 유형을 한 줄 도구 막대에 나란히 두고 그 아래 검색창과 정렬 메뉴를 한 줄로 두며, 상품 칸을 폭에 맞춰 늘리며(휴대폰 2열, 태블릿 3~4열, 데스크탑 11rem 이상 칸), 배달 혜택은 2열로 놓는다. 휴대폰은 위쪽 가로 탭을 세 칸으로 나누고, 편의점은 브랜드 → 검색·정렬 → 행사 유형 순으로 쌓는다. 식당 탭은 `ListDetailLayout`으로 왼쪽에 주소 검색과 가게 목록, 그 옆에 가게 상세, 오른쪽에 지도를 화면 끝까지 둔다. 홈의 마이페이지에서 `저렴한 한 끼` 링크를 제공한다.
 
 지도 SDK의 인증 실패는 지도 영역에서 처리해 목록·다른 카테고리를 계속 사용할 수 있게 한다. 지도 다시 시도는 폐기된 SDK를 초기화하기 위해 페이지를 새로고침하므로 메모리 필터가 초기화된다. 지도 목록 시트는 지도를 함께 조작할 수 있는 비모달 시트이며 끌개 또는 키보드 위·아래 방향키로 확장할 수 있다. 목록 시트와 상품·배달 상세 시트는 끝까지 끌어 올리면 위쪽 머리와 탭까지 덮어 화면 맨 위에서 페이지로 연다.
 
@@ -36,12 +36,12 @@ GET /api/delivery-discount-offers
 - `features/good-price`: 업소 API 응답 검증·Query Hook·화면 모델
 - `features/meal-deals`: API 응답 검증·Query Hook은 `api`, 화면 모델·표시 상수는 `model`, 표시 함수는 `lib`에 둔다.
 - `pages/cheap-meals`: 탭 탐색, 지도·상세 이력 Hook, 카테고리 패널과 상세 시트. 공유 타입은 `model`에 두고 지도 Hook은 `openList`·`closeList`처럼 의도가 드러나는 동작을 제공한다. 화면은 `desktop`, `mobile`로 나누고 탭 목록과 패널은 `ui/meal-tab-list`, `ui/meal-tab-panels`를 함께 쓴다. 이벤트 이름과 속성은 `lib/cheapMealAnalytics.ts`가 소유한다. 편의점 상품의 행사 유형 필터·상품명 검색·가격 정렬은 순수 함수 `lib/convenienceProducts.ts`의 `selectProducts`가 맡는다.
-- `pages/design-home/ui/CheapMealCard.tsx`: 공용 `ActionCard`로 만든 모바일, 데스크탑 공통 진입 카드
+- `pages/my/ui/MyQuickLinks.tsx`: 마이의 도구 타일 가운데 `저렴한 한 끼` 타일이 진입점이다
 - `features/map`: 기존 지도 컴포넌트 재사용 및 늦은 SDK 인증 실패에 대한 정리 보호
 
 `/cheap-meals/:mealTab?`는 기존 ProtectedRoute 안에 lazy route로 추가한다. `/map`의 매물 경로와 리다이렉트, 홈의 방 찾기·동네 찾기·체크리스트·방 비교는 유지한다.
 
-화면은 공용 `TopNavigation`, `EmptyState`, `ContentState`, `InlineNotice`, `InfoValue`, `SegmentedControl`, `SearchField`, `ActionCard`, `Button`을 쓴다. 세 탭의 빈 상태는 `MealEmptyState`(공용 `EmptyState`에 오리 그림)로, 식당 오류는 다른 탭과 같은 `ContentState` 오류 화면으로 그린다. 상품 사진은 받은 그대로 정사각형 칸 안에 통째로 넣어 세로로 긴 사진도 자르지 않는다. 그림자는 `--shadow-floating`, `--shadow-dialog` 토큰을 쓴다.
+화면은 공용 `TopNavigation`, `EmptyState`, `ContentState`, `InlineNotice`, `InfoValue`, `SegmentedControl`, `SearchField`, `Button`을 쓴다. 세 탭의 빈 상태는 `MealEmptyState`(공용 `EmptyState`에 오리 그림)로, 식당 오류는 다른 탭과 같은 `ContentState` 오류 화면으로 그린다. 상품 사진은 받은 그대로 정사각형 칸 안에 통째로 넣어 세로로 긴 사진도 자르지 않는다. 그림자는 `--shadow-floating`, `--shadow-dialog` 토큰을 쓴다.
 
 ## PostHog 이벤트
 

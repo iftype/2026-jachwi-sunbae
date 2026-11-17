@@ -6,7 +6,7 @@ import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-rou
 import { beforeEach, expect, it, vi } from 'vitest';
 
 import CheapMealsPage from '@/pages/cheap-meals/CheapMealsPage';
-import CheapMealCard from '@/pages/design-home/ui/CheapMealCard';
+import MyQuickLinks from '@/pages/my/ui/MyQuickLinks';
 import { setAuthentication } from '@/features/auth/model/authStore';
 import * as mapLocation from '@/features/map/lib/mapLocation';
 import { PublicConfigProvider } from '@/shared/config/PublicConfigContext';
@@ -132,7 +132,7 @@ const renderAt = (entry: string) => {
           <Back />
           <CurrentUrl />
           <Routes>
-            <Route path="/" element={<CheapMealCard />} />
+            <Route path="/" element={<MyQuickLinks />} />
             <Route path={ROUTE_PATTERNS.cheapMeals} element={<CheapMealsPage />} />
           </Routes>
         </MemoryRouter>
@@ -150,9 +150,9 @@ const reload = (unmount: () => void) => {
 };
 const tab = (name: string) => screen.getByRole('tab', { name });
 
-it('홈 카드에서 들어오면 고를 카드만 늘어놓던 전체 탭 없이 식당 탭을 바로 열고, 다른 카테고리 API는 미리 부르지 않는다', async () => {
+it('마이 도구 타일로 들어오면 고를 카드만 늘어놓던 전체 탭 없이 식당 탭을 바로 열고, 다른 카테고리 API는 미리 부르지 않는다', async () => {
   const user = setup('/');
-  await user.click(screen.getByRole('link', { name: /오늘 한 끼/ }));
+  await user.click(screen.getByRole('link', { name: '저렴한 한 끼' }));
   expect(screen.queryByRole('tab', { name: '전체' })).not.toBeInTheDocument();
   expect(screen.getAllByRole('tab').map((item) => item.textContent)).toEqual(['식당', '편의점', '배달']);
   expect(tab('식당')).toHaveAttribute('aria-selected', 'true');
@@ -167,15 +167,15 @@ it('예전 주소의 전체 탭(?tab=all)으로 들어와도 식당 탭으로 �
   await waitFor(() => expect(currentUrl()).toBe('/cheap-meals/restaurant'));
 });
 
-it('처음 홈 카드로 들어오면 이력을 늘리지 않고 식당 탭 주소로 바꾼다', async () => {
+it('처음 마이 도구 타일로 들어오면 이력을 늘리지 않고 식당 탭 주소로 바꾼다', async () => {
   const user = setup('/');
-  await user.click(screen.getByRole('link', { name: /오늘 한 끼/ }));
+  await user.click(screen.getByRole('link', { name: '저렴한 한 끼' }));
   await waitFor(() => expect(currentUrl()).toBe('/cheap-meals/restaurant'));
   await user.click(screen.getByRole('button', { name: '브라우저 뒤로' }));
   expect(currentUrl()).toBe('/');
 });
 
-it('배달 탭을 보다가 다른 화면을 다녀와 홈 카드로 다시 들어오면 배달 탭을 연다', async () => {
+it('배달 탭을 보다가 다른 화면을 다녀와 마이 도구 타일로 다시 들어오면 배달 탭을 연다', async () => {
   const first = renderAt('/cheap-meals/restaurant');
   await first.user.click(tab('배달'));
   expect(currentUrl()).toBe('/cheap-meals/delivery');
@@ -183,7 +183,7 @@ it('배달 탭을 보다가 다른 화면을 다녀와 홈 카드로 다시 들�
   calls.stores.mockClear();
 
   const { user } = renderAt('/');
-  await user.click(screen.getByRole('link', { name: /오늘 한 끼/ }));
+  await user.click(screen.getByRole('link', { name: '저렴한 한 끼' }));
   expect(tab('배달')).toHaveAttribute('aria-selected', 'true');
   await waitFor(() => expect(currentUrl()).toBe('/cheap-meals/delivery'));
   expect(calls.stores).not.toHaveBeenCalled();
@@ -564,7 +564,7 @@ it('응답을 기다리는 동안 로딩을 보여주고 빈 필터 결과를 �
 });
 it('Escape는 상세만 한 번 닫고 기존 카테고리와 초점을 보존한다', async () => {
   const user = setup('/');
-  await user.click(screen.getByRole('link', { name: /오늘 한 끼/ }));
+  await user.click(screen.getByRole('link', { name: '저렴한 한 끼' }));
   await user.click(tab('배달'));
   const card = await screen.findByRole('button', { name: /배민 테스트피자 할인 상세/ });
   await user.click(card);
@@ -787,7 +787,7 @@ it.each(['store=10', 'search=1'])('상세 URL %s로 직접 진입해도 닫으�
 
 it('UT 퍼널 이벤트 네 개를 정해진 시점에 정해진 속성으로만 기록한다', async () => {
   const user = setup('/');
-  await user.click(screen.getByRole('link', { name: /오늘 한 끼/ }));
+  await user.click(screen.getByRole('link', { name: '저렴한 한 끼' }));
   expect(trackEvent).toHaveBeenCalledTimes(1);
   expect(trackEvent).toHaveBeenCalledWith('cheap_meal_viewed', {});
 

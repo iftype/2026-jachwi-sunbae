@@ -8,18 +8,19 @@ export const notice = css`
   font: inherit;
   text-align: left;
   cursor: pointer;
-  grid-template-columns: 1.5rem minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.75rem;
-  padding: var(--my-card-padding);
-  border-radius: var(--radius-card);
-  background: var(--my-card-surface, var(--color-card-surface));
-  color: var(--color-error);
+  min-height: 3.25rem;
+  padding: 0.55rem var(--my-card-padding);
+  border-radius: 0;
+  background: transparent;
+  /* 개인정보, 탈퇴 같은 계정 관리 줄은 눈에 덜 띄게 회색으로 둔다. */
+  color: var(--color-ink-soft);
   text-decoration: none;
 
   & span,
-  & strong,
-  & small {
+  & strong {
     display: block;
   }
 
@@ -28,21 +29,17 @@ export const notice = css`
     letter-spacing: -0.02em;
   }
 
-  & small {
-    margin-top: 0.25rem;
-    word-break: keep-all;
-    color: color-mix(in srgb, var(--color-error) 70%, var(--color-muted));
-    font-size: var(--my-subtext-size, 0.78rem);
+  /* 줄 끝 화살표: 크고 두꺼운 회색. */
+  & > svg:last-child {
+    flex: none;
+    width: var(--my-chevron-size);
+    height: var(--my-chevron-size);
+    color: var(--my-chevron-color);
+    stroke-width: 2.6;
   }
 
   &:focus-visible {
     outline: 2px solid var(--color-focus);
-    outline-offset: 2px;
+    outline-offset: -2px;
   }
-`;
-
-export const noticeIcon = css`
-  label: MyRowCard-noticeIcon;
-  display: grid;
-  place-items: center;
 `;

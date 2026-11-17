@@ -79,6 +79,9 @@ export const useHeaderWeather = () => {
 
   return {
     isAllowed,
+    /** 위치를 얻지 못해 날씨를 못 보이는 상태. 기본 지역 날씨로 대신하지 않고 위치 허용을 안내한다. */
+    needsLocation: !isAllowed,
+    permission,
     placeName: place.data ?? null,
     hour: isAllowed && hour !== undefined && hour.tmp !== null ? hour : null,
     precipitation: forecast.data === undefined ? null : todayPrecipitation(forecast.data.hourly),

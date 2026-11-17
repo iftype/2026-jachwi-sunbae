@@ -1,3 +1,4 @@
+import { isPreviewProperty } from '@/features/property/model/sampleProperties';
 import PropertyCard from '@/features/property/ui/property-card/PropertyCard';
 import { RECORDS_PATH } from '@/shared/lib/navigation/appPaths';
 import EmptyState from '@/shared/ui/empty-state/EmptyState';
@@ -31,16 +32,27 @@ const RecordList = ({ records, district, onOpen, onNotice, className }: RecordLi
         />
       )}
       <ul className={styles.items}>
-        {records.map((record) => (
-          <li key={record.id}>
-            <PropertyCard
-              property={record.summary}
-              returnTo={RECORDS_PATH}
-              onOpen={onOpen === undefined ? undefined : () => onOpen(record.id)}
-              actions={<RecordCardMenu propertyId={Number(record.id)} propertyName={record.name} onDone={onNotice} />}
-            />
-          </li>
-        ))}
+        {records.map((record) =>
+          isPreviewProperty(record.id) ? (
+            // 미리보기 매물은 상세는 열지만, 서버에 없어 지우기 같은 메뉴는 두지 않는다.
+            <li key={record.id}>
+              <PropertyCard
+                property={record.summary}
+                returnTo={RECORDS_PATH}
+                onOpen={onOpen === undefined ? undefined : () => onOpen(record.id)}
+              />
+            </li>
+          ) : (
+            <li key={record.id}>
+              <PropertyCard
+                property={record.summary}
+                returnTo={RECORDS_PATH}
+                onOpen={onOpen === undefined ? undefined : () => onOpen(record.id)}
+                actions={<RecordCardMenu propertyId={Number(record.id)} propertyName={record.name} onDone={onNotice} />}
+              />
+            </li>
+          ),
+        )}
       </ul>
     </section>
   );

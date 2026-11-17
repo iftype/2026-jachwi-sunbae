@@ -58,7 +58,7 @@ const meta = {
   title: '페이지/홈/공통/RecentRooms',
   component: RecentRooms,
   args: {
-    inSideColumn: false,
+    isDesktop: false,
   },
   parameters: {
     layout: 'padded',
@@ -79,14 +79,15 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
 
+/** 아직 기록한 방이 없어 미리보기 매물 카드와 방 기록하기 버튼이 보인다. */
 export const Empty: Story = {
   parameters: {
     queryData: [[propertyQueryKeys.list(''), page([])]],
   },
 };
 
-export const InSideColumn: Story = {
+export const Desktop: Story = {
   args: {
-    inSideColumn: true,
+    isDesktop: true,
   },
 };

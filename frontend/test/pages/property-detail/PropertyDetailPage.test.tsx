@@ -6,6 +6,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 
 import { errorEnvelope } from '@/app/mocks/fixtures/propertyFixtures';
+import { mapHandlers } from '@/app/mocks/handlers/mapHandlers';
 import { propertyChecklistHandlers } from '@/app/mocks/handlers/propertyChecklistHandlers';
 import { countImageParts, propertyHandlers } from '@/app/mocks/handlers/propertyHandlers';
 import { resetMockStore } from '@/app/mocks/mockStore';
@@ -19,8 +20,8 @@ import { server } from '../../server';
 
 beforeEach(() => {
   resetMockStore();
-  setAuthentication({ accessToken: 'valid-token', tokenType: 'Bearer', expiresIn: 60 });
-  server.use(...propertyHandlers, ...propertyChecklistHandlers);
+  setAuthentication({ accessToken: 'valid-token', tokenType: 'Bearer', expiresIn: 60, memberId: 1 });
+  server.use(...propertyHandlers, ...propertyChecklistHandlers, ...mapHandlers);
 });
 afterEach(() => {
   resetAuthenticationForTests();
@@ -60,14 +61,14 @@ it('고른 탭을 들어온 화면 정보와 함께 주소에 남긴다', async 
   expect(router.state.location.search).toBe('?tab=details');
 });
 
-it('체크리스트를 마지막으로 봤어도 탭 없는 새 진입은 정보로 연다', async () => {
+it('탭 없는 새 진입은 마지막으로 본 체크리스트 탭으로 연다', async () => {
   const user = userEvent.setup();
   renderDetail();
   await user.click(await screen.findByRole('tab', { name: '체크리스트' }));
   cleanup();
 
   renderDetail();
-  expect(await screen.findByRole('tab', { name: '정보' })).toHaveAttribute('aria-selected', 'true');
+  expect(await screen.findByRole('tab', { name: '체크리스트' })).toHaveAttribute('aria-selected', 'true');
 });
 
 it('탭 제목에 매물 이름과 지금 탭을 담는다', async () => {
@@ -172,7 +173,7 @@ it('이미지로 정보를 채우면 저장된 기본 정보와 메모로 화면
   expect(await screen.findByText('이미지에서 읽은 정보를 저장했어요.')).toBeInTheDocument();
   const updatedPrice = formatPropertyPrice(20_000_000, 650_000, 'plain');
   expect(await screen.findByText(updatedPrice)).toBeInTheDocument();
-  expect(screen.getByText(/관리비 포함 항목을 다시 확인하기\s+4층, 엘리베이터 있음/)).toBeInTheDocument();
+  expect(await screen.findByText(/관리비 포함 항목을 다시 확인하기\s+4층, 엘리베이터 있음/)).toBeInTheDocument();
 
   cleanup();
   queryClient.clear();
@@ -206,7 +207,9 @@ it('이미지 10장을 한 번에 보내고 분석하는 동안 버튼을 막는
   expect(await screen.findByRole('button', { name: /분석 중/ })).toBeDisabled();
   expect(screen.getByText('이미지를 분석하고 있어요. 1분 정도 걸릴 수 있어요.')).toBeInTheDocument();
   release();
-  expect(await screen.findByRole('alert')).toHaveTextContent('이미지에서 매물 정보를 읽지 못했어요.');
+  expect(
+    await screen.findByText('이미지에서 매물 정보를 읽지 못했어요. 다른 캡처로 다시 시도해 주세요.'),
+  ).toHaveAttribute('role', 'alert');
   expect(sentCount).toBe(10);
 });
 
@@ -226,12 +229,12 @@ it('보낼 수 없는 이미지는 요청하지 않고 이유를 알린다', asy
     aiImportInput(),
     Array.from({ length: 11 }, (_, index) => capture(`capture${index}.png`)),
   );
-  expect(await screen.findByRole('alert')).toHaveTextContent('이미지는 10장까지 고를 수 있어요.');
+  expect(await screen.findByText('이미지는 10장까지 고를 수 있어요.')).toHaveAttribute('role', 'alert');
 
   await user.upload(aiImportInput(), capture('capture.webp', 'image/webp'));
-  expect(await screen.findByRole('alert')).toHaveTextContent('PNG 또는 JPG 이미지를 골라 주세요.');
+  expect(await screen.findByText('PNG 또는 JPG 이미지를 골라 주세요.')).toHaveAttribute('role', 'alert');
 
   await user.upload(aiImportInput(), capture('large.png', 'image/png', 3 * 1024 * 1024 + 1));
-  expect(await screen.findByRole('alert')).toHaveTextContent('이미지 한 장은 3MB 이하만 올릴 수 있어요.');
+  expect(await screen.findByText('이미지 한 장은 3MB 이하만 올릴 수 있어요.')).toHaveAttribute('role', 'alert');
   expect(requestCount).toBe(0);
 });

@@ -17,7 +17,18 @@ export type MapMarker = {
   /** flash는 destination과 같은 말풍선을 잠깐 띄웠다가 위로 떠오르며 사라진다(방금 남긴 메모 등). */
   /** rank는 순위 숫자와 이름을 붙인 알약으로 그린다(동네 찾기 상위 동네 등). 가운데가 좌표에 온다. */
   tone?:
-    'property' | 'current' | 'place' | 'selected' | 'destination' | 'flash' | 'cluster' | 'propertyCluster' | 'rank';
+    | 'property'
+    | 'current'
+    | 'place'
+    | 'selected'
+    | 'destination'
+    | 'flash'
+    | 'cluster'
+    | 'propertyCluster'
+    | 'rank'
+    | 'dot';
+  /** tone이 dot일 때 점 색. 매물 주변 미리보기처럼 시설을 작은 색 점으로만 보일 때 쓴다. */
+  color?: string;
   category?: MapCategory;
   /** 주면 이 그림을 아래 가운데가 좌표를 가리키는 핀으로 그린다. 매물 등록, 메모를 남기려고 찍은 자리처럼 기호가 정해진 마커에 쓴다. */
   image?: { src: string; src2x?: string };
