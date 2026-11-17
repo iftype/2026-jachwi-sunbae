@@ -6,6 +6,8 @@ import { trackPostHogEvent } from '@/shared/lib/analytics/posthog';
 
 import { rememberRecentEdit } from '../lib/recentEdit';
 import type { PropertyChecklistDetail, PropertyChecklistItemStatus } from '../model/Property';
+import { isPreviewProperty } from '../model/sampleProperties';
+import { orPreview } from './previewPropertyApi';
 import { updatePropertyChecklistItemMemo, updatePropertyChecklistItemStatus } from './propertyApi';
 import { propertyQueryKeys } from './propertyQueryKeys';
 
@@ -32,11 +34,16 @@ const updateChecklistItem = (
 export const usePropertyChecklistItemStatusMutation = (propertyId: number, propertyChecklistId: number) => {
   const config = usePublicConfig();
   return useMutation({
+    // 미리보기 매물은 서버에 보내지 않고 화면에서만 바꿔 본다.
     mutationFn: ({ itemId, status }: { itemId: number; status: PropertyChecklistItemStatus }) =>
-      updatePropertyChecklistItemStatus(config, propertyId, propertyChecklistId, itemId, status),
+      orPreview(
+        propertyId,
+        () => ({ itemId, status }),
+        () => updatePropertyChecklistItemStatus(config, propertyId, propertyChecklistId, itemId, status),
+      ),
     onSuccess: ({ itemId, status }) => {
       const refresh = updateChecklistItem(propertyId, propertyChecklistId, itemId, (item) => ({ ...item, status }));
-      if (status !== 'UNCONFIRMED') {
+      if (status !== 'UNCONFIRMED' && !isPreviewProperty(propertyId)) {
         trackPostHogEvent('checklist_item_checked', {
           property_id: propertyId,
           property_checklist_id: propertyChecklistId,
@@ -53,7 +60,11 @@ export const usePropertyChecklistItemMemoMutation = (propertyId: number, propert
   const config = usePublicConfig();
   return useMutation({
     mutationFn: ({ itemId, memo }: { itemId: number; memo: string }) =>
-      updatePropertyChecklistItemMemo(config, propertyId, propertyChecklistId, itemId, memo),
+      orPreview(
+        propertyId,
+        () => ({ itemId, memo }),
+        () => updatePropertyChecklistItemMemo(config, propertyId, propertyChecklistId, itemId, memo),
+      ),
     onSuccess: ({ itemId, memo }) => {
       return updateChecklistItem(propertyId, propertyChecklistId, itemId, (item) => ({ ...item, memo }));
     },

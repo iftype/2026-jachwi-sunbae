@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { useAssignActiveChecklist } from '@/features/checklist/api/useChecklistMutations';
 import { clearLastSelectedChecklist, readLastSelectedChecklist } from '@/features/checklist/model/lastChecklistStore';
 import ChecklistProgressRing from '@/features/checklist/ui/checklist-progress-ring/ChecklistProgressRing';
+import { orPreview, previewPropertyChecklistDetail } from '@/features/property/api/previewPropertyApi';
 import { fetchPropertyChecklistDetail } from '@/features/property/api/propertyApi';
 import { propertyQueryKeys } from '@/features/property/api/propertyQueryKeys';
 import { usePropertyChecklistOverview } from '@/features/property/api/useProperties';
@@ -32,7 +33,10 @@ const PropertyChecklistSection = ({ propertyId }: PropertyChecklistSectionProps)
   // 두 조회를 한 컴포넌트에서 보아야 로딩 UI 하나로 기다릴 수 있다.
   const checklist = useQuery({
     queryKey: propertyQueryKeys.checklist(propertyId, propertyChecklistId ?? 0),
-    queryFn: ({ signal }) => fetchPropertyChecklistDetail(config, propertyId, propertyChecklistId ?? 0, signal),
+    queryFn: ({ signal }) =>
+      orPreview(propertyId, previewPropertyChecklistDetail, () =>
+        fetchPropertyChecklistDetail(config, propertyId, propertyChecklistId ?? 0, signal),
+      ),
     enabled: propertyChecklistId !== null,
   });
 

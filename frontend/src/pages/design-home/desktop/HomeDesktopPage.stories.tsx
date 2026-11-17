@@ -72,7 +72,7 @@ type Story = StoryObj<typeof meta>;
 /** 본 방 기록이 있어 최근 기록한 방이 보인다. */
 export const Default: Story = {};
 
-/** 아직 기록한 방이 없다. */
+/** 아직 기록한 방이 없어 미리보기 매물 카드와 방 기록하기 버튼이 보인다. */
 export const Empty: Story = {
   parameters: {
     queryData: [[propertyQueryKeys.list(''), listData([])]],

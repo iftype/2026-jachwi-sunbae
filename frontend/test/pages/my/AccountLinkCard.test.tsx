@@ -38,7 +38,7 @@ describe('마이 화면 계정 연결', () => {
   it('익명 회원에게 카카오와 Apple 로그인 버튼을 보여 준다', async () => {
     renderMyPage();
 
-    expect(await screen.findByRole('heading', { name: '계정 연결' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '로그인하고 동기화하기' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '카카오 로그인' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Apple로 로그인' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '로그아웃' })).not.toBeInTheDocument();
@@ -50,15 +50,16 @@ describe('마이 화면 계정 연결', () => {
 
     expect(await screen.findByRole('status', { name: '계정 연결을 마치지 못했어요' })).toBeInTheDocument();
     expect(getAuthenticationSnapshot().session?.memberId).toBe(1);
-    expect(screen.getByRole('heading', { name: '계정 연결' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '로그인하고 동기화하기' })).toBeInTheDocument();
   });
 
-  it('연결한 회원에게는 연결한 계정과 로그아웃만 보여 주고 다른 제공자 버튼은 숨긴다', async () => {
+  it('연결한 회원에게는 연결한 계정 프로필 줄과 로그아웃만 보여 주고 다른 제공자 버튼은 숨긴다', async () => {
     saveLinkedProvider(1, 'APPLE');
     renderMyPage();
 
-    expect(await screen.findByRole('heading', { name: 'Apple 계정 연결됨' })).toBeInTheDocument();
-    expect(screen.getByText(/다른 계정을 쓰려면 로그아웃한 뒤 연결해 주세요/)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Apple 계정으로 로그인됨' })).toBeInTheDocument();
+    expect(screen.getByText('다른 기기에서도 기록을 이어서 봐요.')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: '로그인하고 동기화하기' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '카카오 로그인' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Apple로 로그인' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /바꾸기/ })).not.toBeInTheDocument();
@@ -101,7 +102,7 @@ describe('마이 화면 계정 연결', () => {
     );
     renderMyPage();
 
-    expect(await screen.findByRole('heading', { name: '카카오 계정 연결됨' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '카카오 계정으로 로그인됨' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '카카오 로그인' })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: '로그아웃' }));
@@ -118,7 +119,7 @@ describe('마이 화면 계정 연결', () => {
     renderMyPage();
 
     expect(await screen.findByRole('button', { name: /^회원 탈퇴/ })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: /계정 연결/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /로그인하고 동기화하기|로그인됨/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '카카오 로그인' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '로그아웃' })).not.toBeInTheDocument();
   });
@@ -160,7 +161,7 @@ describe('마이 화면 계정 연결', () => {
     renderMyPage();
 
     expect(await screen.findByRole('button', { name: /^회원 탈퇴/ })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: /계정 연결/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /로그인하고 동기화하기|로그인됨/ })).not.toBeInTheDocument();
   });
 
   describe('네이티브 로그인 브리지를 알린 앱', () => {
@@ -200,13 +201,13 @@ describe('마이 화면 계정 연결', () => {
       );
       renderMyPage();
 
-      expect(await screen.findByRole('heading', { name: '계정 연결' })).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { name: '로그인하고 동기화하기' })).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Apple로 로그인' })).not.toBeInTheDocument();
       await user.click(screen.getByRole('button', { name: '카카오 로그인' }));
 
       expect(await screen.findByRole('status', { name: '카카오 계정을 연결했어요' })).toBeInTheDocument();
       expect(idTokenBodies).toEqual([{ idToken: 'kakao-id-token', nonce: 'nonce-1' }]);
-      expect(screen.getByRole('heading', { name: '카카오 계정 연결됨' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: '카카오 계정으로 로그인됨' })).toBeInTheDocument();
       expect(screen.getByLabelText('현재 경로')).toHaveTextContent('/me');
     });
 
@@ -274,7 +275,7 @@ describe('마이 화면 계정 연결', () => {
 
       expect(await screen.findByRole('status', { name: '계정 연결을 취소했어요' })).toBeInTheDocument();
       expect(getAuthenticationSnapshot().session?.memberId).toBe(1);
-      expect(screen.getByRole('heading', { name: '계정 연결' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: '로그인하고 동기화하기' })).toBeInTheDocument();
     });
 
     it('서버에 API가 없으면 안내만 남기고 계정 연결 카드를 숨긴다', async () => {
@@ -290,7 +291,7 @@ describe('마이 화면 계정 연결', () => {
       await user.click(await screen.findByRole('button', { name: '카카오 로그인' }));
 
       expect(await screen.findByRole('status', { name: '지금은 계정을 연결할 수 없어요' })).toBeInTheDocument();
-      expect(screen.queryByRole('heading', { name: /계정 연결/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: /로그인하고 동기화하기|로그인됨/ })).not.toBeInTheDocument();
       expect(getAuthenticationSnapshot().session?.memberId).toBe(1);
     });
   });

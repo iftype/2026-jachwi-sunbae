@@ -115,3 +115,15 @@ describe('겹친 거리 메모 묶음 마커', () => {
     expect([...likesOnly.querySelectorAll('[data-variant]')].map((cell) => cell.textContent)).toEqual(['👍 3']);
   });
 });
+
+describe('주변 시설 점 마커', () => {
+  it('아이콘 없이 marker.color로 칠한 작은 점으로 그린다', () => {
+    const element = createMapMarkerElement(
+      { id: 'dot-1', latitude: 37.48, longitude: 126.93, label: '편의점', tone: 'dot', color: '#ff8800' },
+      null,
+      vi.fn(),
+    );
+    expect(element.querySelector('img')).toBeNull();
+    expect(element.style.background).toBe('rgb(255, 136, 0)');
+  });
+});
