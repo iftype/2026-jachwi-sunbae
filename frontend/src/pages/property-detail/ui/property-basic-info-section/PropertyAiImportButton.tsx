@@ -14,7 +14,7 @@ const PropertyAiImportButton = ({ isImporting, onSelectFiles }: PropertyAiImport
   return (
     <>
       <button type="button" disabled={isImporting} onClick={() => inputRef.current?.click()}>
-        <Icon name="image" size={16} /> {isImporting ? '분석 중…' : '이미지로 정보 채우기'}
+        <Icon name="image" size={16} /> {isImporting ? '분석 중…' : '이미지로 매물 정보 채우기'}
       </button>
       <input
         ref={inputRef}
