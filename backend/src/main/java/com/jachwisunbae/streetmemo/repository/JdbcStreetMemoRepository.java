@@ -80,15 +80,16 @@ public class JdbcStreetMemoRepository implements StreetMemoRepository {
     }
 
     @Override
-    public List<StreetMemo> findAllWithin(final BigDecimal minLatitude, final BigDecimal maxLatitude,
+    public List<StreetMemo> findAllWithin(final long memberId,
+                                         final BigDecimal minLatitude, final BigDecimal maxLatitude,
                                          final BigDecimal minLongitude, final BigDecimal maxLongitude) {
         return jdbcTemplate.query("""
                         SELECT id, member_id, latitude, longitude, admin_dong_code, memo, preference, created_at,
                                updated_at, deleted_at
                         FROM street_memos
-                        WHERE deleted_at IS NULL
+                        WHERE member_id = ? AND deleted_at IS NULL
                           AND latitude BETWEEN ? AND ? AND longitude BETWEEN ? AND ?
-                        """, ROW_MAPPER, minLatitude, maxLatitude, minLongitude, maxLongitude);
+                        """, ROW_MAPPER, memberId, minLatitude, maxLatitude, minLongitude, maxLongitude);
     }
 
     @Override

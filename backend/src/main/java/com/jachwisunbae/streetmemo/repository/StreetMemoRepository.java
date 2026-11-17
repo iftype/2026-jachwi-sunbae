@@ -9,7 +9,7 @@ public interface StreetMemoRepository {
 
     StreetMemo save(StreetMemo streetMemo);
 
-    List<StreetMemo> findAllWithin(BigDecimal minLatitude, BigDecimal maxLatitude,
+    List<StreetMemo> findAllWithin(long memberId, BigDecimal minLatitude, BigDecimal maxLatitude,
                                   BigDecimal minLongitude, BigDecimal maxLongitude);
 
     Optional<StreetMemo> findByIdForUpdate(long id);
