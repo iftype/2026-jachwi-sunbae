@@ -1,6 +1,7 @@
 package com.jachwisunbae.property.controller.dto.response;
 
 import com.jachwisunbae.property.repository.query.PropertyListItemQuery;
+import com.jachwisunbae.property.service.dto.result.PropertyListItemResult;
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -18,6 +19,13 @@ public record PropertyListItemResponse(
     PropertyProgress overallProgress,
     List<PropertyChecklistStageResponse> stages
 ) {
+    public static PropertyListItemResponse from(final PropertyListItemResult result) {
+        PropertyListItemQuery row = result.row();
+        PropertyChecklistOverviewResponse overview = PropertyChecklistOverviewResponse.from(row.propertyId(),
+            result.progress());
+        return from(row, representativePhotoOf(row), overview.overallProgress(), overview.stages());
+    }
+
     public static PropertyListItemResponse from(final PropertyListItemQuery row,
                                                 final PropertyRepresentativePhoto photo,
                                                 final PropertyProgress progress,
@@ -36,5 +44,13 @@ public record PropertyListItemResponse(
             progress,
             List.copyOf(stages)
         );
+    }
+
+    private static PropertyRepresentativePhoto representativePhotoOf(final PropertyListItemQuery row) {
+        if (row.photoId() == null) {
+            return null;
+        }
+        return new PropertyRepresentativePhoto(row.photoId(),
+            "/api/properties/" + row.propertyId() + "/photos/" + row.photoId(), row.photoContentType());
     }
 }

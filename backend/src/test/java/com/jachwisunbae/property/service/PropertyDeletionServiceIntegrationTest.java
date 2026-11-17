@@ -59,11 +59,13 @@ class PropertyDeletionServiceIntegrationTest {
     }
 
     @Test
-    @DisplayName("매물을 지우면 사진 파일을 저장소에서 지우고 매물은 삭제 시각만 기록해 남긴다")
+    @DisplayName("매물을 지우면 사진 파일과 썸네일을 저장소에서 지우고 매물은 삭제 시각만 기록해 남긴다")
     void deletesPropertyAndPhotoFiles() {
         // given
         insertPhoto("photos/first.png");
         insertPhoto("photos/second.png");
+        jdbcTemplate.update("UPDATE property_photos SET thumbnail_storage_key = 'photos/thumbnails/second.jpg' "
+                + "WHERE storage_key = 'photos/second.png'");
 
         // when
         service.delete(MEMBER_ID, PROPERTY_ID);
@@ -71,6 +73,7 @@ class PropertyDeletionServiceIntegrationTest {
         // then
         verify(photoStorage).delete("photos/first.png");
         verify(photoStorage).delete("photos/second.png");
+        verify(photoStorage).delete("photos/thumbnails/second.jpg");
         assertThat(repository.findByIdAndMemberId(PROPERTY_ID, MEMBER_ID)).isEmpty();
         assertThat(jdbcTemplate.queryForObject("SELECT deleted_at IS NOT NULL FROM properties WHERE id = ?",
                 Boolean.class, PROPERTY_ID)).isTrue();

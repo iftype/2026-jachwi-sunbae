@@ -8,17 +8,14 @@ import com.jachwisunbae.property.ai.PropertyExtraction;
 import com.jachwisunbae.property.controller.dto.request.CreatePropertyRequest;
 import com.jachwisunbae.property.controller.dto.request.UpdatePropertyMemoRequest;
 import com.jachwisunbae.property.controller.dto.request.UpdatePropertyRequest;
-import com.jachwisunbae.property.controller.dto.response.PropertyChecklistOverviewResponse;
 import com.jachwisunbae.property.controller.dto.response.PropertyDetailResponse;
-import com.jachwisunbae.property.controller.dto.response.PropertyListItemResponse;
-import com.jachwisunbae.property.controller.dto.response.PropertyListResponse;
 import com.jachwisunbae.property.controller.dto.response.PropertyProgress;
-import com.jachwisunbae.property.controller.dto.response.PropertyRepresentativePhoto;
 import com.jachwisunbae.property.entity.Property;
 import com.jachwisunbae.property.repository.PropertyPhotoRepository;
 import com.jachwisunbae.property.repository.PropertyProgressRepository;
 import com.jachwisunbae.property.repository.PropertyRepository;
 import com.jachwisunbae.property.repository.query.PropertyChecklistProgressQuery;
+import com.jachwisunbae.property.service.dto.result.PropertyListItemResult;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -55,22 +52,15 @@ public class PropertyService {
         this.clock = clock;
     }
 
-    public PropertyListResponse findList(final Long memberId) {
+    // 목록 응답(사진 주소, 진행률)은 Controller DTO가 만든다. 서비스는 조회한 데이터만 돌려준다.
+    // 단계별 진행 현황은 매물마다 따로 읽지 않고 회원 단위로 한 번에 읽어 매물별로 나눈다.
+    public List<PropertyListItemResult> findList(final Long memberId) {
         Map<Long, List<PropertyChecklistProgressQuery>> progressByProperty =
             propertyProgressRepository.findByMemberIdAndStage(memberId).stream()
                 .collect(Collectors.groupingBy(query -> query.progress().propertyId()));
-        List<PropertyListItemResponse> items = propertyRepository.findListByMemberId(memberId).stream()
-            .map(row -> {
-                PropertyRepresentativePhoto photo = row.photoId() == null ? null
-                    : new PropertyRepresentativePhoto(row.photoId(),
-                        "/api/properties/" + row.propertyId() + "/photos/" + row.photoId(),
-                        row.photoContentType());
-                PropertyChecklistOverviewResponse overview = PropertyChecklistOverviewResponse.from(
-                    row.propertyId(), progressByProperty.getOrDefault(row.propertyId(), List.of()));
-                return PropertyListItemResponse.from(row, photo, overview.overallProgress(), overview.stages());
-            })
+        return propertyRepository.findListByMemberId(memberId).stream()
+            .map(row -> new PropertyListItemResult(row, progressByProperty.getOrDefault(row.propertyId(), List.of())))
             .toList();
-        return new PropertyListResponse(items.size(), items);
     }
 
     public PropertyDetailResponse findDetail(final Long memberId, final Long propertyId) {

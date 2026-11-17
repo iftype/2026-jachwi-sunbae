@@ -52,29 +52,6 @@
     위치: (PropertyService.java:71)\
     상세: 의존 유형: 메서드 호출 | 대상: <com.jachwisunbae.property.controller.dto.response.PropertyProgress.from(com.jachwisunbae.property.repository.query.PropertyProgressSummary)>
 
-선언: 메서드 <com.jachwisunbae.property.service.PropertyService.findList(java.lang.Long)>
-  - 문제: PropertyService.findList()에서 Controller DTO PropertyChecklistOverviewResponse.from() 메서드를 호출합니다.\
-    위치: (PropertyService.java:57)\
-    상세: 의존 유형: 메서드 호출 | 대상: <com.jachwisunbae.property.controller.dto.response.PropertyChecklistOverviewResponse.from(java.lang.Long, java.util.List)>
-  - 문제: PropertyService.findList()에서 Controller DTO PropertyChecklistOverviewResponse.overallProgress() 메서드를 호출합니다.\
-    위치: (PropertyService.java:59)\
-    상세: 의존 유형: 메서드 호출 | 대상: <com.jachwisunbae.property.controller.dto.response.PropertyChecklistOverviewResponse.overallProgress()>
-  - 문제: PropertyService.findList()에서 Controller DTO PropertyChecklistOverviewResponse.stages() 메서드를 호출합니다.\
-    위치: (PropertyService.java:59)\
-    상세: 의존 유형: 메서드 호출 | 대상: <com.jachwisunbae.property.controller.dto.response.PropertyChecklistOverviewResponse.stages()>
-  - 문제: PropertyService.findList()에서 Controller DTO PropertyListItemResponse.from() 메서드를 호출합니다.\
-    위치: (PropertyService.java:59)\
-    상세: 의존 유형: 메서드 호출 | 대상: <com.jachwisunbae.property.controller.dto.response.PropertyListItemResponse.from(com.jachwisunbae.property.repository.query.PropertyListItemQuery, com.jachwisunbae.property.controller.dto.response.PropertyRepresentativePhoto, com.jachwisunbae.property.controller.dto.response.PropertyProgress, java.util.List)>
-  - 문제: PropertyService.findList()에서 Controller DTO PropertyListResponse 타입을 반환합니다.\
-    위치: (PropertyService.java:0)\
-    상세: 의존 유형: 반환 타입 | 대상: <com.jachwisunbae.property.controller.dto.response.PropertyListResponse>
-  - 문제: PropertyService.findList()에서 Controller DTO PropertyListResponse() 생성자를 호출합니다.\
-    위치: (PropertyService.java:62)\
-    상세: 의존 유형: 생성자 호출 | 대상: <com.jachwisunbae.property.controller.dto.response.PropertyListResponse.<init>(int, java.util.List)>
-  - 문제: PropertyService.findList()에서 Controller DTO PropertyRepresentativePhoto() 생성자를 호출합니다.\
-    위치: (PropertyService.java:56)\
-    상세: 의존 유형: 생성자 호출 | 대상: <com.jachwisunbae.property.controller.dto.response.PropertyRepresentativePhoto.<init>(java.lang.Long, java.lang.String, java.lang.String)>
-
 선언: 메서드 <com.jachwisunbae.property.service.PropertyService.update(java.lang.Long, java.lang.Long, com.jachwisunbae.property.controller.dto.request.UpdatePropertyRequest)>
   - 문제: PropertyService.update()에서 Controller DTO UpdatePropertyRequest 타입을 매개변수로 사용합니다.\
     위치: (PropertyService.java:0)\

@@ -61,7 +61,7 @@ public class PropertyController {
     @GetMapping
     @Operation(summary = "매물 목록 조회", description = "로그인 회원의 매물과 대표 사진 및 전체 체크 진행 현황을 조회합니다.")
     public ApiResponse<PropertyListResponse> findList(@AuthenticatedMemberId final Long memberId) {
-        return ApiResponse.of("매물 목록을 조회했습니다.", propertyService.findList(memberId));
+        return ApiResponse.of("매물 목록을 조회했습니다.", PropertyListResponse.fromResults(propertyService.findList(memberId)));
     }
 
     @PostMapping("/comparison-views")

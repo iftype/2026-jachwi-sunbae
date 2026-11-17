@@ -11,8 +11,8 @@ import com.jachwisunbae.property.controller.dto.request.CreatePropertyRequest;
 import com.jachwisunbae.property.controller.dto.request.UpdatePropertyMemoRequest;
 import com.jachwisunbae.property.controller.dto.request.UpdatePropertyRequest;
 import com.jachwisunbae.property.controller.dto.response.PropertyChecklistStageResponse;
-import com.jachwisunbae.property.controller.dto.response.PropertyDetailResponse;
 import com.jachwisunbae.property.controller.dto.response.PropertyListItemResponse;
+import com.jachwisunbae.property.controller.dto.response.PropertyDetailResponse;
 import com.jachwisunbae.property.entity.Property;
 import com.jachwisunbae.property.repository.JdbcPropertyRepository;
 import com.jachwisunbae.property.type.RoomOption;
@@ -232,7 +232,7 @@ class PropertyServiceIntegrationTest {
         service.create(OTHER_MEMBER_ID, createRequest("남의 집"));
 
         // when & then
-        assertThat(service.findList(MEMBER_ID).items()).extracting(PropertyListItemResponse::id)
+        assertThat(service.findList(MEMBER_ID)).extracting(result -> result.row().propertyId())
                 .containsExactly(own.getId());
     }
 
@@ -245,7 +245,8 @@ class PropertyServiceIntegrationTest {
         markFirstItem(checked.getId(), "GOOD");
 
         // when
-        Map<Long, PropertyListItemResponse> items = service.findList(MEMBER_ID).items().stream()
+        Map<Long, PropertyListItemResponse> items = service.findList(MEMBER_ID).stream()
+                .map(PropertyListItemResponse::from)
                 .collect(Collectors.toMap(PropertyListItemResponse::id, Function.identity()));
 
         // then
