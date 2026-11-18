@@ -62,11 +62,11 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
   // 지도 빈 곳을 찍으면 시트를 닫지 않고 제목만 보이게 내린다.
   const [peekSignal, setPeekSignal] = useState(0);
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
-  // 결과 지도 위 조건 칩 줄과 범례는 지도를 넓게 보려고 잠깐 접어 둘 수 있다. 접은 상태는 같은 세션 동안 남는다.
-  const [isCriteriaCollapsed, setIsCriteriaCollapsed] = useState(readCriteriaCollapsed);
-  const toggleCriteria = () => {
-    writeCriteriaCollapsed(!isCriteriaCollapsed);
-    setIsCriteriaCollapsed(!isCriteriaCollapsed);
+  // 색 기준표만 접어 둘 수 있다. 접은 상태는 같은 세션 동안 남는다.
+  const [isLegendCollapsed, setIsLegendCollapsed] = useState(readCriteriaCollapsed);
+  const toggleLegend = () => {
+    writeCriteriaCollapsed(!isLegendCollapsed);
+    setIsLegendCollapsed(!isLegendCollapsed);
   };
   const openFilters = (field: NeighborhoodFilterField = 'minutes') => {
     closeLayers();
@@ -313,7 +313,7 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
                   leading={returnButton}
                   searchTo={NEIGHBORHOOD_ADDRESS_SEARCH_PATH}
                   searchLabel="주소 검색"
-                  center={isCriteriaCollapsed ? undefined : <CriteriaSummary preview={preview} onOpen={openFilters} />}
+                  center={<CriteriaSummary preview={preview} onOpen={openFilters} />}
                 />
               ) : (
                 <div className={styles.previewHeader}>
@@ -330,11 +330,15 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
                   </button>
                 </div>
               )}
-              {!usesSharedSearch && !isCriteriaCollapsed && <CriteriaSummary preview={preview} onOpen={openFilters} />}
+              {!usesSharedSearch && <CriteriaSummary preview={preview} onOpen={openFilters} />}
               <div className={styles.filterRow}>
-                {!isCriteriaCollapsed && (
+                {isLegendCollapsed ? (
+                  <button className={styles.criteriaToggle} type="button" onClick={toggleLegend}>
+                    색 기준표 보기
+                  </button>
+                ) : (
                   <CommuteLegend maxMinutes={preview.maxMinutes}>
-                    <button className={styles.regionToggle} type="button" onClick={toggleCriteria}>
+                    <button className={styles.regionToggle} type="button" onClick={toggleLegend}>
                       표 닫기
                     </button>
                   </CommuteLegend>
@@ -467,7 +471,6 @@ const styles = {
     gap: 0.45rem;
   `,
 
-  /* 조건 칩 줄과 범례를 접고 펴는 작은 버튼. 접으면 `조건` 글자를 붙여 다시 펼 자리를 알린다. */
   criteriaToggle: css`
     label: NeighborhoodPreviewMobilePage-criteriaToggle;
     pointer-events: auto;
