@@ -196,7 +196,8 @@ const MapCanvas = ({
                     (region.isRecommended === false && region.id !== selectedRegionId ? '#888888' : '#f5c344')
                   }
                   fillOpacity={
-                    region.appearance
+                    region.appearance?.fillOpacity ??
+                    (region.appearance
                       ? region.id === selectedRegionId
                         ? 0.55
                         : 0.28
@@ -204,7 +205,7 @@ const MapCanvas = ({
                         ? 0.5
                         : region.isRecommended
                           ? 0.24
-                          : 0.08
+                          : 0.08)
                   }
                   fillRule="evenodd"
                   className={styles.regionBoundary}

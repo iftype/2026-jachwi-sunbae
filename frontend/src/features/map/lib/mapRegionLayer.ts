@@ -45,17 +45,19 @@ const regionStyle = (region: MapRegion, selected: boolean) => ({
   strokeStyle: region.appearance?.dashed && !selected ? ('shortdash' as const) : ('solid' as const),
   fillColor: region.appearance?.fillColor ?? (region.isRecommended === false && !selected ? '#888888' : '#f5c344'),
   // 지도 글자와 길이 비쳐 보이게 옅게 깐다. 고른 동만 두 배로 진하게 한다.
-  fillOpacity: region.appearance
-    ? selected
-      ? 0.25
-      : region.showsName
-        ? 0.18
-        : 0.12
-    : selected
-      ? 0.25
-      : region.isRecommended
-        ? 0.12
-        : 0.05,
+  fillOpacity:
+    region.appearance?.fillOpacity ??
+    (region.appearance
+      ? selected
+        ? 0.25
+        : region.showsName
+          ? 0.18
+          : 0.12
+      : selected
+        ? 0.25
+        : region.isRecommended
+          ? 0.12
+          : 0.05),
   zIndex: selected ? 2 : 1,
 });
 type Entry = {

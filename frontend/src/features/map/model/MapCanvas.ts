@@ -127,7 +127,7 @@ export type MapRegion = {
   id: string;
   name: string;
   /** 채움과 테두리 색. `dashed`면 테두리를 점선으로 그린다(월세 정보가 없는 동네). */
-  appearance?: { fillColor: string; strokeColor: string; dashed?: boolean };
+  appearance?: { fillColor: string; strokeColor: string; fillOpacity?: number; dashed?: boolean };
   isRecommended?: boolean;
   /** 구역 가운데에 동 이름만 작게 둔다(찜한 동네). */
   showsName?: boolean;

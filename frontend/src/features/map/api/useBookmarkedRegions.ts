@@ -10,11 +10,8 @@ import { getAdminBoundaryQueryOptions } from './adminBoundaryQueries';
 
 const EMPTY: MapRegion[] = [];
 
-/**
- * 찜한 동네를 칠하는 색. 우리 primary 파랑 계열의 옅은 채움(투명도 0.18)과 진한 윤곽선이다.
- * 동네 찾기의 통근 색(초록, 노랑, 빨강)이나 월세 정보 없음 회색 위에서도 구분되게 윤곽선은 점선으로 둔다.
- */
-const BOOKMARK_APPEARANCE = { fillColor: '#3f6fc42e', strokeColor: '#2f56a0', dashed: true } as const;
+// 경계를 실선으로 그려, 통근 결과나 지도 도로 위에서도 찜한 영역을 구분할 수 있게 한다.
+const BOOKMARK_APPEARANCE = { fillColor: '#3f6fc4', strokeColor: '#2f56a0', fillOpacity: 0.34 } as const;
 
 /**
  * 북마크한 행정동 코드의 경계를 지도에 칠할 구역으로 바꾼다. 켜 둘 때만 경계 파일을 받는다.
