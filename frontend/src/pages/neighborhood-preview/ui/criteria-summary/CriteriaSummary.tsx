@@ -4,31 +4,32 @@ import Icon from '@/shared/ui/icon/Icon';
 
 import type { NeighborhoodPreviewContext } from '../../hooks/useNeighborhoodPreview';
 import { criteriaSummary } from '../../model/criteriaLabels';
-import type { NeighborhoodFilterField } from '../../NeighborhoodFilters';
 
 type Props = {
   preview: Pick<NeighborhoodPreviewContext, 'maxMinutes' | 'maxTransfers' | 'maxRent'>;
-  onOpen: (field: NeighborhoodFilterField) => void;
+  isRentOpen: boolean;
+  onToggleRent: () => void;
 };
-const CriteriaSummary = ({ preview, onOpen }: Props) => (
+const CriteriaSummary = ({ preview, isRentOpen, onToggleRent }: Props) => (
   <div className={styles.card} aria-label={`선택한 탐색 조건 ${criteriaSummary(preview)}`}>
-    <button type="button" onClick={() => onOpen('minutes')} aria-label={`통근 ${preview.maxMinutes}분 이내`}>
+    <div>
       <span>통근</span>
       <strong>{preview.maxMinutes}분</strong>
-    </button>
-    <button type="button" onClick={() => onOpen('transfers')} aria-label={`환승 ${preview.maxTransfers}회 이하`}>
+    </div>
+    <div>
       <span>환승</span>
       <strong>{preview.maxTransfers}회</strong>
-    </button>
+    </div>
     <button
       type="button"
-      onClick={() => onOpen('rent')}
+      onClick={onToggleRent}
+      aria-expanded={isRentOpen}
       aria-label={`월세 ${preview.maxRent === 0 ? '전체' : `${preview.maxRent}만원`}, 눌러서 바꾸기`}
     >
       <span>월세</span>
       <strong className={styles.rent}>
         {preview.maxRent === 0 ? '전체' : `${preview.maxRent}만`}
-        <Icon name="chevron-down" size={12} />
+        <Icon name={isRentOpen ? 'chevron-up' : 'chevron-down'} size={12} />
       </strong>
     </button>
   </div>
@@ -48,7 +49,7 @@ const styles = {
     background: var(--color-surface);
     box-shadow: var(--shadow-floating);
     pointer-events: auto;
-    & button {
+    & > * {
       min-width: 0;
       display: grid;
       justify-items: center;
@@ -59,9 +60,11 @@ const styles = {
       background: transparent;
       font: inherit;
       color: var(--color-ink);
+    }
+    & button {
       cursor: pointer;
     }
-    & button > span {
+    & > * > span {
       font-size: 0.6rem;
       line-height: 1.1;
       color: var(--color-muted);
@@ -73,7 +76,7 @@ const styles = {
       justify-content: center;
       gap: 0.15rem;
       min-height: 1.4rem;
-      font-size: 1rem;
+      font-size: 0.875rem;
       font-weight: 800;
       white-space: nowrap;
     }

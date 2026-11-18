@@ -398,12 +398,11 @@ it('조건에 맞는 동네가 없으면 통근·환승 조건을 넓혀보라�
     matchMedia.mockRestore();
   }
 });
-it('지도에서 바로 누른 위치를 확인하면 출퇴근 장소로 쓴다', async () => {
+it('지도를 한 번 누르면 출퇴근 장소로 쓴다', async () => {
   show(true);
   const user = userEvent.setup();
   await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
-  expect(screen.queryByRole('button', { name: /에서 찾기$/ })).not.toBeInTheDocument();
-  await user.click(screen.getByRole('button', { name: '출퇴근 장소로 설정' }));
+  expect(screen.queryByRole('button', { name: '출퇴근 장소로 설정' })).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: /에서 찾기$/ })).toBeEnabled();
 });
 
@@ -413,7 +412,7 @@ it('색 기준표를 닫아도 검색 조건은 남고 표를 다시 열 수 있
   await submitCurrentSearch(user);
 
   await user.click(await screen.findByRole('button', { name: '표 닫기' }));
-  expect(screen.getByRole('button', { name: '통근 40분 이내' })).toBeInTheDocument();
+  expect(screen.getByLabelText(/선택한 탐색 조건 통근 40분/)).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: '표 닫기' })).not.toBeInTheDocument();
 
   await user.click(screen.getByRole('button', { name: '색 기준표 보기' }));

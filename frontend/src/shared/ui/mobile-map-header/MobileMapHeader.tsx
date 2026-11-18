@@ -2,7 +2,8 @@ import { css } from '@emotion/css';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
-import { ADDRESS_SEARCH_PATH } from '@/shared/lib/navigation/appPaths';
+import { LOGO_DUCK } from '@/shared/assets/imageAssets';
+import { ADDRESS_SEARCH_PATH, HOME_PATH } from '@/shared/lib/navigation/appPaths';
 
 import Icon from '../icon/Icon';
 import MapProfileLink from '../map-profile-link/MapProfileLink';
@@ -14,7 +15,13 @@ type Props = {
   hideSearch?: boolean;
   searchTo?: string;
   searchLabel?: string;
+  centered?: boolean;
 };
+export const MapHomeLink = () => (
+  <Link to={HOME_PATH} aria-label="자취선배 홈" className={styles.logo}>
+    <img src={LOGO_DUCK.src} srcSet={`${LOGO_DUCK.src} 1x, ${LOGO_DUCK.src2x} 2x`} alt="" width={44} height={44} />
+  </Link>
+);
 const MobileMapHeader = ({
   leading,
   trailing,
@@ -22,17 +29,20 @@ const MobileMapHeader = ({
   hideSearch = false,
   searchTo = ADDRESS_SEARCH_PATH,
   searchLabel = '주소 검색',
+  centered = false,
 }: Props) => (
-  <header className={styles.header} aria-label="지도 목록 헤더">
-    {leading}
+  <header className={styles.header} data-centered={centered || undefined} aria-label="지도 목록 헤더">
+    <div className={styles.leading}>{leading}</div>
     <div className={styles.space}>{center}</div>
-    {!hideSearch && (
-      <Link to={searchTo} className={styles.search} aria-label={searchLabel}>
-        <Icon name="search" size={20} />
-      </Link>
-    )}
-    {trailing}
-    <MapProfileLink />
+    <div className={styles.actions}>
+      {!hideSearch && (
+        <Link to={searchTo} className={styles.search} aria-label={searchLabel}>
+          <Icon name="search" size={20} />
+        </Link>
+      )}
+      {trailing}
+      <MapProfileLink />
+    </div>
   </header>
 );
 const styles = {
@@ -44,6 +54,36 @@ const styles = {
     width: 100%;
     min-height: 2.75rem;
     pointer-events: auto;
+
+    &[data-centered='true'] {
+      display: grid;
+      grid-template-columns: 5.25rem minmax(0, 1fr) 5.25rem;
+      gap: 0.25rem;
+    }
+  `,
+  leading: css`
+    &:empty {
+      display: none;
+    }
+  `,
+  actions: css`
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  `,
+  logo: css`
+    display: block;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+
+    & img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
   `,
   space: css`
     label: MobileMapHeader-space;

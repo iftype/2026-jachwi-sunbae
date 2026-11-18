@@ -1,13 +1,10 @@
 import { css } from '@emotion/css';
 import { useEffect } from 'react';
-import { Link } from 'react-router-dom';
 
 import MapHeaderWeather from '@/features/weather/ui/map-header-weather/MapHeaderWeather';
-import { LOGO_DUCK } from '@/shared/assets/imageAssets';
-import { HOME_PATH } from '@/shared/lib/navigation/appPaths';
 import { MOBILE_BOTTOM_TABS_ENABLED } from '@/shared/ui/bottom-tab-bar/bottomTabConfig';
 import { MapModeSwitchTile, useHasMapModeSwitch } from '@/shared/ui/map-mode-tile/MapModeContext';
-import MobileMapHeader from '@/shared/ui/mobile-map-header/MobileMapHeader';
+import MobileMapHeader, { MapHomeLink } from '@/shared/ui/mobile-map-header/MobileMapHeader';
 
 import type { RecordsView } from '../model/recordsView';
 
@@ -31,39 +28,12 @@ const RecordsMobileHeader = ({ view, searchTo }: Props) => {
         searchTo={searchTo}
         hideSearch={view === 'list'}
         center={view === 'list' ? <MapHeaderWeather /> : undefined}
-        leading={
-          showsModeTile ? (
-            <MapModeSwitchTile />
-          ) : (
-            <Link to={HOME_PATH} aria-label="자취선배 홈" className={styles.logo}>
-              <img
-                src={LOGO_DUCK.src}
-                srcSet={`${LOGO_DUCK.src} 1x, ${LOGO_DUCK.src2x} 2x`}
-                alt=""
-                width={44}
-                height={44}
-              />
-            </Link>
-          )
-        }
+        leading={showsModeTile ? <MapModeSwitchTile /> : <MapHomeLink />}
       />
     </div>
   );
 };
 const styles = {
-  logo: css`
-    label: RecordsMobileHeader-logo;
-    display: block;
-    width: 2.75rem;
-    height: 2.75rem;
-    border-radius: var(--radius-md);
-    overflow: hidden;
-    & img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-    }
-  `,
   header: css`
     label: RecordsMobileHeader-root;
     padding: calc(env(safe-area-inset-top) + 0.75rem) 0.85rem 0.5rem;
