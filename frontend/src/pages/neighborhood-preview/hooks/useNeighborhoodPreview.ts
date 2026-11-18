@@ -618,6 +618,7 @@ const useNeighborhoodPreview = () => {
     /** 검색 핀의 `출퇴근 장소로 설정`. 이때만 지도 검색의 값이 출퇴근 장소로 복사된다. 분석은 따로 `이 조건으로 동네 찾기`로 한다. */
     setCommuteFromSearchPin: () => {
       if (!searchPin) return;
+      setSearchPin(null);
       selectAddressAsCommute({
         address: null,
         roadAddress: searchPin.name,

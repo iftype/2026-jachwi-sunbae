@@ -93,7 +93,7 @@ const MapMarkerView = ({ marker, selectedMarkerId = null, onSelectMarker }: MapM
           </span>
           <span className={styles.pinLabelTail} data-kind={marker.pinKind ?? 'search'} aria-hidden="true" />
           <span className={styles.pinLabelDot} data-kind={marker.pinKind ?? 'search'} aria-hidden="true" />
-          {marker.pinKind === 'search' && (
+          {marker.pinKind === 'search' && marker.removable && (
             // 평소에는 숨겨 둔 동작 카드. 마커를 누르거나(데스크탑은 마우스를 올리면) 펼친다. 클릭은 `createMapMarkerElement`가 DOM에서 붙인다.
             <span className={styles.pinActions} role="group" aria-label="검색한 장소 동작">
               {marker.setsCommute && (
@@ -243,7 +243,7 @@ export const createMapMarkerElement = (
   const element = template.content.querySelector('[data-tone]');
   if (!(element instanceof HTMLElement)) throw new Error('지도 마커를 만들지 못했습니다.');
 
-  if (marker.tone === 'pinLabel' && marker.pinKind === 'search') {
+  if (marker.tone === 'pinLabel' && marker.pinKind === 'search' && marker.removable) {
     bindSearchPinActions(element, marker, onSelectMarker);
   } else if (marker.actionable === true && onSelectMarker !== undefined) {
     element.addEventListener('click', (event) => {
@@ -828,12 +828,11 @@ const styles = {
     font-weight: 700;
     line-height: 1.3;
 
-    /* 출퇴근 장소는 멀리서도 보이게 라벨과 글자를 키운다. */
+    /* 주소가 길어도 지도 공간을 덮지 않게 줄인다. */
     &[data-kind='commute'] {
-      max-width: 260px;
-      padding: 0.45rem 0.85rem;
-      border-radius: 10px;
-      font-size: 1.05rem;
+      max-width: 180px;
+      padding: 0.2rem 0.5rem;
+      font-size: 0.75rem;
     }
   `,
   pinLabelBody: css`
@@ -849,7 +848,7 @@ const styles = {
     }
 
     [data-kind='commute'] > & small {
-      font-size: 0.8rem;
+      font-size: 0.6rem;
     }
   `,
   pinActions: css`
@@ -914,9 +913,9 @@ const styles = {
     transform: rotate(45deg);
 
     &[data-kind='commute'] {
-      width: 0.8rem;
-      height: 0.8rem;
-      margin-bottom: 0.55rem;
+      width: 0.5rem;
+      height: 0.5rem;
+      margin-bottom: 0.35rem;
       border-color: var(--color-brand-blue-ink, #3f6fc4);
       background: var(--color-brand-blue-ink, #3f6fc4);
     }
@@ -937,11 +936,10 @@ const styles = {
 
     /* 출퇴근 장소는 더 큰 점으로 구분한다. */
     &[data-kind='commute'] {
-      bottom: -13px;
-      width: 26px;
-      height: 26px;
-      margin-left: -13px;
-      border-width: 3px;
+      bottom: -9px;
+      width: 18px;
+      height: 18px;
+      margin-left: -9px;
     }
   `,
   destinationMarker: css`
