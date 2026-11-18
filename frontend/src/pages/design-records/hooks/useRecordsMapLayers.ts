@@ -1,6 +1,8 @@
 import { useMemo, useRef, useState } from 'react';
 
 import { reverseGeocode } from '@/features/map/api/mapApi';
+import { useAdminDongBookmarks } from '@/features/map/api/useAdminDongBookmarks';
+import { useBookmarkedRegions } from '@/features/map/api/useBookmarkedRegions';
 import {
   groupOverlappingMarkers,
   propertyGroupMarker,
@@ -15,6 +17,7 @@ import { MENU_MEMO_ICON, MENU_PROPERTY_ICON, PROPERTY_PLACEHOLDER } from '@/shar
 import { usePublicConfig } from '@/shared/config/PublicConfigContext';
 import { useLogger } from '@/shared/lib/analytics/logging';
 
+import { readBookmarkLayerOn, writeBookmarkLayerOn } from '../model/bookmarkLayer';
 import { SEARCHED_PIN_IMAGE } from '../model/searchedPin';
 import type { RecordsState } from './useRecords';
 
@@ -74,6 +77,10 @@ const useRecordsMapLayers = (
   }: Options,
 ) => {
   const config = usePublicConfig();
+  // 동네 찾기에서 북마크한 동네를 지도에 칠하는 층. 버튼으로 켜고 끈다.
+  const bookmarkStore = useAdminDongBookmarks();
+  const [isBookmarkLayerOn, setIsBookmarkLayerOn] = useState(readBookmarkLayerOn);
+  const bookmarkRegions = useBookmarkedRegions(bookmarkStore.codes, isBookmarkLayerOn);
   // 매물 상세에서 주소를 바꿀 때, 옆의 큰 지도를 눌러 새 자리를 고르는 모드. 상세는 저장 함수를 맡기고, 고른 자리와 저장은 이 겹이 맡는다.
   const [pickRequest, setPickRequest] = useState<{ onSave: (address: MapAddress) => Promise<void> } | null>(null);
   const [picked, setPicked] = useState<{ status: 'geocoding' | 'ready' | 'error'; address: MapAddress } | null>(null);
@@ -363,10 +370,20 @@ const useRecordsMapLayers = (
     onCenterChange: (latitude: number, longitude: number) => records.setCenter({ latitude, longitude }),
     onLevelChange: records.setLevel,
     onBoundsChange: rememberBounds,
+    regions: bookmarkRegions,
   } satisfies MapCanvasProps;
 
   return {
     canvasProps,
+    /** 북마크한 동네를 지도에 칠하는 층의 켜고 끄기. count는 북마크한 동네 수다. */
+    bookmarks: {
+      isOn: isBookmarkLayerOn,
+      count: bookmarkStore.codes.length,
+      toggle: () => {
+        writeBookmarkLayerOn(!isBookmarkLayerOn);
+        setIsBookmarkLayerOn(!isBookmarkLayerOn);
+      },
+    },
     memo,
     /** 겹친 매물 묶음을 눌러 함께 보는 매물. 묶음을 고르지 않았으면 빈 목록이다. */
     groupRecords: records.records.filter((record) => groupIds.includes(record.id)),

@@ -439,7 +439,15 @@ const initialPhotosByProperty = structuredClone(photosByProperty);
 const initialMemoByProperty = structuredClone(memoByProperty);
 const initialAppliedByProperty = structuredClone(appliedByProperty);
 
+/** 북마크한 행정동 코드. 최근에 추가한 순서다. */
+let bookmarkedAdminDongs: string[] = [];
+export const readBookmarkedAdminDongs = () => bookmarkedAdminDongs;
+export const writeBookmarkedAdminDongs = (codes: string[]) => {
+  bookmarkedAdminDongs = codes;
+};
+
 export const resetMockStore = () => {
+  bookmarkedAdminDongs = [];
   checklists = structuredClone(initialChecklists);
   properties = structuredClone(initialProperties);
   photosByProperty = structuredClone(initialPhotosByProperty);

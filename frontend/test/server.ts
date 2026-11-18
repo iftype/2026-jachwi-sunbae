@@ -16,6 +16,8 @@ export const server = setupServer(
   http.post('*/api/auth/login', tokenResponse),
   http.post('*/api/auth/refresh', tokenResponse),
   http.get('*/api/members/me', () => success({ id: 1 })),
+  // 내 기록 지도와 동네 찾기는 열 때 북마크한 동네를 조회한다. 기본은 북마크가 없는 상태다.
+  http.get('*/api/admin-dong-bookmarks', () => success({ adminDongCodes: [] })),
   // 마이의 생활 날씨 카드는 열 때 수신 동의를 조회한다. 기본은 꺼짐이다.
   http.get('*/api/members/me/notification-settings', () => success({ enabled: false })),
   http.get('*/api/checklists', () => success({ totalCount: 0, items: [] })),
