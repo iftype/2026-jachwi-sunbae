@@ -179,7 +179,7 @@ const RestaurantPanel = ({ isActive, layout, listHeader, listOverride }: Restaur
     return (
       <section className={styles.panel} aria-label="주변 착한가격업소">
         <ListDetailLayout
-          className={styles.desktopLayout}
+          className={cx(styles.desktopLayout, !isActive && styles.wideLayout)}
           list={
             <div className={styles.desktopList}>
               {listHeader}
@@ -358,6 +358,9 @@ const styles = {
     label: RestaurantPanel-desktopLayout;
     flex: 1;
     min-height: 0;
+  `,
+  wideLayout: css`
+    --list-detail-list-width: 66%;
   `,
   desktopList: css`
     label: RestaurantPanel-desktopList;

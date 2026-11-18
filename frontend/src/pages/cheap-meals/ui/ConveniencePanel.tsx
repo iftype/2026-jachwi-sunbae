@@ -111,8 +111,6 @@ const ConveniencePanel = ({ isActive, layout, onDetail }: ConveniencePanelProps)
   );
   return (
     <section className={cx(shared.section, layout === 'desktop' && shared.sectionDesktop)} aria-label="편의점 행사상품">
-      <h2>편의점 행사상품</h2>
-      <p className={shared.description}>지금 진행 중인 브랜드 행사 살펴보기</p>
       {/* 데스크탑 리스트 칸은 좁아서 브랜드, 검색, 행사 유형을 세로로 쌓는다. */}
       {brandControl}
       {searchRow}
@@ -150,7 +148,7 @@ const ConveniencePanel = ({ isActive, layout, onDetail }: ConveniencePanelProps)
                   }
                 />
               ) : (
-                <ul className={cx(styles.grid, layout === 'desktop' && styles.listDesktop)} aria-label="행사상품 목록">
+                <ul className={cx(styles.grid, layout === 'desktop' && styles.gridDesktop)} aria-label="행사상품 목록">
                   {products.slice(0, limit).map((product, index) => (
                     <li key={`${index}-${product.name}-${product.promotionType}`}>
                       <button
@@ -163,8 +161,10 @@ const ConveniencePanel = ({ isActive, layout, onDetail }: ConveniencePanelProps)
                           <ProductImage src={product.imageUrl} name={product.name} />
                         </span>
                         <span className={styles.body}>
-                          <span className={shared.badge}>{PROMOTIONS[product.promotionType]}</span>
-                          <strong className={styles.name}>{product.name}</strong>
+                          <span className={shared.itemHeading}>
+                            <span className={shared.badge}>{PROMOTIONS[product.promotionType]}</span>
+                            <strong className={styles.name}>{product.name}</strong>
+                          </span>
                           <span className={styles.price}>{won(product.price)}</span>
                         </span>
                       </button>
@@ -253,22 +253,8 @@ const styles = {
     grid-template-columns: repeat(auto-fill, minmax(min(9.5rem, calc(50% - 0.4rem)), 1fr));
     gap: 1.4rem 0.8rem;
   `,
-  /* 데스크탑 리스트 칸: 식당 카드처럼 한 줄 컴팩트 행. 사진은 작게 왼쪽에 둔다. */
-  listDesktop: css`
-    label: ConveniencePanel-listDesktop;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0;
-    margin: 0 0 1rem;
-
-    & li {
-      border-bottom: 1px solid var(--color-border);
-    }
-    & button {
-      flex-direction: row;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.75rem 0;
-    }
+  gridDesktop: css`
+    grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
   `,
   thumb: css`
     label: ConveniencePanel-thumb;

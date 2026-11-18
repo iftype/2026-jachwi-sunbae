@@ -17,7 +17,7 @@ export const section = css`
 /* 데스크탑은 본문 칸을 넓게 쓰고, 좌우 여백은 화면 쪽에서 준다. */
 export const sectionDesktop = css`
   label: MealContent-sectionDesktop;
-  max-width: none;
+  max-width: 72rem;
   padding: 0 0 1.5rem;
   & h2 {
     font-size: 1.1rem;
@@ -38,11 +38,19 @@ export const sourceLink = css`
   font-size: 0.8rem;
   text-underline-offset: 0.2em;
 `;
+export const itemHeading = css`
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  min-width: 0;
+`;
 export const badge = css`
   label: MealContent-badge;
   display: inline-flex;
   width: fit-content;
-  padding: 0.3rem 0.6rem;
+  flex: none;
+  padding: 0.12rem 0.35rem;
+  line-height: 1.25;
   border-radius: 0.4rem;
   font-size: 0.75rem;
   font-weight: 800;
