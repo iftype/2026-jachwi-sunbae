@@ -98,12 +98,12 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
     <CriteriaSummary preview={preview} isRentOpen={isRentOpen} onToggleRent={() => setIsRentOpen((open) => !open)} />
   );
   const selectedArea = isRoutePage && !isAreaSheetDismissed ? preview.selected : undefined;
-  const bookmark = selectedArea && mapView.bookmark(selectedArea.adminDongCode);
   const infoSubject: MapInfoSubject | null = places.selectedPlace
     ? { kind: 'place', place: places.selectedPlace }
     : selectedArea
       ? { kind: 'area', area: selectedArea }
       : null;
+  const bookmark = infoSubject?.kind === 'area' ? mapView.bookmark(infoSubject.area.adminDongCode) : undefined;
   // 고른 동네가 있으면(시트를 닫아 두었어도) 빈 곳을 찍어 선택을 푼다. 마커나 `My` 시트만 열려 있으면 제목만 보이게 내린다.
   emptyTapRef.current = () => {
     if (preview.selected && (infoSubject === null || infoSubject.kind === 'area')) {
@@ -270,7 +270,7 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
         {isResultMap && (
           <>
             <header className={`${shared.resultHeader} ${styles.resultHeader}`}>
-              {usesSharedSearch ? (
+              {!preview.isPublicExplore ? (
                 <MobileMapHeader
                   leading={returnButton}
                   searchTo={NEIGHBORHOOD_ADDRESS_SEARCH_PATH}
@@ -303,6 +303,7 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
                         <button
                           key={area.adminDongCode}
                           type="button"
+                          aria-label={`추천 동네 ${area.name}`}
                           aria-pressed={selectedAreaCode === area.adminDongCode}
                           onClick={() => {
                             closeLayers();

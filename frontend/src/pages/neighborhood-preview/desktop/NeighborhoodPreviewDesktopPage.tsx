@@ -78,6 +78,7 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
     });
   });
   const recordArea = preview.selected ?? preview.topAreas[0];
+  const bookmark = preview.selected && mapView.bookmark(preview.selected.adminDongCode);
   // 지도 안 왼쪽 아래 카드에 보일 정보 하나: 누른 마커, 고른 동네, `My` 매물 목록 가운데 하나.
   // 동네 카드만 닫은 동네. 카드는 숨기되 지도의 선택 테두리는 남긴다. 다른 동네를 고르면 다시 카드를 보인다.
   // 조건 카드를 닫아 둔 상태. 새로 위치를 고르러 들어오면 다시 연다.
@@ -215,6 +216,19 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
               desktopMap
               overMap
               label="찾은 동네"
+              trailing={
+                bookmark && (
+                  <button
+                    type="button"
+                    className={styles.bookmark}
+                    aria-label={bookmark.isOn ? '찜한 동네에서 삭제' : '찜한 동네에 추가'}
+                    aria-pressed={bookmark.isOn}
+                    onClick={bookmark.onToggle}
+                  >
+                    {bookmark.isOn ? '★' : '☆'}
+                  </button>
+                )
+              }
               // 출퇴근 장소를 다시 고르는 칩. 뱃지 줄 맨 앞에 고정해 둔다.
               leading={{
                 label: '다시 뽑기',
@@ -324,6 +338,17 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
 };
 
 const styles = {
+  bookmark: css`
+    flex: none;
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+    border: 1px solid var(--color-border);
+    border-radius: 50%;
+    background: var(--color-surface);
+    color: var(--color-brand-blue-ink);
+    font-size: 1.1rem;
+    cursor: pointer;
+  `,
   recordList: css`
     label: NeighborhoodPreviewDesktopPage-recordList;
     min-height: 0;

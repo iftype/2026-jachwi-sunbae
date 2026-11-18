@@ -1,5 +1,5 @@
 import { css } from '@emotion/css';
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 
 import Icon from '../icon/Icon';
 
@@ -14,9 +14,20 @@ type Props = {
   className?: string;
   /** 줄 맨 앞에 두는 되돌아가기 칩. 눌러도 선택 상태는 바뀌지 않는다. */
   leading?: { label: string; onClick: () => void };
+  trailing?: ReactNode;
 };
 
-const MapBadgeRail = ({ items, selectedId, onSelect, label, overMap, desktopMap, className, leading }: Props) => {
+const MapBadgeRail = ({
+  items,
+  selectedId,
+  onSelect,
+  label,
+  overMap,
+  desktopMap,
+  className,
+  leading,
+  trailing,
+}: Props) => {
   const rail = useRef<HTMLElement>(null);
   const drag = useRef<{ x: number; scroll: number; moved: boolean } | null>(null);
   const suppressClick = useRef(false);
@@ -112,6 +123,7 @@ const MapBadgeRail = ({ items, selectedId, onSelect, label, overMap, desktopMap,
           </button>
         ))}
       </nav>
+      {trailing}
       {desktopMap && edges.before && (
         <button
           className={`${styles.arrow} ${styles.before}`}
