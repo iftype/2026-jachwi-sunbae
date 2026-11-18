@@ -115,10 +115,10 @@ const InfrastructureMap = ({ mapProps, open }: Props) => {
           mapProps.onSelectMarker?.(marker);
         }}
       />
-      {/* 매물을 고르지 않았을 때는 시설 분류 없이 이어 붙인 칸(찜한 동네)만 보인다. */}
-      {open && anchor === null && (mapProps.railExtraItems?.length ?? 0) > 0 && (
+      {/* 찜한 동네는 시설 분류 카드와 떨어진 별도 버튼이다. 매물이나 카드가 생겨도 자리가 변하지 않게 항상 같은 자리에 둔다. */}
+      {open && (mapProps.railExtraItems?.length ?? 0) > 0 && (
         <MapCategoryRail
-          className={styles.rail}
+          className={styles.extraRail}
           showIcons={false}
           selectedCategories={[]}
           order={[]}
@@ -134,7 +134,6 @@ const InfrastructureMap = ({ mapProps, open }: Props) => {
             selectedCategories={layer.category ? [layer.category] : []}
             order={[...INFRASTRUCTURE_CATEGORIES]}
             labels={{ AGENCY: '중개사' }}
-            extraItems={mapProps.railExtraItems}
             onToggle={(category) => {
               if (
                 category === 'AGENCY' ||
@@ -172,16 +171,29 @@ const InfrastructureMap = ({ mapProps, open }: Props) => {
   );
 };
 const styles = {
-  rail: css`
-    label: InfrastructureMap-rail;
+  /* 찜한 동네 버튼. 고정 자리(위쪽). 카드 표시 여부와 상관없이 움직이지 않는다. */
+  extraRail: css`
+    label: InfrastructureMap-extraRail;
     && {
-      /* 현재 위치(10.55rem)와 찜한 동네(13.7rem) 버튼 줄 바로 아래. */
       top: 16.85rem;
       right: 1.15rem;
       z-index: 35;
     }
     [data-desktop='false'] && {
       top: calc(max(0.85rem, env(safe-area-inset-top)) + 20.1rem);
+      right: 0.95rem;
+    }
+  `,
+  /* 시설 분류 카드. 찜한 동네 버튼(2.5rem) 아래에 0.6rem 띄워 둔다. 별도 카드라 서로 붙지 않는다. */
+  rail: css`
+    label: InfrastructureMap-rail;
+    && {
+      top: calc(16.85rem + 3.1rem);
+      right: 1.15rem;
+      z-index: 35;
+    }
+    [data-desktop='false'] && {
+      top: calc(max(0.85rem, env(safe-area-inset-top)) + 20.1rem + 3.1rem);
       right: 0.95rem;
     }
   `,
