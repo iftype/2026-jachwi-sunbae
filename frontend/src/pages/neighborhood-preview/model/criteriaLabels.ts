@@ -1,5 +1,7 @@
 import type { CommuteArea } from '@/features/map/api/commuteApi';
 
+export const RESELECT_COMMUTE_LABEL = '출퇴근 장소 다시 선택';
+
 /** 고를 수 있는 월세 상한(만원). 0은 전체 가격이다. 자취방 월세 범위를 넘는 큰 값은 두지 않는다. */
 export const RENT_LIMITS = [0, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150] as const;
 export const isRentLimit = (value: unknown): value is number =>

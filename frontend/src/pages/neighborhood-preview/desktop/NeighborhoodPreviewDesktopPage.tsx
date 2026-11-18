@@ -20,7 +20,7 @@ import useNeighborhoodMapView from '../hooks/useNeighborhoodMapView';
 import type { NeighborhoodPreviewContext } from '../hooks/useNeighborhoodPreview';
 import useResultMapViewport from '../hooks/useResultMapViewport';
 import { commuteColor } from '../model/commuteColors';
-import { emptyAreaMessage } from '../model/criteriaLabels';
+import { emptyAreaMessage, RESELECT_COMMUTE_LABEL } from '../model/criteriaLabels';
 import { desktopMapViewport } from '../model/resultMapView';
 import AnalysisOverlay from '../ui/analysis-overlay/AnalysisOverlay';
 import CommuteLegend from '../ui/commute-legend/CommuteLegend';
@@ -231,11 +231,11 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
               }
               // 출퇴근 장소를 다시 고르는 칩. 뱃지 줄 맨 앞에 고정해 둔다.
               leading={{
-                label: '다시 뽑기',
+                label: RESELECT_COMMUTE_LABEL,
                 onClick: () => {
                   closeLayers();
+                  preview.selectRegion(null);
                   preview.editLocation();
-                  preview.openMapSelection();
                 },
               }}
               items={preview.resultAreas.map((area) => ({

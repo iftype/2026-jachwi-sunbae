@@ -414,6 +414,7 @@ describe('익명 자동 인증 흐름', () => {
     await user.click(await screen.findByRole('link', { name: '마이페이지' }));
 
     expect(await screen.findByRole('heading', { name: '마이페이지' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '목록으로 돌아가기' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '로그아웃' })).not.toBeInTheDocument();
   });
 
@@ -576,8 +577,7 @@ it('결과를 본 뒤 출퇴근 장소를 다른 곳으로 고르면 새 좌표�
     renderRoutes('/neighborhoods');
     await pickDestination(0);
     await waitFor(() => expect(requests.urls).toHaveLength(1));
-    await userEvent.click(screen.getByRole('button', { name: '조건 다시 선택' }));
-    await userEvent.click(screen.getByRole('button', { name: '바꾸기' }));
+    await userEvent.click(screen.getByRole('button', { name: '출퇴근 장소 다시 선택' }));
     await pickDestination(1);
     await waitFor(() => expect(requests.urls).toHaveLength(2));
     const [first, second] = requests.urls.map((url) => [

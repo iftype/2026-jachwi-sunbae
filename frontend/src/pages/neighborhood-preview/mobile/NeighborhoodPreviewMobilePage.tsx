@@ -2,8 +2,6 @@ import { css } from '@emotion/css';
 import { useRef, useState } from 'react';
 import { Outlet, useMatch } from 'react-router-dom';
 
-import useRecordsView from '@/pages/design-records/hooks/useRecordsView';
-import RecordsMobilePage from '@/pages/design-records/mobile/RecordsMobilePage';
 import { useRecordsMapController } from '@/pages/design-records/RecordsMapProvider';
 import MapCanvas from '@/features/map/ui/map-canvas/MapCanvas';
 import ExplorationRecordAction from '@/features/onboarding/ui/exploration-record-action/ExplorationRecordAction';
@@ -13,14 +11,13 @@ import BottomSheet from '@/shared/ui/bottom-sheet/BottomSheet';
 import { Button } from '@/shared/ui/button/Button';
 import Icon from '@/shared/ui/icon/Icon';
 import { useMapPanel } from '@/shared/ui/map-list-header/MapPanelContext';
-import MapViewSwitch from '@/shared/ui/map-view-switch/MapViewSwitch';
 import MobileMapHeader, { MapHomeLink } from '@/shared/ui/mobile-map-header/MobileMapHeader';
 
 import useMyPropertyPager from '../hooks/useMyPropertyPager';
 import useNeighborhoodMapView from '../hooks/useNeighborhoodMapView';
 import type { NeighborhoodPreviewContext } from '../hooks/useNeighborhoodPreview';
 import useResultMapViewport from '../hooks/useResultMapViewport';
-import { rentLabel, transferLabel } from '../model/criteriaLabels';
+import { rentLabel, RESELECT_COMMUTE_LABEL, transferLabel } from '../model/criteriaLabels';
 import { readCriteriaCollapsed, writeCriteriaCollapsed } from '../model/neighborhoodSearchSession';
 import { MOBILE_AREA_SHEET_PERCENT, mobileMapViewport } from '../model/resultMapView';
 import type { NeighborhoodFilterField } from '../NeighborhoodFilters';
@@ -47,8 +44,6 @@ type Props = {
 const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
   const controller = useRecordsMapController();
   const usesSharedSearch = controller !== null && !preview.isPublicExplore;
-  const [recordsView, setRecordsView] = useRecordsView();
-  const isListView = recordsView === 'list';
   const returnButton = !preview.isPublicExplore && <MapHomeLink />;
   const panel = useMapPanel();
   // 위치를 고르는 동안 조건 칸 아래에 바로 펼친 피커. 같은 칸을 다시 누르면 접는다.
@@ -66,12 +61,12 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
     writeCriteriaCollapsed(!isLegendCollapsed);
     setIsLegendCollapsed(!isLegendCollapsed);
   };
-  const reselectCriteria = () => {
+  const reselectCommute = () => {
     closeLayers();
     preview.selectRegion(null);
     setPickerField(null);
     setIsRentOpen(false);
-    preview.editSearch();
+    preview.editLocation();
   };
   // 동네 시트를 닫아도 동네 선택(지도 강조, 주소)은 남긴다. 닫은 동네의 행정동 코드를 두어 그 동네의 시트만 숨긴다.
   const [dismissedAreaCode, setDismissedAreaCode] = useState<string | null>(null);
@@ -177,8 +172,6 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
         <Outlet context={preview} />
       </div>
     );
-  if (isListView && controller && !panel)
-    return <RecordsMobilePage {...controller} searchTo={NEIGHBORHOOD_ADDRESS_SEARCH_PATH} />;
   if (panel) return <main className={shared.page}>{panel.content}</main>;
   return (
     <main className={shared.page} data-public-explore={preview.isPublicExplore || undefined}>
@@ -316,15 +309,21 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
                       ))}
                     </div>
                   )}
-                  <button className={styles.criteriaToggle} type="button" onClick={reselectCriteria}>
-                    조건 다시 선택
-                  </button>
                 </div>
               </div>
             </header>
             {resultControls}
 
-            {!infoSubject && <MapViewSwitch value="map" onChange={setRecordsView} label="동네 보기 방식" />}
+            {!infoSubject && (
+              <Button
+                className={styles.reselect}
+                onClick={reselectCommute}
+                data-public={preview.isPublicExplore || undefined}
+              >
+                <Icon name="replace" size={18} />
+                {RESELECT_COMMUTE_LABEL}
+              </Button>
+            )}
             {preview.isPublicExplore && recordArea && (
               <div className={shared.recordAction}>
                 <ExplorationRecordAction
@@ -390,6 +389,25 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
 
 /* 월세 슬라이더가 위에서 부드럽게 내려온다. */
 const styles = {
+  reselect: css`
+    position: fixed;
+    z-index: 20;
+    left: 50%;
+    bottom: calc(var(--map-sheet-bottom, env(safe-area-inset-bottom)) + 0.75rem);
+    transform: translateX(-50%);
+    box-shadow: var(--shadow-floating);
+    white-space: nowrap;
+
+    &[data-public='true'] {
+      bottom: calc(env(safe-area-inset-bottom) + 4.5rem);
+    }
+
+    & > span {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+  `,
   conditionCard: css`
     && {
       gap: 0.55rem;
@@ -430,19 +448,20 @@ const styles = {
 
     & button {
       flex: none;
-      min-height: 1.9rem;
-      padding-inline: 0.5rem;
+      min-height: 2rem;
+      padding-inline: 0.65rem;
       border: 1px solid var(--color-border);
       border-radius: 999px;
       background: var(--color-surface);
       color: var(--color-ink);
       font: inherit;
-      font-size: 0.7rem;
+      font-size: 0.82rem;
       font-weight: 700;
     }
     & button[aria-pressed='true'] {
-      border-color: var(--color-brand-blue);
-      color: var(--color-brand-blue-ink);
+      border-color: var(--color-brand-blue-ink);
+      background: var(--color-brand-blue-ink);
+      color: var(--color-on-primary);
     }
   `,
   bookmark: css`
