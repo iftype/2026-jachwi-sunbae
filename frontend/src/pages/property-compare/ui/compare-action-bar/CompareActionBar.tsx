@@ -50,7 +50,7 @@ const styles = {
     position: fixed;
     z-index: 16;
     right: max(calc((100vw - var(--app-max-width)) / 2), 0px);
-    bottom: calc(var(--bottom-navigation-height) + env(safe-area-inset-bottom));
+    bottom: var(--mobile-tab-space, env(safe-area-inset-bottom));
     left: max(calc((100vw - var(--app-max-width)) / 2), 0px);
     display: grid;
     gap: 0.45rem;

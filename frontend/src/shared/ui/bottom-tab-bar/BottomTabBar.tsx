@@ -1,6 +1,6 @@
 import { css } from '@emotion/css';
 
-import { MOBILE_BOTTOM_TAB_HEIGHT } from './bottomTabConfig';
+import { MOBILE_TAB_SPACE } from './bottomTabConfig';
 
 export type BottomTab = {
   key: string;
@@ -12,7 +12,7 @@ export type BottomTab = {
 
 type Props = { tabs: readonly BottomTab[]; hidden: boolean };
 
-/** 휴대폰 화면 아래에 붙는 탭 바. 높이는 56px에 아래 안전 영역을 더하고, 숨길 때는 아래로 내려 레이아웃이 튀지 않게 한다. */
+/** 휴대폰 화면 아래에 붙는 탭 바. 아래 안전 영역을 포함하며, 숨길 때는 아래로 내린다. */
 const BottomTabBar = ({ tabs, hidden }: Props) => (
   <nav className={styles.bar} aria-label="하단 탭" data-hidden={hidden || undefined} aria-hidden={hidden || undefined}>
     {tabs.map((tab) => (
@@ -41,7 +41,7 @@ const styles = {
     z-index: 60;
     display: flex;
     box-sizing: border-box;
-    height: calc(${MOBILE_BOTTOM_TAB_HEIGHT}px + env(safe-area-inset-bottom));
+    height: ${MOBILE_TAB_SPACE};
     padding-bottom: env(safe-area-inset-bottom);
     border-top: 1px solid var(--color-border-strong);
     background: var(--color-navigation-surface);
