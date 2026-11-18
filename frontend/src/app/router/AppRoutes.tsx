@@ -2,8 +2,6 @@ import type { ReactNode } from 'react';
 import { lazy } from 'react';
 import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 
-import DesktopRailShell from '@/app/layouts/desktop-rail-shell/DesktopRailShell';
-import PropertyAppLayout from '@/app/layouts/property-app-layout/PropertyAppLayout';
 import PublicExploreLayout from '@/app/layouts/public-explore-layout/PublicExploreLayout';
 import RecordsPageSkeleton from '@/pages/design-records/RecordsPageSkeleton';
 import NeighborhoodPageSkeleton from '@/pages/neighborhood-preview/NeighborhoodPageSkeleton';
@@ -41,9 +39,10 @@ import {
 import LazyRouteBoundary from './LazyRouteBoundary';
 import ProtectedRoute from './ProtectedRoute';
 
+const PropertyAppLayout = lazy(() => import('@/app/layouts/property-app-layout/PropertyAppLayout'));
 const AdminPage = lazy(() => import('@/pages/admin/AdminPage'));
 const AddressSearchPage = lazy(() => import('@/pages/address-search/AddressSearchPage'));
-const CheapMealsPage = lazy(() => import('@/pages/cheap-meals/CheapMealsPage'));
+const CheapMealsRoute = lazy(() => import('./CheapMealsRoute'));
 const UnifiedMapPage = lazy(() => import('@/pages/unified-map/UnifiedMapPage'));
 const NeighborhoodPreviewPage = lazy(() => import('@/pages/neighborhood-preview/NeighborhoodPreviewPage'));
 const NeighborhoodRoutePage = lazy(() => import('@/pages/neighborhood-preview/NeighborhoodRoutePage'));
@@ -108,7 +107,7 @@ const AppRoutes = () => (
       <Route path={ROUTE_PATTERNS.legacyExplorePrice} element={<LegacyNeighborhoodRoute base={EXPLORE_PATH} />} />
       <Route path={EXPLORE_NEARBY_PATH} element={lazyPage(<NearbyAnalysisPage />)} />
     </Route>
-    <Route element={<PropertyAppLayout />}>
+    <Route element={lazyPage(<PropertyAppLayout />)}>
       <Route path={GUIDE_PATH} element={lazyPage(<UsageGuidePage />)} />
       <Route
         path={ROUTE_PATTERNS.legacyNeighborhoodsMap}
@@ -129,14 +128,7 @@ const AppRoutes = () => (
     {/* 첫 주소(`/`)를 포함한 회원 화면. 자동 로그인(복원 또는 익명 회원 생성)을 기다리는 동안에도 화면 뼈대를 바로 그린다. */}
     <Route element={<ProtectedRoute />}>
       {/* 탭마다 주소가 따로 있다. 탭 없는 주소와 예전 `?tab=` 주소는 화면이 탭 주소로 바꾼다. */}
-      <Route
-        path={ROUTE_PATTERNS.cheapMeals}
-        element={lazyPage(
-          <DesktopRailShell>
-            <CheapMealsPage />
-          </DesktopRailShell>,
-        )}
-      />
+      <Route path={ROUTE_PATTERNS.cheapMeals} element={lazyPage(<CheapMealsRoute />)} />
       <Route path={PROPERTIES_PATH} element={<LegacyRecordsRoute />} />
       <Route path={MY_ALIAS_PATH} element={<Navigate to={MY_PATH} replace />} />
       <Route element={lazyPage(<UnifiedMapPage />, <RecordsPageSkeleton />)}>
@@ -155,7 +147,7 @@ const AppRoutes = () => (
           <Route path={ROUTE_PATTERNS.areaDetails} element={lazyPage(<NeighborhoodRoutePage />)} />
         </Route>
       </Route>
-      <Route element={<PropertyAppLayout />}>
+      <Route element={lazyPage(<PropertyAppLayout />)}>
         <Route path={ROUTE_PATTERNS.propertyEdit} element={lazyPage(<EditPropertyPage />)} />
         <Route path={ROUTE_PATTERNS.propertyPhotos} element={lazyPage(<PropertyPhotosPage />)} />
         <Route path={ROUTE_PATTERNS.propertyMemo} element={lazyPage(<PropertyMemoPage />)} />
