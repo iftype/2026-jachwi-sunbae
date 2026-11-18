@@ -6,6 +6,10 @@ export const section = css`
   padding: 0.8rem var(--page-inline-padding);
   border-top: 0.5rem solid var(--color-canvas);
   background: var(--color-surface);
+
+  &[data-highlighted='true'] {
+    background: var(--color-card-surface);
+  }
 `;
 
 export const heading = css`

@@ -46,9 +46,27 @@ it('비활성화 상태에서는 검색하지 않는다', () => {
 
 it('돋보기는 입력 오른쪽 끝에서 검색을 실행한다', async () => {
   const submit = vi.fn();
-  render(<SearchField label="장소" value="서울" onValueChange={vi.fn()} onSubmit={submit} showSubmitButton={false} />);
+  render(<SearchField label="장소" value="" onValueChange={vi.fn()} onSubmit={submit} showSubmitButton={false} />);
   const button = screen.getByRole('button', { name: '검색' });
   expect(button).toBe(screen.getByRole('search').lastElementChild);
   await userEvent.click(button);
   expect(submit).toHaveBeenCalledOnce();
+});
+
+it('제출 버튼이 없는 검색창은 입력을 시작하면 오른쪽 돋보기를 치우고 왼쪽에 돋보기를 보인다', () => {
+  const { rerender } = render(
+    <SearchField label="장소" value="" onValueChange={vi.fn()} onSubmit={vi.fn()} showSubmitButton={false} />,
+  );
+  const search = screen.getByRole('search');
+  expect(search).toHaveAttribute('data-typing', 'false');
+  expect(search.querySelector('[data-role="typing-icon"]')).not.toBeNull();
+  rerender(
+    <SearchField label="장소" value="서울" onValueChange={vi.fn()} onSubmit={vi.fn()} showSubmitButton={false} />,
+  );
+  expect(screen.getByRole('search')).toHaveAttribute('data-typing', 'true');
+});
+
+it('제출 버튼이 있는 검색창에는 입력 중 왼쪽 돋보기를 두지 않는다', () => {
+  render(<SearchField label="주소 검색" value="서울" onValueChange={vi.fn()} onSubmit={vi.fn()} />);
+  expect(screen.getByRole('search').querySelector('[data-role="typing-icon"]')).toBeNull();
 });

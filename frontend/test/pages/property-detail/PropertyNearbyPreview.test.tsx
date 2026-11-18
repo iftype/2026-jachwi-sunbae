@@ -62,11 +62,11 @@ beforeEach(() => {
 });
 afterEach(() => queryClient.clear());
 
-const renderPreview = () =>
+const renderPreview = (showMap = true) =>
   render(
     <QueryClientProvider client={queryClient}>
       <PublicConfigProvider config={{ apiBaseUrl: 'http://localhost:8080' }}>
-        <PropertyNearbyPreview propertyId={10} {...CENTER} />
+        <PropertyNearbyPreview propertyId={10} {...CENTER} showMap={showMap} />
       </PublicConfigProvider>
     </QueryClientProvider>,
   );
@@ -90,6 +90,13 @@ it('학교를 제외한 500m 안 시설 수와 거리를 범례와 지도에 보
     '신림역 정류장',
     '이 매물',
   ]);
+});
+
+it('지도를 두지 않는 데스크탑에서는 지도 없이 시설 수 요약만 보인다', async () => {
+  renderPreview(false);
+  expect(await screen.findByLabelText('500m 안 시설 4곳')).toHaveTextContent('4');
+  expect(screen.getByRole('list', { name: '500m 안 시설 수' })).toBeInTheDocument();
+  expect(screen.queryByRole('list', { name: '주변 지도 마커' })).not.toBeInTheDocument();
 });
 
 it('범례에서 시설을 누르면 그 시설 점만 남기고, 다시 누르거나 초기화하면 모두 되돌린다', async () => {

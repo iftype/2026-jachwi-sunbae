@@ -65,7 +65,7 @@ export const control = cx(
     }
 
     .TextField-field[data-floating-label='true'] & input {
-      caret-color: var(--color-brand-yellow);
+      caret-color: var(--color-ink);
       line-height: 1.6;
     }
 
@@ -200,7 +200,7 @@ export const control = cx(
       border: 0;
       border-radius: 0.75rem;
       background: var(--color-card-surface);
-      caret-color: var(--color-brand-blue);
+      caret-color: var(--color-ink);
       font-size: 0.9375rem;
       line-height: 1.375rem;
       transition: box-shadow 0.16s ease;

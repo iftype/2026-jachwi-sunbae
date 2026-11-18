@@ -55,6 +55,7 @@ type NaverMapsNamespace = {
       gl?: boolean;
       customStyleId?: string;
       minZoom?: number;
+      maxZoom?: number;
       maxBounds?: NaverLatLngBounds;
     },
   ) => NaverMap;

@@ -20,6 +20,8 @@ type PropertyNearbyPreviewProps = {
   longitude: number;
   /** 주소 바꾸기를 눌렀으면 매물 핀을 지우고, 이 지도를 눌러 새 위치를 고른다. */
   isEditingLocation?: boolean;
+  /** false면 지도 없이 고리 요약만 둔다. 옆에 큰 지도가 보이는 데스크탑이 쓴다. */
+  showMap?: boolean;
   onSaveLocation?: (address: MapAddress) => Promise<void>;
   onEndEditLocation?: () => void;
 };
@@ -36,6 +38,7 @@ const PropertyNearbyPreview = ({
   latitude,
   longitude,
   isEditingLocation = false,
+  showMap = true,
   onSaveLocation,
   onEndEditLocation,
 }: PropertyNearbyPreviewProps) => {
@@ -117,60 +120,62 @@ const PropertyNearbyPreview = ({
 
   return (
     <div ref={sectionRef} className={styles.content} aria-label="매물 주변 환경">
-      <div className={styles.map}>
-        <MapCanvas
-          center={viewCenter}
-          onCenterChange={(latitude, longitude) => setViewCenter({ latitude, longitude })}
-          markers={markers}
-          circles={circles}
-          radiusCenter={center}
-          level={level}
-          onLevelChange={setLevel}
-          onSelectLocation={isEditingLocation ? (lat, lng) => void location.pick(lat, lng) : undefined}
-          hideLoading
-        />
-        {/* 휴대폰에서 지도를 쓸어도 페이지가 스크롤되게 덮어 둔다. 확대는 버튼으로 한다. 위치를 바꿀 때는 걷어 낸다. */}
-        {!isEditingLocation && <div className={styles.mapCover} aria-hidden="true" />}
-        <div className={styles.controls}>
-          <MapZoomControl level={level} onChange={setLevel} />
-          <MapCurrentLocationButton isLocating={isLocating} onClick={() => void moveToMyLocation()} />
-        </div>
-        {(focused !== null || level !== PREVIEW_LEVEL || !coordinatesAreClose(viewCenter, center, 0.0005)) && (
-          <button className={styles.reset} type="button" onClick={reset}>
-            초기화
-          </button>
-        )}
-        {isEditingLocation && (
-          <div className={styles.toast} role="status">
-            <span>
-              {picked === null
-                ? '지도를 눌러 새 위치를 고르세요.'
-                : picked.status === 'geocoding'
-                  ? '주소를 찾는 중이에요…'
-                  : picked.status === 'error'
-                    ? '이 자리의 주소를 찾지 못했어요. 다른 곳을 눌러 주세요.'
-                    : location.saveFailed
-                      ? '저장하지 못했어요. 다시 눌러 주세요.'
-                      : pickedAddressText(picked.address)}
-            </span>
-            <div className={styles.toastActions}>
-              <button type="button" onClick={onEndEditLocation} disabled={location.isSaving}>
-                취소
-              </button>
-              {picked?.status === 'ready' && (
-                <button
-                  type="button"
-                  data-primary="true"
-                  onClick={() => void location.save()}
-                  disabled={location.isSaving}
-                >
-                  {location.isSaving ? '변경 중…' : '이 위치로 변경'}
-                </button>
-              )}
-            </div>
+      {showMap && (
+        <div className={styles.map}>
+          <MapCanvas
+            center={viewCenter}
+            onCenterChange={(latitude, longitude) => setViewCenter({ latitude, longitude })}
+            markers={markers}
+            circles={circles}
+            radiusCenter={center}
+            level={level}
+            onLevelChange={setLevel}
+            onSelectLocation={isEditingLocation ? (lat, lng) => void location.pick(lat, lng) : undefined}
+            hideLoading
+          />
+          {/* 휴대폰에서 지도를 쓸어도 페이지가 스크롤되게 덮어 둔다. 확대는 버튼으로 한다. 위치를 바꿀 때는 걷어 낸다. */}
+          {!isEditingLocation && <div className={styles.mapCover} aria-hidden="true" />}
+          <div className={styles.controls}>
+            <MapZoomControl level={level} onChange={setLevel} />
+            <MapCurrentLocationButton isLocating={isLocating} onClick={() => void moveToMyLocation()} />
           </div>
-        )}
-      </div>
+          {(focused !== null || level !== PREVIEW_LEVEL || !coordinatesAreClose(viewCenter, center, 0.0005)) && (
+            <button className={styles.reset} type="button" onClick={reset}>
+              초기화
+            </button>
+          )}
+          {isEditingLocation && (
+            <div className={styles.toast} role="status">
+              <span>
+                {picked === null
+                  ? '지도를 눌러 새 위치를 고르세요.'
+                  : picked.status === 'geocoding'
+                    ? '주소를 찾는 중이에요…'
+                    : picked.status === 'error'
+                      ? '이 자리의 주소를 찾지 못했어요. 다른 곳을 눌러 주세요.'
+                      : location.saveFailed
+                        ? '저장하지 못했어요. 다시 눌러 주세요.'
+                        : pickedAddressText(picked.address)}
+              </span>
+              <div className={styles.toastActions}>
+                <button type="button" onClick={onEndEditLocation} disabled={location.isSaving}>
+                  취소
+                </button>
+                {picked?.status === 'ready' && (
+                  <button
+                    type="button"
+                    data-primary="true"
+                    onClick={() => void location.save()}
+                    disabled={location.isSaving}
+                  >
+                    {location.isSaving ? '변경 중…' : '이 위치로 변경'}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       {nearby.isError ? (
         <div className={styles.card}>
           <span className={styles.error} role="alert">

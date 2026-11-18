@@ -2,6 +2,7 @@ import { css } from '@emotion/css';
 import { type KeyboardEvent, useRef, useState } from 'react';
 
 import { useUpdateProperty } from '@/features/property/api/usePropertyMutations';
+import { DEFAULT_PROPERTY_NAME } from '@/features/property/lib/propertyForm';
 import type { PropertyDetail } from '@/features/property/model/Property';
 
 const MAX_NAME_LENGTH = 30;
@@ -18,7 +19,7 @@ type Props = {
  */
 const PropertyNameInput = ({ property, onDone }: Props) => {
   const updateProperty = useUpdateProperty(property.propertyId);
-  const [name, setName] = useState(property.name);
+  const [name, setName] = useState(property.name === DEFAULT_PROPERTY_NAME ? '' : property.name);
   // 엔터로 저장한 뒤 따라오는 blur, Esc로 닫을 때의 blur에서 다시 저장하지 않는다.
   const settledRef = useRef(false);
 
@@ -56,6 +57,7 @@ const PropertyNameInput = ({ property, onDone }: Props) => {
       <input
         className={styles.input}
         aria-label="매물 이름"
+        placeholder="매물 이름"
         value={name}
         maxLength={MAX_NAME_LENGTH}
         autoFocus
@@ -81,26 +83,28 @@ const styles = {
     gap: 0.3rem;
   `,
 
-  /* 읽을 때와 같은 글자 크기로 줄 안에 놓는다. */
+  /* 수정 중인 칸임이 보이도록 흰 바탕에 옅은 테두리를 두고, 포커스하면 테두리를 파랑으로 바꾼다. 섹션 바탕(회색)과 구분된다. */
   input: css`
     label: PropertyNameInput-input;
     box-sizing: border-box;
     width: 100%;
     min-width: 0;
-    padding: 0.2rem 0.4rem;
-    /* 테두리나 밑줄 없이 값이 있던 자리에서 그대로 입력한다. 입력 중임은 옅은 회색 바탕으로만 알린다. */
-    border: 0;
-    border-radius: 0.5rem;
-    background: transparent;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--color-border, #e3e5e9);
+    border-radius: 0.6rem;
+    background: #fff;
     color: var(--color-ink, #212124);
     font: inherit;
-    text-align: center;
+    text-align: right;
     outline: none;
-    /* 전역 포커스 링(검은 테두리)보다 우선해서, 입력 중에도 테두리 없이 옅은 회색 바탕만 둔다. */
+    &::placeholder {
+      color: #8b909a;
+    }
+    /* 전역 포커스 링(검은 테두리)보다 우선해서 파란 테두리만 둔다. */
     &:focus,
     &:focus-visible {
       outline: 0;
-      background: #f1f2f4;
+      border-color: var(--color-brand-blue-ink, #3f6fc4);
     }
   `,
 

@@ -268,11 +268,13 @@ describe('FE-2 등록·수정·메모', () => {
     expect(body).toMatchObject({ utilityOptions: ['INTERNET', 'GAS'] });
   });
 
-  it('매물 이름은 상세 줄에서 바로 고치고, 금액이 비어 있어도 저장된다', async () => {
+  it('방금 만든 새 매물은 이름 칸이 열려 있고, 그 줄에서 바로 고치며, 금액이 비어 있어도 저장된다', async () => {
     let requestBody: unknown;
     server.use(
       http.get(`${config.apiBaseUrl}/api/properties/10`, () =>
-        HttpResponse.json(successEnvelope({ ...detailWithoutPhotos, depositAmount: 0, monthlyRentAmount: 0 })),
+        HttpResponse.json(
+          successEnvelope({ ...detailWithoutPhotos, name: '새 매물', depositAmount: 0, monthlyRentAmount: 0 }),
+        ),
       ),
       http.get(`${config.apiBaseUrl}/api/properties/10/memo`, () =>
         HttpResponse.json(successEnvelope({ propertyId: 10, freeMemo: '' })),
@@ -287,8 +289,8 @@ describe('FE-2 등록·수정·메모', () => {
 
     const section = within(await screen.findByRole('region', { name: '매물 기본 정보' }));
     expect(section.getByText('보증금과 월세를 입력해 주세요')).toBeInTheDocument();
-    // 이름은 시트 없이 그 줄에서 바로 고친다. Esc는 저장하지 않고 닫는다.
-    await user.click(section.getByRole('button', { name: /^매물 이름 .+, 수정$/ }));
+    // 방금 만든 매물은 이름 칸이 바로 열려 있다. 시트 없이 그 줄에서 고치고, Esc는 저장하지 않고 닫는다.
+    expect(section.getByLabelText('매물 이름')).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: '매물 이름 수정' })).not.toBeInTheDocument();
     await user.type(section.getByLabelText('매물 이름'), ' 바뀜');
     await user.keyboard('{Escape}');
