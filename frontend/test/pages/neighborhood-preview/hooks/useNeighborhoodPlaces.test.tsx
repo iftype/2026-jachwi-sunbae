@@ -41,9 +41,9 @@ it('확대하거나 축소해도 같은 단계에서 시설을 보이거나 숨�
   act(() => result.current.rememberBounds(bounds));
   for (const [level, visible] of [
     [9, false],
-    [8.5, true],
-    [8.51, false],
-    [8.49, true],
+    [7.5, true],
+    [7.51, false],
+    [7.49, true],
     [9, false],
   ] as const) {
     act(() => result.current.rememberLevel(level));

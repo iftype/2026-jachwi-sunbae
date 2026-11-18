@@ -929,7 +929,7 @@ it('휴대폰은 멀리 본 채 시설 칸을 켜면 시설이 보이는 단계�
   await user.click(screen.getByRole('button', { name: '지도 축소' }));
   expect(screen.getByLabelText('지도 시점')).toHaveTextContent('"level":9');
   await user.click(await screen.findByRole('button', { name: /^병원 표시하기/ }));
-  expect(screen.getByLabelText('지도 시점')).toHaveTextContent('"level":8');
+  expect(screen.getByLabelText('지도 시점')).toHaveTextContent('"level":7');
   await user.click(screen.getByRole('button', { name: '가까이 확대' }));
   await waitFor(() => expect(markerList().some((marker) => marker.category === 'HOSPITAL')).toBe(true));
   expect(screen.queryByText('확대하면 주변 시설이 보여요')).not.toBeInTheDocument();
@@ -1162,7 +1162,7 @@ it('행정동 안에서 만든 매물은 같은 기록 목록 데이터에 반�
     await screen.findByRole('region', { name: '행정동 프리셋 지도' });
     await user.click(screen.getByRole('button', { name: '역삼1동' }));
     await user.click(screen.getByRole('button', { name: '고른 동네 안 찍기' }));
-    await user.click(screen.getByRole('button', { name: '말풍선 여기에 매물 등록' }));
+    await user.click(screen.getByRole('button', { name: '말풍선 여기에 본 방 기록하기' }));
     expect(await screen.findByRole('heading', { name: '홈' })).toBeInTheDocument();
     expect(getMockProperties().some((property) => property.name === '새 매물')).toBe(true);
   } finally {

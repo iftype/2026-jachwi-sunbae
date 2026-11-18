@@ -83,9 +83,8 @@ const AddressSearchPage = () => {
           <StateIllustration name="empty-search" size={7} />
           <h2>어디로 이동할까요?</h2>
           <p className={styles.empty}>
-            {properties.isPending
-              ? '불러오는 중이에요.'
-              : '최근 검색과 위치가 있는 기록이 아직 없어요. 주소를 찾아 보세요.'}
+            {/* 기록을 받는 중이어도 로딩 문구를 띄우지 않고 바로 검색 안내를 보여 준다. */}
+            최근 검색과 위치가 있는 기록이 아직 없어요. 주소를 찾아 보세요.
           </p>
         </section>
       ) : (

@@ -10,7 +10,7 @@ import Icon from '@/shared/ui/icon/Icon';
 import type { RecordsState } from '../hooks/useRecords';
 import type { RecordsMapLayers } from '../hooks/useRecordsMapLayers';
 import { recordsMapHint } from '../model/recordPresentation';
-import RecordMapTapIntro from '../ui/record-map-tap-intro/RecordMapTapIntro';
+import RecordLocationPick from '../ui/record-location-pick/RecordLocationPick';
 import RecordRegisterSuggestion from '../ui/record-register-suggestion/RecordRegisterSuggestion';
 
 type Props = {
@@ -29,7 +29,7 @@ type Props = {
 const RecordsDesktopMap = ({ records, layers, districts, className }: Props) => (
   <section className={`${styles.map} ${className ?? ''}`.trim()} aria-label="본 방 기록 지도">
     <MapCanvas shared {...layers.canvasProps} coordinateMenu={layers.coordinateMenu} />
-    <RecordMapTapIntro hasTapped={layers.tapPoint !== null || layers.memo.mode !== null} />
+    {layers.locationPick && <RecordLocationPick pick={layers.locationPick} />}
     <StreetMemoImpressionLog memos={layers.memo.visibleMemos} />
     {districts}
     <button
@@ -65,7 +65,8 @@ const styles = {
   recenter: css`
     label: RecordsDesktopMap-recenter;
     position: absolute;
-    top: 21.25rem;
+    /* 확대 축소 바로 아래(zoom top 4.75rem + 높이 약 5.3rem + 간격 0.5rem)에 붙인다. */
+    top: 10.55rem;
     right: 1.15rem;
     z-index: 12;
     display: grid;

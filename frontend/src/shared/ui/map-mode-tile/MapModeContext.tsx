@@ -15,4 +15,7 @@ export const MapModeSwitchTile = () => {
   return mode ? <MapModeTile mode={mode.target} onClick={mode.onSwitch} /> : null;
 };
 
+/** 지금 화면에서 다른 지도 모드로 넘어가는 방법. 통합 지도 밖이면 null이다. */
+export const useMapModeSwitch = () => useContext(MapModeContext);
+
 export const useHasMapModeSwitch = () => useContext(MapModeContext) !== null;

@@ -1,9 +1,10 @@
 import { css } from '@emotion/css';
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 import MapHeaderWeather from '@/features/weather/ui/map-header-weather/MapHeaderWeather';
 import { LOGO_DUCK } from '@/shared/assets/imageAssets';
-import { COMPARE_PATH, HOME_PATH } from '@/shared/lib/navigation/appPaths';
+import { HOME_PATH } from '@/shared/lib/navigation/appPaths';
 import { MapModeSwitchTile, useHasMapModeSwitch } from '@/shared/ui/map-mode-tile/MapModeContext';
 import MobileMapHeader from '@/shared/ui/mobile-map-header/MobileMapHeader';
 
@@ -19,17 +20,14 @@ type Props = {
  */
 const RecordsMobileHeader = ({ view, searchTo }: Props) => {
   const showsModeTile = useHasMapModeSwitch() && view === 'map';
+  // 검색 아이콘을 누르면 바로 열리도록, 주소 검색 화면 코드를 미리 받아 둔다.
+  useEffect(() => {
+    void import('@/pages/address-search/AddressSearchPage');
+  }, []);
   return (
     <div className={styles.header}>
       <MobileMapHeader
         searchTo={searchTo}
-        trailing={
-          view === 'list' ? (
-            <Link to={COMPARE_PATH} className={styles.pdf} aria-label="기록 PDF 받기">
-              <span aria-hidden="true">PDF</span>
-            </Link>
-          ) : undefined
-        }
         hideSearch={view === 'list'}
         center={view === 'list' ? <MapHeaderWeather /> : undefined}
         leading={
@@ -52,18 +50,6 @@ const RecordsMobileHeader = ({ view, searchTo }: Props) => {
   );
 };
 const styles = {
-  pdf: css`
-    label: RecordsMobileHeader-pdf;
-    display: grid;
-    place-items: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 50%;
-    color: var(--color-muted);
-    text-decoration: none;
-    font-size: 0.65rem;
-    font-weight: 700;
-  `,
   logo: css`
     label: RecordsMobileHeader-logo;
     display: block;

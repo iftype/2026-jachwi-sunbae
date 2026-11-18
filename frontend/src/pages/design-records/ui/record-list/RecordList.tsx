@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react';
+
 import PropertyCard from '@/features/property/ui/property-card/PropertyCard';
 import { RECORDS_PATH } from '@/shared/lib/navigation/appPaths';
 import EmptyState from '@/shared/ui/empty-state/EmptyState';
@@ -12,11 +14,18 @@ type RecordListProps = {
   district: string;
   /** 주면 기록을 눌러도 상세로 넘어가지 않고 이 함수를 부른다(데스크탑은 리스트 자리에 상세를 연다). */
   onOpen?: (recordId: string) => void;
+  /** 지도에서 고른 매물. 그 카드를 눈에 띄게 하고 보이는 자리로 스크롤한다. */
+  selectedId?: string;
   onNotice: (message: string) => void;
   className?: string;
 };
 
-const RecordList = ({ records, district, onOpen, onNotice, className }: RecordListProps) => {
+const RecordList = ({ records, district, onOpen, selectedId, onNotice, className }: RecordListProps) => {
+  const selectedRef = useRef<HTMLLIElement>(null);
+  useEffect(() => {
+    // scrollIntoView가 없는 환경(jsdom 등)에서도 터지지 않게 있을 때만 부른다.
+    selectedRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+  }, [selectedId]);
   return (
     <section className={className} aria-labelledby="record-list-heading">
       <h2 id="record-list-heading" className="sr-only">
@@ -32,7 +41,12 @@ const RecordList = ({ records, district, onOpen, onNotice, className }: RecordLi
       )}
       <ul className={styles.items}>
         {records.map((record) => (
-          <li key={record.id}>
+          <li
+            key={record.id}
+            ref={record.id === selectedId ? selectedRef : undefined}
+            className={styles.item}
+            data-selected={record.id === selectedId || undefined}
+          >
             <PropertyCard
               property={record.summary}
               returnTo={RECORDS_PATH}

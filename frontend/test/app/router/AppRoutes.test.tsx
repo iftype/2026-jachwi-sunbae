@@ -1,5 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { StrictMode } from 'react';
@@ -87,12 +87,6 @@ const neighborhoodResponses = () =>
     ),
     http.get('*/boundaries/:filename', () => HttpResponse.json({ type: 'FeatureCollection', features: [] })),
   );
-const tapMapForRecommendation = () => {
-  const map = screen.getByLabelText('데모 지도');
-  vi.spyOn(map, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 500, 500));
-  fireEvent.click(map, { clientX: 250, clientY: 250 });
-};
-
 describe('익명 자동 인증 흐름', () => {
   it('비인증 사용자도 동네 찾기 시안을 바텀탭 없이 볼 수 있다', async () => {
     renderRoutes('/neighborhoods');
@@ -455,52 +449,42 @@ it('데스크톱의 홈은 통합 지도로 이어지고 모드 URL을 바꿔도
     renderRoutes('/');
     await screen.findByRole('region', { name: '본 방 기록 지도' });
     expect(screen.getByTestId('route-path')).toHaveTextContent('/');
-    const map = document.querySelector('[data-shared-map]');
-    expect(map).not.toBeNull();
+    expect(document.querySelector('[data-shared-map]')).not.toBeNull();
     // 데스크탑은 왼쪽 네비 레일로 화면을 옮긴다.
     expect(
       within(screen.getByRole('navigation', { name: '화면 이동' })).getByRole('button', { name: '동네 찾기' }),
     ).toBeInTheDocument();
-    tapMapForRecommendation();
-    await userEvent.click(screen.getByRole('menuitem', { name: '동네 추천받기' }));
-    // 찍은 자리의 주소를 받은 뒤 동네 찾기로 넘어간다.
-    await waitFor(() => expect(screen.getByTestId('route-path')).toHaveTextContent('/neighborhoods'));
-    expect(await screen.findByRole('complementary', { name: '탐색 조건' })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: '이 조건으로 동네 찾기' }));
+    // 레일의 `동네 찾기`는 지난 검색이 없으면 출퇴근 장소 검색 화면으로 간다(이 화면은 지도 밖이라 지도를 새로 만든다).
+    await userEvent.click(
+      within(screen.getByRole('navigation', { name: '화면 이동' })).getByRole('button', { name: '동네 찾기' }),
+    );
+    await searchDestination(0);
     expect(await screen.findByRole('region', { name: '행정동 프리셋 지도' })).toBeInTheDocument();
-    expect(document.querySelector('[data-shared-map]')).toBe(map);
+    const resultMap = document.querySelector('[data-shared-map]');
+    expect(resultMap).not.toBeNull();
     // 데스크탑은 떠 있는 전환 버튼 없이 왼쪽 레일의 `내 기록`으로 기록 지도에 돌아간다.
     expect(screen.queryByRole('navigation', { name: '지도 모드' })).not.toBeInTheDocument();
     await userEvent.click(
       within(screen.getByRole('navigation', { name: '화면 이동' })).getByRole('button', { name: '내 기록' }),
     );
     expect(await screen.findByRole('region', { name: '본 방 기록 지도' })).toBeInTheDocument();
-    expect(document.querySelector('[data-shared-map]')).toBe(map);
+    // 기록과 동네 찾기 결과는 같은 지도 DOM을 쓴다.
+    expect(document.querySelector('[data-shared-map]')).toBe(resultMap);
   } finally {
     viewport.mockRestore();
   }
 });
 
-it('모바일은 지도 클릭 메뉴로 추천 조건 카드를 열고 찾은 뒤 헤더 타일로 같은 기록 지도에 복귀한다', async () => {
+it('모바일은 내 기록 목록의 안내 배너로 동네 찾기를 열고 찾은 뒤 헤더 타일로 같은 기록 지도에 복귀한다', async () => {
   neighborhoodResponses();
-  renderRoutes('/');
-  await screen.findByRole('region', { name: '본 방 기록 지도' });
-  const map = document.querySelector('[data-shared-map]');
-  expect(screen.queryByRole('link', { name: '동네 찾기로 전환' })).not.toBeInTheDocument();
-  tapMapForRecommendation();
-  const action = screen.getByRole('menuitem', { name: '동네 추천받기' });
-  expect(action.querySelector('img')).toHaveAttribute('src', expect.stringContaining('menu-neighborhood.webp'));
-  await userEvent.click(action);
-  const card = await screen.findByRole('region', { name: '고른 출퇴근 장소' });
-  expect(within(card).getByRole('button', { name: '통근 40분 이내' })).toBeInTheDocument();
-  await userEvent.click(within(card).getByRole('button', { name: /에서 찾기$/ }));
-  await screen.findByRole('region', { name: '행정동 프리셋 지도' });
+  renderRoutes('/?view=list');
+  await userEvent.click(await screen.findByRole('button', { name: '10초만에 동네 찾기' }));
+  await searchDestination(0);
   const back = screen.getByRole('button', { name: '기록으로 전환' });
   expect(back.closest('header')).not.toBeNull();
   expect(screen.queryByRole('navigation', { name: '지도 모드' })).not.toBeInTheDocument();
   await userEvent.click(back);
   await screen.findByRole('region', { name: '본 방 기록 지도' });
-  expect(document.querySelector('[data-shared-map]')).toBe(map);
 });
 
 it('동네 찾기의 원형 검색은 공용 검색 페이지에서 고른 주소로 바로 분석한다', async () => {
@@ -523,14 +507,7 @@ it('동네 찾기의 원형 검색은 공용 검색 페이지에서 고른 주�
   expect(screen.queryByRole('button', { name: /에서 찾기$/ })).not.toBeInTheDocument();
   expect(screen.getByTestId('route-path')).toHaveTextContent(/^\/neighborhoods$/);
   await userEvent.click(screen.getByRole('button', { name: '기록으로 전환' }));
-  tapMapForRecommendation();
-  await userEvent.click(screen.getByRole('menuitem', { name: '동네 추천받기' }));
-  await userEvent.click(
-    within(await screen.findByRole('region', { name: '고른 출퇴근 장소' })).getByRole('button', {
-      name: /에서 찾기$/,
-    }),
-  );
-  expect(await screen.findByRole('region', { name: '행정동 프리셋 지도' })).toBeInTheDocument();
+  await screen.findByRole('region', { name: '본 방 기록 지도' });
 });
 
 const commuteSearchResponses = () =>
@@ -552,12 +529,16 @@ const trackCommuteRequests = () => {
   server.events.on('request:start', track);
   return { urls, stop: () => server.events.removeListener('request:start', track) };
 };
-const pickDestination = async (index: number) => {
-  await userEvent.click(await screen.findByRole('link', { name: '출퇴근 장소 검색' }));
+/** 출퇴근 장소 검색 화면에서 주소를 찾아 고른다. */
+const searchDestination = async (index: number) => {
   await userEvent.type(await screen.findByRole('textbox', { name: '출퇴근하는 장소 검색' }), '신림');
   const result = await screen.findByRole('list', { name: '주소 검색 결과' });
   await userEvent.click(within(result).getAllByRole('button')[index]);
   await screen.findByRole('region', { name: '행정동 프리셋 지도' });
+};
+const pickDestination = async (index: number) => {
+  await userEvent.click(await screen.findByRole('link', { name: '출퇴근 장소 검색' }));
+  await searchDestination(index);
 };
 
 it('기록 지도에 다녀와 동네 찾기 타일을 눌러도 지난 결과로 돌아가고 통근 결과를 다시 요청하지 않는다', async () => {
