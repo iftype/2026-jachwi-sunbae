@@ -5,7 +5,7 @@ import NEIGHBORHOOD_ICON from '@/shared/assets/illustrations/icon-map.webp';
 import Icon from '@/shared/ui/icon/Icon';
 import { useMapModeSwitch } from '@/shared/ui/map-mode-tile/MapModeContext';
 
-import { hasUsedFinder, HIDE_FINDER_BANNER_AFTER_USE } from '../../model/finderUsed';
+import { hasUsedFinder, HIDE_FINDER_BANNER_AFTER_USE, markFinderUsed } from '../../model/finderUsed';
 
 type Props = {
   /** 지도 위 자리(아래 간격, 겹침 순서)를 화면마다 정한다. */
@@ -14,7 +14,7 @@ type Props = {
 
 /**
  * 내 기록 지도 아래쪽에 띄우는 동네 찾기 가로 배너. 닫지 못하고, 누르면 동네 찾기로 넘어간다.
- * 표시 조건: 통합 지도 안이고, 동네 찾기 결과 지도를 본 적이 없고(`jachwi:finder-used`), 찜한 동네가 없을 때.
+ * 표시 조건: 통합 지도 안이고, 동네 찾기 배너를 누르거나 결과를 본 적이 없고(`jachwi:finder-used`), 찜한 동네가 없을 때.
  * (`HIDE_FINDER_BANNER_AFTER_USE`가 false면 항상 보인다. 이 밖의 조건(매물이나 메모가 열려 있지 않음)은 지도 화면이 정한다.)
  */
 const RecordNeighborhoodBanner = ({ className }: Props) => {
@@ -23,7 +23,14 @@ const RecordNeighborhoodBanner = ({ className }: Props) => {
   if (mode === null) return null;
   if (HIDE_FINDER_BANNER_AFTER_USE && (hasUsedFinder() || bookmarks.codes.length > 0)) return null;
   return (
-    <button type="button" className={cx(styles.banner, className)} onClick={mode.onSwitch}>
+    <button
+      type="button"
+      className={cx(styles.banner, className)}
+      onClick={() => {
+        markFinderUsed();
+        mode.onSwitch();
+      }}
+    >
       <span className={styles.icon} aria-hidden="true">
         <img src={NEIGHBORHOOD_ICON} alt="" width={28} height={28} />
       </span>
