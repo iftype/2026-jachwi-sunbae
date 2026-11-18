@@ -701,9 +701,13 @@ export const searchHeader = css`
   position: absolute;
   top: max(0.75rem, env(safe-area-inset-top));
   left: 0.85rem;
-  right: 0.85rem;
+  right: calc(0.85rem + var(--map-profile-space, 0px));
   z-index: 30;
   max-width: 29rem;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.65rem;
 `;
 
 // 다른 요소의 선택자에서 `.NeighborhoodPreviewPage-dockedHeader`로 가리킨다.
@@ -758,6 +762,8 @@ export const mapSearchResult = css`
 export const activeSearchField = css`
   label: NeighborhoodPreviewPage-activeSearchField;
   min-width: 0;
+  height: 2.75rem;
+  font-size: 0.85rem;
   background: white;
   box-shadow: 0 1px 4px rgb(0 0 0 / 6%);
 
@@ -823,7 +829,7 @@ export const resultHeader = css`
   position: absolute;
   top: max(0.75rem, env(safe-area-inset-top));
   left: 0.85rem;
-  right: 0.85rem;
+  right: calc(0.85rem + var(--map-profile-space, 0px));
   display: flex;
   gap: 0.45rem;
   align-items: flex-start;
@@ -1005,7 +1011,7 @@ export const searchCard = css`
   label: NeighborhoodPreviewPage-searchCard;
   position: absolute;
   right: 0;
-  bottom: 0;
+  bottom: var(--map-mode-bottom, 0px);
   left: 0;
   z-index: 20;
   display: grid;

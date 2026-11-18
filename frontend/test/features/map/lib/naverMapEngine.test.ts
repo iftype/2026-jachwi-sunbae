@@ -47,7 +47,7 @@ it('애니메이션 이동은 중심과 확대율을 함께 곡선 전환한다'
   map.morph = vi.fn();
   const point = engine.latLng(37.4, 127.1);
   engine.animateView(map, point, 6);
-  expect(map.morph).toHaveBeenCalledWith(point, 14, { duration: 320, easing: 'easeOutCubic' });
+  expect(map.morph).toHaveBeenCalledWith(point, 14, { duration: 180, easing: 'easeOutCubic' });
 });
 it('SDK 로딩 주소에는 GL 서브모듈이 포함된다', async () => {
   delete window.naver;

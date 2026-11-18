@@ -6,13 +6,22 @@ import type { MapCanvasProps, MapCoordinateMenu, MapTapAction } from '@/features
 import useStreetMemoLayer from '@/features/street-memo/hooks/useStreetMemoLayer';
 import { MEMO_INDIVIDUAL_MAX_LEVEL } from '@/features/street-memo/lib/streetMemoDongGroups';
 import { focusOnMemos, OVERLAP_HEIGHT_RATIO, OVERLAP_WIDTH_RATIO } from '@/features/street-memo/lib/streetMemoFocus';
-import { MENU_MEMO_ICON, MENU_PROPERTY_ICON, PROPERTY_PLACEHOLDER } from '@/shared/assets/propertyImageAssets';
+import {
+  MENU_MEMO_ICON,
+  MENU_NEIGHBORHOOD_ICON,
+  MENU_PROPERTY_ICON,
+  PROPERTY_PLACEHOLDER,
+} from '@/shared/assets/propertyImageAssets';
 import { usePublicConfig } from '@/shared/config/PublicConfigContext';
 import { useLogger } from '@/shared/lib/analytics/logging';
 
 import type { RecordsState } from './useRecords';
 
 const REGISTER_MARKER_ID = 'register-point';
+const boundsCenter = (bounds: MapBounds): MapPoint => ({
+  latitude: (bounds.north + bounds.south) / 2,
+  longitude: (bounds.east + bounds.west) / 2,
+});
 /** 겹쳐 묶인 매물 마커 id의 머리. 뒤에 묶인 매물 id를 쉼표로 잇는다. */
 const RECORD_GROUP_PREFIX = 'record-group:';
 /** 이 단계보다 멀리 축소하면 거리 메모를 숨긴다. 도시 전체를 볼 때는 골목 메모가 쓸모없다. */
@@ -21,6 +30,8 @@ const MEMO_MAX_LEVEL = 11;
 type MapPoint = { latitude: number; longitude: number };
 
 type Options = {
+  interactionLevel?: number;
+  onRecommend?: (location: MapAddress) => void;
   /**
    * 찍은 위치에서 매물 등록을 고르면 주소 응답을 기다린 뒤에 넘긴다. 등록 화면을 여는 방식은 화면이 정한다.
    * 주소를 찾지 못했거나 조회가 실패하면 주소 없이 좌표만 넘긴다. 넘기지 않으면 찍은 위치에서는 메모만 남긴다.
@@ -89,6 +100,8 @@ const useRecordsMapLayers = (
   records: RecordsState,
   {
     onRegister,
+    onRecommend,
+    interactionLevel,
     registeringAt = null,
     groupAction = 'list',
     keepSelectionOnMapTap = false,
@@ -98,6 +111,7 @@ const useRecordsMapLayers = (
   const config = usePublicConfig();
   const { log } = useLogger();
   const { level } = records;
+  const memoLevel = interactionLevel ?? level;
   // 겹쳐 묶인 매물 마커를 눌러 함께 보는 매물들의 id. 하나만 고른 매물은 records.selected로 따로 둔다.
   const [groupIds, setGroupIds] = useState<string[]>([]);
   const hasSelection = records.selected !== undefined || groupIds.length > 0;
@@ -106,7 +120,8 @@ const useRecordsMapLayers = (
     setGroupIds([]);
   };
   const [bounds, setBounds] = useState<MapBounds | null>(null);
-  const [tapPoint, setTapPoint] = useState<MapPoint | null>(null);
+  // 찍은 자리. `매물 추가` 버튼으로 연 자리는 매물 등록만 고르게 한다(`registerOnly`).
+  const [tapPoint, setTapPoint] = useState<(MapPoint & { registerOnly?: boolean }) | null>(null);
   // 매물 등록을 누른 뒤 주소를 찾는 중인 위치. 응답이 늦어도 그 자리에 등록 핀을 먼저 두고, 그동안 다시 등록하지 못하게 한다.
   const [resolvingAt, setResolvingAt] = useState<MapPoint | null>(null);
   // 주소를 찾는 동안과 매물을 만드는 동안 그 자리에 등록 핀을 둔다.
@@ -116,9 +131,9 @@ const useRecordsMapLayers = (
   const [suggestAt, setSuggestAt] = useState<MapPoint | null>(null);
   // 거리 메모는 버튼 없이 늘 띄운다. 아주 멀리 축소했을 때만 숨긴다.
   const memo = useStreetMemoLayer(
-    level <= MEMO_MAX_LEVEL + memoLevelBoost,
+    memoLevel <= MEMO_MAX_LEVEL + memoLevelBoost,
     bounds,
-    level,
+    memoLevel,
     MEMO_INDIVIDUAL_MAX_LEVEL + memoLevelBoost,
   );
 
@@ -170,32 +185,59 @@ const useRecordsMapLayers = (
   const tapActions: MapTapAction[] =
     tapPoint === null
       ? []
-      : [
-          {
-            id: 'street-memo',
-            label: '메모 남기기',
-            icon: MENU_MEMO_ICON,
-            onSelect: () => {
-              log('map_coordinate_action_selected', { action: 'memo' });
-              setTapPoint(null);
-              closeSelection();
-              memo.startDraft(tapPoint);
+      : tapPoint.registerOnly && onRegister
+        ? [
+            {
+              id: 'property',
+              label: '여기에 매물 등록',
+              icon: MENU_PROPERTY_ICON,
+              onSelect: () => {
+                log('map_coordinate_action_selected', { action: 'property' });
+                registerAt(tapPoint);
+              },
             },
-          },
-          ...(onRegister
-            ? [
-                {
-                  id: 'property',
-                  label: '여기에 매물 등록',
-                  icon: MENU_PROPERTY_ICON,
-                  onSelect: () => {
-                    log('map_coordinate_action_selected', { action: 'property' });
-                    registerAt(tapPoint);
+          ]
+        : [
+            {
+              id: 'street-memo',
+              label: '메모 남기기',
+              icon: MENU_MEMO_ICON,
+              onSelect: () => {
+                log('map_coordinate_action_selected', { action: 'memo' });
+                setTapPoint(null);
+                closeSelection();
+                memo.startDraft(tapPoint);
+              },
+            },
+            ...(onRecommend
+              ? [
+                  {
+                    id: 'neighborhood',
+                    label: '동네 추천받기',
+                    icon: MENU_NEIGHBORHOOD_ICON,
+                    onSelect: () => {
+                      const point = tapPoint;
+                      setTapPoint(null);
+                      closeSelection();
+                      onRecommend({ ...point, address: null, roadAddress: null, jibunAddress: null });
+                    },
                   },
-                },
-              ]
-            : []),
-        ];
+                ]
+              : []),
+            ...(onRegister
+              ? [
+                  {
+                    id: 'property',
+                    label: '여기에 매물 등록',
+                    icon: MENU_PROPERTY_ICON,
+                    onSelect: () => {
+                      log('map_coordinate_action_selected', { action: 'property' });
+                      registerAt(tapPoint);
+                    },
+                  },
+                ]
+              : []),
+          ];
 
   const recordGroups = useMemo(() => groupOverlappingRecords(records.markers, bounds), [records.markers, bounds]);
   const recordMarkers = useMemo(() => recordGroups.map(recordGroupMarker), [recordGroups]);
@@ -271,14 +313,25 @@ const useRecordsMapLayers = (
   const rememberBounds = (next: MapBounds) => {
     if (sameBounds(bounds, next)) return;
     setBounds(next);
-    setTapPoint(null);
+    // 지도를 옮기면 찍은 자리 말풍선을 닫는다. `매물 추가`로 연 말풍선은 지도를 옮겨도 그 자리에 둔다.
+    setTapPoint((current) => (current?.registerOnly ? current : null));
+  };
+  /**
+   * `매물 추가` 버튼. 지금 보는 지도 가운데에 매물 등록 말풍선을 연다. 지도를 찍어 등록하는 흐름과 같고,
+   * 말풍선을 닫고 다른 자리를 찍어도 된다. 지도가 아직 범위를 모르면 기록 지도의 가운데를 쓴다.
+   */
+  const startRegister = () => {
+    if (isRegistering) return;
+    closeSelection();
+    memo.close();
+    setTapPoint({ ...(bounds === null ? records.center : boundsCenter(bounds)), registerOnly: true });
   };
   const allMarkers = useMemo(() => [...recordMarkers, ...markers], [recordMarkers, markers]);
   /** 두 화면의 지도가 그대로 넘기는 MapCanvas 설정. 찍은 자리 말풍선(coordinateMenu)은 데스크탑만 더한다. */
   const canvasProps = {
     // 동네 뱃지, 현재 위치, 매물 넘기기로 지도를 옮길 때 부드럽게 이동한다.
     animateView: true,
-    interactive: process.env.NODE_ENV !== 'production',
+    interactive: true,
     center: records.center,
     level: records.level,
     markers: allMarkers,
@@ -289,9 +342,7 @@ const useRecordsMapLayers = (
       memo.close();
       setTapPoint(null);
       setGroupIds([]);
-      records.setSelectedId(marker.id);
-      // 고른 매물 자리로 지도를 옮긴다(부드럽게 이동한다).
-      records.setCenter({ latitude: marker.latitude, longitude: marker.longitude });
+      records.showRecord(marker.id);
     },
     onSelectLocation: tapLocation,
     onCenterChange: (latitude: number, longitude: number) => records.setCenter({ latitude, longitude }),
@@ -306,6 +357,9 @@ const useRecordsMapLayers = (
     groupRecords: records.records.filter((record) => groupIds.includes(record.id)),
     closeGroup: () => setGroupIds([]),
     tapPoint,
+    cancelPlacement: () => setTapPoint(null),
+    /** 오른쪽 아래 `매물 추가` 버튼이 부른다. 등록할 수 없는 화면이면 null이다. */
+    startRegister: onRegister ? startRegister : null,
     tapActions,
     /** 매물 등록을 눌러 주소를 찾거나 매물을 만드는 중인지. */
     isRegistering,

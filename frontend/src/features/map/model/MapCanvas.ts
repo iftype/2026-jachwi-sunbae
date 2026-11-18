@@ -66,7 +66,8 @@ export type MapCanvasProps = {
 export type MapRegion = {
   id: string;
   name: string;
-  appearance?: { fillColor: string; strokeColor: string };
+  /** 채움과 테두리 색. `dashed`면 테두리를 점선으로 그린다(월세 정보가 없는 동네). */
+  appearance?: { fillColor: string; strokeColor: string; dashed?: boolean };
   isRecommended?: boolean;
   /** 처음 그릴 때의 순서. 낮은 단계부터 한 프레임씩 나눠 지도에 등록한다. 없으면 0이다. */
   drawStage?: number;
@@ -85,12 +86,14 @@ export type MapRegion = {
 };
 
 export type MapRegionRentLabel = {
-  /** 평균 월세 글자(예: `55만`). */
-  price: string;
+  /** 평균 월세 글자(예: `55만`). 월세 거래가 없는 동네는 null이다. */
+  price: string | null;
   /** 월세 시세를 낸 거래 건수. */
   count: number;
   /** 거래가 적어 시세가 흔들릴 수 있는 동네. 숫자를 회색으로 흐리게 하고, 건수는 읽기 도구에만 알린다. */
   sparse: boolean;
   /** 월세 조건 밖이라 지도에서 회색으로 깐 동네. 라벨도 함께 흐리게 한다. */
   filteredOut: boolean;
+  /** 출퇴근 장소까지 걸리는 시간 글자(예: `25분`). 월세 자료가 없는 동네도 이 글자로 라벨을 둔다. */
+  commute?: string;
 };

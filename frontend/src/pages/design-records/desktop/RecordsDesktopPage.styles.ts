@@ -27,7 +27,7 @@ export const frame = css`
 /* 지도 위쪽 동네 뱃지 줄 아래에 상세 닫기 버튼을 둔다. */
 export const body = css`
   label: RecordsDesktopPage-body;
-  --list-detail-close-top: 4.5rem;
+  --list-detail-close-top: 1rem;
   flex: 1;
   height: auto;
 `;
@@ -38,11 +38,6 @@ export const list = css`
   overflow-y: auto;
   padding: 1rem 1.5rem 1.5rem;
   background: white;
-`;
-
-export const headerSearch = css`
-  label: RecordsDesktopPage-headerSearch;
-  max-width: 32rem;
 `;
 
 export const map = css`

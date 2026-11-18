@@ -9,7 +9,6 @@ import {
   desktopMapViewport,
   mobileMapViewport,
   nextPlacesVisible,
-  PLACES_HIDE_LEVEL,
   PLACES_SHOW_LEVEL,
   RESULT_OVERVIEW_LEVEL,
   resultMapCenter,
@@ -61,21 +60,20 @@ it('동네를 고르면 동네 크기에 맞춰 경계 전체가 340x300px 안�
 });
 it('작은 동네도 예전 단계(5)보다 가까이 가지 않고, 큰 동네도 마커가 보이는 단계보다 멀리 가지 않는다', () => {
   expect(areaFocusLevel(squareArea(200))).toBe(AREA_FOCUS_MIN_LEVEL);
-  expect(areaFocusLevel(squareArea(5000))).toBe(AREA_FOCUS_MAX_LEVEL);
+  expect(areaFocusLevel(squareArea(10000))).toBe(AREA_FOCUS_MAX_LEVEL);
   // 동네를 고르자마자 정류장과 부동산 마커가 올라와야 한다.
-  expect(nextPlacesVisible(false, areaFocusLevel(squareArea(5000)))).toBe(true);
+  expect(nextPlacesVisible(areaFocusLevel(squareArea(10000)))).toBe(true);
 });
 it('경계를 아직 받지 못한 동네는 정해 둔 단계로 다가간다', () => {
   expect(areaFocusLevel([])).toBe(AREA_FOCUS_FALLBACK_LEVEL);
-  expect(nextPlacesVisible(false, AREA_FOCUS_FALLBACK_LEVEL)).toBe(true);
+  expect(nextPlacesVisible(AREA_FOCUS_FALLBACK_LEVEL)).toBe(true);
 });
-it('마커는 7.5 이하에서 올리고, 올린 뒤에는 8을 넘어야 거둔다', () => {
-  expect(nextPlacesVisible(false, 7.51)).toBe(false);
-  expect(nextPlacesVisible(false, PLACES_SHOW_LEVEL)).toBe(true);
-  // 지도가 7.5로 옮겨 7.5000001에 멈춰도 올린다.
-  expect(nextPlacesVisible(false, PLACES_SHOW_LEVEL + 1e-7)).toBe(true);
-  expect(nextPlacesVisible(true, PLACES_HIDE_LEVEL)).toBe(true);
-  expect(nextPlacesVisible(true, 8.11)).toBe(false);
+it('마커는 확대와 축소 모두 같은 8.5 기준으로 표시한다', () => {
+  expect(nextPlacesVisible(8.51)).toBe(false);
+  expect(nextPlacesVisible(PLACES_SHOW_LEVEL)).toBe(true);
+  expect(nextPlacesVisible(PLACES_SHOW_LEVEL + 1e-7)).toBe(true);
+  expect(nextPlacesVisible(8.49)).toBe(true);
+  expect(nextPlacesVisible(8.51)).toBe(false);
 });
 
 describe('routeFocusView', () => {

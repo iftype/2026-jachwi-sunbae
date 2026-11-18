@@ -43,3 +43,12 @@ it('비활성화 상태에서는 검색하지 않는다', () => {
   fireEvent.submit(screen.getByRole('search'));
   expect(submit).not.toHaveBeenCalled();
 });
+
+it('돋보기는 입력 오른쪽 끝에서 검색을 실행한다', async () => {
+  const submit = vi.fn();
+  render(<SearchField label="장소" value="서울" onValueChange={vi.fn()} onSubmit={submit} showSubmitButton={false} />);
+  const button = screen.getByRole('button', { name: '검색' });
+  expect(button).toBe(screen.getByRole('search').lastElementChild);
+  await userEvent.click(button);
+  expect(submit).toHaveBeenCalledOnce();
+});

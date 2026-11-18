@@ -1,19 +1,35 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getAuthenticationSnapshot, setAuthentication } from '@/features/auth/model/authStore';
 import { closeAuthenticationSyncForTests, startAuthenticationSync } from '@/features/auth/model/authSync';
 
+const NativeBroadcastChannel = globalThis.BroadcastChannel;
 const otherTab = () => new BroadcastChannel('jachwi-auth');
 
 describe('탭 사이 회원 동기화', () => {
   let stop: () => void = () => undefined;
   const channels: BroadcastChannel[] = [];
 
+  beforeEach(() => {
+    closeAuthenticationSyncForTests();
+    // 실제 BroadcastChannel은 jsdom과 워커 사이에도 전달되므로 다른 파일의 로그인 알림과 분리한다.
+    const scope = crypto.randomUUID();
+    vi.stubGlobal(
+      'BroadcastChannel',
+      class extends NativeBroadcastChannel {
+        constructor(name: string) {
+          super(`${name}:${scope}`);
+        }
+      },
+    );
+  });
+
   afterEach(() => {
     stop();
     channels.forEach((channel) => channel.close());
     channels.length = 0;
     closeAuthenticationSyncForTests();
+    vi.unstubAllGlobals();
   });
 
   const announceFromOtherTab = (memberId: number) => {

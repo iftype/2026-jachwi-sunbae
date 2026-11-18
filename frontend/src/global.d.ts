@@ -65,6 +65,8 @@ type NaverMapsNamespace = {
     strokeWeight: number;
     strokeColor: string;
     strokeOpacity?: number;
+    /** 테두리 모양. 네이버 지도 v3는 `solid`, `shortdash` 등을 받는다. */
+    strokeStyle?: 'solid' | 'shortdash';
     fillColor: string;
     fillOpacity: number;
     clickable: boolean;
@@ -76,6 +78,7 @@ type NaverMapsNamespace = {
       fillColor?: string;
       strokeColor?: string;
       strokeWeight?: number;
+      strokeStyle?: 'solid' | 'shortdash';
       zIndex?: number;
     }) => void;
   };

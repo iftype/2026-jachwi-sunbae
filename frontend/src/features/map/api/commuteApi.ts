@@ -196,13 +196,11 @@ export const formatManwon = (krw: number) => `${manwonNumberFormat.format(Math.r
  */
 export const SPARSE_RENT_TRANSACTIONS = 30;
 
-/** 지도 라벨에 붙일 월세 줄. 시세가 없는(거래 5건 미만) 동네는 줄을 두지 않는다. */
-export const rentLabelOf = (area: CommuteArea, filteredOut: boolean): MapRegionRentLabel | undefined =>
-  area.rent
-    ? {
-        price: `${manwonNumberFormat.format(Math.round(area.rent.monthlyRentKrw / 10000))}만`,
-        count: area.rent.transactionCount,
-        sparse: area.rent.transactionCount < SPARSE_RENT_TRANSACTIONS,
-        filteredOut,
-      }
-    : undefined;
+/** 지도 라벨에 붙일 통근 시간과 월세 줄. 시세가 없는(거래 5건 미만) 동네도 통근 시간으로 라벨을 둔다. */
+export const rentLabelOf = (area: CommuteArea, filteredOut: boolean): MapRegionRentLabel => ({
+  price: area.rent ? `${manwonNumberFormat.format(Math.round(area.rent.monthlyRentKrw / 10000))}만` : null,
+  count: area.rent?.transactionCount ?? 0,
+  sparse: area.rent !== null && area.rent.transactionCount < SPARSE_RENT_TRANSACTIONS,
+  filteredOut,
+  commute: `${area.commuteMinutes}분`,
+});

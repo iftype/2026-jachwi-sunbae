@@ -219,15 +219,15 @@ export const regionBoundary = css`
   label: MapCanvas-regionBoundary;
 
   &:hover {
-    fill-opacity: 0.38;
+    fill-opacity: 0.14;
   }
 
-  &[fill-opacity='0.38']:hover {
-    fill-opacity: 0.48;
+  &[fill-opacity='0.55']:hover {
+    fill-opacity: 0.275;
   }
 
   &[fill-opacity='0.5']:hover {
-    fill-opacity: 0.6;
+    fill-opacity: 0.25;
   }
 `;
 

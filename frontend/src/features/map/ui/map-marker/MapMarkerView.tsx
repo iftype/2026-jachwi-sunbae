@@ -199,35 +199,35 @@ const markerAppearKeyframes = keyframes`
   from {
     opacity: 0;
     translate: 0 0.9rem;
-    scale: 0.85;
+    scale: calc(var(--map-marker-scale, 1) * 0.85);
   }
   60% {
     opacity: 1;
     translate: 0 -0.2rem;
-    scale: 1.03;
+    scale: calc(var(--map-marker-scale, 1) * 1.03);
   }
   to {
     opacity: 1;
     translate: 0 0;
-    scale: 1;
+    scale: calc(var(--map-marker-scale, 1) * 1);
   }
 `;
 
 const markerPopKeyframes = keyframes`
   0% {
     opacity: 0;
-    scale: 0.3;
+    scale: calc(var(--map-marker-scale, 1) * 0.3);
   }
   55% {
     opacity: 1;
-    scale: 1.12;
+    scale: calc(var(--map-marker-scale, 1) * 1.12);
   }
   78% {
-    scale: 0.96;
+    scale: calc(var(--map-marker-scale, 1) * 0.96);
   }
   100% {
     opacity: 1;
-    scale: 1;
+    scale: calc(var(--map-marker-scale, 1) * 1);
   }
 `;
 
@@ -245,6 +245,8 @@ const styles = {
   marker: css`
     label: MapMarkerView-marker;
     position: relative;
+    scale: var(--map-marker-scale, 1);
+    transform-origin: 50% 100%;
     display: grid;
     width: 1.55rem;
     height: 1.55rem;
@@ -505,8 +507,8 @@ const styles = {
 
       & {
         z-index: 8;
-        width: calc(2.35rem * var(--map-marker-scale, 1));
-        height: calc(2.35rem * var(--map-marker-scale, 1));
+        width: 2.35rem;
+        height: 2.35rem;
       }
     `,
     'MapMarkerView-propertyMarker',
@@ -575,8 +577,8 @@ const styles = {
   selectedMarker: css`
     label: MapMarkerView-selectedMarker;
     z-index: 9;
-    width: calc(2.6rem * var(--map-marker-scale, 1));
-    height: calc(2.6rem * var(--map-marker-scale, 1));
+    width: 2.6rem;
+    height: 2.6rem;
   `,
 
   // 다른 요소의 선택자에서 `.MapMarkerView-activeMarker`로 가리킨다.
@@ -587,13 +589,13 @@ const styles = {
       & {
         outline: 1px solid #212124;
         outline-offset: 2px;
-        scale: 1.08;
+        scale: calc(var(--map-marker-scale, 1) * 1.08);
       }
 
       /* 핀은 테두리 대신 아래 꼭짓점을 기준으로 조금 키워 고른 것을 보여준다. */
       &.MapMarkerView-pinMarker {
         outline: 0;
-        scale: 1.15;
+        scale: calc(var(--map-marker-scale, 1) * 1.15);
       }
     `,
     'MapMarkerView-activeMarker',
@@ -712,7 +714,7 @@ const styles = {
     /* 말풍선(거리 메모 등)은 눌러도 테두리를 두지 않는다. 고른 메모는 옆 칸이나 시트에서 보여 준다. */
     &.MapMarkerView-activeMarker {
       outline: 0;
-      scale: 1;
+      scale: var(--map-marker-scale, 1);
     }
 
     /*
@@ -806,7 +808,7 @@ const styles = {
 
     &.MapMarkerView-activeMarker {
       outline: 0;
-      scale: 1.08;
+      scale: calc(var(--map-marker-scale, 1) * 1.08);
     }
   `,
 

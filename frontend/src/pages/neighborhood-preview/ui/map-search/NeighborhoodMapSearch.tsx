@@ -14,6 +14,7 @@ import * as shared from '../../NeighborhoodPreviewPage.styles';
 const SEARCH_DEBOUNCE_MS = 300;
 
 type NeighborhoodMapSearchProps = {
+  hideHome?: boolean;
   preview: Pick<
     NeighborhoodPreviewContext,
     | 'leave'
@@ -34,7 +35,7 @@ type NeighborhoodMapSearchProps = {
  * 데스크탑은 검색창만 공용 헤더 가운데로 옮긴다. 헤더 메뉴로 화면을 오가므로 뒤로가기는 두지 않는다.
  * 헤더가 없는 공개 탐색은 휴대폰처럼 제자리에 홈 버튼과 함께 그린다.
  */
-const NeighborhoodMapSearch = ({ preview }: NeighborhoodMapSearchProps) => {
+const NeighborhoodMapSearch = ({ preview, hideHome = false }: NeighborhoodMapSearchProps) => {
   const searchInHeader = useHasDesktopHeaderSlot();
   // 검색창에서 손을 떼(포커스가 밖으로 나가) 결과 목록을 닫는다. 다시 눌러 입력하면 다시 열린다.
   const [isOpen, setIsOpen] = useState(true);
@@ -50,7 +51,7 @@ const NeighborhoodMapSearch = ({ preview }: NeighborhoodMapSearchProps) => {
   return (
     <DesktopHeaderSlot>
       <div className={searchInHeader ? shared.headerMapSearch : shared.mapSearch}>
-        {!searchInHeader && (
+        {!searchInHeader && !hideHome && (
           <button type="button" className={shared.mapBack} aria-label="홈으로 돌아가기" onClick={preview.leave}>
             <Icon name="home" size={22} />
           </button>

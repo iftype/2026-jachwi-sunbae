@@ -55,12 +55,10 @@ const SearchField = ({
       <label className={styles.srOnly} htmlFor={inputId}>
         {label}
       </label>
-      {onBack !== undefined ? (
+      {onBack !== undefined && (
         <button type="button" className={styles.backButton} aria-label="뒤로 가기" onClick={onBack}>
           <Icon name="arrow-left" size={18} />
         </button>
-      ) : (
-        <Icon name="search" size={18} className={styles.searchIcon} />
       )}
       <input
         id={inputId}
@@ -87,16 +85,16 @@ const SearchField = ({
           </span>
         </button>
       )}
-      {showSubmitButton && (
-        <button
-          className={styles.submit}
-          type={renderAsForm ? 'submit' : 'button'}
-          disabled={disabled}
-          onClick={renderAsForm ? undefined : onSubmit}
-        >
-          검색
-        </button>
-      )}
+      <button
+        className={styles.submit}
+        type={renderAsForm ? 'submit' : 'button'}
+        aria-label="검색"
+        disabled={disabled}
+        onClick={renderAsForm ? undefined : onSubmit}
+      >
+        <Icon name="search" size={18} />
+        {showSubmitButton && <span className={styles.srOnly}>검색</span>}
+      </button>
     </>
   );
 
@@ -134,8 +132,8 @@ const styles = {
   search: css`
     label: SearchField-search;
     position: relative;
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    box-shadow: none !important;
+    display: flex;
     min-height: 2.5rem;
     align-items: center;
     margin: 0;
@@ -146,18 +144,27 @@ const styles = {
       border-color 0.15s ease,
       box-shadow 0.15s ease;
 
-    /* 입력할 때 테두리를 검게 바꾸지 않는다. */
+    /* 입력할 때 테두리를 검게 바꾸지 않는다. 포커스 링은 입력칸이 아니라 검색창 모양을 따라 둥글게 그린다. */
+    &:focus-within {
+      border-color: color-mix(in srgb, var(--color-focus) 70%, transparent);
+    }
 
     & input {
+      flex: 1;
       width: 100%;
       min-width: 0;
       min-height: 2.4rem;
-      padding: 0.55rem 0.5rem;
+      padding: 0.55rem 0.85rem;
       border: 0;
       outline: 0;
       background: transparent;
       color: var(--color-ink);
       font: inherit;
+    }
+
+    /* 전역 input:focus-visible 윤곽선은 검색창 안에서 네모난 테두리로 보여 끈다. */
+    & input:focus-visible {
+      outline: 0;
     }
 
     & input::placeholder {
@@ -172,13 +179,6 @@ const styles = {
 
   withoutSubmit: css`
     label: SearchField-withoutSubmit;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-  `,
-
-  searchIcon: css`
-    label: SearchField-searchIcon;
-    margin-left: 0.85rem;
-    color: var(--color-ink);
   `,
 
   backButton: css`
@@ -226,7 +226,10 @@ const styles = {
     background: transparent;
     color: var(--color-ink);
     cursor: pointer;
-    padding: 0 0.85rem 0 0.4rem;
+    display: grid;
+    place-items: center;
+    flex: none;
+    padding: 0 0.75rem;
     font-weight: 800;
   `,
 

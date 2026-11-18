@@ -80,6 +80,14 @@ const noopRefetch = () => Promise.resolve({} as never);
 
 /** 동네 상세 화면이 상위에서 받는 상태. 이 본문이 읽는 값만 의미 있게 채우고 나머지는 기본값이다. */
 const preview: NeighborhoodPreviewContext = {
+  isMapSelectionEnabled: false,
+  cancelMapSelection: () => undefined,
+  hasSubmittedSearch: true,
+  hasSearchChanges: false,
+  areRegionsVisible: true,
+  toggleRegions: noop,
+  cancelEditing: () => undefined,
+  editSearch: () => undefined,
   isPublicExplore: false,
   mapPath: '/neighborhoods',
   prefetchBoundaries: noop,
@@ -132,7 +140,7 @@ const preview: NeighborhoodPreviewContext = {
   maxTransfers: 1,
   changeMaxTransfers: noop,
   resultLevel: 7,
-  center: area.center,
+  center: { ...area.center, level: 7 },
   reset: noop,
   regions: [],
   matchedAreaCount: 1,
@@ -140,6 +148,7 @@ const preview: NeighborhoodPreviewContext = {
   selectRegion: noop,
   focusRoute: noop,
   zoomResultBy: noop,
+  zoomToFacilities: noop,
   selectStation: noop,
   openAreaDetails: noop,
   closeAreaDetails: noop,

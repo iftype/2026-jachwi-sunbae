@@ -3,6 +3,7 @@
  */
 import menuProperty from './illustrations/icon-home.webp';
 import menuMemo from './illustrations/menu-memo.webp';
+import menuNeighborhood from './illustrations/menu-neighborhood.webp';
 import type { ImageAsset } from './imageAssets';
 import propertyPlaceholder from './property-placeholder-house.webp';
 import propertyPlaceholder2x from './property-placeholder-house@2x.webp';
@@ -16,3 +17,6 @@ export const PROPERTY_PLACEHOLDER: ImageAsset = { src: propertyPlaceholder, src2
  */
 export const MENU_MEMO_ICON: string = menuMemo;
 export const MENU_PROPERTY_ICON: string = menuProperty;
+
+/** 기존 동네 찾기 카드에서 사용하던 추천 그림. */
+export const MENU_NEIGHBORHOOD_ICON: string = menuNeighborhood;
