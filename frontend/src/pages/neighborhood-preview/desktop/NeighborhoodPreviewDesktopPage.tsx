@@ -267,14 +267,13 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
           )}
           {isResultMap && (
             <>
-              {/* 지도 안 왼쪽 아래: 통근 시간 색 기준. 모바일과 같은 카드를 쓴다. */}
-              {preview.hasSubmittedSearch && (
-                <CommuteLegend maxMinutes={preview.maxMinutes} className={styles.legend} />
-              )}
-              {/* 지도 안 왼쪽 위: 월세 시세 슬라이더. 동네를 찾은 뒤에 끌어서 상한을 바꾸면, 받아 둔 결과에서 지도 색이 바로 바뀐다. */}
-              <section className={styles.rentCard} aria-label="월세 시세 조건">
-                <RentSlider preview={preview} />
-              </section>
+              {/* 지도 안 왼쪽 아래: 위에 통근 시간 색 기준, 그 아래 월세 시세 슬라이더를 쌓는다. 동네를 찾은 뒤 슬라이더를 끌어 상한을 바꾸면, 받아 둔 결과에서 지도 색이 바로 바뀐다. */}
+              <div className={styles.bottomStack}>
+                {preview.hasSubmittedSearch && <CommuteLegend maxMinutes={preview.maxMinutes} />}
+                <section className={styles.rentCard} aria-label="월세 시세 조건">
+                  <RentSlider preview={preview} />
+                </section>
+              </div>
 
               {/* 지도 안 왼쪽 아래: 지도에서 누른 마커(또는 지도에서 고른 동네, My 목록) 정보 카드. */}
               {infoSubject && (
@@ -417,11 +416,11 @@ const styles = {
     label: NeighborhoodPreviewDesktopPage-info;
     position: absolute;
     bottom: 1.25rem;
-    left: calc(var(--map-panel-width, 0px) + 2rem);
+    left: calc(var(--map-panel-width, 0px) + 18rem);
     z-index: 32;
     display: grid;
     gap: 0.6rem;
-    width: min(22rem, max(10rem, calc(100% - var(--map-panel-width, 0px) - 34rem)));
+    width: min(22rem, max(10rem, calc(100% - var(--map-panel-width, 0px) - 52rem)));
     max-height: calc(100% - 13rem);
     overflow-y: auto;
     padding: 0.9rem 1rem;
@@ -598,25 +597,28 @@ const styles = {
       cursor: pointer;
     }
   `,
-  legend: css`
-    label: NeighborhoodPreviewDesktopPage-legend;
+  /* 지도 왼쪽 아래에 색 기준(위)과 월세 슬라이더(아래)를 쌓는다. 오른쪽 정보 카드는 이 줄 옆으로 비킨다. */
+  bottomStack: css`
+    label: NeighborhoodPreviewDesktopPage-bottomStack;
     position: absolute;
     z-index: 31;
-    /* 아래 왼쪽 정보 카드(left 2rem)와 겹치지 않게 지도 맨 아래 왼쪽 구석에 낮게 둔다. 줌 버튼은 오른쪽이다. */
     bottom: 1.25rem;
     left: calc(var(--map-panel-width, 0px) + 1rem);
+    display: grid;
+    gap: 0.6rem;
+    justify-items: start;
+    width: 16rem;
+    pointer-events: none;
   `,
   rentCard: css`
     label: NeighborhoodPreviewDesktopPage-rentCard;
-    position: absolute;
-    z-index: 32;
-    top: 4.5rem;
-    left: 1rem;
+    box-sizing: border-box;
     width: 16rem;
     padding: 0.75rem 1rem 0.9rem;
     border-radius: 1rem;
     background: white;
     box-shadow: var(--shadow-floating);
+    pointer-events: auto;
   `,
 
   areaPanelDocked: css`
