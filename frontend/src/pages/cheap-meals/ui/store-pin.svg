@@ -1,1 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="42" height="48" viewBox="0 0 42 48"><path d="M21 46 10 33a18 18 0 1 1 22 0Z" fill="#f5b91e" stroke="white" stroke-width="3"/><g fill="none" stroke="#212124" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 17h20l-2-7H13l-2 7Zm2 3v11h16V20M18 31v-8h6v8M17 10l-1 7m9-7 1 7"/><path d="M11 17v2a2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0v-2"/></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="pin" x2="0" y2="1">
+      <stop stop-color="#ffc65c"/>
+      <stop offset=".6" stop-color="#f5a72d"/>
+      <stop offset="1" stop-color="#da7b16"/>
+    </linearGradient>
+    <radialGradient id="face" cx=".38" cy=".3" r=".9">
+      <stop stop-color="#fff"/>
+      <stop offset="1" stop-color="#f8ecd3"/>
+    </radialGradient>
+  </defs>
+  <path d="M32 2C17 2 6 13 6 28c0 18 20 33 24 35a3 3 0 0 0 4 0c4-2 24-17 24-35C58 13 47 2 32 2Z" fill="url(#pin)" stroke="#fff" stroke-opacity=".45" stroke-width="1.5"/>
+  <ellipse cx="22" cy="11" rx="9" ry="4" fill="#fff" opacity=".35" transform="rotate(-28 22 11)"/>
+  <circle cx="32" cy="28" r="19" fill="url(#face)"/>
+  <g fill="none" stroke="#a95112" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M23 28v12h18V28M20 26l3-9h18l3 9M20 26a4 4 0 0 0 8 0 4 4 0 0 0 8 0 4 4 0 0 0 8 0M29 40v-7h6v7"/>
+  </g>
+</svg>
