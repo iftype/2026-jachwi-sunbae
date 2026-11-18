@@ -112,13 +112,14 @@ it('내 매물로 지도·리스트와 주소 필터를 구성하고 홈으로 �
   expect(screen.queryByRole('link', { name: /망원동 투룸/ })).not.toBeInTheDocument();
 });
 
-it('휴대폰은 지도와 리스트 보기 모두 기록하기 버튼 없이 지도를 눌러 기록한다', async () => {
+it('휴대폰은 처음 목록에서 매물 기록하기를 누르면 지도로 이동한다', async () => {
   const user = userEvent.setup();
-  renderRecords();
+  renderRecords('/?view=list');
   await screen.findByText('신림역 원룸');
-  expect(screen.queryByRole('button', { name: /기록하기/ })).not.toBeInTheDocument();
-  await user.click(screen.getByRole('button', { name: /리스트/ }));
-  expect(screen.queryByRole('button', { name: /기록하기/ })).not.toBeInTheDocument();
+  const header = within(screen.getByLabelText('지도 목록 헤더'));
+  await user.click(header.getByRole('button', { name: '매물 기록하기' }));
+  expect(await screen.findByRole('region', { name: '본 방 기록 지도' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: '매물 기록하기' })).not.toBeInTheDocument();
 });
 
 it('필터 없이 각 매물 더보기 메뉴에서 해당 매물을 삭제한다', async () => {
