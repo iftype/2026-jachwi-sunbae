@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
 
 import { useRecordsMapController } from '@/pages/design-records/RecordsMapProvider';
 import { useAdminDongBookmarks } from '@/features/map/api/useAdminDongBookmarks';
@@ -17,6 +17,7 @@ import { usePropertyCommuteTimes, usePropertyList } from '@/features/property/ap
 import usePropertyMarkerPhotos from '@/features/property/hooks/usePropertyMarkerPhotos';
 import { PROPERTY_PLACEHOLDER } from '@/shared/assets/propertyImageAssets';
 import useDebouncedValue from '@/shared/lib/hooks/useDebouncedValue';
+import useHoverIntent from '@/shared/lib/hooks/useHoverIntent';
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
 
 import { formatRentPair } from '../model/criteriaLabels';
@@ -59,8 +60,6 @@ export type { MyPropertyRow } from '../model/myProperty';
 export const RESULT_RAIL_ORDER: MapCategory[] = ['AGENCY', 'HOSPITAL', 'TRANSPORT', 'CONVENIENCE'];
 export const RESULT_RAIL_LABELS: Partial<Record<MapCategory, string>> = { AGENCY: '중개사' };
 
-/** 마우스가 동에서 나간 뒤 카드를 닫기까지 기다리는 시간. 그 사이 카드로 옮겨 가면 닫지 않는다. */
-const CARD_HIDE_DELAY_MS = 150;
 /** 동 라벨 알약 높이의 절반(px). 눈대로 잡은 값이며 결과 지도에서 실측이 필요하다. */
 const REGION_LABEL_HALF_HEIGHT = 18;
 const SEARCH_PIN_ID = 'search-pin';
@@ -264,22 +263,14 @@ const useNeighborhoodMapView = (
       !preview.query.trim() &&
       preview.addressResults.length === 0,
   });
-  // 구역 위 마우스 상태. 마우스가 동 라벨에서 카드로 옮겨 가는 사이 카드가 닫히지 않게 나갈 때 150ms를 기다린다.
-  const [hoveredCode, setHoveredCode] = useState<string | null>(null);
-  const hoverTimer = useRef<number | null>(null);
-  const holdCard = () => {
-    if (hoverTimer.current !== null) window.clearTimeout(hoverTimer.current);
-    hoverTimer.current = null;
-  };
-  const releaseCard = () => {
-    holdCard();
-    hoverTimer.current = window.setTimeout(() => setHoveredCode(null), CARD_HIDE_DELAY_MS);
-  };
+  // 구역 위 마우스 상태. 올리고 잠깐(HOVER_SHOW_DELAY_MS) 머물러야 카드가 뜨고, 나간 뒤 잠깐(HOVER_HIDE_DELAY_MS) 기다려 카드로 옮겨 가도 닫히지 않게 한다.
+  const regionHover = useHoverIntent<string>();
+  const hoveredCode = regionHover.target;
+  const holdCard = regionHover.hold;
+  const releaseCard = regionHover.leave;
   const hoverRegion = (id: string, isHovered: boolean) => {
-    if (isHovered) {
-      holdCard();
-      setHoveredCode(id);
-    } else releaseCard();
+    if (isHovered) regionHover.enter(id);
+    else regionHover.leave();
   };
   const hoveredArea =
     hoveredCode === null ? undefined : preview.resultAreas.find((area) => area.adminDongCode === hoveredCode);
