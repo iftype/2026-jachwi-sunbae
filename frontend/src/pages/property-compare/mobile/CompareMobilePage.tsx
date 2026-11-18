@@ -93,8 +93,9 @@ const styles = {
     margin: 0;
     padding: 0;
     overflow: hidden;
+    border: 1px solid var(--color-border-strong);
     border-radius: var(--radius-md);
-    background: var(--color-surface);
+    background: var(--color-canvas);
     list-style: none;
 
     & > li + li {

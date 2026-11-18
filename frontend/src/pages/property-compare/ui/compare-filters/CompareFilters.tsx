@@ -85,7 +85,8 @@ const styles = {
       gap: 0.65rem;
       padding: 0.75rem;
       border-radius: var(--radius-md);
-      background: var(--color-surface);
+      border: 1px solid var(--color-border-strong);
+      background: var(--color-canvas);
     }
   `,
 
@@ -105,9 +106,19 @@ const styles = {
     }
 
     @media (max-width: 1023px) {
+      & .TextField-control {
+        border: 1px solid var(--color-border-strong);
+        background: var(--color-canvas);
+      }
+
       & input {
+        color: var(--color-ink);
         min-height: 2.5rem !important;
         font-size: 0.86rem !important;
+      }
+
+      & input::placeholder {
+        color: var(--color-ink-soft);
       }
     }
 
@@ -143,7 +154,7 @@ const styles = {
       float: left;
       margin-right: 0.4rem;
       padding: 0;
-      color: var(--color-muted);
+      color: var(--color-ink-soft);
       font-size: 0.62rem;
       font-weight: 600;
     }
@@ -169,7 +180,7 @@ const styles = {
       border: 1px solid #e3e5e9;
       border-radius: 0.5rem;
       background: #fff;
-      color: var(--color-muted);
+      color: var(--color-ink-soft);
       font: inherit;
       font-size: 0.62rem;
       cursor: pointer;
@@ -182,14 +193,14 @@ const styles = {
     & button[aria-pressed='true'] {
       border-color: var(--color-brand-blue);
       background: color-mix(in srgb, var(--color-brand-blue) 10%, #fff);
-      color: var(--color-brand-blue);
+      color: var(--color-brand-blue-ink);
       font-weight: 600;
     }
   `,
 
   count: css`
     label: CompareFilters-count;
-    color: var(--color-muted);
+    color: var(--color-ink-soft);
     font-size: 0.62rem;
   `,
 };
