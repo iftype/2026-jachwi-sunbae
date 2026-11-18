@@ -14,7 +14,7 @@ type MapView = ReturnType<typeof useNeighborhoodMapView>;
  * 뒤로가기는 고른 매물만 닫아 `My` 목록으로 돌아간다. 다른 정보를 보고 있으면 `null`이다.
  */
 const useMyPropertyPager = (subject: MapInfoSubject | null, mapView: MapView) => {
-  if (subject?.kind !== 'place' || subject.place.kind !== 'property' || mapView.railSelection !== 'MY') return null;
+  if (subject?.kind !== 'place' || subject.place.kind !== 'property' || !mapView.showsMy) return null;
   const current = subject.place.property;
   const rows = [...mapView.my.rows].sort(
     (left, right) => propertyCommuteOrder(left.commute) - propertyCommuteOrder(right.commute),
