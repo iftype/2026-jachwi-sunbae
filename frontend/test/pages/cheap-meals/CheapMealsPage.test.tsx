@@ -270,6 +270,17 @@ it('탭마다 주소가 따로 있고 다른 탭 주소에는 식당 탭 쿼리�
   expect(tab('식당')).toHaveAttribute('aria-selected', 'true');
 });
 
+it('가게 목록을 닫고 다른 화면에 다녀와도 닫힌 상태로 돌아온다', async () => {
+  const first = renderAt('/cheap-meals/restaurant');
+  await first.user.click(await screen.findByRole('button', { name: '가게 목록 닫기' }));
+  const second = reload(first.unmount);
+
+  expect(await screen.findByRole('button', { name: /가게 목록 보기/ })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: '가게 목록 닫기' })).not.toBeInTheDocument();
+  await second.user.click(screen.getByRole('button', { name: /가게 목록 보기/ }));
+  expect(screen.getByRole('button', { name: '가게 목록 닫기' })).toBeInTheDocument();
+});
+
 it('기록 매물 마커를 누르면 그 매물이 기준이 되어 기준 마커, 원, 조회 좌표가 옮겨 가고 다른 탭을 다녀와도 남는다', async () => {
   useTwoSameNamedRecords();
   const user = setup('/cheap-meals/restaurant');

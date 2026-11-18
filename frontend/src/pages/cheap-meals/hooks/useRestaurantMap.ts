@@ -12,7 +12,12 @@ import type { MapMarker } from '@/features/map/model/Map';
 import { usePropertyList } from '@/features/property/api/useProperties';
 
 import { countBusinessTypes, filterByBusinessType } from '../model/businessTypeFilter';
-import { readRestaurantArea, writeRestaurantArea } from '../model/restaurantAreaSession';
+import {
+  readRestaurantArea,
+  readRestaurantListOpen,
+  writeRestaurantArea,
+  writeRestaurantListOpen,
+} from '../model/restaurantAreaSession';
 import { RESTAURANT_SEARCH_RADIUS, type RestaurantArea } from '../model/RestaurantMap';
 import storePin from '../ui/store-pin.svg';
 import useRestaurantOverlay from './useRestaurantOverlay';
@@ -43,7 +48,7 @@ const useRestaurantMap = (isActive: boolean) => {
   const [area, setArea] = useState<RestaurantArea>(() => readRestaurantArea() ?? DEFAULT_AREA);
   const [viewport, setViewport] = useState<MapCoordinate>(area);
   const [level, setLevel] = useState(7);
-  const [isListOpen, setIsListOpen] = useState(true);
+  const [isListOpen, setIsListOpen] = useState(() => overlay.selectedStoreId !== null || readRestaurantListOpen());
   const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   // 기준이 바뀌었을 때 잠깐 보여 주는 안내.
@@ -94,6 +99,9 @@ const useRestaurantMap = (isActive: boolean) => {
   useEffect(() => {
     writeRestaurantArea(area);
   }, [area]);
+  useEffect(() => {
+    writeRestaurantListOpen(isListOpen);
+  }, [isListOpen]);
   // 기준이 정해진 적이 없으면 가장 최근에 기록한 매물을 기준으로 삼는다. 현재 위치가 먼저 정해졌으면 그대로 둔다.
   const hasAppliedBase = useRef(false);
   useEffect(() => {

@@ -7,6 +7,7 @@ import type { RestaurantArea } from './RestaurantMap';
  * 주소에 좌표를 넣으면 화면 경로 기록(`$pageview`)에 위치가 남고 지도를 옮길 때마다 기록이 쌓여 주소에는 두지 않는다.
  */
 const RESTAURANT_AREA_KEY = 'jachwi-sunbae.cheapMeals.restaurantArea';
+const RESTAURANT_LIST_KEY = 'jachwi-sunbae.cheapMeals.restaurantList';
 const MAX_LABEL_LENGTH = 200;
 
 const isRestaurantArea = (value: unknown): value is RestaurantArea => {
@@ -42,5 +43,23 @@ export const writeRestaurantArea = (area: RestaurantArea, storage: Storage = win
     );
   } catch {
     // 브라우저 저장소를 쓸 수 없으면 새로고침할 때 기본 동네로 돌아갈 뿐 목록은 그대로 쓴다.
+  }
+};
+
+/** 가게 목록을 직접 닫으면 같은 탭에서 화면을 다시 열어도 닫힌 상태로 둔다. */
+export const readRestaurantListOpen = (): boolean => {
+  try {
+    return window.sessionStorage.getItem(RESTAURANT_LIST_KEY) !== 'closed';
+  } catch {
+    return true;
+  }
+};
+
+export const writeRestaurantListOpen = (isOpen: boolean): void => {
+  try {
+    if (isOpen) window.sessionStorage.removeItem(RESTAURANT_LIST_KEY);
+    else window.sessionStorage.setItem(RESTAURANT_LIST_KEY, 'closed');
+  } catch {
+    // 저장소를 사용할 수 없는 경우에는 현재 화면에서만 상태를 기억한다.
   }
 };
