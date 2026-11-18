@@ -10,12 +10,10 @@ const STAGE_CHUNK = 40;
 /** GL 준비 신호를 못 받아도 이 시간이 지나면 그린다. */
 export const READY_TIMEOUT_MS = 3000;
 /**
- * 이 확대 단계(작을수록 가까움) 이하로 다가가면 동 이름 아래에 평균 월세 라벨을 올린다.
- * 더 멀리서는 동 수백 개 라벨이 겹쳐 읽히지 않는다.
+ * 이 확대 단계(작을수록 가까움) 이하로 다가가면 동 이름과 평균 월세를 함께 보여 주는 라벨을 올린다.
+ * 더 멀리서는 동 수백 개 라벨이 겹쳐 읽히지 않아, 이름만 남기지 않고 라벨을 모두 숨긴다.
  */
-export const RENT_LABEL_SHOW_LEVEL = 11;
-/** 이 단계보다 멀리 보면 동네마다 라벨은 두되 동 이름만 남겨, 수백 개 라벨이 지도를 덮지 않게 한다. */
-export const RENT_LABEL_FULL_LEVEL = 8;
+export const RENT_LABEL_SHOW_LEVEL = 7;
 /** 마우스를 올린 동네를 이만큼 진하게 한다. 옅게 깐 색에 맞춰 조금만 올린다. */
 const HOVER_OPACITY = 0.04;
 type Polygon = InstanceType<NaverMapsNamespace['Polygon']>;
@@ -225,7 +223,8 @@ export const createMapRegionLayer = (
       }
       if (entry.summary) {
         entry.summary.style.setProperty('--map-region-scale', String(mapZoomScale(level)));
-        entry.summary.dataset.compact = String(!region.summary && level > RENT_LABEL_FULL_LEVEL);
+        // 이름만 보이는 이름표는 뜻이 없어, 이름표가 보이는 단계에서는 월세를 늘 함께 보여 준다.
+        entry.summary.dataset.compact = 'false';
       }
     }
     const waiting = regions.filter((region) => !entries.has(region.id)).map((region) => region.drawStage ?? 0);

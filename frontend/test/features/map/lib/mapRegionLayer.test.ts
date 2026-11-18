@@ -305,7 +305,7 @@ describe('경계 레이어', () => {
     expect(overlays.every((overlay) => overlay.setMap.mock.calls.some(([value]) => value === null))).toBe(true);
   });
 
-  it('통근 결과의 동네마다 라벨을 하나씩 두고, 8단계보다 멀면 동 이름만 남기며 11단계보다 멀면 거둔다', () => {
+  it('통근 결과의 동네마다 동 이름과 월세를 함께 보여 주는 라벨을 하나씩 두고, 7단계보다 멀면 모두 거둔다', () => {
     const { layer, overlays, setLevel } = setup();
     const rentLabel = { price: null, count: 0, sparse: false, filteredOut: false, commute: '12분' };
     const regions = Array.from({ length: 20 }, (_, index) =>
@@ -315,10 +315,11 @@ describe('경계 레이어', () => {
     layer.sync(regions, null);
     expect(overlays).toHaveLength(20);
     expect(overlays.every((overlay) => overlay.content.dataset.compact === 'false')).toBe(true);
-    setLevel(10);
+    // 이름만 보이는 이름표는 두지 않는다. 가까이서는 늘 월세와 함께 보인다.
+    setLevel(7);
     layer.sync(regions, null);
-    expect(overlays.every((overlay) => overlay.content.dataset.compact === 'true')).toBe(true);
-    setLevel(12);
+    expect(overlays.every((overlay) => overlay.content.dataset.compact === 'false')).toBe(true);
+    setLevel(8);
     layer.sync(regions, null);
     expect(overlays.every((overlay) => overlay.setMap.mock.calls.some(([value]) => value === null))).toBe(true);
   });

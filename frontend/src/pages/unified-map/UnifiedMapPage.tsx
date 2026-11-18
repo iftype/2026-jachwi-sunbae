@@ -5,20 +5,10 @@ import { Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
 import DesignRecordsPage from '@/pages/design-records/DesignRecordsPage';
 import useRecordsView from '@/pages/design-records/hooks/useRecordsView';
 import { RecordsMapProvider, useRecordsMapController } from '@/pages/design-records/RecordsMapProvider';
-import {
-  neighborhoodSearchKey,
-  readNeighborhoodSearch,
-} from '@/pages/neighborhood-preview/model/neighborhoodSearchSession';
 import NeighborhoodPreviewPage from '@/pages/neighborhood-preview/NeighborhoodPreviewPage';
 import { MapCanvasMode, SharedMapCanvasProvider } from '@/features/map/ui/map-canvas/SharedMapCanvas';
-import { usePublicConfig } from '@/shared/config/PublicConfigContext';
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
-import {
-  MY_PATH,
-  NEIGHBORHOOD_ADDRESS_SEARCH_PATH,
-  NEIGHBORHOODS_PATH,
-  RECORDS_PATH,
-} from '@/shared/lib/navigation/appPaths';
+import { MY_PATH, NEIGHBORHOODS_PATH, RECORDS_PATH } from '@/shared/lib/navigation/appPaths';
 import { MapPanelProvider } from '@/shared/ui/map-list-header/MapPanelContext';
 import { MapModeProvider, type MapModeSwitch } from '@/shared/ui/map-mode-tile/MapModeContext';
 import NavRail from '@/shared/ui/nav-rail/NavRail';
@@ -97,13 +87,11 @@ const UnifiedMapPage = () => {
   if (!isMy && !isFinding && recordsUrl !== currentUrl) setRecordsUrl(currentUrl);
   const isMobileDetail = !isDesktop && !isFinding && params.propertyId !== undefined;
   const closeMy = () => navigate(isFinding ? findingUrl : recordsUrl);
-  const config = usePublicConfig();
-  // 동네 찾기로 넘어갈 때 지난 검색(목적지, 조건, 결과)이 있으면 그 화면으로 그대로 돌아간다. 다시 조회하지 않는다.
-  // 목적지를 한 번도 정하지 않았을 때만 출퇴근 장소 검색을 연다.
+  // 동네 찾기로 넘어갈 때는 지난 검색(목적지, 조건, 결과)이 있으면 그 화면으로, 처음이면 동네 찾기 지도로 바로 간다.
+  // 따로 검색 화면을 거치지 않고, 지도에서 출퇴근 장소를 고르거나 검색하게 한다.
   const toFinding: MapModeSwitch = {
     target: 'neighborhoods',
-    onSwitch: () =>
-      navigate(readNeighborhoodSearch(neighborhoodSearchKey(config)) ? findingUrl : NEIGHBORHOOD_ADDRESS_SEARCH_PATH),
+    onSwitch: () => navigate(findingUrl),
   };
   const toRecords: MapModeSwitch = { target: 'records', onSwitch: () => navigate(recordsUrl) };
   const panel = isMy ? { content: <MyMapPanel onClose={closeMy} />, close: closeMy } : null;

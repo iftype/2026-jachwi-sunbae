@@ -1,4 +1,5 @@
 import { css } from '@emotion/css';
+import type { ReactNode } from 'react';
 
 import { Button } from '@/shared/ui/button/Button';
 import { SegmentedControl, SegmentedControlItem } from '@/shared/ui/segmented-control/SegmentedControl';
@@ -16,6 +17,10 @@ type ConditionPanelProps = {
     | 'searchError'
     | 'addressResults'
     | 'selectAddress'
+    | 'editLocation'
+    | 'isMapSelectionEnabled'
+    | 'openMapSelection'
+    | 'cancelMapSelection'
     | 'maxMinutes'
     | 'changeMaxMinutes'
     | 'maxTransfers'
@@ -28,7 +33,13 @@ type ConditionPanelProps = {
   onSubmit: () => void;
   includeRent?: boolean;
   canSubmit?: boolean;
+  /** false면 찾기 버튼과 옆 버튼 줄을 통째로 숨긴다. 바뀐 조건이 없을 때 쓴다. */
+  showActions?: boolean;
   submitLabel?: string;
+  /** 찾기 버튼 옆에 같은 크기로 나란히 두는 버튼(취소 등). */
+  secondaryAction?: ReactNode;
+  /** 제목 줄 오른쪽 끝에 두는 버튼(접기 등). 제목과 같은 줄, 같은 높이에 맞춘다. */
+  headerAction?: ReactNode;
 };
 
 /**
@@ -42,19 +53,55 @@ const ConditionPanel = ({
   onSubmit,
   includeRent = false,
   canSubmit = true,
+  showActions = true,
   submitLabel = '이 조건으로 동네 찾기',
+  secondaryAction,
+  headerAction,
 }: ConditionPanelProps) => {
   return (
     <aside className={styles.panel} aria-label="탐색 조건">
-      <h2>어디로 출퇴근하세요?</h2>
+      <header className={styles.header}>
+        <h2>어디로 출퇴근하세요?</h2>
+        {headerAction}
+      </header>
       <section className={styles.place} aria-label="출퇴근 장소">
         {preview.hasChosenMapPoint ? (
           <>
-            <small>출퇴근 장소</small>
-            <strong>{preview.mapCandidate.name}</strong>
+            <div className={styles.placeText}>
+              <small>출퇴근 장소</small>
+              <strong>{preview.mapCandidate.name}</strong>
+            </div>
+            {/* 고른 목적지를 바로 바꿀 수 있게, 같은 칸에서 다시 고르는 흐름으로 이어 준다. */}
+            <button
+              className={styles.change}
+              type="button"
+              disabled={disabled}
+              onClick={() => {
+                preview.editLocation();
+                preview.openMapSelection();
+              }}
+            >
+              변경
+            </button>
           </>
         ) : (
-          <p>위에서 학교·회사를 검색하거나 지도에서 위치를 골라주세요.</p>
+          <>
+            <p>
+              {preview.isMapSelectionEnabled
+                ? '지도에서 출퇴근할 위치를 눌러 주세요.'
+                : '학교, 회사를 검색하거나 지도에서 위치를 골라주세요.'}
+            </p>
+            {/* 데스크탑에는 지도를 눌러 고르는 모드를 켤 길이 이 버튼뿐이다. 켜면 지도의 한 곳을 눌러 목적지로 정한다. */}
+            <button
+              className={styles.change}
+              type="button"
+              aria-pressed={preview.isMapSelectionEnabled}
+              disabled={disabled}
+              onClick={preview.isMapSelectionEnabled ? preview.cancelMapSelection : preview.openMapSelection}
+            >
+              {preview.isMapSelectionEnabled ? '선택 취소' : '지도에서 선택'}
+            </button>
+          </>
         )}
       </section>
       <fieldset className={styles.field} disabled={disabled}>
@@ -91,41 +138,94 @@ const ConditionPanel = ({
           <RentSlider preview={preview} compact />
         </fieldset>
       )}
-      <Button
-        className={styles.submit}
-        fullWidth
-        disabled={disabled || !canSubmit || !preview.hasChosenMapPoint || !preview.isValidCommuteTime}
-        onClick={onSubmit}
-      >
-        {submitLabel}
-      </Button>
+      {showActions && (
+        <div className={styles.actions} data-paired={secondaryAction ? 'true' : undefined}>
+          <Button
+            className={styles.submit}
+            fullWidth
+            disabled={disabled || !canSubmit || !preview.hasChosenMapPoint || !preview.isValidCommuteTime}
+            onClick={onSubmit}
+          >
+            {submitLabel}
+          </Button>
+          {secondaryAction}
+        </div>
+      )}
     </aside>
   );
 };
 
 const styles = {
+  /* 제목과 접기 버튼을 한 줄에 두고 세로 가운데를 맞춘다. */
+  header: css`
+    label: ConditionPanel-header;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    min-height: 2.25rem;
+  `,
+  placeText: css`
+    label: ConditionPanel-placeText;
+    display: grid;
+    gap: 0.25rem;
+    min-width: 0;
+  `,
+  change: css`
+    label: ConditionPanel-change;
+    flex: none;
+    min-height: 2rem;
+    padding: 0 0.85rem;
+    border: 0;
+    border-radius: 999px;
+    background: white;
+    color: var(--color-brand-blue-ink);
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+  `,
+  /* 찾기와 취소를 1:1로 나란히 둔다. 취소가 없으면 찾기 버튼이 한 줄을 다 쓴다. */
+  actions: css`
+    label: ConditionPanel-actions;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.5rem;
+
+    &[data-paired='true'] {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  `,
+
   panel: css`
     label: ConditionPanel-panel;
     display: flex;
     flex-direction: column;
-    gap: 1.25rem;
+    gap: 0.9rem;
     min-height: 0;
     overflow-y: auto;
-    padding: 1.25rem 1.5rem 1.5rem;
+    padding: 1rem 1.25rem 1.15rem;
     background: white;
 
     & h2 {
       margin: 0;
-      font-size: 1.1rem;
+      font-size: 1rem;
       letter-spacing: -0.02em;
     }
   `,
 
   place: css`
     label: ConditionPanel-place;
-    display: grid;
-    gap: 0.25rem;
-    padding: 0.9rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.7rem 0.9rem;
     border-radius: 0.7rem;
     background: var(--color-card-surface);
 

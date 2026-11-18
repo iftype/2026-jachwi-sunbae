@@ -524,7 +524,11 @@ const useNeighborhoodPreview = () => {
     },
     maxMinutes,
     maxRent,
-    changeMaxRent: setMaxRent,
+    // 월세는 받아 둔 결과에서 화면이 거르므로, 검색한 뒤에 바꾸면 다시 검색하지 않고 바로 적용한다.
+    changeMaxRent: (value: number) => {
+      setMaxRent(value);
+      setSubmitted((current) => (current === null ? current : { ...current, maxRent: value }));
+    },
     isValidCommuteTime,
     changeMaxMinutes: setMaxMinutes,
     maxTransfers,
@@ -573,6 +577,21 @@ const useNeighborhoodPreview = () => {
     },
     /** 지도에서 마커를 누르면 확대 단계는 그대로 두고 그 마커 자리를 가운데로 옮긴다. */
     focusPoint: (point: { latitude: number; longitude: number }) => {
+      resultView.current = {
+        latitude: point.latitude,
+        longitude: point.longitude,
+        level: resultView.current?.level ?? resultLevel,
+      };
+      setResultViewVersion((version) => version + 1);
+    },
+    /** 주소 검색 결과처럼 고른 자리로 지도를 옮긴다. 조건을 고르는 중이든 결과를 보는 중이든 같은 자리로 가고, 확대 단계는 그대로 둔다. */
+    moveMapTo: (point: { latitude: number; longitude: number }) => {
+      selectionView.current = {
+        latitude: point.latitude,
+        longitude: point.longitude,
+        level: selectionView.current?.level ?? selectionLevel,
+      };
+      setSelectionCenter((previous) => ({ ...previous, latitude: point.latitude, longitude: point.longitude }));
       resultView.current = {
         latitude: point.latitude,
         longitude: point.longitude,
