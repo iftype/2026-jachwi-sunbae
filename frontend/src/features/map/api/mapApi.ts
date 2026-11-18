@@ -91,6 +91,29 @@ export const searchAddressWithNaver = (
     },
   });
 
+const isSameAddress = (a: MapAddress, b: MapAddress) =>
+  (a.roadAddress !== null && a.roadAddress === b.roadAddress) ||
+  (a.latitude === b.latitude && a.longitude === b.longitude);
+
+/**
+ * 장소명과 지역명은 search, 정확한 도로명 주소는 geocode가 잘 찾는다. 둘을 함께 불러 합친다.
+ * 한쪽만 실패하면 성공한 쪽 결과를 쓰고, 둘 다 실패했을 때만 오류로 던진다.
+ */
+export const searchPlacesAndAddresses = async (
+  config: PublicConfig,
+  query: string,
+  signal?: AbortSignal,
+): Promise<MapAddress[]> => {
+  const [places, addresses] = await Promise.allSettled([
+    searchAddressWithNaver(config, query, signal),
+    searchAddress(config, query, signal),
+  ]);
+  if (places.status === 'rejected' && addresses.status === 'rejected') throw places.reason;
+  const placeList = places.status === 'fulfilled' ? places.value : [];
+  const addressList = addresses.status === 'fulfilled' ? addresses.value : [];
+  return [...placeList, ...addressList.filter((item) => !placeList.some((place) => isSameAddress(place, item)))];
+};
+
 export const reverseGeocode = (config: PublicConfig, latitude: number, longitude: number): Promise<MapAddress> =>
   apiRequest({
     config,

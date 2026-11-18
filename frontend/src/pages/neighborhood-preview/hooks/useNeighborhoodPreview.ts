@@ -6,7 +6,7 @@ import { markFinderUsed } from '@/pages/design-records/model/finderUsed';
 import { ApiError } from '@/features/auth/api/apiClient';
 import { type CommuteArea, commuteAreaToRegion, rentLabelOf } from '@/features/map/api/commuteApi';
 import { fetchCommuteRoute } from '@/features/map/api/commuteRouteApi';
-import { reverseGeocode, searchAddressWithNaver } from '@/features/map/api/mapApi';
+import { reverseGeocode, searchPlacesAndAddresses } from '@/features/map/api/mapApi';
 import { useCommuteAreas } from '@/features/map/api/useCommuteAreas';
 import { usePrefetchMetroBoundaries } from '@/features/map/api/usePrefetchMetroBoundaries';
 import { writeCommuteDestination } from '@/features/map/lib/commuteDestinationStore';
@@ -464,7 +464,7 @@ const useNeighborhoodPreview = () => {
       setIsSearching(true);
       setSearchError(null);
       try {
-        const results = await searchAddressWithNaver(config, query.trim());
+        const results = await searchPlacesAndAddresses(config, query.trim());
         if (intent !== locationIntent.current) return;
         setAddressResults(results);
         if (!results.length) setSearchError('검색 결과가 없어요. 주소를 더 자세히 입력해 주세요.');

@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 
-import { searchAddress } from '@/features/map/api/mapApi';
+import { searchPlacesAndAddresses } from '@/features/map/api/mapApi';
 import type { MapAddress } from '@/features/map/model/Map';
 import { usePublicConfig } from '@/shared/config/PublicConfigContext';
 import { trackPostHogEvent } from '@/shared/lib/analytics/posthog';
@@ -37,7 +37,7 @@ const useAddressSearch = () => {
     trackPostHogEvent('address_search_started');
     setStatus('loading');
     try {
-      const found = await searchAddress(config, query.trim());
+      const found = await searchPlacesAndAddresses(config, query.trim());
       if (sequenceRef.current !== sequence) return;
       setResults(found);
       setStatus('idle');

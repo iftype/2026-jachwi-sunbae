@@ -4,7 +4,13 @@ import { describe, expect, it } from 'vitest';
 
 import { successEnvelope } from '@/app/mocks/fixtures/propertyFixtures';
 import { setAuthentication } from '@/features/auth/model/authStore';
-import { fetchNearby, reverseGeocode, searchAddress, searchAddressWithNaver } from '@/features/map/api/mapApi';
+import {
+  fetchNearby,
+  reverseGeocode,
+  searchAddress,
+  searchAddressWithNaver,
+  searchPlacesAndAddresses,
+} from '@/features/map/api/mapApi';
 import type { PublicConfig } from '@/shared/config/publicConfigTypes';
 
 import { server } from '../../../server';
@@ -98,6 +104,41 @@ describe('MVP2 지도 API', () => {
       radius: 1000,
       counts: { HOSPITAL: 1, SCHOOL: 0 },
       places: [{ name: '서울시립병원', distanceMeters: 320 }],
+    });
+  });
+  describe('searchPlacesAndAddresses', () => {
+    const road = { roadAddress: '서울 강남구 학동로7길 34', jibunAddress: null, latitude: 37.51, longitude: 127.03 };
+    const place = { roadAddress: '서울 강남구 신사동', jibunAddress: null, latitude: 37.52, longitude: 127.02 };
+    const mock = (geocode: () => Response | Promise<Response>, search: () => Response | Promise<Response>) => {
+      authenticate();
+      server.use(
+        http.get(`${config.apiBaseUrl}/api/maps/geocode`, geocode),
+        http.get(`${config.apiBaseUrl}/api/maps/search`, search),
+      );
+    };
+    const ok = (data: unknown[]) => () => HttpResponse.json(successEnvelope(data));
+    const fail = () => HttpResponse.json({ code: 'MAP_PROVIDER_UNAVAILABLE' }, { status: 502 });
+
+    it('장소명은 geocode가 502여도 search 결과를 돌려준다', async () => {
+      mock(fail, ok([place]));
+      await expect(searchPlacesAndAddresses(config, '신사')).resolves.toHaveLength(1);
+    });
+    it('도로명 주소는 search가 비어도 geocode 결과를 돌려준다', async () => {
+      mock(ok([road]), ok([]));
+      await expect(searchPlacesAndAddresses(config, road.roadAddress)).resolves.toHaveLength(1);
+    });
+    it('둘 다 결과가 있으면 search 먼저, 중복은 뺀다', async () => {
+      mock(ok([road, place]), ok([place]));
+      const found = await searchPlacesAndAddresses(config, '강남');
+      expect(found.map((item) => item.roadAddress)).toEqual([place.roadAddress, road.roadAddress]);
+    });
+    it('둘 다 실패하면 오류로 던진다', async () => {
+      mock(fail, fail);
+      await expect(searchPlacesAndAddresses(config, '신사')).rejects.toThrow();
+    });
+    it('둘 다 성공했지만 비어 있으면 빈 배열이다', async () => {
+      mock(ok([]), ok([]));
+      await expect(searchPlacesAndAddresses(config, '없음')).resolves.toEqual([]);
     });
   });
 });
