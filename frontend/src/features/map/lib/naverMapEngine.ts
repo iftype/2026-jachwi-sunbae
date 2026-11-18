@@ -163,7 +163,7 @@ export const naverEngine = (clientId: string, customStyleId?: string): LiveEngin
   setZoom: (map, level) => (map as NaverMap).setZoom(toNaverZoom(level)),
   animateView: (map, center, level) => {
     if (map.morph && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
-      map.morph(center, toNaverZoom(level), { duration: 320, easing: 'easeOutCubic' });
+      map.morph(center, toNaverZoom(level), { duration: 180, easing: 'easeOutCubic' });
     else {
       map.setCenter(center);
       map.setZoom(toNaverZoom(level));

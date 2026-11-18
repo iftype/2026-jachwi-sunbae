@@ -9,8 +9,10 @@
 /** 로그인하면 보이는 홈. 로그인하지 않았으면 같은 주소에서 랜딩으로 보낸다. */
 export const HOME_PATH = '/';
 export const ADMIN_PATH = '/admin';
-/** 본 방 기록(지도·리스트) 화면. */
-export const RECORDS_PATH = '/properties';
+/** 본 방 기록(지도·리스트) 화면. 로그인하면 보이는 홈과 같은 주소다. */
+export const RECORDS_PATH = HOME_PATH;
+/** 매물 하나의 화면(상세, 사진, 메모 등)이 붙는 주소의 앞부분. 예전 목록 주소(`/properties`)는 홈으로 보낸다. */
+export const PROPERTIES_PATH = '/properties';
 export const CHECKLISTS_PATH = '/checklists';
 export const CHECKLIST_CREATE_PATH = `${CHECKLISTS_PATH}/new`;
 /** 서비스가 제공하는 기본 체크리스트. 수정하지 않고 보기만 한다. */
@@ -19,7 +21,12 @@ export const propertyChecklistCreatePath = (propertyId: number) =>
   `${CHECKLIST_CREATE_PATH}?${CHECKLIST_PROPERTY_ID_PARAM}=${propertyId}`;
 export const checklistDetailPath = (checklistId: number) => `${CHECKLISTS_PATH}/${checklistId}`;
 export const MY_PATH = '/me';
+export const MY_ALIAS_PATH = '/my';
 export const COMPARE_PATH = '/compare';
+/** 휴대폰 지도에서 주소를 찾는 검색 화면. 고른 주소는 기록 지도로 넘겨 그 자리로 옮긴다. */
+export const ADDRESS_SEARCH_PATH = '/search';
+export const ADDRESS_SEARCH_TARGET_PARAM = 'target';
+export const NEIGHBORHOOD_ADDRESS_SEARCH_PATH = `${ADDRESS_SEARCH_PATH}?${ADDRESS_SEARCH_TARGET_PARAM}=neighborhoods`;
 /** 저렴한 한 끼. 탭마다 주소가 따로 있고(`/cheap-meals/restaurant` 등), 탭 없이 들어오면 마지막으로 연 탭(처음이면 식당 탭) 주소로 바꾼다. */
 export const CHEAP_MEALS_PATH = '/cheap-meals';
 export const GUIDE_PATH = '/guide';
@@ -45,7 +52,7 @@ export const OAUTH_COMPLETE_PATH = '/oauth/complete';
 
 /** 라우터 정의에만 쓰는 패턴. `area`, `areaDetails`는 동네 찾기 주소 아래에 붙는 상대 패턴이다. */
 export const ROUTE_PATTERNS = {
-  propertyRecords: '/properties/:propertyId?',
+  propertyRecords: '/properties/:propertyId',
   propertyEdit: '/properties/:propertyId/edit',
   propertyPhotos: '/properties/:propertyId/photos',
   propertyMemo: '/properties/:propertyId/memo',
@@ -67,7 +74,7 @@ export const ROUTE_PATTERNS = {
 
 type PathId = number | string;
 
-export const propertyDetailPath = (propertyId: PathId) => `${RECORDS_PATH}/${propertyId}`;
+export const propertyDetailPath = (propertyId: PathId) => `${PROPERTIES_PATH}/${propertyId}`;
 export const propertyChecklistTabPath = (propertyId: PathId) =>
   `${propertyDetailPath(propertyId)}?${PROPERTY_DETAIL_TAB_PARAM}=checklist`;
 export const propertyEditPath = (propertyId: PathId) => `${propertyDetailPath(propertyId)}/edit`;

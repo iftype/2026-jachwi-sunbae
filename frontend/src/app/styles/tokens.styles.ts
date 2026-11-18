@@ -18,6 +18,10 @@ injectGlobal`
   /* 옅은 파랑 바탕 위에 올리는 진한 파랑 글자 */
   --color-brand-blue-ink: #3f6fc4;
   --color-danger: #c96b6b;
+  --color-provider-kakao: #fee500;
+  --color-on-provider-kakao: rgb(0 0 0 / 85%);
+  --color-provider-apple: #000;
+  --color-on-provider-apple: #fff;
 
   /* Change this single accent to retheme selected tabs, progress indicators and soft actions together. */
   --color-theme-accent: var(--color-brand-500);

@@ -26,9 +26,9 @@ it('거리 메모 말풍선은 골목 배율까지 그대로 두고, 멀리 축�
   expect(markerScale(memo, 10)).toBe(0.6);
 });
 
-it('매물 핀은 가까울수록 키우고, 고른 장소 말풍선처럼 메모가 아닌 마커는 그대로 둔다', () => {
-  expect(markerScale(marker({ tone: 'property' }), 2)).toBe(1.24);
-  expect(markerScale(marker({ tone: 'destination' }), 9)).toBe(1);
+it('매물과 목적지 마커는 확대 단계에 맞춰 같은 비율로 커진다', () => {
+  expect(markerScale(marker({ tone: 'property' }), 2)).toBe(1.35);
+  expect(markerScale(marker({ tone: 'destination' }), 9)).toBe(0.75);
 });
 
 describe('markerZIndex', () => {
@@ -77,3 +77,11 @@ describe('markerZIndex', () => {
     expect(Number.isSafeInteger(COORDINATE_MENU_Z_INDEX) && COORDINATE_MENU_Z_INDEX < 2 ** 31).toBe(true);
   });
 });
+
+it.each(['property', 'propertyCluster', 'destination', 'place', 'rank'] as const)(
+  '%s 마커는 월세 라벨 경계 단계에서 점점 커진다',
+  (tone) => {
+    const item = marker({ tone });
+    expect([10, 8, 5, 3, 1].map((level) => markerScale(item, level))).toEqual([0.75, 0.9, 1.1, 1.35, 1.6]);
+  },
+);

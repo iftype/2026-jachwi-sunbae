@@ -18,3 +18,16 @@ export const hasAddress = (address: MapAddress): boolean =>
 /** 역지오코딩 실패가 "그 자리에 주소가 없다"는 뜻인지. 네트워크 오류 같은 일시 실패와 나눈다. */
 export const isAddressNotFound = (error: unknown): boolean =>
   error instanceof ApiError && error.code === ADDRESS_NOT_FOUND_CODE;
+
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
+const isCoordinate = (value: unknown, limit: number): value is number =>
+  typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= limit;
+const isText = (value: unknown): value is string | null => value === null || typeof value === 'string';
+
+export const readMapAddress = (value: unknown): MapAddress | null => {
+  if (!isRecord(value)) return null;
+  const { address, roadAddress, jibunAddress, latitude, longitude } = value;
+  if (!isCoordinate(latitude, 90) || !isCoordinate(longitude, 180)) return null;
+  if (!isText(address) || !isText(roadAddress) || !isText(jibunAddress)) return null;
+  return { address, roadAddress, jibunAddress, latitude, longitude };
+};

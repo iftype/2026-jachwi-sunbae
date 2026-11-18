@@ -4,6 +4,8 @@ import { css, cx } from '@emotion/css';
 export const summary = cx(
   css`
     label: MapRegionSummary-summary;
+    scale: var(--map-region-scale, 1);
+    transform-origin: center;
     width: 108px;
     padding: 0;
     border: 0;
@@ -90,9 +92,11 @@ export const cells = css`
   }
 `;
 
-/** 동 이름과 평균 월세를 붙인 작은 라벨. 지도 색칠 위에서도 읽히게 흰 바탕과 옅은 테두리를 둔다. */
+/** 동 이름 아래에 통근 시간과 평균 월세를 붙인 작은 라벨. 지도 색칠 위에서도 읽히게 흰 바탕과 옅은 테두리를 둔다. */
 export const rentLabel = css`
   label: MapRegionSummary-rentLabel;
+  scale: var(--map-region-scale, 1);
+  transform-origin: center;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -126,9 +130,26 @@ export const rentLabel = css`
     color: #3f6fc4;
   }
 
+  & i {
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 700;
+    color: #444a55;
+  }
+
+  & b[data-empty='true'] {
+    color: #868b94;
+    font-weight: 500;
+  }
+
   &[data-sparse='true'] b {
     color: #8a909a;
     font-weight: 500;
+  }
+
+  /* 멀리 볼 때는 동 이름만 남긴다. 통근 시간과 월세는 읽기 도구 이름(aria-label)에 그대로 있다. */
+  &[data-compact='true'] > span {
+    display: none;
   }
 
   &[data-filtered-out='true'] {

@@ -22,7 +22,7 @@ export const SAMPLE_PROPERTIES: PropertySummary[] = sampleProperties.properties.
   };
 });
 
-/** 미리보기 매물인지. 서버에 없는 매물이라 상세 데이터는 JSON에서 만들고, 지우기 같은 메뉴는 띄우지 않는다. */
+/** 미리보기 매물인지. 서버에 없는 매물이라 상세 데이터는 JSON에서 만들고, 삭제할 때는 기기에서 숨긴다. */
 export const isPreviewProperty = (propertyId: number | string): boolean => Number(propertyId) < 0;
 
 /**

@@ -7,6 +7,7 @@ import { createMapMarkerLayer } from '../lib/mapMarkerLayer';
 import { COORDINATE_ACTION_Z_INDEX, COORDINATE_MENU_Z_INDEX } from '../lib/mapMarkerPresentation';
 import { pinchLevelDelta } from '../lib/mapPinchZoom';
 import { createMapRegionLayer, READY_TIMEOUT_MS } from '../lib/mapRegionLayer';
+import { createMapTapGuard } from '../lib/mapTapGuard';
 import {
   isNaverSdkAvailable,
   type LiveMap,
@@ -22,8 +23,8 @@ import * as actionStyles from '../ui/map-canvas/MapCanvas.styles';
 const EMPTY_MARKERS: NonNullable<MapCanvasProps['markers']> = [];
 const EMPTY_CIRCLES: NonNullable<MapCanvasProps['circles']> = [];
 const EMPTY_REGIONS: NonNullable<MapCanvasProps['regions']> = [];
-/** 시점 옮기기(morph 320ms)가 끝났다고 보는 최대 시간. 이 안에 목표에 못 닿은 idle은 중간 시점으로 본다. */
-const VIEW_SETTLE_MS = 700;
+/** 시점 옮기기(morph 180ms)가 끝났다고 보는 최대 시간. 이 안에 목표에 못 닿은 idle은 중간 시점으로 본다. */
+const VIEW_SETTLE_MS = 450;
 
 type LiveMapProps = Pick<
   MapCanvasProps,
@@ -71,6 +72,7 @@ const useNaverMap = ({
   onSelectRegion,
 }: LiveMapProps) => {
   const config = usePublicConfig();
+  const [tapGuard] = useState(() => createMapTapGuard());
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LiveMap | null>(null);
   const markerLayerRef = useRef<ReturnType<typeof createMapMarkerLayer> | null>(null);
@@ -213,16 +215,20 @@ const useNaverMap = ({
         };
         listeners.push(
           engine.addListener(map, 'dragstart', () => {
+            tapGuard.block();
             // 옮기는 도중에 손으로 끌면 그 자리를 따른다.
             viewTargetRef.current = null;
             setGestureActive(true);
             callbackRef.current.onDragStart?.();
           }),
-          engine.addListener(map, 'zoomstart', () => setGestureActive(true)),
+          engine.addListener(map, 'zoomstart', () => {
+            tapGuard.block();
+            setGestureActive(true);
+          }),
         );
         listeners.push(
           engine.addListener(map, 'click', (latitude, longitude) => {
-            if (latitude !== undefined && longitude !== undefined)
+            if (tapGuard.allowsTap() && latitude !== undefined && longitude !== undefined)
               callbackRef.current.onSelectLocation?.(latitude, longitude);
           }),
           engine.addListener(map, 'idle', handleIdle),
@@ -392,7 +398,9 @@ const useNaverMap = ({
     // 달라진 마커만 다시 그린다. 전부 지웠다 만들면 지도를 옮길 때마다 깜빡인다.
     // 내린 마커는 레이어가 들고 있다가 같은 모양으로 다시 요청되면(탭을 오갈 때) 새로 만들지 않고 다시 붙인다.
     markerLayerRef.current ??= createMapMarkerLayer(map, engine, (marker, selected) =>
-      createMapMarkerElement(marker, selected, (picked) => callbackRef.current.onSelectMarker?.(picked)),
+      createMapMarkerElement(marker, selected, (picked) => {
+        if (tapGuard.allowsTap()) callbackRef.current.onSelectMarker?.(picked);
+      }),
     );
     markerLayerRef.current.sync(markers, selectedMarkerId, level);
   }, [engine, level, liveMode, overlayReady, markers, selectedMarkerId, settledVersion]);
@@ -469,7 +477,9 @@ const useNaverMap = ({
       map,
       sdk,
       engine,
-      (id, point) => regionCallbackRef.current?.(id, point),
+      (id, point) => {
+        if (tapGuard.allowsTap()) regionCallbackRef.current?.(id, point);
+      },
       () => engine.getZoom(map),
     );
     regionLayerRef.current = layer;
@@ -483,6 +493,29 @@ const useNaverMap = ({
     regionLayerRef.current?.sync(regions, selectedRegionId);
   }, [engine, liveMode, mapReady, regions, selectedRegionId, settledVersion]);
 
-  return { containerRef, canvasRef, liveMode, sdkError, isLoading: liveMode && !renderReady && !sdkError };
+  useEffect(() => {
+    const element = canvasRef.current;
+    if (!element) return;
+    const down = (event: PointerEvent) => tapGuard.start(event.pointerId, event.clientX, event.clientY);
+    const move = (event: PointerEvent) => tapGuard.move(event.pointerId, event.clientX, event.clientY);
+    const up = (event: PointerEvent) => tapGuard.end(event.pointerId);
+    const cancel = (event: PointerEvent) => tapGuard.end(event.pointerId, true);
+    const wheel = () => tapGuard.block();
+    element.addEventListener('pointerdown', down, true);
+    window.addEventListener('pointermove', move, true);
+    window.addEventListener('pointerup', up, true);
+    window.addEventListener('pointercancel', cancel, true);
+    element.addEventListener('wheel', wheel, { capture: true, passive: true });
+    return () => {
+      element.removeEventListener('pointerdown', down, true);
+      window.removeEventListener('pointermove', move, true);
+      window.removeEventListener('pointerup', up, true);
+      window.removeEventListener('pointercancel', cancel, true);
+      element.removeEventListener('wheel', wheel, true);
+      tapGuard.reset();
+    };
+  }, [tapGuard]);
+
+  return { containerRef, canvasRef, tapGuard, liveMode, sdkError, isLoading: liveMode && !renderReady && !sdkError };
 };
 export default useNaverMap;

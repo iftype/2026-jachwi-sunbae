@@ -50,7 +50,10 @@ export const regionSummaryRows = (region: MapRegion): [string, string][] => {
   return rows;
 };
 
-/** 동 이름 아래에 평균 월세를 붙인 가벼운 라벨. 거래가 적은 동은 글자 없이 회색으로만 흐리게 한다. */
+/**
+ * 동 이름 아래에 통근 시간과 평균 월세를 붙인 가벼운 라벨. 동네마다 하나씩 둔다.
+ * 월세 시세가 없는 동은 `월세 정보 없음`을 적고, 거래가 적은 동은 글자 없이 회색으로만 흐리게 한다.
+ */
 export const createRegionRentLabelElement = (region: MapRegion, selected: boolean, onSelect: () => void) => {
   const rent = region.rentLabel;
   const button = document.createElement('button');
@@ -58,17 +61,26 @@ export const createRegionRentLabelElement = (region: MapRegion, selected: boolea
   button.dataset.sparse = String(rent?.sparse ?? false);
   button.dataset.filteredOut = String(rent?.filteredOut ?? false);
   button.setAttribute('aria-pressed', String(selected));
-  button.setAttribute(
-    'aria-label',
-    rent ? `${region.name} 월세 ${rent.price}, 거래 ${rent.count}건${rent.sparse ? ', 자료 적음' : ''}` : region.name,
-  );
+  const commuteText = rent?.commute ? `통근 ${rent.commute}` : null;
+  const priceText = rent?.price
+    ? `월세 ${rent.price}, 거래 ${rent.count}건${rent.sparse ? ', 자료 적음' : ''}`
+    : rent
+      ? '월세 정보 없음'
+      : null;
+  button.setAttribute('aria-label', [region.name, commuteText, priceText].filter(Boolean).join(' '));
   const name = document.createElement('strong');
   name.textContent = region.name;
   button.append(name);
-  if (rent) {
+  if (rent?.commute || rent?.price) {
     const line = document.createElement('span');
+    if (rent.commute) {
+      const commute = document.createElement('i');
+      commute.textContent = rent.commute;
+      line.append(commute);
+    }
     const price = document.createElement('b');
-    price.textContent = `월세 ${rent.price}`;
+    price.textContent = rent.price ? `월세 ${rent.price}` : '월세 정보 없음';
+    price.dataset.empty = String(!rent.price);
     line.append(price);
     // 자료가 적은 동은 글자 없이 회색(data-sparse)으로만 구분한다.
     button.append(line);

@@ -4,11 +4,12 @@ import { useId } from 'react';
 
 import { USER_CHECKLIST_STAGE } from '@/features/checklist/model/checklist';
 import { propertyActiveChecklistPath } from '@/shared/lib/navigation/appPaths';
-import { ButtonLink } from '@/shared/ui/button/Button';
+import { Button, ButtonLink } from '@/shared/ui/button/Button';
 import Icon from '@/shared/ui/icon/Icon';
 
 import { groupPropertyChecklistItems } from '../../lib/propertyChecklistGroups';
 import type { PropertyChecklistDetail } from '../../model/Property';
+import { isPreviewProperty } from '../../model/sampleProperties';
 import PropertyChecklistItemControl from './PropertyChecklistItemControl';
 
 type PropertyChecklistProps = {
@@ -48,19 +49,29 @@ const PropertyChecklist = ({
         <div className={styles.header}>
           <div className={styles.titleRow}>
             <h2 id={`${id}-title`}>사용자 체크리스트</h2>
-            {detail.stage === USER_CHECKLIST_STAGE && (
-              <ButtonLink
-                variant="text"
-                className={styles.replaceAction}
-                to={`${propertyActiveChecklistPath(propertyId, detail.stage)}?mode=replace`}
-                replace={replaceNavigation}
-                state={fromPropertyDetail ? { from: 'property-detail' } : undefined}
-                aria-label="사용자 체크리스트 교체"
-              >
-                <Icon name="replace" size={14} />
-                교체
-              </ButtonLink>
-            )}
+            {detail.stage === USER_CHECKLIST_STAGE &&
+              (isPreviewProperty(propertyId) ? (
+                <Button
+                  variant="text"
+                  className={styles.replaceAction}
+                  disabled
+                  aria-label="미리보기 체크리스트는 교체할 수 없어요"
+                >
+                  교체
+                </Button>
+              ) : (
+                <ButtonLink
+                  variant="text"
+                  className={styles.replaceAction}
+                  to={`${propertyActiveChecklistPath(propertyId, detail.stage)}?mode=replace`}
+                  replace={replaceNavigation}
+                  state={fromPropertyDetail ? { from: 'property-detail' } : undefined}
+                  aria-label="사용자 체크리스트 교체"
+                >
+                  <Icon name="replace" size={14} />
+                  교체
+                </ButtonLink>
+              ))}
           </div>
           {summary === undefined && count}
         </div>

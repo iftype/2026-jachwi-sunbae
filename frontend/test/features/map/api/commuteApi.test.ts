@@ -173,6 +173,14 @@ it('지도 월세 라벨은 만원 단위로 줄이고, 거래가 적은 동네�
     count: SPARSE_RENT_TRANSACTIONS - 1,
     sparse: true,
     filteredOut: true,
+    commute: `${area.commuteMinutes}분`,
   });
-  expect(rentLabelOf({ ...area, rent: null }, false)).toBeUndefined();
+  // 시세가 없는 동네도 라벨을 두고 통근 시간을 적는다. 월세 자리는 화면이 `월세 정보 없음`으로 채운다.
+  expect(rentLabelOf({ ...area, rent: null }, false)).toEqual({
+    price: null,
+    count: 0,
+    sparse: false,
+    filteredOut: false,
+    commute: `${area.commuteMinutes}분`,
+  });
 });

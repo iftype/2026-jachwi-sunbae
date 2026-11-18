@@ -5,7 +5,7 @@ import { getAnalyticsScreenRoute, UNKNOWN_SCREEN_ROUTE } from '@/shared/lib/anal
 describe('분석용 화면 경로', () => {
   it.each([
     ['/', '/'],
-    ['/properties', '/properties'],
+    ['/', '/'],
     ['/properties/12', '/properties/:propertyId'],
     ['/properties/12/memo', '/properties/:propertyId/memo'],
     ['/properties/12/checklists/34', '/properties/:propertyId/checklists/:propertyChecklistId'],

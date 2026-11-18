@@ -243,9 +243,9 @@ describe('Naver 지도 상태 동기화', () => {
     const enter = calls.find((call) => call[1] === 'mouseover')!;
     const leave = calls.find((call) => call[1] === 'mouseout')!;
     act(() => enter[2]());
-    expect((enter[0] as FakeOverlay).setOptions.mock.lastCall?.[0].fillOpacity).toBeCloseTo(0.34);
+    expect((enter[0] as FakeOverlay).setOptions.mock.lastCall?.[0].fillOpacity).toBeCloseTo(0.16);
     act(() => leave[2]());
-    expect((leave[0] as FakeOverlay).setOptions).toHaveBeenLastCalledWith({ fillOpacity: 0.24 });
+    expect((leave[0] as FakeOverlay).setOptions).toHaveBeenLastCalledWith({ fillOpacity: 0.12 });
     unmount();
     expect(window.naver!.maps.Event.removeListener).toHaveBeenCalled();
   });
@@ -269,7 +269,7 @@ describe('Naver 지도 상태 동기화', () => {
     const original = overlayInstances[0];
     rerender(<MapCanvas center={center} regions={[{ ...region }]} selectedRegionId="a" onSelectRegion={onSelect} />);
     expect(overlayInstances).toHaveLength(1);
-    expect(original.setOptions).toHaveBeenLastCalledWith(expect.objectContaining({ fillOpacity: 0.5 }));
+    expect(original.setOptions).toHaveBeenLastCalledWith(expect.objectContaining({ fillOpacity: 0.25 }));
     const click = vi
       .mocked(window.naver!.maps.Event.addListener)
       .mock.calls.find((call) => call[0] === original && call[1] === 'click')!;
@@ -685,7 +685,7 @@ describe('Naver 지도 상태 동기화', () => {
     });
     expect(marker?.firstElementChild).toHaveStyle({ transform: 'translate(-50%, -100%)' });
     const content = marker?.firstElementChild as HTMLElement;
-    expect(content.style.getPropertyValue('--map-marker-scale')).toBe('0.88');
+    expect(content.style.getPropertyValue('--map-marker-scale')).toBe('1.1');
     rerender(
       <MapCanvas
         center={{ latitude: 37.5665, longitude: 126.978 }}
@@ -701,7 +701,7 @@ describe('Naver 지도 상태 동기화', () => {
         ]}
       />,
     );
-    await waitFor(() => expect(content.style.getPropertyValue('--map-marker-scale')).toBe('1.36'));
+    await waitFor(() => expect(content.style.getPropertyValue('--map-marker-scale')).toBe('1.6'));
     expect(overlayInstances).toHaveLength(1);
     expect(marker?.firstElementChild).toBe(content);
   });

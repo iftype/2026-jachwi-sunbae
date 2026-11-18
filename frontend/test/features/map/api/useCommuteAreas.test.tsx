@@ -123,7 +123,7 @@ it('경계 파일에 없는 동은 코드 이름과 안내 문구, 원래 중심
   client.clear();
 });
 
-it('거래가 적어 월세 시세가 없는 동네는 빼고, 그 동네만 있는 시도의 경계 파일은 받지 않는다', async () => {
+it('거래가 적어 월세 시세가 없는 동네도 남기고, 그 동네가 있는 시도의 경계 파일까지 받는다', async () => {
   vi.mocked(fetchAdminBoundaries).mockClear();
   vi.mocked(fetchCommuteAreas).mockResolvedValue({
     maxMinutes: 60,
@@ -131,7 +131,9 @@ it('거래가 적어 월세 시세가 없는 동네는 빼고, 그 동네만 있
     rentPeriod: null,
     areas: [area('11230640'), { ...area('23010510'), rent: null }],
   });
-  vi.mocked(fetchAdminBoundaries).mockResolvedValue({ '11230640': boundary('역삼1동') });
+  vi.mocked(fetchAdminBoundaries).mockImplementation(async ({ file }): Promise<AdminBoundaries> =>
+    file === 'seoul.geojson' ? { '11230640': boundary('역삼1동') } : { '23010510': boundary('신포동') },
+  );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>
@@ -151,9 +153,15 @@ it('거래가 적어 월세 시세가 없는 동네는 빼고, 그 동네만 있
     { wrapper },
   );
   await waitFor(() => expect(result.current.isSuccess).toBe(true));
-  expect(vi.mocked(fetchAdminBoundaries).mock.calls.map(([file]) => file.file)).toEqual(['seoul.geojson']);
-  expect(result.current.data?.areas.map((item) => item.adminDongCode)).toEqual(['11230640']);
-  expect(result.current.data?.areaCount).toBe(1);
+  expect(vi.mocked(fetchAdminBoundaries).mock.calls.map(([file]) => file.file)).toEqual([
+    'seoul.geojson',
+    'incheon.geojson',
+  ]);
+  expect(result.current.data?.areas.map((item) => [item.adminDongCode, item.rent === null])).toEqual([
+    ['11230640', false],
+    ['23010510', true],
+  ]);
+  expect(result.current.data?.areaCount).toBe(2);
   unmount();
   client.clear();
 });
