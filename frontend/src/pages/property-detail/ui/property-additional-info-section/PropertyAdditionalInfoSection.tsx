@@ -10,6 +10,7 @@ import InfoValue from '@/shared/ui/info-value/InfoValue';
 
 import type { AdditionalEditField, PropertyEditField } from '../../model/editField';
 import PropertyInfoSection from '../property-info-section/PropertyInfoSection';
+import PropertySavedNote from '../PropertySavedNote';
 
 type PropertyAdditionalInfoSectionProps = {
   property: PropertyDetail;
@@ -78,14 +79,21 @@ const PropertyAdditionalInfoSection = ({
         />
       ) : undefined,
     editorLayout: 'inline' as const,
-    feedback: savedField === field ? SAVED_TEXT : undefined,
   });
   const sheetField =
     editingField !== null && isAdditionalField(editingField) && !isInlineField(editingField) ? editingField : null;
 
   return (
     <>
-      <PropertyInfoSection title="부가 정보" label="매물 부가 정보">
+      <PropertyInfoSection
+        title="부가 정보"
+        label="매물 부가 정보"
+        meta={
+          savedField !== null && savedField !== 'price' && savedField !== 'location' ? (
+            <PropertySavedNote text={SAVED_TEXT} />
+          ) : undefined
+        }
+      >
         <InfoValue
           label="입주 가능일"
           value={formatDate(property.availableMoveInDate)}

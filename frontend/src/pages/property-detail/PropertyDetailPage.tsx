@@ -35,6 +35,7 @@ import { readLastDetailTab, writeLastDetailTab } from './model/lastDetailTab';
 import PropertyDetailSkeleton from './PropertyDetailSkeleton';
 import PreviewNotSavedToast from './ui/PreviewNotSavedToast';
 import PropertyAdditionalInfoSection from './ui/property-additional-info-section/PropertyAdditionalInfoSection';
+import PropertyAiImportBar from './ui/property-basic-info-section/PropertyAiImportBar';
 import PropertyBasicInfoSection from './ui/property-basic-info-section/PropertyBasicInfoSection';
 import PropertyChecklistSection from './ui/property-checklist-section/PropertyChecklistSection';
 import PropertyHeroPhoto from './ui/property-hero-photo/PropertyHeroPhoto';
@@ -170,6 +171,7 @@ const PropertyDetailView = ({ propertyId, detail, backTo, panel }: PropertyDetai
   const currentLocation = useLocation();
   const [isEditingLocation, setIsEditingLocation] = useState(false);
   const updateLocation = useUpdateProperty(propertyId);
+  // 데스크탑은 옆에 큰 지도가 이미 보여 상세 안 주변 지도를 두지 않는다. 위치는 그 큰 지도를 눌러 고른다.
   const isDesktop = useIsDesktop();
   const hasCoordinates = detail.location.latitude !== null && detail.location.longitude !== null;
   const saveLocation = async (selected: MapAddress) => {
@@ -293,13 +295,13 @@ const PropertyDetailView = ({ propertyId, detail, backTo, panel }: PropertyDetai
               backTo={backTo}
               backState={returnState}
               showBackButton={false}
-              onManagePhotos={managePhotos}
               onOpen={() => {
                 photoTriggerRef.current = null;
                 setSelectedPhotoIndex(0);
               }}
             />
             <div className={styles.infoPanel}>
+              <PropertyAiImportBar propertyId={propertyId} />
               <PropertyBasicInfoSection
                 property={detail}
                 {...inlineEdit}
@@ -310,6 +312,7 @@ const PropertyDetailView = ({ propertyId, detail, backTo, panel }: PropertyDetai
                       propertyId={propertyId}
                       latitude={detail.location.latitude}
                       longitude={detail.location.longitude}
+                      showMap={!isDesktop}
                       isEditingLocation={isEditingLocation}
                       onSaveLocation={saveLocation}
                       onEndEditLocation={() => setIsEditingLocation(false)}

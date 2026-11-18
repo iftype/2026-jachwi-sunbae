@@ -9,12 +9,14 @@ type PropertyInfoSectionProps = {
   label?: string;
   /** 섹션 헤더 오른쪽에 놓을 편집 링크 등. */
   action?: ReactNode;
+  /** 제목 바로 옆에 놓을 것. 수정 연필처럼 제목에 딸린 버튼에 쓴다. */
+  meta?: ReactNode;
   children: ReactNode;
 };
 
 /** 매물 상세의 정보 목록을 DetailSection 안에 배치하는 feature 조합 UI. */
-const PropertyInfoSection = ({ title, label, action, children }: PropertyInfoSectionProps) => (
-  <DetailSection title={title} label={label} action={action}>
+const PropertyInfoSection = ({ title, label, action, meta, children }: PropertyInfoSectionProps) => (
+  <DetailSection title={title} label={label} action={action} meta={meta}>
     <dl className={styles.summary}>{children}</dl>
   </DetailSection>
 );

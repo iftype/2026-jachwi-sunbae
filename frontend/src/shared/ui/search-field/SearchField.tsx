@@ -60,6 +60,12 @@ const SearchField = ({
           <Icon name="arrow-left" size={18} />
         </button>
       )}
+      {/* 입력을 시작하면 오른쪽 돋보기가 오른쪽으로 빠지고, 왼쪽에 돋보기가 나타나 입력 중임을 보인다. 제출 버튼이 없는 검색창에서만 쓴다. */}
+      {!showSubmitButton && (
+        <span className={styles.typingIcon} data-role="typing-icon" aria-hidden="true">
+          <Icon name="search" size={18} />
+        </span>
+      )}
       <input
         id={inputId}
         value={value}
@@ -87,6 +93,7 @@ const SearchField = ({
       )}
       <button
         className={styles.submit}
+        data-role="submit"
         type={renderAsForm ? 'submit' : 'button'}
         aria-label="검색"
         disabled={disabled}
@@ -101,7 +108,7 @@ const SearchField = ({
   const classNames = `${styles.search} ${shape === 'pill' ? styles.pill : ''} ${showSubmitButton ? '' : styles.withoutSubmit} ${className ?? ''}`;
   if (renderAsForm) {
     return (
-      <form className={classNames} role="search" onSubmit={submit}>
+      <form className={classNames} role="search" data-typing={value.length > 0} onSubmit={submit}>
         {fieldContent}
       </form>
     );
@@ -111,6 +118,7 @@ const SearchField = ({
     <div
       className={classNames}
       role="search"
+      data-typing={value.length > 0}
       onKeyDown={(event) => {
         if (
           event.key === 'Enter' &&
@@ -179,6 +187,53 @@ const styles = {
 
   withoutSubmit: css`
     label: SearchField-withoutSubmit;
+
+    & input {
+      transition: padding-left 0.18s ease;
+    }
+    & [data-role='submit'] {
+      transition:
+        transform 0.18s ease,
+        opacity 0.18s ease,
+        width 0.18s ease;
+    }
+    & [data-role='typing-icon'] {
+      opacity: 0;
+      transform: translateX(-0.5rem);
+    }
+
+    /* 입력 중: 오른쪽 돋보기는 오른쪽으로 사라지고, 왼쪽 돋보기가 나타난다. */
+    &[data-typing='true'] [data-role='submit'] {
+      opacity: 0;
+      transform: translateX(1.5rem);
+      pointer-events: none;
+      /* 사라진 돋보기 자리를 비워, 지우기(X) 버튼이 오른쪽 끝으로 붙게 한다. */
+      min-width: 0;
+      width: 0;
+      padding: 0;
+    }
+    &[data-typing='true'] [data-role='typing-icon'] {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    &[data-typing='true'] input {
+      padding-left: 2.4rem;
+    }
+  `,
+
+  typingIcon: css`
+    label: SearchField-typingIcon;
+    position: absolute;
+    top: 50%;
+    left: 0.85rem;
+    margin-top: -0.55rem;
+    display: grid;
+    place-items: center;
+    color: var(--color-muted);
+    pointer-events: none;
+    transition:
+      opacity 0.18s ease,
+      transform 0.18s ease;
   `,
 
   backButton: css`

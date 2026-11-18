@@ -9,14 +9,14 @@ type PropertyAiImportButtonProps = {
   onSelectFiles: (files: File[]) => void;
 };
 
-/** 기본 정보 제목 오른쪽에 두는 버튼. 누르면 파일 선택 창을 열고, 고른 이미지를 바로 분석에 넘긴다. */
+/** 기본 정보 섹션 밖에 두는 버튼. 누르면 파일 선택 창을 열고, 고른 이미지를 바로 분석에 넘긴다. */
 const PropertyAiImportButton = ({ isImporting, onSelectFiles }: PropertyAiImportButtonProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
   return (
     <>
       <button type="button" className={styles.button} disabled={isImporting} onClick={() => inputRef.current?.click()}>
         <Icon name="sparkles" size={14} />
-        {isImporting ? '분석 중…' : '매물정보 자동 입력'}
+        {isImporting ? '분석 중…' : '캡처 이미지로 자동입력'}
       </button>
       <input
         ref={inputRef}
@@ -37,17 +37,24 @@ const PropertyAiImportButton = ({ isImporting, onSelectFiles }: PropertyAiImport
 };
 
 const styles = {
-  // 섹션 헤더의 텍스트형 버튼 규칙(.heading button)보다 우선하도록 선택자를 겹친다.
+  // 섹션 제목 줄 밖(topAction)에 놓여도 모양이 같도록, 헤더 버튼 규칙(.heading button)에 기대지 않고 필요한 값을 모두 직접 둔다.
   button: css`
     label: PropertyAiImportButton-button;
 
     && {
+      display: inline-flex;
+      flex: none;
+      align-items: center;
       gap: 0.3rem;
+      border: 0;
+      font: inherit;
+      font-size: 0.72rem;
+      font-weight: 800;
+      cursor: pointer;
       padding: 0.35rem 0.75rem;
       border-radius: 999px;
       background: linear-gradient(135deg, #7c3aed, #6d28d9);
       color: #fff;
-      font-size: 0.72rem;
       white-space: nowrap;
       box-shadow: 0 2px 6px rgb(109 40 217 / 25%);
     }

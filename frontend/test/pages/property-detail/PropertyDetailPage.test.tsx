@@ -103,9 +103,10 @@ it('항목 바로 아래 메모를 입력하고 벗어나면 저장하며 다시
   expect(await screen.findByRole('textbox', { name: '주차가 가능한가요? 메모' })).toHaveValue('기계식 주차 1대');
 });
 
-it('정보 탭의 값 버튼은 라벨과 화면에 보이는 값을 함께 읽는다', async () => {
+it('정보 탭의 값 버튼은 라벨과 화면에 보이는 값을 함께 읽고, 이름이 정해진 매물은 이름을 바꾸는 버튼을 두지 않는다', async () => {
   renderDetail('?tab=info');
-  expect(await screen.findByRole('button', { name: '매물 이름 신림역 원룸, 수정' })).toBeInTheDocument();
+  expect(await screen.findByRole('button', { name: /^보증금 \/ 월세 .+, 수정$/ })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: '매물 이름 신림역 원룸, 수정' })).not.toBeInTheDocument();
 });
 
 it('메모 저장 실패 시 입력을 유지하고 다시 저장하면 다음 조회에도 반영한다', async () => {
@@ -153,7 +154,7 @@ it('사진 아래에는 중복 이름이 없고 더보기 메뉴는 상단 헤�
   const menu = screen.getByLabelText('매물 정보 메뉴 열기');
   expect(heading.closest('header')).toContainElement(menu);
   expect(screen.queryByText('신림역 원룸', { selector: 'p' })).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: '매물 이름 신림역 원룸, 수정' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: '매물 이름 신림역 원룸, 수정' })).not.toBeInTheDocument();
 });
 
 const capture = (name: string, type = 'image/png', size = 1_024) => new File([new Uint8Array(size)], name, { type });
@@ -166,7 +167,7 @@ const aiImportInput = () => {
 it('이미지로 정보를 채우면 저장된 기본 정보와 메모로 화면을 바꾸고 다시 열어도 유지한다', async () => {
   const user = userEvent.setup();
   renderDetail();
-  await screen.findByRole('button', { name: '매물정보 자동 입력' });
+  await screen.findByRole('button', { name: '캡처 이미지로 자동입력' });
 
   await user.upload(aiImportInput(), capture('capture.png'));
 
@@ -197,7 +198,7 @@ it('이미지 10장을 한 번에 보내고 분석하는 동안 버튼을 막는
   );
   const user = userEvent.setup();
   renderDetail();
-  await screen.findByRole('button', { name: '매물정보 자동 입력' });
+  await screen.findByRole('button', { name: '캡처 이미지로 자동입력' });
 
   await user.upload(
     aiImportInput(),
@@ -223,7 +224,7 @@ it('보낼 수 없는 이미지는 요청하지 않고 이유를 알린다', asy
   );
   const user = userEvent.setup({ applyAccept: false });
   renderDetail();
-  await screen.findByRole('button', { name: '매물정보 자동 입력' });
+  await screen.findByRole('button', { name: '캡처 이미지로 자동입력' });
 
   await user.upload(
     aiImportInput(),
