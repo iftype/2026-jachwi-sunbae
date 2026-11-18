@@ -9,6 +9,7 @@ import InfoValue from '@/shared/ui/info-value/InfoValue';
 
 import type { BasicEditField, PropertyEditField } from '../../model/editField';
 import PropertyInfoSection from '../property-info-section/PropertyInfoSection';
+import PropertyEditToggle from '../PropertyEditToggle';
 import PropertyAiImportButton from './PropertyAiImportButton';
 import PropertyNameInput from './PropertyNameInput';
 import PropertyPriceInput from './PropertyPriceInput';
@@ -48,13 +49,20 @@ const PropertyBasicInfoSection = ({
   savedField,
   afterAddress,
 }: PropertyBasicInfoSectionProps) => {
+  const [isEditMode, setIsEditMode] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
+  const toggleEditMode = () => {
+    setIsEditingName(false);
+    onCancel();
+    setIsEditMode((current) => !current);
+  };
   const aiImport = usePropertyAiImport(property.propertyId);
   return (
     <>
       <PropertyInfoSection
         title="기본 정보"
         label="매물 기본 정보"
+        meta={<PropertyEditToggle section="기본 정보" isEditing={isEditMode} onToggle={toggleEditMode} />}
         action={
           <PropertyAiImportButton
             isImporting={aiImport.isImporting}
@@ -65,7 +73,7 @@ const PropertyBasicInfoSection = ({
         <InfoValue
           label="매물 이름"
           value={property.name}
-          onEdit={() => setIsEditingName(true)}
+          onEdit={isEditMode ? () => setIsEditingName(true) : undefined}
           editor={
             isEditingName ? <PropertyNameInput property={property} onDone={() => setIsEditingName(false)} /> : undefined
           }
@@ -74,7 +82,7 @@ const PropertyBasicInfoSection = ({
           label="보증금 / 월세"
           value={formatPrice(property)}
           emptyText="보증금과 월세를 입력해 주세요"
-          onEdit={() => onEdit('price')}
+          onEdit={isEditMode ? () => onEdit('price') : undefined}
           // 보증금과 월세는 값이 있던 자리에서 바로 고친다.
           editor={
             editingField === 'price' ? (
@@ -87,7 +95,7 @@ const PropertyBasicInfoSection = ({
           label="주소"
           value={property.location.address ?? ''}
           emptyText={UNSUPPORTED_ADDRESS_MESSAGE}
-          onEdit={onEditLocation}
+          onEdit={isEditMode ? onEditLocation : undefined}
           feedback={savedField === 'location' ? SAVED_TEXT : undefined}
         />
         {afterAddress !== undefined && <div>{afterAddress}</div>}

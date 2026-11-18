@@ -10,6 +10,7 @@ import type { RecordsState } from '../hooks/useRecords';
 import type { RecordsMapLayers } from '../hooks/useRecordsMapLayers';
 import { recordNeighbors } from '../model/recordNavigation';
 import RecordMapTapIntro from '../ui/record-map-tap-intro/RecordMapTapIntro';
+import RecordRecommendButton from '../ui/record-recommend-button/RecordRecommendButton';
 import RecordRegisterSuggestion from '../ui/record-register-suggestion/RecordRegisterSuggestion';
 import RecordStepper from '../ui/record-stepper/RecordStepper';
 import RecordsSelectedSheet from './RecordsSelectedSheet';
@@ -51,6 +52,9 @@ const RecordsMobileMap = ({ records, layers }: Props) => {
         onNotice={records.setNotice}
       />
       <StreetMemoSheet layer={layers.memo} />
+      {layers.recommendMode && (
+        <RecordRecommendButton isActive={layers.recommendMode.isActive} onToggle={layers.recommendMode.toggle} />
+      )}
       <RecordRegisterSuggestion
         isOpen={layers.isSuggestingRegister}
         onAccept={layers.acceptRegisterSuggestion}

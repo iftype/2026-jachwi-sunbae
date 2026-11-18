@@ -842,8 +842,7 @@ it('모바일 헤더에는 동네 찾기 타일 대신 로고를 두고 지도 �
   const user = userEvent.setup();
   expect(screen.queryByRole('link', { name: '동네 찾기로 전환' })).not.toBeInTheDocument();
   expect(screen.getByRole('link', { name: '자취선배 홈' })).toBeInTheDocument();
-  await user.click(await screen.findByRole('button', { name: '빈 곳 찍기' }));
-  expect(screen.getByRole('button', { name: '말풍선 동네 추천받기' })).toBeInTheDocument();
+  expect(await screen.findByRole('button', { name: '동네 추천받기' })).toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: '리스트' }));
   expect(screen.queryByRole('link', { name: '동네 찾기로 전환' })).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '주소 검색' })).not.toBeInTheDocument();

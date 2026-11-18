@@ -8,7 +8,6 @@ import { MEMO_INDIVIDUAL_MAX_LEVEL } from '@/features/street-memo/lib/streetMemo
 import { focusOnMemos, OVERLAP_HEIGHT_RATIO, OVERLAP_WIDTH_RATIO } from '@/features/street-memo/lib/streetMemoFocus';
 import {
   MENU_MEMO_ICON,
-  MENU_NEIGHBORHOOD_ICON,
   MENU_PROPERTY_ICON,
   PROPERTY_PLACEHOLDER,
 } from '@/shared/assets/propertyImageAssets';
@@ -128,6 +127,8 @@ const useRecordsMapLayers = (
   const pinAt = registeringAt ?? resolvingAt;
   const isRegistering = pinAt !== null;
   // 현재 위치로 이동한 뒤 "여기서 매물을 추가할까요?"를 물을 자리.
+  // 지도 왼쪽 아래 `동네 추천받기`를 켠 상태. 켜고 지도를 누르면 그 자리로 추천을 시작하고 꺼진다.
+  const [isRecommending, setIsRecommending] = useState(false);
   const [suggestAt, setSuggestAt] = useState<MapPoint | null>(null);
   // 거리 메모는 버튼 없이 늘 띄운다. 아주 멀리 축소했을 때만 숨긴다.
   const memo = useStreetMemoLayer(
@@ -209,21 +210,6 @@ const useRecordsMapLayers = (
                 memo.startDraft(tapPoint);
               },
             },
-            ...(onRecommend
-              ? [
-                  {
-                    id: 'neighborhood',
-                    label: '동네 추천받기',
-                    icon: MENU_NEIGHBORHOOD_ICON,
-                    onSelect: () => {
-                      const point = tapPoint;
-                      setTapPoint(null);
-                      closeSelection();
-                      onRecommend({ ...point, address: null, roadAddress: null, jibunAddress: null });
-                    },
-                  },
-                ]
-              : []),
             ...(onRegister
               ? [
                   {
@@ -297,6 +283,14 @@ const useRecordsMapLayers = (
   const tapLocation = (latitude: number, longitude: number) => {
     // 매물을 등록하는 동안은 새 동작을 띄우지 않는다.
     if (isRegistering) return;
+    if (isRecommending && onRecommend) {
+      setIsRecommending(false);
+      closeSelection();
+      memo.close();
+      setTapPoint(null);
+      onRecommend({ latitude, longitude, address: null, roadAddress: null, jibunAddress: null });
+      return;
+    }
     if (keepSelectionOnMapTap) {
       setTapPoint(tapPoint === null ? { latitude, longitude } : null);
       return;
@@ -357,10 +351,23 @@ const useRecordsMapLayers = (
     groupRecords: records.records.filter((record) => groupIds.includes(record.id)),
     closeGroup: () => setGroupIds([]),
     tapPoint,
-    cancelPlacement: () => setTapPoint(null),
+    cancelPlacement: () => {
+      setTapPoint(null);
+      setIsRecommending(false);
+    },
     /** 오른쪽 아래 `매물 추가` 버튼이 부른다. 등록할 수 없는 화면이면 null이다. */
     startRegister: onRegister ? startRegister : null,
     tapActions,
+    /** 동네 추천받기 모드. 추천을 받을 수 없는 화면이면 null이다. */
+    recommendMode: onRecommend
+      ? {
+          isActive: isRecommending,
+          toggle: () => {
+            setTapPoint(null);
+            setIsRecommending((current) => !current);
+          },
+        }
+      : null,
     /** 매물 등록을 눌러 주소를 찾거나 매물을 만드는 중인지. */
     isRegistering,
     suggestRegisterAt,

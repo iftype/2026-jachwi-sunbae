@@ -11,6 +11,7 @@ import type { RecordsState } from '../hooks/useRecords';
 import type { RecordsMapLayers } from '../hooks/useRecordsMapLayers';
 import { recordsMapHint } from '../model/recordPresentation';
 import RecordMapTapIntro from '../ui/record-map-tap-intro/RecordMapTapIntro';
+import RecordRecommendButton from '../ui/record-recommend-button/RecordRecommendButton';
 import RecordRegisterSuggestion from '../ui/record-register-suggestion/RecordRegisterSuggestion';
 
 type Props = {
@@ -45,6 +46,9 @@ const RecordsDesktopMap = ({ records, layers, districts, className }: Props) => 
       <span className={styles.hint}>{recordsMapHint(records.records, layers)}</span>
     )}
     <StreetMemoPanel layer={layers.memo} className={styles.memoCard} />
+    {layers.recommendMode && (
+      <RecordRecommendButton isActive={layers.recommendMode.isActive} onToggle={layers.recommendMode.toggle} />
+    )}
     <RecordRegisterSuggestion
       isOpen={layers.isSuggestingRegister}
       onAccept={layers.acceptRegisterSuggestion}

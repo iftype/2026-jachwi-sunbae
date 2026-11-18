@@ -1,49 +1,77 @@
 import { css } from '@emotion/css';
-import { useEffect, useRef, useState } from 'react';
+import { useMemo, useRef } from 'react';
 
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
 import Icon from '@/shared/ui/icon/Icon';
 
 import useInfrastructureLayer, { INFRASTRUCTURE_CATEGORIES } from '../../hooks/useInfrastructureLayer';
-import {
-  DESKTOP_FACILITY_MARKER_LEVEL,
-  FACILITY_MARKER_LEVEL,
-  facilityFocusLevel,
-} from '../../lib/mapFacilityVisibility';
-import type { MapBounds } from '../../model/Map';
-import type { MapCanvasProps } from '../../model/MapCanvas';
+import { DESKTOP_FACILITY_MARKER_LEVEL, FACILITY_MARKER_LEVEL } from '../../lib/mapFacilityVisibility';
+import type { MapBounds, MapMarker } from '../../model/Map';
+import type { MapCanvasProps, MapRadiusCircle } from '../../model/MapCanvas';
 import MapCanvasSurface from '../map-canvas/MapCanvasSurface';
 import MapCategoryRail from '../map-category-rail/MapCategoryRail';
 
 type Props = { mapProps: MapCanvasProps; open: boolean; onClose: () => void };
-const sameBounds = (left: MapBounds | null, right: MapBounds) =>
-  left?.south === right.south && left?.north === right.north && left?.east === right.east && left?.west === right.west;
+
+/** 시설을 보여 주는 반경. 매물 상세의 주변 지도와 같은 500m다. */
+const INFRASTRUCTURE_RADIUS_METERS = 500 as const;
+const METERS_PER_LATITUDE_DEGREE = 111_320;
+
+const boundsAround = ({ latitude, longitude }: { latitude: number; longitude: number }): MapBounds => {
+  const latitudeGap = INFRASTRUCTURE_RADIUS_METERS / METERS_PER_LATITUDE_DEGREE;
+  const longitudeGap = latitudeGap / Math.cos((latitude * Math.PI) / 180);
+  return {
+    south: latitude - latitudeGap,
+    north: latitude + latitudeGap,
+    west: longitude - longitudeGap,
+    east: longitude + longitudeGap,
+  };
+};
+
+const isPropertyMarker = (marker: MapMarker) => marker.tone === 'property' || marker.tone === 'propertyCluster';
+const squaredDistance = (marker: MapMarker, point: { latitude: number; longitude: number }) =>
+  (marker.latitude - point.latitude) ** 2 + (marker.longitude - point.longitude) ** 2;
 
 const InfrastructureMap = ({ mapProps, open }: Props) => {
-  const [bounds, setBounds] = useState<MapBounds | null>(null);
-  const [observedLevel, setObservedLevel] = useState(mapProps.level ?? 8);
-  useEffect(() => setObservedLevel(mapProps.level ?? 8), [mapProps.level]);
   const center = useRef(mapProps.center);
   const isDesktop = useIsDesktop();
   const markerLevel = isDesktop ? DESKTOP_FACILITY_MARKER_LEVEL : FACILITY_MARKER_LEVEL;
-  const layer = useInfrastructureLayer(open, bounds, observedLevel, markerLevel);
+  // 시설은 화면 범위나 확대 단계가 아니라 기준 매물 500m 안만 보여, 확대해도 나오는 자리가 달라지지 않는다.
+  // 기준은 고른 매물, 없으면 지도 가운데에서 가장 가까운 매물이다.
+  const anchor = useMemo(() => {
+    const properties = (mapProps.markers ?? []).filter(isPropertyMarker);
+    return (
+      properties.find((marker) => marker.id === mapProps.selectedMarkerId) ??
+      properties.reduce<MapMarker | null>(
+        (nearest, marker) =>
+          nearest === null || squaredDistance(marker, mapProps.center) < squaredDistance(nearest, mapProps.center)
+            ? marker
+            : nearest,
+        null,
+      )
+    );
+  }, [mapProps.markers, mapProps.selectedMarkerId, mapProps.center]);
+  const anchorPoint = useMemo(
+    () => (anchor === null ? null : { latitude: anchor.latitude, longitude: anchor.longitude }),
+    [anchor?.latitude, anchor?.longitude],
+  );
+  const anchorBounds = useMemo(() => (anchorPoint === null ? null : boundsAround(anchorPoint)), [anchorPoint]);
+  const circles = useMemo<MapRadiusCircle[] | undefined>(
+    () => (open && anchorPoint ? [{ radiusMeters: INFRASTRUCTURE_RADIUS_METERS, label: '500m' }] : undefined),
+    [open, anchorPoint],
+  );
+  const layer = useInfrastructureLayer(open, anchorBounds, 0, markerLevel);
   return (
     <>
       <MapCanvasSurface
         {...mapProps}
+        circles={circles ?? mapProps.circles}
+        radiusCenter={open && anchorPoint ? anchorPoint : mapProps.radiusCenter}
         markers={[...(mapProps.markers ?? []), ...layer.markers]}
         selectedMarkerId={open && layer.selected ? layer.selected.id : mapProps.selectedMarkerId}
         onCenterChange={(latitude, longitude) => {
           center.current = { latitude, longitude };
           mapProps.onCenterChange?.(latitude, longitude);
-        }}
-        onBoundsChange={(next) => {
-          setBounds((previous) => (sameBounds(previous, next) ? previous : next));
-          mapProps.onBoundsChange?.(next);
-        }}
-        onLevelChange={(next) => {
-          setObservedLevel(next);
-          mapProps.onLevelChange?.(next);
         }}
         onSelectMarker={(marker) => {
           if (open && layer.selectMarker(marker)) return;
@@ -67,15 +95,10 @@ const InfrastructureMap = ({ mapProps, open }: Props) => {
                 category === 'CONVENIENCE'
               ) {
                 layer.selectCategory(category);
-                if (!layer.isClose) {
-                  mapProps.onCenterChange?.(center.current.latitude, center.current.longitude);
-                  mapProps.onLevelChange?.(facilityFocusLevel(markerLevel));
-                  setObservedLevel(facilityFocusLevel(markerLevel));
-                }
               }
             }}
           />
-          {!layer.isClose && <p className={styles.hint}>확대하면 주변 시설이 보여요</p>}
+          {anchor === null && layer.category && <p className={styles.hint}>매물을 고르면 500m 안 시설이 보여요</p>}
           {layer.isError && (
             <div className={styles.hint} role="alert">
               시설 정보를 불러오지 못했어요.{' '}
