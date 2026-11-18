@@ -5,6 +5,7 @@ import { http, HttpResponse } from 'msw';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
+import { propertyPageFixture, propertySummaryFixture, successEnvelope } from '@/app/mocks/fixtures/propertyFixtures';
 import { mapHandlers } from '@/app/mocks/handlers/mapHandlers';
 import { propertyHandlers } from '@/app/mocks/handlers/propertyHandlers';
 import { createStreetMemoHandlers } from '@/app/mocks/handlers/streetMemoHandlers';
@@ -120,6 +121,27 @@ it('휴대폰은 처음 목록에서 매물 기록하기를 누르면 지도로 
   await user.click(header.getByRole('button', { name: '매물 기록하기' }));
   expect(await screen.findByRole('region', { name: '본 방 기록 지도' })).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: '매물 기록하기' })).not.toBeInTheDocument();
+});
+
+it('내 기록의 모바일 리스트는 20개가 넘는 매물도 모두 표시한다', async () => {
+  server.use(
+    http.get('*/api/properties', () =>
+      HttpResponse.json(
+        successEnvelope(
+          propertyPageFixture(
+            Array.from({ length: 25 }, (_, index) => ({
+              ...propertySummaryFixture,
+              propertyId: index + 1,
+              name: `매물 ${index + 1}`,
+              location: { address: '서울 강남구', latitude: 37.49 + index * 0.001, longitude: 127.03 },
+            })),
+          ),
+        ),
+      ),
+    ),
+  );
+  renderRecords('/?view=list');
+  await waitFor(() => expect(screen.getAllByRole('link', { name: /^매물 \d+$/ })).toHaveLength(25));
 });
 
 it('필터 없이 각 매물 더보기 메뉴에서 해당 매물을 삭제한다', async () => {

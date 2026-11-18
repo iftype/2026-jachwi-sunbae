@@ -962,29 +962,6 @@ it('휴대폰은 지도에서 동네를 누르면 낮은 시트에 그 동네의
   // 동네 시트는 낮게 열고, 끌어 올려 더 크게 볼 수 있게 손잡이를 둔다.
   expect(screen.getByRole('button', { name: '상세 패널 높이 조절' })).toBeInTheDocument();
 });
-it('동네 찾기의 내 기록 리스트는 20개가 넘는 매물도 모두 표시한다', async () => {
-  server.use(
-    http.get('*/api/properties', () =>
-      HttpResponse.json(
-        successEnvelope(
-          propertyPageFixture(
-            Array.from({ length: 25 }, (_, index) => ({
-              ...propertySummaryFixture,
-              propertyId: index + 1,
-              name: `매물 ${index + 1}`,
-              location: { address: '서울 강남구', latitude: 37.49 + index * 0.001, longitude: 127.03 },
-            })),
-          ),
-        ),
-      ),
-    ),
-  );
-  show(false, undefined, true);
-  const user = await choosePoint();
-  await submitCurrentSearch(user);
-  await user.click(await screen.findByRole('button', { name: '리스트' }));
-  await waitFor(() => expect(screen.getAllByRole('link', { name: /^매물 \d+$/ })).toHaveLength(25));
-});
 it('공개 동네 찾기는 My 칸과 개인 매물 조회를 제공하지 않는다', async () => {
   let propertyRequests = 0;
   const track = ({ request }: { request: Request }) => {
