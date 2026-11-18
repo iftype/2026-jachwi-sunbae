@@ -3,13 +3,13 @@ import { css } from '@emotion/css';
 import cheapMealIcon from '@/pages/design-home/assets/cheap-meal-goose.webp';
 import guideIcon from '@/pages/design-home/assets/guide-goose.webp';
 import checklistIcon from '@/pages/design-home/assets/icon-checklist.webp';
-import { PROPERTY_PLACEHOLDER } from '@/shared/assets/propertyImageAssets';
+import iconCompare from '@/shared/assets/illustrations/icon-compare.webp';
 import { CHEAP_MEALS_PATH, CHECKLISTS_PATH, COMPARE_PATH, GUIDE_PATH } from '@/shared/lib/navigation/appPaths';
 import ShortcutTile from '@/shared/ui/shortcut-tile/ShortcutTile';
 
 /** 예전 홈 빠른 메뉴와 같은 그림 타일. 이름만으로 알 수 있어 설명 줄은 두지 않는다. */
 const links = [
-  { to: COMPARE_PATH, label: '방 비교', icon: PROPERTY_PLACEHOLDER.src },
+  { to: COMPARE_PATH, label: '방 비교', icon: iconCompare },
   { to: CHECKLISTS_PATH, label: '체크리스트', icon: checklistIcon },
   { to: CHEAP_MEALS_PATH, label: '저렴한 한 끼', icon: cheapMealIcon },
   { to: GUIDE_PATH, label: '사용방법', icon: guideIcon },
@@ -32,11 +32,6 @@ const styles = {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.65rem;
-
-    /* 정사각형 그림(방 비교의 집 사진)도 타일 안에서 모서리를 둥글게 맞춘다. */
-    & > a img {
-      border-radius: 22%;
-    }
 
     & > a {
       padding: 0.35rem 0.35rem 0.6rem;
