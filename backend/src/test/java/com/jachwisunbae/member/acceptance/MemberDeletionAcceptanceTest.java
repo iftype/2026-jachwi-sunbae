@@ -65,6 +65,7 @@ class MemberDeletionAcceptanceTest {
         jdbc.update("DELETE FROM notification_devices");
         jdbc.update("DELETE FROM member_notification_settings");
         jdbc.update("DELETE FROM street_memos");
+        jdbc.update("DELETE FROM admin_dong_bookmarks");
         jdbc.update("DELETE FROM property_photos");
         jdbc.update("DELETE FROM properties");
         jdbc.update("DELETE FROM user_checklists");
@@ -104,6 +105,10 @@ class MemberDeletionAcceptanceTest {
                 VALUES (?, 37.5, 127.0, '내 거리 메모', 'LIKE', ?, ?)
                 """, memberId, now, now);
         jdbc.update("""
+                INSERT INTO admin_dong_bookmarks (member_id, admin_dong_code, created_at)
+                VALUES (?, '11680640', ?)
+                """, memberId, now);
+        jdbc.update("""
                 INSERT INTO member_notification_settings (member_id, enabled, updated_at)
                 VALUES (?, TRUE, ?)
                 """, memberId, now);
@@ -131,7 +136,8 @@ class MemberDeletionAcceptanceTest {
                 Boolean.class, memberId)).isTrue();
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM refresh_tokens WHERE member_id = ?",
                 Long.class, memberId)).isZero();
-        for (String table : new String[]{"properties", "property_photos", "user_checklists", "street_memos"}) {
+        for (String table : new String[]{"properties", "property_photos", "user_checklists", "street_memos",
+                "admin_dong_bookmarks"}) {
             assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM " + table + " WHERE member_id = ? AND deleted_at IS NULL",
                     Long.class, memberId)).isZero();
         }

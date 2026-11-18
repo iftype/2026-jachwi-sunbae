@@ -21,4 +21,9 @@ class InMemoryAdminDongRepository implements AdminDongRepository {
     public List<AdminDong> findAll() {
         return adminDongs;
     }
+
+    @Override
+    public boolean existsByCode(final String code) {
+        return adminDongs.stream().anyMatch(adminDong -> adminDong.code().equals(code));
+    }
 }

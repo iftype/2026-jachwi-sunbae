@@ -73,6 +73,10 @@ public enum ErrorCode {
     STREET_MEMO_PREFERENCE_INVALID("거리 메모의 좋아요·싫어요를 선택해 주세요."),
     STREET_MEMO_NOT_FOUND("거리 메모를 찾을 수 없습니다."),
 
+    // 동네 북마크
+    ADMIN_DONG_BOOKMARK_INVALID("북마크할 행정동을 확인해 주세요."),
+    ADMIN_DONG_BOOKMARK_NOT_FOUND("북마크한 동네를 찾을 수 없습니다."),
+
     // 사진
     PHOTO_NOT_FOUND("사진을 찾을 수 없습니다."),
     PHOTO_LIMIT_EXCEEDED("등록할 수 있는 사진 개수를 초과했습니다."),
