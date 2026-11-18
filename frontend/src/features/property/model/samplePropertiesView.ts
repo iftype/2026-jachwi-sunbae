@@ -20,4 +20,3 @@ export const SAMPLE_PROPERTIES_VIEW = fitCoordinates(
   FIRST_MAP_LEVEL,
   DEFAULT_MAP_CENTER,
 );
-
