@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
+import { useRecordsMapController } from '@/pages/design-records/RecordsMapProvider';
 import type { MapAddress } from '@/features/map/model/Map';
 import { describePropertyLoadError } from '@/features/property/api/propertyErrorMessages';
 import { usePropertyDetail } from '@/features/property/api/useProperties';
@@ -19,6 +20,7 @@ import PropertyPhotoManager from '@/features/property/ui/property-photo-manager/
 import PropertyPhotoViewer from '@/features/property/ui/property-photo-viewer/PropertyPhotoViewer';
 import { LogScreen } from '@/shared/lib/analytics/logging';
 import useDocumentTitle from '@/shared/lib/hooks/useDocumentTitle';
+import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
 import { MAP_SELECT_LOCATION_PATH, PROPERTY_DETAIL_TAB_PARAM, RECORDS_PATH } from '@/shared/lib/navigation/appPaths';
 import useReturnNavigation from '@/shared/lib/navigation/useReturnNavigation';
 import ContentState from '@/shared/ui/content-state/ContentState';
@@ -168,6 +170,7 @@ const PropertyDetailView = ({ propertyId, detail, backTo, panel }: PropertyDetai
   const currentLocation = useLocation();
   const [isEditingLocation, setIsEditingLocation] = useState(false);
   const updateLocation = useUpdateProperty(propertyId);
+  const isDesktop = useIsDesktop();
   const hasCoordinates = detail.location.latitude !== null && detail.location.longitude !== null;
   const saveLocation = async (selected: MapAddress) => {
     const address = selected.roadAddress ?? selected.jibunAddress ?? selected.address ?? '';
@@ -176,12 +179,16 @@ const PropertyDetailView = ({ propertyId, detail, backTo, panel }: PropertyDetai
       changes: { address, latitude: selected.latitude, longitude: selected.longitude },
     });
   };
+  // 데스크탑은 옆의 큰 기록 지도를 눌러 새 자리를 고른다. 따로 화면을 열지 않는다.
+  const recordsMap = useRecordsMapController();
   const editLocation = () =>
-    hasCoordinates
-      ? setIsEditingLocation(true)
-      : navigate(MAP_SELECT_LOCATION_PATH, {
-          state: { returnTo: `${currentLocation.pathname}${currentLocation.search}`, propertyId },
-        });
+    isDesktop && recordsMap
+      ? recordsMap.layers.startLocationPick(saveLocation)
+      : hasCoordinates && !isDesktop
+        ? setIsEditingLocation(true)
+        : navigate(MAP_SELECT_LOCATION_PATH, {
+            state: { returnTo: `${currentLocation.pathname}${currentLocation.search}`, propertyId },
+          });
   // 삭제는 ⋮ 메뉴 안에 있어 잘못 누를 일이 적으므로 확인을 묻지 않고 바로 지운다.
   const removeProperty = useRemoveProperty(propertyId);
   const photoTriggerRef = useRef<HTMLButtonElement | null>(null);

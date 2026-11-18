@@ -1162,7 +1162,7 @@ it('행정동 안에서 만든 매물은 같은 기록 목록 데이터에 반�
     await screen.findByRole('region', { name: '행정동 프리셋 지도' });
     await user.click(screen.getByRole('button', { name: '역삼1동' }));
     await user.click(screen.getByRole('button', { name: '고른 동네 안 찍기' }));
-    await user.click(screen.getByRole('button', { name: '말풍선 여기에 매물 등록' }));
+    await user.click(screen.getByRole('button', { name: '말풍선 여기에 본 방 기록하기' }));
     expect(await screen.findByRole('heading', { name: '홈' })).toBeInTheDocument();
     expect(getMockProperties().some((property) => property.name === '새 매물')).toBe(true);
   } finally {

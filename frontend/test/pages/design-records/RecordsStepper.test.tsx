@@ -105,7 +105,7 @@ it('앞뒤 매물은 목록 순서를 따르고 처음과 마지막에서는 그
   expect(recordNeighbors(list, null)).toBeNull();
 });
 
-it('휴대폰에서 매물 뱃지를 고르면 바텀시트로 보고, 이전 다음으로 넘기면 지도와 뱃지 선택이 따라간다', async () => {
+it('휴대폰에서 매물 뱃지를 고르면 바텀시트로 보고, 이전 다음으로 넘기면 뱃지 선택이 따라간다', async () => {
   useThreeRecords();
   const user = userEvent.setup();
   renderRecords();
@@ -120,7 +120,8 @@ it('휴대폰에서 매물 뱃지를 고르면 바텀시트로 보고, 이전 �
 
   await user.click(sheet.getByRole('button', { name: '다음 매물' }));
   expect(sheet.getByRole('link', { name: '둘째 방' })).toBeInTheDocument();
-  expect(screen.getByLabelText('지도 중심')).toHaveTextContent('37.6,127');
+  // 매물을 넘겨 봐도 지도는 옮기지 않는다.
+  expect(screen.getByLabelText('지도 중심')).not.toHaveTextContent('37.6,127');
   expect(map.getByRole('button', { name: '둘째 방' })).toHaveAttribute('aria-pressed', 'true');
   expect(map.getByRole('button', { name: '첫째 방' })).toHaveAttribute('aria-pressed', 'false');
 

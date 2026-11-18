@@ -13,7 +13,6 @@ import { NEIGHBORHOOD_ADDRESS_SEARCH_PATH, ROUTE_PATTERNS } from '@/shared/lib/n
 import BottomSheet from '@/shared/ui/bottom-sheet/BottomSheet';
 import { Button } from '@/shared/ui/button/Button';
 import Icon from '@/shared/ui/icon/Icon';
-import MapAddPropertyButton from '@/shared/ui/map-add-button/MapAddPropertyButton';
 import { useMapPanel } from '@/shared/ui/map-list-header/MapPanelContext';
 import { MapModeSwitchTile } from '@/shared/ui/map-mode-tile/MapModeContext';
 import MapViewSwitch from '@/shared/ui/map-view-switch/MapViewSwitch';
@@ -176,22 +175,6 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
       ))}
     </div>
   );
-
-  // 오른쪽 아래 `매물 추가`는 기록 지도와 같은 자리에 둔다. 아래 시트(조건 카드, 필터, 정보)나 찍은 자리 말풍선이 열리면 내린다.
-  const layers = usesSharedSearch ? controller.layers : null;
-  const startRegister = layers?.startRegister ?? null;
-  const showsSearchCard = preview.isSelectingOnMap && (!usesSharedSearch || preview.hasChosenMapPoint);
-  const showsAddButton =
-    startRegister !== null &&
-    layers !== null &&
-    (isResultMap || preview.isSelectingOnMap) &&
-    !showsSearchCard &&
-    !preview.isMapSelectionEnabled &&
-    !isFilterSheetOpen &&
-    infoSubject === null &&
-    layers.tapPoint === null &&
-    layers.memo.mode === null &&
-    !layers.isRegistering;
 
   if (isDetailPage && !preview.isAnalyzing && !preview.error)
     return (
@@ -429,7 +412,6 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
             {isRoutePage && <Outlet context={preview} />}
           </>
         )}
-        {showsAddButton && <MapAddPropertyButton onClick={startRegister} />}
       </section>
     </main>
   );
