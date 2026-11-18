@@ -21,18 +21,18 @@ import useMyPropertyPager from '../hooks/useMyPropertyPager';
 import useNeighborhoodMapView from '../hooks/useNeighborhoodMapView';
 import type { NeighborhoodPreviewContext } from '../hooks/useNeighborhoodPreview';
 import useResultMapViewport from '../hooks/useResultMapViewport';
-import { COMMUTE_COLORS, commuteLegend, NO_RENT_COLOR, NO_RENT_LEGEND_LABEL } from '../model/commuteColors';
 import { rentLabel, transferLabel } from '../model/criteriaLabels';
 import { readCriteriaCollapsed, writeCriteriaCollapsed } from '../model/neighborhoodSearchSession';
 import { MOBILE_AREA_SHEET_PERCENT, mobileMapViewport } from '../model/resultMapView';
 import type { NeighborhoodFilterField } from '../NeighborhoodFilters';
 import { NeighborhoodFilterPicker } from '../NeighborhoodFilters';
 import AnalysisOverlay from '../ui/analysis-overlay/AnalysisOverlay';
+import CommuteDestinationField from '../ui/commute-destination-field/CommuteDestinationField';
+import CommuteLegend from '../ui/commute-legend/CommuteLegend';
 import CriteriaSummary from '../ui/criteria-summary/CriteriaSummary';
 import LocationControls from '../ui/location-controls/LocationControls';
 import MapInfo, { type MapInfoSubject, mapInfoTitle } from '../ui/map-info/MapInfo';
 import NeighborhoodMapSearch from '../ui/map-search/NeighborhoodMapSearch';
-import MapTapHint from '../ui/map-tap-hint/MapTapHint';
 import RentSlider from '../ui/rent-slider/RentSlider';
 
 import * as shared from '../NeighborhoodPreviewPage.styles';
@@ -149,8 +149,6 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
       label: rentLabel(preview.maxRent),
     },
   ];
-  const showsTapHint =
-    !preview.hasChosenMapPoint && pickerField === null && !preview.query.trim() && preview.addressResults.length === 0;
   const filterChips = (
     <div className={shared.filterChips} aria-label="탐색 조건">
       {filterCells.map((cell) => (
@@ -238,7 +236,7 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
                 <MobileMapHeader
                   leading={returnButton}
                   searchTo={NEIGHBORHOOD_ADDRESS_SEARCH_PATH}
-                  searchLabel="출퇴근 장소 검색"
+                  searchLabel="주소 검색"
                 />
               ) : (
                 <>
@@ -256,15 +254,16 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
               zoom={{ level: preview.selectionLevel, onZoom: preview.zoomSelectionBy }}
               isFilterOpen={pickerField !== null}
             />
-            {showsTapHint && preview.isMapSelectionEnabled && <MapTapHint />}
             {/* 조건 칸과 찾기 버튼은 위치를 고르기 전부터 아래 시트에 두어, 위치를 골라도 자리가 바뀌지 않게 한다.
                 위치를 고르기 전에는 찾기 버튼을 막아 두고 장소를 고르라고 적는다. 지도 위 버튼은 말풍선 핀과 겹쳐 두지 않는다. */}
-            {(!usesSharedSearch || preview.hasChosenMapPoint) && (
+            {
               <section
                 className={shared.searchCard}
                 aria-label={preview.hasChosenMapPoint ? '고른 출퇴근 장소' : '출퇴근 조건'}
               >
                 <p className={shared.searchCardTitle}>이 조건으로 추천받아요</p>
+                {/* 출퇴근 장소는 위쪽 지도 검색과 따로 이 칸에서 정한다. 아직 없으면 이 칸이 처음부터 열려 있다. */}
+                {usesSharedSearch && <CommuteDestinationField preview={preview} />}
                 {/* 통합 지도는 출퇴근 장소 검색 화면의 `지도에서 직접 고르기`로 지도 선택을 켠다. 그 화면이 없는 공개 탐색은 여기서 켠다. */}
                 {!usesSharedSearch && (
                   <Button
@@ -303,7 +302,7 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
                   </Button>
                 )}
               </section>
-            )}
+            }
           </>
         )}
         {isResultMap && (
@@ -313,7 +312,7 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
                 <MobileMapHeader
                   leading={returnButton}
                   searchTo={NEIGHBORHOOD_ADDRESS_SEARCH_PATH}
-                  searchLabel="출퇴근 장소 검색"
+                  searchLabel="주소 검색"
                   center={isCriteriaCollapsed ? undefined : <CriteriaSummary preview={preview} onOpen={openFilters} />}
                 />
               ) : (
@@ -334,21 +333,11 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
               {!usesSharedSearch && !isCriteriaCollapsed && <CriteriaSummary preview={preview} onOpen={openFilters} />}
               <div className={styles.filterRow}>
                 {!isCriteriaCollapsed && (
-                  <div className={styles.legendCard} aria-label="통근 시간 색상 기준">
-                    {commuteLegend(preview.maxMinutes).map(([group, label]) => (
-                      <span key={group}>
-                        <i style={{ background: COMMUTE_COLORS[group].fillColor }} />
-                        {label}
-                      </span>
-                    ))}
-                    <span>
-                      <i className={styles.noRentSwatch} style={{ borderColor: NO_RENT_COLOR.strokeColor }} />
-                      {NO_RENT_LEGEND_LABEL}
-                    </span>
+                  <CommuteLegend maxMinutes={preview.maxMinutes}>
                     <button className={styles.regionToggle} type="button" onClick={toggleCriteria}>
                       표 닫기
                     </button>
-                  </div>
+                  </CommuteLegend>
                 )}
               </div>
             </header>
@@ -478,18 +467,6 @@ const styles = {
     gap: 0.45rem;
   `,
 
-  /* 월세 정보가 없는 동네 범례. 지도처럼 회색 채움에 점선 테두리를 둔다. */
-  noRentSwatch: css`
-    label: NeighborhoodPreviewMobilePage-noRentSwatch;
-    &&& {
-      width: 0.62rem;
-      height: 0.62rem;
-      box-sizing: border-box;
-      border: 1.5px dashed;
-      border-radius: 2px;
-      background: rgb(134 139 148 / 28%);
-    }
-  `,
   /* 조건 칩 줄과 범례를 접고 펴는 작은 버튼. 접으면 `조건` 글자를 붙여 다시 펼 자리를 알린다. */
   criteriaToggle: css`
     label: NeighborhoodPreviewMobilePage-criteriaToggle;
@@ -513,36 +490,6 @@ const styles = {
     &:focus-visible {
       outline: 2px solid var(--color-focus);
       outline-offset: 2px;
-    }
-  `,
-  /* 지도 색 기준 카드. 항목을 세로로 쌓고 내용만큼만 폭을 둔다. */
-  legendCard: css`
-    label: NeighborhoodPreviewMobilePage-legendCard;
-    pointer-events: auto;
-    display: grid;
-    flex: none;
-    gap: 0.2rem;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--color-border);
-    border-radius: 0.9rem;
-    background: var(--color-surface);
-    box-shadow: 0 1px 6px rgb(0 0 0 / 8%);
-    color: var(--color-ink-soft);
-    font-size: 0.68rem;
-    font-weight: 700;
-    white-space: nowrap;
-
-    & span {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-    }
-
-    & i {
-      width: 3px;
-      height: 0.62rem;
-      flex: none;
-      border-radius: 1px;
     }
   `,
 

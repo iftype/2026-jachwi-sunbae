@@ -41,14 +41,25 @@ const regionStyle = (region: MapRegion, selected: boolean) => ({
     : selected
       ? '#787b80'
       : '#a4a7ab',
-  strokeWeight: region.appearance ? (selected ? 3.5 : 1.25) : selected ? 2 : 1,
+  strokeWeight: region.appearance ? (selected ? 3.5 : region.showsName ? 2 : 1.25) : selected ? 2 : 1,
   strokeStyle: region.appearance?.dashed && !selected ? ('shortdash' as const) : ('solid' as const),
   fillColor: region.appearance?.fillColor ?? (region.isRecommended === false && !selected ? '#888888' : '#f5c344'),
   // 지도 글자와 길이 비쳐 보이게 옅게 깐다. 고른 동만 두 배로 진하게 한다.
-  fillOpacity: region.appearance ? (selected ? 0.25 : 0.12) : selected ? 0.25 : region.isRecommended ? 0.12 : 0.05,
+  fillOpacity: region.appearance
+    ? selected
+      ? 0.25
+      : region.showsName
+        ? 0.18
+        : 0.12
+    : selected
+      ? 0.25
+      : region.isRecommended
+        ? 0.12
+        : 0.05,
   zIndex: selected ? 2 : 1,
 });
 type Entry = {
+  id: string;
   geometry: MapRegion['polygons'] | MapRegion['paths'];
   polygons: Polygon[];
   listeners: unknown[];
@@ -76,6 +87,7 @@ export const createMapRegionLayer = (
   engine: Engine,
   onSelect: (id: string, point?: { latitude: number; longitude: number }) => void,
   getLevel: () => number = () => 4,
+  onHover?: (id: string, hovered: boolean) => void,
 ) => {
   const entries = new Map<string, Entry>();
   // 처음 그릴 때 GL 등록이 한 프레임에 몰리지 않도록 drawStage 순서로 나눠 만든다.
@@ -98,6 +110,7 @@ export const createMapRegionLayer = (
   const hover = (entry: Entry, hovered: boolean) => {
     if (entry.hovered === hovered) return;
     entry.hovered = hovered;
+    onHover?.(entry.id, hovered);
     entry.polygons.forEach((polygon) =>
       polygon.setOptions({ fillOpacity: entry.opacity + (hovered ? HOVER_OPACITY : 0) }),
     );
@@ -117,6 +130,7 @@ export const createMapRegionLayer = (
           }),
       );
     const entry: Entry = {
+      id: region.id,
       geometry: region.polygons ?? region.paths,
       polygons,
       listeners: [],
@@ -193,17 +207,20 @@ export const createMapRegionLayer = (
       }
       // 요약이 없는 통근 경계에는 불필요한 DOM을 만들지 않는다.
       const showsRentLabel = region.rentLabel !== undefined && region.name !== '' && level <= RENT_LABEL_SHOW_LEVEL;
+      const showsNameLabel = region.showsName === true && !region.summary && !showsRentLabel;
       const labelKey = region.summary
         ? JSON.stringify([region.name, region.summary, region.center, region.appearance, selected])
         : showsRentLabel
           ? JSON.stringify(['rent', region.name, region.rentLabel, region.center, selected])
-          : '';
+          : showsNameLabel
+            ? JSON.stringify(['name', region.name, region.center, selected])
+            : '';
       if (entry.labelKey !== labelKey) {
         entry.label?.setMap(null);
         entry.label = null;
         entry.summary = null;
         entry.labelKey = labelKey;
-        if (region.summary || showsRentLabel) {
+        if (region.summary || showsRentLabel || showsNameLabel) {
           const summary = region.summary
             ? createRegionSummaryElement(region, selected, () => onSelect(region.id))
             : createRegionRentLabelElement(region, selected, () => onSelect(region.id));

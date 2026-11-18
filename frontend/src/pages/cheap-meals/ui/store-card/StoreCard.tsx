@@ -1,41 +1,49 @@
 import { css } from '@emotion/css';
 
 import { formatStoreDistance, type GoodPriceStore } from '@/features/good-price/model/GoodPriceStore';
-import Icon from '@/shared/ui/icon/Icon';
 
-type StoreCardProps = { store: GoodPriceStore; onSelect: (id: number) => void };
+type StoreCardProps = {
+  store: GoodPriceStore;
+  onSelect: (id: number) => void;
+  /** 지도나 목록에서 고른 가게. 파란 테두리로 표시한다. */
+  isSelected?: boolean;
+};
 
-const StoreCard = ({ store, onSelect }: StoreCardProps) => (
-  <button
-    type="button"
-    className={styles.card}
-    onClick={() => onSelect(store.id)}
-    aria-label={`${store.name} 상세 보기`}
-  >
-    <span className={styles.topLine}>
-      <span className={styles.businessType}>{store.businessType}</span>
-      <span className={styles.distance}>직선 {formatStoreDistance(store.distanceMeters)}</span>
-    </span>
-    <span className={styles.name}>
-      {store.name}
-      <Icon name="chevron-right" size={18} />
-    </span>
-    <span className={styles.address}>{store.address}</span>
-    <span className={styles.menus}>
-      {store.menus.length === 0 ? (
-        <span className={styles.noMenu}>등록된 메뉴·가격 정보가 없어요</span>
-      ) : (
-        store.menus.slice(0, 2).map((menu, index) => (
-          <span className={styles.menu} key={`${index}-${menu.name}`}>
-            <span>{menu.name}</span>
-            <strong>{menu.price ?? '가격 정보 없음'}</strong>
-          </span>
-        ))
-      )}
-      {store.menus.length > 2 && <span className={styles.more}>메뉴·서비스 {store.menus.length - 2}개 더 보기</span>}
-    </span>
-  </button>
-);
+/** `56,700원` 같은 가격 글자에서 숫자를 읽는다. 읽을 수 없으면 null이다. */
+const priceValue = (price: string | null): number | null => {
+  if (price === null) return null;
+  const digits = price.replace(/[^\d]/g, '');
+  return digits === '' ? null : Number(digits);
+};
+
+/** 값이 있는 메뉴 중 가장 싼 하나. 가격을 읽을 수 있는 메뉴가 없으면 null이다. */
+const cheapestMenu = (menus: GoodPriceStore['menus']) =>
+  menus.reduce<{ name: string; price: string; value: number } | null>((best, menu) => {
+    const value = priceValue(menu.price);
+    if (menu.price === null || value === null) return best;
+    return best === null || value < best.value ? { name: menu.name, price: menu.price, value } : best;
+  }, null);
+
+/** 목록의 가게 한 칸. 이름, 업종과 거리, 가장 싼 메뉴 한 줄만 두고, 전체 메뉴는 상세(지도 위 정보 카드)에서 본다. */
+const StoreCard = ({ store, onSelect, isSelected = false }: StoreCardProps) => {
+  const menu = cheapestMenu(store.menus);
+  return (
+    <button
+      type="button"
+      id={`store-card-${store.id}`}
+      className={styles.card}
+      aria-pressed={isSelected}
+      onClick={() => onSelect(store.id)}
+      aria-label={`${store.name} 상세 보기`}
+    >
+      <strong className={styles.name}>{store.name}</strong>
+      <span className={styles.meta}>
+        {store.businessType}, 직선 {formatStoreDistance(store.distanceMeters)}
+      </span>
+      <span className={styles.menu}>{menu ? `${menu.name} ${menu.price}` : '등록된 메뉴 가격이 없어요'}</span>
+    </button>
+  );
+};
 
 export default StoreCard;
 
@@ -45,111 +53,49 @@ const styles = {
 
     display: grid;
     width: 100%;
-    gap: 0.55rem;
-    padding: 1.2rem 0;
-    border: 0;
+    gap: 0.2rem;
+    padding: 0.75rem;
+    border: 1px solid transparent;
     border-bottom: 1px solid var(--color-border);
     background: var(--color-surface);
     color: var(--color-ink);
     text-align: left;
     cursor: pointer;
-  `,
-  topLine: css`
-    label: StoreCard-topLine;
 
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
+    &[aria-pressed='true'] {
+      border: 1px solid var(--color-brand-blue-ink);
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--color-brand-blue-ink) 6%, var(--color-surface));
+    }
+    &:focus-visible {
+      outline: 2px solid var(--color-focus);
+      outline-offset: -2px;
+    }
   `,
   name: css`
     label: StoreCard-name;
 
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-
-    font-size: 1.06rem;
-    font-weight: 750;
-    letter-spacing: -0.035em;
+    font-size: 0.94rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
     overflow-wrap: anywhere;
+  `,
+  meta: css`
+    label: StoreCard-meta;
 
-    & svg {
-      flex-shrink: 0;
-      color: var(--color-muted);
-    }
+    overflow: hidden;
+    color: var(--color-muted);
+    font-size: 0.75rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   `,
   menu: css`
     label: StoreCard-menu;
 
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-
-    align-items: baseline;
-    font-size: 0.84rem;
-    line-height: 1.4;
-
-    & span {
-      overflow-wrap: anywhere;
-      min-width: 0;
-    }
-    & strong {
-      overflow-wrap: anywhere;
-      min-width: 0;
-    }
-    & strong {
-      text-align: right;
-      max-width: 58%;
-      font-size: 0.9rem;
-      font-variant-numeric: tabular-nums;
-    }
-  `,
-  businessType: css`
-    label: StoreCard-businessType;
-
-    font-size: 0.7rem;
-    font-weight: 600;
-    color: var(--color-ink-soft);
-    background: var(--color-surface-muted);
-    padding: 0.22rem 0.5rem;
-    border-radius: 0.3rem;
-  `,
-  distance: css`
-    label: StoreCard-distance;
-
-    font-size: 0.75rem;
-    color: var(--color-ink-soft);
-  `,
-  address: css`
-    label: StoreCard-address;
-
-    color: var(--color-ink-soft);
-    font-size: 0.75rem;
-    line-height: 1.5;
-  `,
-  menus: css`
-    label: StoreCard-menus;
-
-    display: grid;
-    gap: 0.65rem;
-    margin-top: 0.35rem;
-    padding: 0.9rem;
-    border-radius: var(--radius-sm);
-    background: var(--color-surface-muted);
-  `,
-  more: css`
-    label: StoreCard-more;
-
-    font-size: 0.72rem;
-    color: var(--color-ink-soft);
-  `,
-  noMenu: css`
-    label: StoreCard-noMenu;
-
-    font-size: 0.72rem;
-    color: var(--color-ink-soft);
+    overflow: hidden;
+    font-size: 0.82rem;
+    font-variant-numeric: tabular-nums;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   `,
 };

@@ -114,8 +114,19 @@ const styles = {
   `,
   listDesktop: css`
     label: DeliveryPanel-listDesktop;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1.25rem;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    margin-bottom: 1rem;
+
+    & li {
+      border-bottom: 1px solid var(--color-border);
+    }
+    & button {
+      gap: 0.2rem;
+      padding: 0.75rem 0;
+      border: 0;
+      border-radius: 0;
+    }
   `,
   card: css`
     label: DeliveryPanel-card;
@@ -136,14 +147,15 @@ const styles = {
   `,
   brand: css`
     label: DeliveryPanel-brand;
-    font-weight: 650;
-    margin-top: 0.4rem;
+    font-size: 0.94rem;
+    font-weight: 600;
+    margin-top: 0.2rem;
   `,
   amount: css`
     label: DeliveryPanel-amount;
-    font-size: 1.65rem;
-    letter-spacing: -0.04em;
-    margin-bottom: 0.6rem;
+    font-size: 1.05rem;
+    letter-spacing: -0.03em;
+    margin-bottom: 0.2rem;
   `,
   condition: css`
     label: DeliveryPanel-condition;

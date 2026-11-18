@@ -64,7 +64,7 @@ describe('모바일 앱 셸', () => {
 });
 
 describe('데스크탑 앱 셸', () => {
-  it('데스크톱 공용 헤더 대신 왼쪽 네비 레일에 지도와 마이 진입점을 둔다', async () => {
+  it('데스크톱 공용 헤더 대신 왼쪽 네비 레일에 지도와 마이 진입점을 둔다', () => {
     const matchMedia = vi.spyOn(window, 'matchMedia').mockImplementation(
       (query) =>
         ({
@@ -88,9 +88,17 @@ describe('데스크탑 앱 셸', () => {
       );
       expect(screen.getByRole('navigation', { name: '화면 이동' })).toBeInTheDocument();
       const rail = within(screen.getByRole('navigation', { name: '화면 이동' }));
-      for (const name of ['내 기록', '동네 찾기', '체크리스트', '방 비교', '저렴한 한 끼', '마이', '사용방법']) {
-        expect(rail.getByRole('button', { name })).toBeInTheDocument();
-      }
+      // 위쪽 다섯 칸에는 마이가 없고, 맨 아래에 사용방법, 마이 순서로 쌓여 있다.
+      expect(rail.getAllByRole('button').map((button) => button.textContent)).toEqual([
+        '내 기록',
+        '동네 찾기',
+        '체크리스트',
+        '방 비교',
+        '저렴한 한 끼',
+        '사용방법',
+        '마이',
+      ]);
+      expect(rail.getByRole('button', { name: '체크리스트' })).toHaveAttribute('aria-current', 'page');
       expect(screen.queryByRole('link', { name: '홈으로 돌아가기' })).not.toBeInTheDocument();
       expect(screen.getByRole('heading', { name: '체크리스트' })).toBeInTheDocument();
     } finally {

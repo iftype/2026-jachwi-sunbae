@@ -1,6 +1,15 @@
 import type { MapRegion } from '@/features/map/model/MapCanvas';
 
-export const PREVIEW_DESTINATION = {
+/** 목적지를 고른 방법. 검색해서 골랐는지, 지도를 눌러 골랐는지에 따라 지도의 핀 모양이 다르다. */
+export type DestinationSource = 'search' | 'map';
+
+export const PREVIEW_DESTINATION: {
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  source?: DestinationSource;
+} = {
   name: '우테코 판교사옥',
   address: '판교역 인근 · 시안용 목적지',
   latitude: 37.395,

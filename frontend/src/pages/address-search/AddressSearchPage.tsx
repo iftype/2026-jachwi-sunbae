@@ -65,7 +65,7 @@ const AddressSearchPage = () => {
           autoFocus
           onSelect={pick}
           label={isDestinationSearch ? '출퇴근하는 장소 검색' : '주소 검색'}
-          placeholder={isDestinationSearch ? '출퇴근하는 장소' : '주소로 지도 이동'}
+          placeholder="주소로 지도 이동"
         />
       </div>
       {isDestinationSearch && (

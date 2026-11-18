@@ -117,7 +117,12 @@ export const content = css`
   .PropertyAppLayout-root[data-design-shell='true'] & {
     flex: 1;
     min-height: 0;
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: var(--mobile-tab-space, env(safe-area-inset-bottom));
+  }
+
+  /* 체크리스트 목록은 전체 화면 셸이지만 하단 탭이 보이는 동안은 그만큼 비운다. */
+  .PropertyAppLayout-root[data-design-shell='true'][data-full-screen='true'] & {
+    padding-bottom: var(--mobile-tab-space, 0px);
   }
 
   .PropertyAppLayout-root[data-design-shell='true'][data-map-page='true'] & {

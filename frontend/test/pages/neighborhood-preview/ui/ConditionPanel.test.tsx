@@ -7,6 +7,10 @@ import ConditionPanel from '@/pages/neighborhood-preview/ui/condition-panel/Cond
 type PanelPreview = Parameters<typeof ConditionPanel>[0]['preview'];
 
 const preview = (overrides: Partial<PanelPreview> = {}): PanelPreview => ({
+  query: '',
+  changeQuery: vi.fn(),
+  searchDestination: vi.fn(),
+  openMapSearch: vi.fn(),
   hasChosenMapPoint: false,
   mapCandidate: {
     name: '서울시청',

@@ -22,7 +22,6 @@ const PropertyAppDesktopLayout = ({ shell }: Props) => {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const paths: Record<string, string> = {
-    register: RECORDS_PATH,
     records: RECORDS_PATH,
     neighborhoods: NEIGHBORHOODS_PATH,
     my: MY_PATH,

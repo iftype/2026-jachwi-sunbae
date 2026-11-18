@@ -27,14 +27,16 @@ export const recordPresentation = (property: PropertySummary) => ({
   representativePhoto: property.representativePhoto,
 });
 
-type RecordPoint = { latitude: number | null; longitude: number | null };
+type AddressedRecord = { latitude: number | null; longitude: number | null; note: string; summary: PropertySummary };
 
-/** 본 방 기록 지도 아래쪽 안내. 메모·매물을 남기는 방법과 위치 없는 기록·조회 실패를 알린다. */
-export const recordsMapHint = (records: RecordPoint[], { memo }: { memo: { isFailed: boolean } }) => {
-  if (memo.isFailed) return '지도 정보를 일부 불러오지 못했어요';
-  const action = '빈 곳을 눌러 메모를 남기거나 매물을 기록해요';
-  const base = records.length ? action : `아직 기록한 방이 없어요 · ${action}`;
-  return records.some((record) => record.latitude === null || record.longitude === null)
-    ? `${base} · 위치 없는 기록은 리스트에서 확인해요`
-    : base;
-};
+/** 주소가 없거나 위치가 없는 기록인지(`주소 미등록`). */
+export const isAddressUnregistered = (record: Pick<AddressedRecord, 'latitude' | 'longitude' | 'summary'>): boolean =>
+  !record.summary.location.address || record.latitude === null || record.longitude === null;
+
+/**
+ * 주소 미등록 기록을 맨 뒤로 보낸다. 주소가 있는 기록의 순서와 미등록 기록끼리의 순서는 그대로 둔다(안정 정렬).
+ * 데스크탑과 모바일 리스트, 지도 마커 목록, 이전과 다음 이동이 모두 이 순서를 쓰도록 목록을 만드는 한 곳에서 부른다.
+ */
+export const moveUnregisteredLast = <T extends Pick<AddressedRecord, 'latitude' | 'longitude' | 'summary'>>(
+  records: T[],
+): T[] => [...records.filter((record) => !isAddressUnregistered(record)), ...records.filter(isAddressUnregistered)];

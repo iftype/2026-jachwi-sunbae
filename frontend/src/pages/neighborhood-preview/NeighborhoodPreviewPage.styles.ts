@@ -762,9 +762,6 @@ export const mapSearchResult = css`
 export const activeSearchField = css`
   label: NeighborhoodPreviewPage-activeSearchField;
   min-width: 0;
-  /* 내 기록의 주소 검색창(RecordAddressSearch)과 같은 높이와 글자 크기로 맞춘다. */
-  height: 2.5rem;
-  font-size: 0.9rem;
   background: white;
   box-shadow: 0 1px 4px rgb(0 0 0 / 6%);
 

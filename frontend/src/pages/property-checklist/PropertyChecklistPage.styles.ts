@@ -56,14 +56,14 @@ export const editAction = css`
   label: PropertyChecklistPage-editAction;
   display: inline-flex;
   align-items: center;
-  min-height: 2rem;
-  padding: 0.25rem 0.65rem;
-  border: 1px solid var(--color-border-strong, #d7c69e);
+  min-height: 2.75rem;
+  padding: 0.25rem 0.85rem;
+  border: 1px solid var(--color-border-strong);
   border-radius: 999px;
-  background: var(--color-surface, #fffdf8);
-  color: var(--color-primary-dark, #455a27);
+  background: var(--color-canvas);
+  color: var(--color-ink);
   font-size: 0.78rem;
-  font-weight: 750;
+  font-weight: 500;
   text-decoration: none;
   transition:
     background 0.15s ease,
@@ -71,8 +71,8 @@ export const editAction = css`
 
   &:hover,
   &:focus-visible {
-    border-color: var(--color-primary, #6c873b);
-    background: var(--color-surface-muted, #f2f3eb);
+    border-color: var(--color-primary);
+    background: var(--color-surface-muted);
     outline: none;
   }
 `;
@@ -88,15 +88,15 @@ export const saveAction = css`
 
   & a {
     display: flex;
-    min-height: 2.8rem;
+    min-height: 2.75rem;
     align-items: center;
     justify-content: center;
     border: 1px solid var(--color-border-strong);
-    border-radius: var(--radius-sm, 0.5rem);
-    background: var(--color-surface);
+    border-radius: 12px;
+    background: var(--color-canvas);
     color: var(--color-ink);
     font-size: 0.8rem;
-    font-weight: 750;
+    font-weight: 600;
     text-decoration: none;
   }
 `;

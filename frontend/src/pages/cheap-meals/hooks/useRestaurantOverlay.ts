@@ -4,14 +4,13 @@ import { CHEAP_MEALS_SEARCH_PARAM, CHEAP_MEALS_STORE_PARAM } from '@/shared/lib/
 
 type RestaurantOverlayState = { restaurantOverlay?: boolean };
 
-/** 업소 상세와 주소 검색은 하나의 이력만 사용해 닫기 한 번으로 목록으로 돌아간다. */
+/** 업소 상세는 하나의 이력만 사용해 닫기 한 번으로 목록으로 돌아간다. 예전 주소 검색 주소(`?search=1`)는 열지 않고 지운다. */
 const useRestaurantOverlay = () => {
   const [params, setParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const isSearchOpen = params.get(CHEAP_MEALS_SEARCH_PARAM) === '1';
   const selectedStoreId = params.get(CHEAP_MEALS_STORE_PARAM);
-  const hasOverlay = isSearchOpen || selectedStoreId !== null;
+  const hasOverlay = selectedStoreId !== null;
   const hasOverlayHistory = (location.state as RestaurantOverlayState | null)?.restaurantOverlay === true;
 
   const createBaseParams = () => {
@@ -20,7 +19,7 @@ const useRestaurantOverlay = () => {
     next.delete(CHEAP_MEALS_SEARCH_PARAM);
     return next;
   };
-  const openOverlay = (key: typeof CHEAP_MEALS_STORE_PARAM | typeof CHEAP_MEALS_SEARCH_PARAM, value: string) => {
+  const openOverlay = (key: typeof CHEAP_MEALS_STORE_PARAM, value: string) => {
     const next = createBaseParams();
     next.set(key, value);
     setParams(next, {
@@ -36,9 +35,7 @@ const useRestaurantOverlay = () => {
   };
 
   return {
-    isSearchOpen,
     selectedStoreId,
-    openSearch: () => openOverlay(CHEAP_MEALS_SEARCH_PARAM, '1'),
     openStore: (id: number) => openOverlay(CHEAP_MEALS_STORE_PARAM, String(id)),
     closeOverlay,
     // 주소의 가게가 지금 동네 목록에 없을 때(다른 동네에서 연 가게 주소 등) 이력을 늘리지 않고 주소에서만 지운다.

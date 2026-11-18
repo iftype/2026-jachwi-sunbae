@@ -1,7 +1,25 @@
 import { css, cx } from '@emotion/css';
+import type { KeyboardEvent } from 'react';
 
 import type { AddressSearchStatus } from '../../model/AddressSearch';
 import type { MapAddress } from '../../model/Map';
+
+/**
+ * 검색창 묶음(입력창과 결과 목록을 함께 감싼 요소)의 키 처리. 입력창에서 아래 방향키를 누르면 첫 결과로, Esc는 목록을 닫고 입력창에 둔다.
+ * Tab은 입력창 다음 칸(지우기 버튼은 Tab 순서 밖)인 첫 결과로 그대로 간다.
+ */
+export const handleSearchKeys = (event: KeyboardEvent<HTMLElement>, close: () => void) => {
+  if (event.key === 'Escape') {
+    close();
+    event.currentTarget.querySelector('input')?.focus();
+  } else if (event.key === 'ArrowDown' && event.target instanceof HTMLInputElement && !event.nativeEvent.isComposing) {
+    const first = event.currentTarget.querySelector<HTMLButtonElement>('ul[aria-label="주소 검색 결과"] button');
+    if (first) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+};
 
 type AddressSearchResultsProps = {
   results: MapAddress[];
@@ -19,6 +37,19 @@ const AddressSearchResults = ({
   errorMessage = '주소를 찾지 못했어요. 다시 시도해 주세요.',
 }: AddressSearchResultsProps) => {
   if (dropdown && status === 'idle') return null;
+  /** 결과 사이를 위아래 방향키로 옮긴다. 맨 위에서 위로 가면 입력창으로 돌아간다. Esc와 입력창에서의 아래 방향키는 검색창 쪽(`handleSearchKeys`)이 맡는다. */
+  const moveFocus = (event: KeyboardEvent<HTMLUListElement>) => {
+    const items = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('button'));
+    const index = items.findIndex((item) => item === document.activeElement);
+    if (event.key === 'ArrowDown' && index < items.length - 1) {
+      event.preventDefault();
+      items[index + 1]?.focus();
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (index > 0) items[index - 1]?.focus();
+      else event.currentTarget.closest('[data-search-root]')?.querySelector('input')?.focus();
+    }
+  };
   const content = (
     <>
       {status === 'loading' && (
@@ -33,7 +64,7 @@ const AddressSearchResults = ({
       )}
       {status === 'success' && results.length === 0 && <p className={styles.state}>검색 결과가 없어요.</p>}
       {status === 'success' && results.length > 0 && (
-        <ul className={styles.results} aria-label="주소 검색 결과">
+        <ul className={styles.results} aria-label="주소 검색 결과" onKeyDown={moveFocus}>
           {results.map((result) => {
             const primary = result.roadAddress ?? result.jibunAddress ?? result.address ?? '주소 정보 없음';
             const secondary = result.roadAddress !== null && result.jibunAddress !== null ? result.jibunAddress : null;

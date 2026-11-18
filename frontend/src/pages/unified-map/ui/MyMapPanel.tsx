@@ -6,6 +6,7 @@ import { formatAppVersionLabel } from '@/pages/my/lib/appVersionLabel';
 import MyPageContent from '@/pages/my/ui/MyPageContent';
 import { useMember } from '@/features/auth/api/useCurrentMember';
 import { usePublicConfig } from '@/shared/config/PublicConfigContext';
+import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
 import AreaSkeleton from '@/shared/ui/area-skeleton/AreaSkeleton';
 import DetailHeader from '@/shared/ui/detail-header/DetailHeader';
 
@@ -14,9 +15,11 @@ import * as myStyles from '@/pages/my/MyPage.styles';
 const MyMapPanelContent = ({ onClose }: { onClose: () => void }) => {
   useMember();
   const config = usePublicConfig();
+  const isDesktop = useIsDesktop();
   return (
     <section className={`${myStyles.page} ${styles.panel}`} aria-label="목록 안의 마이페이지">
-      <DetailHeader title="마이" backLabel="목록으로 돌아가기" onBack={onClose} />
+      {/* 데스크탑은 왼쪽 레일의 내 기록과 동네 찾기로 나가므로 뒤로가기 버튼을 두지 않는다. */}
+      <DetailHeader title="마이페이지" backLabel="목록으로 돌아가기" onBack={onClose} hasBackButton={!isDesktop} />
       <MyPageContent />
       <HomeFooter className={styles.siteFooter} />
       <footer className={`${myStyles.footer} ${styles.version}`}>{formatAppVersionLabel(config)}</footer>
@@ -24,18 +27,21 @@ const MyMapPanelContent = ({ onClose }: { onClose: () => void }) => {
   );
 };
 const MyMapPanel = ({ onClose }: { onClose: () => void }) => (
-  <Suspense fallback={<AreaSkeleton area="list" label="마이를 불러오는 중이에요." />}>
+  <Suspense fallback={<AreaSkeleton area="list" label="마이페이지를 불러오는 중이에요." />}>
     <MyMapPanelContent onClose={onClose} />
   </Suspense>
 );
+/* 제목줄, 본문, 푸터가 모두 --my-gutter 한 값으로 좌우 끝을 맞춘다. 자식은 가로 여백을 따로 주지 않는다. */
 const styles = {
   siteFooter: css`
     label: MyMapPanel-siteFooter;
+    padding-inline: 0;
     [data-desktop='false'] & {
       flex: none;
       margin-top: 0;
       gap: 0.25rem;
-      padding: 0.5rem 1rem;
+      padding-top: 0.5rem;
+      padding-bottom: 0.5rem;
       border: 0;
       background: var(--color-surface);
       & p {
@@ -47,7 +53,7 @@ const styles = {
     label: MyMapPanel-version;
     [data-desktop='false'] & {
       flex: none;
-      padding: 0.25rem 1rem calc(env(safe-area-inset-bottom) + 0.5rem);
+      padding: 0.25rem 0 calc(env(safe-area-inset-bottom) + 0.5rem);
       background: var(--color-surface);
     }
   `,
@@ -56,20 +62,24 @@ const styles = {
     min-height: 0;
     flex: 1;
     overflow-y: auto;
-    gap: 0.75rem;
-    padding: 0.5rem 1rem 1rem;
-    & nav[aria-label='내 도구'] {
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+    padding: 0.5rem var(--my-gutter) 1rem;
+    & > header {
+      padding: 0;
+    }
+    /* 뒤로가기 화살표 그림이 여백선에서 시작하도록 버튼 안쪽 여백(8px)만큼 당긴다. */
+    & > header > button {
+      margin-left: -0.5rem;
     }
     [data-desktop='false'] & {
       height: 100%;
       min-height: 0;
       overflow: hidden;
-      padding: 0;
+      padding: 0 var(--my-gutter);
       gap: 0;
       & > header {
         flex: none;
-        padding: 0.75rem 1rem;
+        padding: 0.75rem 0;
         background: var(--color-surface);
       }
     }

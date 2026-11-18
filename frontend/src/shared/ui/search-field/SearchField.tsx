@@ -1,6 +1,6 @@
 import { css } from '@emotion/css';
 import type { FormEvent } from 'react';
-import { useId } from 'react';
+import { useId, useRef } from 'react';
 
 import Icon from '../icon/Icon';
 
@@ -39,15 +39,19 @@ const SearchField = ({
   renderAsForm = true,
 }: SearchFieldProps) => {
   const inputId = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!disabled) onSubmit();
   };
 
+  const hasValue = value.length > 0;
   const clear = () => {
     onValueChange('');
     onClear?.();
+    // 지우고 나서도 포커스를 입력 칸에 둔다.
+    inputRef.current?.focus();
   };
 
   const fieldContent = (
@@ -60,13 +64,8 @@ const SearchField = ({
           <Icon name="arrow-left" size={18} />
         </button>
       )}
-      {/* 입력을 시작하면 오른쪽 돋보기가 오른쪽으로 빠지고, 왼쪽에 돋보기가 나타나 입력 중임을 보인다. 제출 버튼이 없는 검색창에서만 쓴다. */}
-      {!showSubmitButton && (
-        <span className={styles.typingIcon} data-role="typing-icon" aria-hidden="true">
-          <Icon name="search" size={18} />
-        </span>
-      )}
       <input
+        ref={inputRef}
         id={inputId}
         value={value}
         maxLength={maxLength}
@@ -83,32 +82,45 @@ const SearchField = ({
         }}
       />
 
-      {value.length > 0 && (
-        <button className={styles.clear} type="button" aria-label="검색어 지우기" disabled={disabled} onClick={clear}>
-          {/* 아이폰 입력창처럼 회색 동그라미 안에 흰 x를 둔다. */}
+      {/* 돋보기와 x는 같은 오른쪽 한 자리(44px)를 나눠 쓴다. 글자가 없으면 돋보기(검색), 있으면 x(지우기)로 바뀐다.
+          자리는 절대 위치라 입력 칸 폭과 글자 시작 위치는 어떤 상태에서도 움직이지 않는다. x는 마우스와 터치로만 누르고 Tab 순서 밖이다. */}
+      {hasValue ? (
+        <button
+          key="clear"
+          className={styles.slot}
+          data-role="clear"
+          type="button"
+          tabIndex={-1}
+          aria-label="검색어 지우기"
+          disabled={disabled}
+          onClick={clear}
+        >
+          {/* 다방처럼 옅은 회색 동그라미 안에 x. */}
           <span className={styles.clearIcon}>
             <Icon name="close" size={11} />
           </span>
         </button>
+      ) : (
+        <button
+          key="search"
+          className={styles.slot}
+          data-role="submit"
+          type={renderAsForm ? 'submit' : 'button'}
+          aria-label="검색"
+          disabled={disabled}
+          onClick={renderAsForm ? undefined : onSubmit}
+        >
+          <Icon name="search" size={20} />
+          {showSubmitButton && <span className={styles.srOnly}>검색</span>}
+        </button>
       )}
-      <button
-        className={styles.submit}
-        data-role="submit"
-        type={renderAsForm ? 'submit' : 'button'}
-        aria-label="검색"
-        disabled={disabled}
-        onClick={renderAsForm ? undefined : onSubmit}
-      >
-        <Icon name="search" size={18} />
-        {showSubmitButton && <span className={styles.srOnly}>검색</span>}
-      </button>
     </>
   );
 
-  const classNames = `${styles.search} ${shape === 'pill' ? styles.pill : ''} ${showSubmitButton ? '' : styles.withoutSubmit} ${className ?? ''}`;
+  const classNames = `${styles.search} ${shape === 'pill' ? styles.pill : ''} ${className ?? ''}`;
   if (renderAsForm) {
     return (
-      <form className={classNames} role="search" data-typing={value.length > 0} onSubmit={submit}>
+      <form className={classNames} role="search" onSubmit={submit}>
         {fieldContent}
       </form>
     );
@@ -118,7 +130,7 @@ const SearchField = ({
     <div
       className={classNames}
       role="search"
-      data-typing={value.length > 0}
+
       onKeyDown={(event) => {
         if (
           event.key === 'Enter' &&
@@ -142,11 +154,11 @@ const styles = {
     position: relative;
     box-shadow: none !important;
     display: flex;
-    min-height: 2.5rem;
+    min-height: 2.75rem;
     align-items: center;
     margin: 0;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
+    border: 1px solid #ededed;
+    border-radius: 10px;
     background: var(--color-surface);
     transition:
       border-color 0.15s ease,
@@ -154,7 +166,7 @@ const styles = {
 
     /* 입력할 때 테두리를 검게 바꾸지 않는다. 포커스 링은 입력칸이 아니라 검색창 모양을 따라 둥글게 그린다. */
     &:focus-within {
-      border-color: color-mix(in srgb, var(--color-focus) 70%, transparent);
+      border-color: var(--color-brand-blue-ink);
     }
 
     & input {
@@ -162,12 +174,15 @@ const styles = {
       width: 100%;
       min-width: 0;
       min-height: 2.4rem;
-      padding: 0.55rem 0.85rem;
+      /* 다방 검색창처럼 왼쪽 여백은 일반 값(16px)이고 항상 같다. 글자와 커서는 포커스, 입력, 한글 조합, 아이콘 전환 중에도 움직이지 않는다.
+         오른쪽 2.9rem은 아이콘 자리(44px) 몫이다. */
+      padding: 0.55rem 2.9rem 0.55rem 1rem;
       border: 0;
       outline: 0;
       background: transparent;
       color: var(--color-ink);
       font: inherit;
+      font-size: 0.95rem;
     }
 
     /* 전역 input:focus-visible 윤곽선은 검색창 안에서 네모난 테두리로 보여 끈다. */
@@ -182,58 +197,8 @@ const styles = {
 
   pill: css`
     label: SearchField-pill;
-    border-radius: 999px;
-  `,
-
-  withoutSubmit: css`
-    label: SearchField-withoutSubmit;
-
-    & input {
-      transition: padding-left 0.18s ease;
-    }
-    & [data-role='submit'] {
-      transition:
-        transform 0.18s ease,
-        opacity 0.18s ease,
-        width 0.18s ease;
-    }
-    & [data-role='typing-icon'] {
-      opacity: 0;
-      transform: translateX(-0.5rem);
-    }
-
-    /* 입력 중: 오른쪽 돋보기는 오른쪽으로 사라지고, 왼쪽 돋보기가 나타난다. */
-    &[data-typing='true'] [data-role='submit'] {
-      opacity: 0;
-      transform: translateX(1.5rem);
-      pointer-events: none;
-      /* 사라진 돋보기 자리를 비워, 지우기(X) 버튼이 오른쪽 끝으로 붙게 한다. */
-      min-width: 0;
-      width: 0;
-      padding: 0;
-    }
-    &[data-typing='true'] [data-role='typing-icon'] {
-      opacity: 1;
-      transform: translateX(0);
-    }
-    &[data-typing='true'] input {
-      padding-left: 2.4rem;
-    }
-  `,
-
-  typingIcon: css`
-    label: SearchField-typingIcon;
-    position: absolute;
-    top: 50%;
-    left: 0.85rem;
-    margin-top: -0.55rem;
-    display: grid;
-    place-items: center;
-    color: var(--color-muted);
-    pointer-events: none;
-    transition:
-      opacity 0.18s ease,
-      transform 0.18s ease;
+    /* 알약이 아니라 약간만 둥글게. */
+    border-radius: 10px;
   `,
 
   backButton: css`
@@ -250,42 +215,33 @@ const styles = {
     place-items: center;
   `,
 
-  clear: css`
-    label: SearchField-clear;
-    min-width: 2.75rem;
-    min-height: 2.35rem;
-    border: 0;
-    background: transparent;
-    cursor: pointer;
-    display: grid;
-    place-items: center;
-  `,
-
   /* 아이폰 입력창의 지우기 버튼처럼 옅은 회색 동그라미에 흰 x. */
   clearIcon: css`
     label: SearchField-clearIcon;
     display: grid;
-    width: 1.1rem;
-    height: 1.1rem;
+    width: 1.25rem;
+    height: 1.25rem;
     place-items: center;
     border-radius: 50%;
-    background: #c7c9ce;
-    color: #fff;
+    background: #ededed;
+    color: #333;
   `,
 
-  submit: css`
-    label: SearchField-submit;
-    min-width: 2.75rem;
-    min-height: 2.35rem;
+  /* 돋보기와 x가 번갈아 놓이는 오른쪽 한 자리. 입력 칸 안쪽 오른쪽 끝에 고정한다. */
+  slot: css`
+    label: SearchField-slot;
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 2.75rem;
     border: 0;
     background: transparent;
     color: var(--color-ink);
     cursor: pointer;
     display: grid;
     place-items: center;
-    flex: none;
-    padding: 0 0.75rem;
-    font-weight: 800;
+    padding: 0;
   `,
 
   srOnly: css`

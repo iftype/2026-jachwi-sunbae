@@ -4,6 +4,8 @@ import { css } from '@emotion/css';
 export const page = css`
   label: MyPage-page;
   --color-primary: var(--color-brand-blue-ink);
+  /* 제목줄, 섹션 제목, 카드의 왼쪽과 오른쪽 끝이 모두 이 한 값에서 시작한다. 가로 여백은 화면을 감싸는 곳에서만 주고 자식은 따로 주지 않는다. */
+  --my-gutter: 1.25rem;
   --my-card-padding: var(--space-md);
   /* 마이와 카드 모두 공용 흰 바탕을 쓴다. */
   --my-card-surface: var(--color-surface);

@@ -38,7 +38,7 @@ export const list = css`
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 0.75rem 1rem 6rem;
+  padding: 0.75rem 1rem calc(6rem + var(--map-sheet-bottom, 0px));
   background: white;
 
   /* 태블릿 너비부터는 배치는 그대로 두고 글자와 여백만 키운다. */

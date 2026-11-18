@@ -1,14 +1,15 @@
 import { css } from '@emotion/css';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import DesignRecordsPage from '@/pages/design-records/DesignRecordsPage';
 import useRecordsView from '@/pages/design-records/hooks/useRecordsView';
-import { RecordsMapProvider, useRecordsMapController } from '@/pages/design-records/RecordsMapProvider';
+import { RecordsMapProvider } from '@/pages/design-records/RecordsMapProvider';
 import NeighborhoodPreviewPage from '@/pages/neighborhood-preview/NeighborhoodPreviewPage';
 import { MapCanvasMode, SharedMapCanvasProvider } from '@/features/map/ui/map-canvas/SharedMapCanvas';
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
-import { MY_PATH, NEIGHBORHOODS_PATH, RECORDS_PATH } from '@/shared/lib/navigation/appPaths';
+import { CHEAP_MEALS_PATH, MY_PATH, NEIGHBORHOODS_PATH, RECORDS_PATH } from '@/shared/lib/navigation/appPaths';
+import MobileBottomTabs from '@/shared/ui/bottom-tab-bar/MobileBottomTabs';
 import { MapPanelProvider } from '@/shared/ui/map-list-header/MapPanelContext';
 import { MapModeProvider, type MapModeSwitch } from '@/shared/ui/map-mode-tile/MapModeContext';
 import NavRail from '@/shared/ui/nav-rail/NavRail';
@@ -16,51 +17,38 @@ import { NAV_RAIL_ITEMS } from '@/shared/ui/nav-rail/navRailItems';
 
 import MyMapPanel from './ui/MyMapPanel';
 
-/** 지도 화면 왼쪽 레일. 기록 지도 컨트롤러(`본 방 기록하기`)를 쓰려고 `RecordsMapProvider` 안에 둔다. */
+/** 지도 화면 왼쪽 레일. */
 const UnifiedNavRail = ({
+  pathname,
   isMy,
   isFinding,
+  isMeals,
   onRecords,
   onFinding,
   onMy,
   onTool,
 }: {
+  pathname: string;
   isMy: boolean;
   isFinding: boolean;
+  isMeals: boolean;
   onRecords: () => void;
   onFinding: () => void;
   onMy: () => void;
   onTool: (path: string) => void;
 }) => {
-  const controller = useRecordsMapController();
-  // 동네 찾기나 마이에서 `본 방 기록하기`를 누르면 먼저 기록 지도로 돌아온 뒤, 지도가 이어받은 시점이 자리 잡고 나서 말풍선을 연다.
-  // 바로 열면 기록 지도의 옛 가운데에 열려 지금 보던 자리와 달라진다.
-  const [wantsRegister, setWantsRegister] = useState(false);
-  useEffect(() => {
-    if (!wantsRegister || isFinding || isMy) return;
-    const timer = window.setTimeout(() => {
-      controller?.layers.startRegister?.();
-      setWantsRegister(false);
-    }, 350);
-    return () => window.clearTimeout(timer);
-  }, [wantsRegister, isFinding, isMy, controller]);
   return (
     <NavRail
       label="화면 이동"
       items={NAV_RAIL_ITEMS.map((item) => ({
         ...item,
         isActive:
-          (item.key === 'records' && !isMy && !isFinding) ||
+          (item.key === 'records' && !isMy && !isFinding && !isMeals) ||
           (item.key === 'neighborhoods' && !isMy && isFinding) ||
-          (item.key === 'my' && isMy),
+          (item.key === 'my' && isMy) ||
+          (item.path !== undefined && isMeals && pathname.startsWith(item.path)),
         onSelect: () => {
-          if (item.key === 'register') {
-            // 기록 지도로 돌아와 지도 가운데에 `여기에 본 방 기록하기` 말풍선을 연다.
-            if (isFinding || isMy) {
-              onRecords();
-              setWantsRegister(true);
-            } else controller?.layers.startRegister?.();
-          } else if (item.key === 'records') onRecords();
+          if (item.key === 'records') onRecords();
           else if (item.key === 'neighborhoods') onFinding();
           else if (item.key === 'my') onMy();
           else if (item.path !== undefined) onTool(item.path);
@@ -78,13 +66,15 @@ const UnifiedMapPage = () => {
   const params = useParams();
   const isMy = pathname === MY_PATH;
   const [lastFinding, setLastFinding] = useState(pathname.startsWith(NEIGHBORHOODS_PATH));
+  // 저렴한 한 끼도 이 화면 안에서 그린다. 지도 인스턴스와 줌, 중심이 내 기록, 동네 찾기와 이어진다.
+  const isMeals = pathname.startsWith(CHEAP_MEALS_PATH);
   const isFinding = isMy ? lastFinding : pathname.startsWith(NEIGHBORHOODS_PATH);
   if (!isMy && lastFinding !== isFinding) setLastFinding(isFinding);
   const [recordsUrl, setRecordsUrl] = useState(RECORDS_PATH);
   const [findingUrl, setFindingUrl] = useState(NEIGHBORHOODS_PATH);
   const currentUrl = pathname + search;
   if (!isMy && isFinding && findingUrl !== currentUrl) setFindingUrl(currentUrl);
-  if (!isMy && !isFinding && recordsUrl !== currentUrl) setRecordsUrl(currentUrl);
+  if (!isMy && !isFinding && !isMeals && recordsUrl !== currentUrl) setRecordsUrl(currentUrl);
   const isMobileDetail = !isDesktop && !isFinding && params.propertyId !== undefined;
   const closeMy = () => navigate(isFinding ? findingUrl : recordsUrl);
   // 동네 찾기로 넘어갈 때는 지난 검색(목적지, 조건, 결과)이 있으면 그 화면으로, 처음이면 동네 찾기 지도로 바로 간다.
@@ -99,11 +89,16 @@ const UnifiedMapPage = () => {
     <RecordsMapProvider>
       <SharedMapCanvasProvider
         preserveZoomOnModeChange
-        infrastructure={{ open: !isFinding && (isDesktop || recordsView === 'map'), onClose: () => undefined }}
+        infrastructure={{
+          open: !isFinding && !isMeals && (isDesktop || recordsView === 'map'),
+          onClose: () => undefined,
+        }}
       >
         <div className={styles.page} data-desktop={isDesktop}>
           {isDesktop && (
             <UnifiedNavRail
+              pathname={pathname}
+              isMeals={isMeals}
               isMy={isMy}
               isFinding={isFinding}
               onRecords={toRecords.onSwitch}
@@ -113,8 +108,12 @@ const UnifiedMapPage = () => {
             />
           )}
           <div className={styles.content}>
-            <div hidden={isFinding || isMobileDetail} className={styles.screen} data-mobile={!isDesktop || undefined}>
-              <MapCanvasMode active={!isFinding && !isMobileDetail}>
+            <div
+              hidden={isFinding || isMobileDetail || isMeals}
+              className={styles.screen}
+              data-mobile={!isDesktop || undefined}
+            >
+              <MapCanvasMode active={!isFinding && !isMobileDetail && !isMeals}>
                 <MapPanelProvider value={isMy && !isFinding ? panel : null}>
                   <MapModeProvider value={toFinding}>
                     <DesignRecordsPage />
@@ -122,7 +121,7 @@ const UnifiedMapPage = () => {
                 </MapPanelProvider>
               </MapCanvasMode>
             </div>
-            <div hidden={!isFinding} className={styles.screen} data-mobile={!isDesktop || undefined}>
+            <div hidden={!isFinding || isMeals} className={styles.screen} data-mobile={!isDesktop || undefined}>
               <MapCanvasMode active={isFinding}>
                 <MapPanelProvider value={isMy && isFinding ? panel : null}>
                   <MapModeProvider value={toRecords}>
@@ -131,12 +130,20 @@ const UnifiedMapPage = () => {
                 </MapPanelProvider>
               </MapCanvasMode>
             </div>
+            {isMeals && (
+              <div className={styles.screen} data-mobile={!isDesktop || undefined}>
+                <MapCanvasMode active>
+                  <Outlet />
+                </MapCanvasMode>
+              </div>
+            )}
             {isMobileDetail && (
               <div className={styles.detail}>
                 <Outlet />
               </div>
             )}
           </div>
+          {!isDesktop && <MobileBottomTabs recordsTo={recordsUrl} neighborhoodsTo={findingUrl} />}
         </div>
       </SharedMapCanvasProvider>
     </RecordsMapProvider>
@@ -153,14 +160,23 @@ const styles = {
     position: relative;
     height: 100dvh;
     overflow: hidden;
-    --map-mode-bottom: 0px;
+    /* 휴대폰 하단 탭이 보이는 동안 아래 요소(시트, 스위치, 배너, 버튼)를 탭 높이만큼 올린다. 값은 탭 바가 html에 거는 --mobile-tab-space 하나다. */
+    --map-mode-bottom: var(--mobile-tab-space, 0px);
+    --map-sheet-bottom: var(--mobile-tab-space);
     --map-profile-space: 0px;
+    /* 네이버 지도가 아래에 직접 붙이는 로고와 저작권, 축척 표시도 하단 탭 위로 올린다. 지도가 인라인 bottom으로 놓으므로 덮어쓴다. */
+    & [class*='MapCanvas-liveLayer'] [style*='bottom: 0px'] {
+      bottom: var(--mobile-tab-space, 0px) !important;
+    }
     &[data-desktop='true'] {
       display: grid;
       grid-template-columns: 76px minmax(0, 1fr);
       --unified-panel-top: 0px;
       --map-mode-bottom: 0px;
       --map-profile-space: 0px;
+      & [class*='MapCanvas-liveLayer'] [style*='bottom: 0px'] {
+        bottom: 0 !important;
+      }
     }
   `,
   content: css`

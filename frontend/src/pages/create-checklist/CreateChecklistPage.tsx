@@ -22,6 +22,8 @@ import {
 } from '@/shared/lib/navigation/appPaths';
 import TopNavigation from '@/shared/ui/top-navigation/TopNavigation';
 
+import CreateChecklistDesktop from './ui/create-checklist-desktop/CreateChecklistDesktop';
+
 const stage = USER_CHECKLIST_STAGE;
 const initialItems: CheckItem[] = [];
 
@@ -70,6 +72,21 @@ const CreateChecklistPage = () => {
     else closePicker();
   };
 
+  // 데스크탑은 한 화면 두 칸이라 항목 고르기 단계와 주소(`?mode=add-items`)를 쓰지 않는다. 저장 요청과 분석 이벤트는 같다.
+  if (isDesktop) {
+    return (
+      <CreateChecklistDesktop
+        stage={stage}
+        draft={draft}
+        isSubmitting={create.isPending}
+        serverError={create.isError ? getChecklistErrorMessage(create.error) : undefined}
+        closeLabel={propertyId === null ? '체크리스트 관리로 돌아가기' : '체크리스트 교체로 돌아가기'}
+        onClose={() => returnToSource()}
+        onSubmit={save}
+      />
+    );
+  }
+
   return (
     <ChecklistEditorFrame isDesktop={isDesktop}>
       <TopNavigation
@@ -82,7 +99,7 @@ const CreateChecklistPage = () => {
               ? '체크리스트 관리로 돌아가기'
               : '체크리스트 교체로 돌아가기'
         }
-        navigationIcon={isDesktop && !showPicker ? 'close' : 'arrow-left'}
+        navigationIcon="arrow-left"
         onBack={showPicker ? leavePicker : () => returnToSource()}
       />
       {showPicker ? (

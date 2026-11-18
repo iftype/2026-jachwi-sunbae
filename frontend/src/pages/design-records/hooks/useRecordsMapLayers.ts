@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from 'react';
 import { reverseGeocode } from '@/features/map/api/mapApi';
 import { useAdminDongBookmarks } from '@/features/map/api/useAdminDongBookmarks';
 import { useBookmarkedRegions } from '@/features/map/api/useBookmarkedRegions';
+import useMapTip from '@/features/map/hooks/useMapTip';
 import {
   groupOverlappingMarkers,
   propertyGroupMarker,
@@ -10,6 +11,7 @@ import {
 } from '@/features/map/lib/propertyMarkerGroups';
 import type { MapAddress, MapBounds, MapMarker } from '@/features/map/model/Map';
 import type { MapCanvasProps, MapCoordinateMenu, MapTapAction } from '@/features/map/model/MapCanvas';
+import { isPreviewProperty } from '@/features/property/model/sampleProperties';
 import useStreetMemoLayer from '@/features/street-memo/hooks/useStreetMemoLayer';
 import { MEMO_INDIVIDUAL_MAX_LEVEL } from '@/features/street-memo/lib/streetMemoDongGroups';
 import { focusOnMemos } from '@/features/street-memo/lib/streetMemoFocus';
@@ -18,15 +20,12 @@ import { usePublicConfig } from '@/shared/config/PublicConfigContext';
 import { useLogger } from '@/shared/lib/analytics/logging';
 
 import { readBookmarkLayerOn, writeBookmarkLayerOn } from '../model/bookmarkLayer';
+import { FIRST_PROPERTY_TIP_KEY, RECORDS_TAP_TIP_KEY, SHOW_FIRST_PROPERTY_TIP } from '../model/mapTapTipKey';
 import { SEARCHED_PIN_IMAGE } from '../model/searchedPin';
 import type { RecordsState } from './useRecords';
 
 const REGISTER_MARKER_ID = 'register-point';
 const SEARCHED_MARKER_ID = 'searched-point';
-const boundsCenter = (bounds: MapBounds): MapPoint => ({
-  latitude: (bounds.north + bounds.south) / 2,
-  longitude: (bounds.east + bounds.west) / 2,
-});
 /** 이 단계보다 멀리 축소하면 거리 메모를 숨긴다. 도시 전체를 볼 때는 골목 메모가 쓸모없다. */
 const MEMO_MAX_LEVEL = 11;
 
@@ -34,6 +33,8 @@ type MapPoint = { latitude: number; longitude: number };
 
 type Options = {
   interactionLevel?: number;
+  /** 찜한 동네가 하나도 없을 때 레이어 칸의 `찜한 동네`를 누르면 동네 찾기로 보낸다. */
+  onFindBookmarks?: () => void;
   onRecommend?: (location: MapAddress) => void;
   /**
    * 찍은 위치에서 매물 등록을 고르면 주소 응답을 기다린 뒤에 넘긴다. 등록 화면을 여는 방식은 화면이 정한다.
@@ -70,6 +71,7 @@ const useRecordsMapLayers = (
     onRegister,
     onRecommend,
     interactionLevel,
+    onFindBookmarks,
     registeringAt = null,
     groupAction = 'list',
     keepSelectionOnMapTap = false,
@@ -120,7 +122,7 @@ const useRecordsMapLayers = (
   };
   const [bounds, setBounds] = useState<MapBounds | null>(null);
   // 찍은 자리. `매물 추가` 버튼으로 연 자리는 매물 등록만 고르게 한다.
-  const [tapPoint, setTapPoint] = useState<(MapPoint & { registerOnly?: boolean }) | null>(null);
+  const [tapPoint, setTapPoint] = useState<MapPoint | null>(null);
   // 매물 등록을 누른 뒤 주소를 찾는 중인 위치. 응답이 늦어도 그 자리에 등록 핀을 먼저 두고, 그동안 다시 등록하지 못하게 한다.
   const [resolvingAt, setResolvingAt] = useState<MapPoint | null>(null);
   // 주소를 찾는 동안과 매물을 만드는 동안 그 자리에 등록 핀을 둔다.
@@ -157,11 +159,13 @@ const useRecordsMapLayers = (
         ? []
         : [
             {
-              ...records.searchedPoint,
+              latitude: records.searchedPoint.latitude,
+              longitude: records.searchedPoint.longitude,
               id: SEARCHED_MARKER_ID,
-              label: '검색한 곳',
-              tone: 'selected' as const,
-              image: SEARCHED_PIN_IMAGE,
+              label: records.searchedPoint.name,
+              tone: 'pinLabel' as const,
+              pinKind: 'search' as const,
+              actionable: true,
             },
           ]),
       ...(pinAt === null
@@ -209,44 +213,32 @@ const useRecordsMapLayers = (
   const tapActions: MapTapAction[] =
     tapPoint === null
       ? []
-      : tapPoint.registerOnly && onRegister
-        ? [
-            {
-              id: 'property',
-              label: '여기에 본 방 기록하기',
-              icon: MENU_PROPERTY_ICON,
-              onSelect: () => {
-                log('map_coordinate_action_selected', { action: 'property' });
-                registerAt(tapPoint);
-              },
+      : [
+          {
+            id: 'street-memo',
+            label: '메모 남기기',
+            icon: MENU_MEMO_ICON,
+            onSelect: () => {
+              log('map_coordinate_action_selected', { action: 'memo' });
+              setTapPoint(null);
+              closeSelection();
+              memo.startDraft(tapPoint);
             },
-          ]
-        : [
-            {
-              id: 'street-memo',
-              label: '메모 남기기',
-              icon: MENU_MEMO_ICON,
-              onSelect: () => {
-                log('map_coordinate_action_selected', { action: 'memo' });
-                setTapPoint(null);
-                closeSelection();
-                memo.startDraft(tapPoint);
-              },
-            },
-            ...(onRegister
-              ? [
-                  {
-                    id: 'property',
-                    label: '여기에 본 방 기록하기',
-                    icon: MENU_PROPERTY_ICON,
-                    onSelect: () => {
-                      log('map_coordinate_action_selected', { action: 'property' });
-                      registerAt(tapPoint);
-                    },
+          },
+          ...(onRegister
+            ? [
+                {
+                  id: 'property',
+                  label: '본 방 기록하기',
+                  icon: MENU_PROPERTY_ICON,
+                  onSelect: () => {
+                    log('map_coordinate_action_selected', { action: 'property' });
+                    registerAt(tapPoint);
                   },
-                ]
-              : []),
-          ];
+                },
+              ]
+            : []),
+        ];
 
   const recordGroups = useMemo(() => groupOverlappingMarkers(records.markers, bounds), [records.markers, bounds]);
   const recordMarkers = useMemo(() => recordGroups.map(propertyGroupMarker), [recordGroups]);
@@ -335,19 +327,38 @@ const useRecordsMapLayers = (
   const rememberBounds = (next: MapBounds) => {
     if (sameBounds(bounds, next)) return;
     setBounds(next);
-    // 지도를 옮기면 찍은 자리 말풍선을 닫는다. 레일의 `본 방 기록하기`로 연 말풍선은 지도를 옮겨도 그 자리에 둔다.
-    setTapPoint((current) => (current?.registerOnly ? current : null));
+    // 지도를 옮기면 찍은 자리 말풍선을 닫는다.
+    setTapPoint(null);
   };
-  /**
-   * 왼쪽 레일의 `본 방 기록하기`. 지금 보는 지도 가운데에 `여기에 본 방 기록하기` 말풍선을 연다. 지도를 눌러 등록하는 흐름과 같고,
-   * 말풍선을 닫고 다른 자리를 찍어도 된다. 지도가 아직 범위를 모르면 기록 지도의 가운데를 쓴다.
-   */
-  const startRegister = () => {
-    if (isRegistering) return;
-    closeSelection();
-    memo.close();
-    setTapPoint({ ...(bounds === null ? records.center : boundsCenter(bounds)), registerOnly: true });
-  };
+  // 첫 안내는 미리보기 매물 마커가 있으면 그 마커에, 없으면 지도 가운데 좌표에 붙인다.
+  const previewMarker = records.markers.find((marker) => isPreviewProperty(marker.id));
+  const tip = useMapTip({
+    storageKey: RECORDS_TAP_TIP_KEY,
+    message: previewMarker
+      ? '이렇게 방을 기록해요. 빈 곳을 눌러 메모도 남겨요'
+      : '지도를 눌러 메모를 남기거나 본 방을 기록해요',
+    placement: previewMarker ? 'below' : 'above',
+    point: previewMarker ?? records.center,
+    // 마커에서 화면 기준 아래로 약 70px 비껴 둬, 말풍선을 눌러도 마커와 겹치지 않고 마커는 그대로 보인다.
+    offsetPx: previewMarker ? { x: 0, y: 70 } : undefined,
+    level: records.level,
+    enabled: records.selected === undefined && memo.mode === null && !isRegistering,
+  });
+  // 첫 매물을 등록한 직후 한 번, 방금 생긴 그 마커에 붙는 말풍선. 지도 아무 곳이나 누르거나 끌면 닫히고 다시 안 뜬다.
+  // 판단은 이 세션에서 방금 만든 매물(`createdId`)이면서 기록이 그 하나뿐일 때다. 두 번째 매물부터는 안 뜬다.
+  const createdMarker =
+    records.createdId === null ? undefined : records.markers.find((marker) => marker.id === records.createdId);
+  const realRecordCount = records.records.filter((record) => !isPreviewProperty(record.id)).length;
+  const firstPropertyTip = useMapTip({
+    storageKey: FIRST_PROPERTY_TIP_KEY,
+    message: '기록했어요. 눌러서 체크리스트와 사진을 채워 보세요',
+    placement: 'below',
+    point: createdMarker ?? records.center,
+    // 마커에서 화면 기준 아래로 약 40px 비껴 둬 방금 생긴 마커를 가리지 않는다.
+    offsetPx: createdMarker ? { x: 0, y: 40 } : undefined,
+    level: records.level,
+    enabled: SHOW_FIRST_PROPERTY_TIP && createdMarker !== undefined && realRecordCount === 1,
+  });
   const allMarkers = useMemo(() => [...recordMarkers, ...markers], [recordMarkers, markers]);
   /** 두 화면의 지도가 그대로 넘기는 MapCanvas 설정. 찍은 자리 말풍선(coordinateMenu)은 데스크탑만 더한다. */
   const canvasProps = {
@@ -360,6 +371,11 @@ const useRecordsMapLayers = (
     selectedMarkerId: selectedRecordMarkerId ?? memo.selectedMarkerId,
     // 메모 마커와 겹친 매물 묶음이 아니면 기록한 방 하나의 마커다.
     onSelectMarker: (marker: MapMarker) => {
+      // 검색한 곳의 라벨(×)을 누르면 그 표시를 지운다.
+      if (marker.id === SEARCHED_MARKER_ID) {
+        records.clearSearchedPoint();
+        return;
+      }
       if (selectMarker(marker)) return;
       memo.close();
       setTapPoint(null);
@@ -370,7 +386,31 @@ const useRecordsMapLayers = (
     onCenterChange: (latitude: number, longitude: number) => records.setCenter({ latitude, longitude }),
     onLevelChange: records.setLevel,
     onBoundsChange: rememberBounds,
+    tip: firstPropertyTip ?? tip,
     regions: bookmarkRegions,
+    // 오른쪽 위 레이어 칸의 `찜한 동네`. 찜한 동네가 있으면 켜고 끄고(개수 배지), 하나도 없으면 연한 회색으로 보이고 누르면 동네 찾기로 간다.
+    railExtraItems: [
+      {
+        key: 'bookmarks',
+        label: '찜한 동네',
+        ariaLabel:
+          bookmarkStore.codes.length === 0
+            ? '찜한 동네가 없어요. 동네 찾기로 가서 찜하기'
+            : `찜한 동네 ${isBookmarkLayerOn ? '숨기기' : '표시하기'}, ${bookmarkStore.codes.length}곳`,
+        icon: 'heart' as const,
+        selected: isBookmarkLayerOn && bookmarkStore.codes.length > 0,
+        badge: bookmarkStore.codes.length,
+        isMuted: bookmarkStore.codes.length === 0,
+        onToggle: () => {
+          if (bookmarkStore.codes.length === 0) {
+            onFindBookmarks?.();
+            return;
+          }
+          writeBookmarkLayerOn(!isBookmarkLayerOn);
+          setIsBookmarkLayerOn(!isBookmarkLayerOn);
+        },
+      },
+    ],
   } satisfies MapCanvasProps;
 
   return {
@@ -422,8 +462,6 @@ const useRecordsMapLayers = (
             cancel: endPick,
           },
     tapActions,
-    /** 레일의 `본 방 기록하기`가 부른다. 등록할 수 없는 화면이면 null이다. */
-    startRegister: onRegister ? startRegister : null,
     /** 동네 추천받기 모드. 추천을 받을 수 없는 화면이면 null이다. */
     recommendMode: onRecommend
       ? {

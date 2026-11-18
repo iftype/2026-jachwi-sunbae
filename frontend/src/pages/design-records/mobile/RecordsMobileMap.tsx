@@ -9,7 +9,7 @@ import Icon from '@/shared/ui/icon/Icon';
 import type { RecordsState } from '../hooks/useRecords';
 import type { RecordsMapLayers } from '../hooks/useRecordsMapLayers';
 import { recordNeighbors } from '../model/recordNavigation';
-import RecordBookmarkToggle from '../ui/record-bookmark-toggle/RecordBookmarkToggle';
+import RecordNeighborhoodBanner from '../ui/record-neighborhood-banner/RecordNeighborhoodBanner';
 import RecordRegisterSuggestion from '../ui/record-register-suggestion/RecordRegisterSuggestion';
 import RecordStepper from '../ui/record-stepper/RecordStepper';
 import RecordsSelectedSheet from './RecordsSelectedSheet';
@@ -34,7 +34,6 @@ const RecordsMobileMap = ({ records, layers }: Props) => {
     <section className={styles.map} aria-label="본 방 기록 지도">
       <MapCanvas shared {...layers.canvasProps} coordinateMenu={layers.coordinateMenu} />
       <StreetMemoImpressionLog memos={layers.memo.visibleMemos} />
-      <RecordBookmarkToggle bookmarks={layers.bookmarks} />
       <button
         className={styles.recenter}
         type="button"
@@ -44,6 +43,7 @@ const RecordsMobileMap = ({ records, layers }: Props) => {
         <Icon name="target" size={22} />
       </button>
       <MapZoomControl className={styles.zoom} level={records.level} onChange={records.setLevel} />
+      {sheetRecords.length === 0 && layers.memo.mode === null && <RecordNeighborhoodBanner className={styles.banner} />}
       <RecordsSelectedSheet
         records={sheetRecords}
         onClose={layers.closeAll}
@@ -67,6 +67,12 @@ const styles = {
     position: relative;
     flex: 1;
     min-height: 0;
+  `,
+
+  /* 아래 가운데 보기 방식 스위치(fixed, 약 3rem) 위에 둔다. */
+  banner: css`
+    label: RecordsMobileMap-banner;
+    bottom: calc(var(--map-sheet-bottom, env(safe-area-inset-bottom)) + 4.75rem);
   `,
 
   /* 세로 확대 축소 버튼 바로 아래에 둔다. */

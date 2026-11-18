@@ -95,12 +95,16 @@ describe('공용 UI 컴포넌트', () => {
     };
 
     render(<SearchExample />);
-    await user.click(screen.getByRole('button', { name: '검색' }));
+    // 글자가 있으면 오른쪽 한 자리는 x다. 검색은 Enter로 제출한다.
+    await user.click(screen.getByRole('textbox', { name: '매물 이름 검색' }));
+    await user.keyboard('{Enter}');
     expect(submit).toHaveBeenCalledOnce();
 
     await user.click(screen.getByRole('button', { name: '검색어 지우기' }));
     expect(screen.getByRole('textbox', { name: '매물 이름 검색' })).toHaveValue('');
     expect(clear).toHaveBeenCalledOnce();
+    // 비면 같은 자리가 다시 돋보기(검색)가 된다.
+    expect(screen.getByRole('button', { name: '검색' })).toBeInTheDocument();
   });
 
   it('ButtonLink는 이동 목적지를 명시한다', () => {
