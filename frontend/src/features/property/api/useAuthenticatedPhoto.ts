@@ -7,10 +7,15 @@ import { fetchPropertyPhotoContent } from './photoApi';
 import { fetchPhotoContentOrPreview } from './previewPropertyApi';
 import { propertyQueryKeys } from './propertyQueryKeys';
 
-export const useAuthenticatedPhoto = (propertyId: number, photoId: number, contentUrl: string) => {
+export const useAuthenticatedPhoto = (
+  propertyId: number,
+  photoId: number,
+  contentUrl: string,
+  kind: 'original' | 'thumbnail' = 'original',
+) => {
   const config = usePublicConfig();
   const photoQuery = useQuery({
-    queryKey: propertyQueryKeys.photoContent(propertyId, photoId),
+    queryKey: propertyQueryKeys.photoContent(propertyId, photoId, kind),
     queryFn: ({ signal }) =>
       fetchPhotoContentOrPreview(propertyId, contentUrl, () => fetchPropertyPhotoContent(config, contentUrl, signal)),
     staleTime: Number.POSITIVE_INFINITY,

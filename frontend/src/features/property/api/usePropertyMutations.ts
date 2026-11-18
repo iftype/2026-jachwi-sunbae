@@ -200,7 +200,9 @@ export const useRemovePropertyPhoto = (propertyId: number) => {
     mutationFn: (photoId: number) =>
       blockPreviewSave(propertyId, () => removePropertyPhoto(config, propertyId, photoId)),
     onSuccess: async (_, photoId) => {
-      queryClient.removeQueries({ queryKey: propertyQueryKeys.photoContent(propertyId, photoId), exact: true });
+      for (const kind of ['original', 'thumbnail'] as const) {
+        queryClient.removeQueries({ queryKey: propertyQueryKeys.photoContent(propertyId, photoId, kind), exact: true });
+      }
       await invalidatePhotoAggregates(propertyId);
     },
     onError: async (error) => {

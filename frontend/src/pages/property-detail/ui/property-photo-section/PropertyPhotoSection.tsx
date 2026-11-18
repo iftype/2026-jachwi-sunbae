@@ -55,7 +55,8 @@ const PropertyPhotoSection = ({
                 <AuthenticatedPhoto
                   propertyId={propertyId}
                   photoId={photo.photoId}
-                  contentUrl={photo.contentUrl}
+                  kind="thumbnail"
+                  contentUrl={photo.thumbnailUrl}
                   alt=""
                   className={styles.thumbnail}
                 />

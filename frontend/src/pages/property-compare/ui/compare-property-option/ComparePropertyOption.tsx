@@ -46,7 +46,8 @@ const ComparePropertyOption = ({ property, isSelected, isDisabled, onToggle }: C
         <AuthenticatedPhoto
           propertyId={property.propertyId}
           photoId={property.representativePhoto.photoId}
-          contentUrl={property.representativePhoto.contentUrl}
+          kind="thumbnail"
+          contentUrl={property.representativePhoto.thumbnailUrl}
           alt=""
         />
       )}

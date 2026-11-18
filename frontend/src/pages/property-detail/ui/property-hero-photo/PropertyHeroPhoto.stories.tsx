@@ -15,7 +15,12 @@ const photoBlob = (label: string, color: string) =>
   );
 
 const photos: PropertyPhotoPreview[] = [
-  { photoId: 101, contentUrl: '/api/properties/10/photos/101/content', createdAt: '2026-10-20T14:31:00' },
+  {
+    photoId: 101,
+    contentUrl: '/api/properties/10/photos/101/content',
+    thumbnailUrl: '/api/properties/10/photos/101/thumbnail',
+    createdAt: '2026-10-20T14:31:00',
+  },
 ];
 
 const meta = {

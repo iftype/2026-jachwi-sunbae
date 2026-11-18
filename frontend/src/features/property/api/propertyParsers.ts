@@ -164,7 +164,12 @@ const parseDetailPhoto = (value: unknown): PropertyPhotoPreview | null => {
         })()
       : '1970-01-01T00:00:00Z';
 
-  return { photoId, contentUrl, createdAt };
+  return {
+    photoId,
+    contentUrl,
+    thumbnailUrl: typeof record.thumbnailUrl === 'string' ? readString(record, 'thumbnailUrl') : contentUrl,
+    createdAt,
+  };
 };
 
 const parsePropertySummary = (value: unknown): PropertySummary => {
@@ -183,6 +188,8 @@ const parsePropertySummary = (value: unknown): PropertySummary => {
           return {
             photoId: readInteger(photo, 'id', 1),
             contentUrl: readString(photo, 'url'),
+            thumbnailUrl:
+              typeof photo.thumbnailUrl === 'string' ? readString(photo, 'thumbnailUrl') : readString(photo, 'url'),
             contentType,
           };
         })();
@@ -374,6 +381,12 @@ const parsePropertyPhoto = (value: unknown): PropertyPhoto => {
 
   return {
     photoId: typeof record.photoId === 'number' ? readInteger(record, 'photoId', 1) : readInteger(record, 'id', 1),
+    thumbnailUrl:
+      typeof record.thumbnailUrl === 'string'
+        ? readString(record, 'thumbnailUrl')
+        : typeof record.contentUrl === 'string'
+          ? readString(record, 'contentUrl')
+          : readString(record, 'url'),
     contentUrl: typeof record.contentUrl === 'string' ? readString(record, 'contentUrl') : readString(record, 'url'),
     contentType,
     sizeBytes: readInteger(record, 'sizeBytes', 1),

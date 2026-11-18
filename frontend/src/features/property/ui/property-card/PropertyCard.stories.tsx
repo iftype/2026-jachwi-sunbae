@@ -39,7 +39,12 @@ const sampleProperty: PropertySummary = {
   monthlyRentAmount: 550_000,
   discoverySource: { type: 'TEXT', value: '직방' },
   location: { address: '서울 관악구 신림로 330', latitude: 37.4842, longitude: 126.9297 },
-  representativePhoto: { photoId: 1, contentUrl: '/api/properties/10/photos/1/content', contentType: 'image/jpeg' },
+  representativePhoto: {
+    photoId: 1,
+    contentUrl: '/api/properties/10/photos/1/content',
+    thumbnailUrl: '/api/properties/10/photos/1/thumbnail',
+    contentType: 'image/jpeg',
+  },
   progress,
   stages: [
     {
@@ -67,7 +72,6 @@ const meta = {
       description: '카드에 그릴 매물 요약. 이름·금액·주소·체크리스트 진행률·사진 수가 여기서 나온다.',
     },
     to: { control: 'text', description: '상세 주소. 기본은 /properties/:propertyId' },
-    thumbnailUrl: { control: 'text', description: '대표 사진 대신 쓸 사진 주소' },
     returnTo: {
       control: 'inline-radio',
       options: ['/', '/properties'],
@@ -79,7 +83,7 @@ const meta = {
     actions: { control: false },
   },
   parameters: {
-    queryData: [[propertyQueryKeys.photoContent(10, 1), samplePhoto]],
+    queryData: [[propertyQueryKeys.photoContent(10, 1, 'thumbnail'), samplePhoto]],
   },
   decorators: [
     (Story) => (

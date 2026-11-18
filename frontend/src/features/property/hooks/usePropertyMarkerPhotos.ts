@@ -12,7 +12,7 @@ type PhotoMarkerSource = {
   id: string | number;
   latitude: number | null;
   longitude: number | null;
-  representativePhoto: { photoId: number; contentUrl: string } | null;
+  representativePhoto: { photoId: number; contentUrl: string; thumbnailUrl: string } | null;
 };
 
 /** 마커 사진을 받는 매물 수의 상한. 많은 매물의 사진을 한꺼번에 받지 않게 앞쪽 일부만 쓴다. */
@@ -32,10 +32,10 @@ const usePropertyMarkerPhotos = (records: readonly PhotoMarkerSource[]): Readonl
     queries: withPhoto.map((record) => {
       const photo = record.representativePhoto as NonNullable<PhotoMarkerSource['representativePhoto']>;
       return {
-        queryKey: propertyQueryKeys.photoContent(Number(record.id), photo.photoId),
+        queryKey: propertyQueryKeys.photoContent(Number(record.id), photo.photoId, 'thumbnail'),
         queryFn: ({ signal }: { signal: AbortSignal }) =>
-          fetchPhotoContentOrPreview(Number(record.id), photo.contentUrl, () =>
-            fetchPropertyPhotoContent(config, photo.contentUrl, signal),
+          fetchPhotoContentOrPreview(Number(record.id), photo.thumbnailUrl, () =>
+            fetchPropertyPhotoContent(config, photo.thumbnailUrl, signal),
           ),
         staleTime: Number.POSITIVE_INFINITY,
         gcTime: 0,

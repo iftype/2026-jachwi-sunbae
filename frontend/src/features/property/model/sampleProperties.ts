@@ -16,7 +16,9 @@ export const SAMPLE_PROPERTIES: PropertySummary[] = sampleProperties.properties.
   return {
     ...(property as unknown as PropertySummary),
     representativePhoto:
-      contentUrl === undefined ? null : { photoId: PREVIEW_PHOTO_ID, contentUrl, contentType: 'image/webp' },
+      contentUrl === undefined
+        ? null
+        : { photoId: PREVIEW_PHOTO_ID, contentUrl, thumbnailUrl: contentUrl, contentType: 'image/webp' },
   };
 });
 

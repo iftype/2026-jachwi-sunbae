@@ -16,6 +16,7 @@ const samplePhoto = new Blob(
 const photo: PropertyPhoto = {
   photoId: 1,
   contentUrl: '/api/properties/10/photos/1/content',
+  thumbnailUrl: '/api/properties/10/photos/1/thumbnail',
   contentType: 'image/jpeg',
   sizeBytes: 820_000,
   createdAt: '2026-10-20T14:10:00+09:00',
@@ -43,7 +44,7 @@ const meta = {
     },
   },
   parameters: {
-    queryData: [[propertyQueryKeys.photoContent(10, 1), samplePhoto]],
+    queryData: [[propertyQueryKeys.photoContent(10, 1, 'thumbnail'), samplePhoto]],
   },
   decorators: [
     (Story) => (

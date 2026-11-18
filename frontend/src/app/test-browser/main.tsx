@@ -122,6 +122,7 @@ const photos = Array.from({ length: 8 }, (_, index) => ({
   ...photoFixture,
   photoId: 81 + index,
   contentUrl: `/api/properties/10/photos/${81 + index}`,
+  thumbnailUrl: `/api/properties/10/photos/${81 + index}/thumbnail`,
   createdAt: `2026-08-10T07:${String(35 + index).padStart(2, '0')}:00Z`,
 }));
 const photoResponses = photos.map((photo) => propertyPhotoResponseFixture(photo));

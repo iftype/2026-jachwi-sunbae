@@ -500,6 +500,7 @@ describe('FE-2 사진과 삭제 확인', () => {
                 ...photoFixture,
                 photoId: 82,
                 contentUrl: '/api/properties/10/photos/82',
+                thumbnailUrl: '/api/properties/10/photos/82/thumbnail',
               }),
             ],
             totalCount: 2,
@@ -653,7 +654,7 @@ describe('FE-2 사진과 삭제 확인', () => {
     await user.click(deleteButton);
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: '취소' }));
     expect(deleteCalls).toBe(0);
-    expect(screen.getByRole('img', { name: '업로드 순 1번째 사진' })).toBeInTheDocument();
+    expect(await screen.findByRole('img', { name: '업로드 순 1번째 사진' })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: '업로드 순 1번째 사진 삭제' }));
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: '사진 삭제' }));
@@ -670,6 +671,7 @@ describe('FE-2 사진과 삭제 확인', () => {
         ...photoFixture,
         photoId: 82,
         contentUrl: '/api/properties/10/photos/82',
+        thumbnailUrl: '/api/properties/10/photos/82/thumbnail',
         representative: false,
       },
     ];
@@ -731,7 +733,7 @@ describe('FE-2 사진과 삭제 확인', () => {
     const dialog = screen.getByRole('dialog');
     await user.click(within(dialog).getByRole('button', { name: '사진 삭제' }));
     expect(await within(dialog).findByText(/사진은 화면에서 제거하지 않았어요/)).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: '업로드 순 1번째 사진' })).toBeInTheDocument();
+    expect(await screen.findByRole('img', { name: '업로드 순 1번째 사진' })).toBeInTheDocument();
   });
 
   it('매물 삭제는 확인 없이 바로 처리하고 기록 화면으로 이동한다', async () => {
