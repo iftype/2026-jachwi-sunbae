@@ -70,6 +70,8 @@ const meta = {
     selectedIds: [1, 2],
     maxSelection: 5,
     onToggle: fn(),
+    previewId: undefined,
+    onPreview: fn(),
   },
   argTypes: {
     properties: { control: false },
