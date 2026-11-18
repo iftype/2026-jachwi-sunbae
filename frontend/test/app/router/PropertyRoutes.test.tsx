@@ -56,10 +56,11 @@ const renderAuthenticated = (path: string, state?: unknown) => {
 
 it.each([
   // 인프라 지도는 기록 화면으로 합쳐서 예전 상태로 열린 상세는 기록 화면으로 돌아간다.
-  [{ returnTo: '/map' }, '기록 화면으로 돌아가기', '/properties'],
-  [{ returnTo: '/' }, '홈으로 돌아가기', '/'],
-  [undefined, '기록 화면으로 돌아가기', '/properties'],
-  [{ returnTo: 'https://other.example' }, '기록 화면으로 돌아가기', '/properties'],
+  [{ returnTo: '/map' }, '기록 화면으로 돌아가기', '/'],
+  // 홈이 곧 기록 화면이라 홈에서 연 상세도 같은 곳으로 돌아간다.
+  [{ returnTo: '/' }, '기록 화면으로 돌아가기', '/'],
+  [undefined, '기록 화면으로 돌아가기', '/'],
+  [{ returnTo: 'https://other.example' }, '기록 화면으로 돌아가기', '/'],
 ])('상세의 돌아가기 목적지는 진입 화면을 따르고 외부 주소는 허용하지 않는다 (%j)', async (state, label, href) => {
   server.use(
     http.get(`${config.apiBaseUrl}/api/properties/10`, () => HttpResponse.json(successEnvelope(detailWithoutPhotos))),
@@ -782,7 +783,7 @@ describe('FE-2 사진과 삭제 확인', () => {
     renderAuthenticated('/properties/99');
 
     expect(await screen.findByText('매물을 찾을 수 없어요.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '기록 화면으로 돌아가기' })).toHaveAttribute('href', '/properties');
+    expect(screen.getByRole('link', { name: '기록 화면으로 돌아가기' })).toHaveAttribute('href', '/');
     expect(screen.queryByRole('button', { name: '다시 시도' })).not.toBeInTheDocument();
   });
 });

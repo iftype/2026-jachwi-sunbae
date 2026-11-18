@@ -27,7 +27,7 @@ it('시나리오마다 짧은 순서와 그 기능으로 가는 링크를 둔다
   const memo = screen.getByRole('heading', { name: /거리 메모 남기기/ }).closest('li')!;
   expect(within(memo).getByText('좋아요, 싫어요와 한 줄 남기기')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: '동네 찾아보기' })).toHaveAttribute('href', '/neighborhoods');
-  expect(screen.getByRole('link', { name: '기록 지도 열기' })).toHaveAttribute('href', '/properties');
-  expect(screen.getByRole('link', { name: '기록 지도에서 등록하기' })).toHaveAttribute('href', '/properties?view=map');
+  expect(screen.getByRole('link', { name: '기록 지도 열기' })).toHaveAttribute('href', '/');
+  expect(screen.getByRole('link', { name: '기록 지도에서 등록하기' })).toHaveAttribute('href', '/?view=map');
   expect(screen.getByRole('link', { name: '체크리스트 보기' })).toHaveAttribute('href', '/checklists');
 });

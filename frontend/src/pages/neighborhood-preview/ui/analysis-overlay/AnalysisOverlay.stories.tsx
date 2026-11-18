@@ -46,6 +46,8 @@ const meta = {
     maxMinutes: 40,
     isMockData: false,
     reset: fn(),
+    retry: fn(),
+    editSearch: fn(),
   },
 } satisfies Meta<StoryArgs>;
 

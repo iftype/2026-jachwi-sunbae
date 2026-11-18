@@ -2,9 +2,9 @@ import { css } from '@emotion/css';
 import type { ReactNode } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 
-import iconProfile from '@/shared/assets/icon-profile.webp';
 import { LOGO_DUCK } from '@/shared/assets/imageAssets';
 import { COMPARE_PATH, HOME_PATH, MY_PATH, NEIGHBORHOODS_PATH, RECORDS_PATH } from '@/shared/lib/navigation/appPaths';
+import IdentityPlaceholder from '@/shared/ui/identity-placeholder/IdentityPlaceholder';
 
 import { useRegisterDesktopHeaderSlot } from './DesktopHeaderSlot';
 
@@ -47,7 +47,7 @@ const DesktopHeader = ({ className, center }: DesktopHeaderProps) => {
         ))}
       </nav>
       <NavLink className={styles.profile} to={MY_PATH} aria-label="마이페이지">
-        <img src={iconProfile} alt="" width={96} height={96} />
+        <IdentityPlaceholder size={44} />
       </NavLink>
     </header>
   );

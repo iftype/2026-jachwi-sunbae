@@ -215,12 +215,12 @@ describe('지도 주소', () => {
 
   it('돌아갈 수정 화면 없이 위치 선택 주소로 들어오면 본 방 기록으로 보낸다', async () => {
     renderAuthenticated('/map/select-location');
-    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(/^\/properties$/));
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(/^\/$/));
     expect(screen.queryByRole('region', { name: '매물 위치 선택 지도' })).not.toBeInTheDocument();
   });
 
   it.each([
-    ['/map', '/properties'],
+    ['/map', '/'],
     ['/map/1', '/properties/1'],
   ])('예전 인프라 지도 주소 %s는 본 방 기록(%s)으로 보낸다', async (from, to) => {
     renderAuthenticated(from);

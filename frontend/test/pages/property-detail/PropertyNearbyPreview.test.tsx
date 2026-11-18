@@ -41,11 +41,12 @@ beforeEach(() => {
       success({
         center: CENTER,
         radius: 500,
-        counts: { HOSPITAL: 1, SCHOOL: 0, CONVENIENCE: 2, AGENCY: 0 },
+        counts: { HOSPITAL: 1, SCHOOL: 1, CONVENIENCE: 2, AGENCY: 0 },
         places: [
           place('c1', '신림 편의점', 'CONVENIENCE', 120),
           place('c2', '역앞 편의점', 'CONVENIENCE', 300),
           place('h1', '신림 의원', 'HOSPITAL', 250),
+          place('school1', '신림 학교', 'SCHOOL', 150),
         ],
       }),
     ),
@@ -70,7 +71,7 @@ const renderPreview = () =>
     </QueryClientProvider>,
   );
 
-it('500m 안 시설 수와 가장 가까운 거리를 범례로 보이고, 시설을 모두 지도에 올린다', async () => {
+it('학교를 제외한 500m 안 시설 수와 거리를 범례와 지도에 보인다', async () => {
   renderPreview();
 
   expect(await screen.findByLabelText('500m 안 시설 4곳')).toHaveTextContent('4');
@@ -78,7 +79,8 @@ it('500m 안 시설 수와 가장 가까운 거리를 범례로 보이고, 시�
   expect(legend.getByRole('button', { name: /편의점/ })).toHaveTextContent('편의점2120m');
   expect(legend.getByRole('button', { name: /교통/ })).toHaveTextContent('교통190m');
   // 없는 시설은 누를 수 없다.
-  expect(legend.getByRole('button', { name: /학교/ })).toBeDisabled();
+  expect(legend.queryByRole('button', { name: /학교/ })).not.toBeInTheDocument();
+  expect(legend.getByRole('button', { name: /중개/ })).toBeDisabled();
 
   const markers = within(screen.getByRole('list', { name: '주변 지도 마커' }));
   expect(markers.getAllByRole('listitem').map((item) => item.textContent)).toEqual([

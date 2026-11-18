@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from '@storybook/react-webpack5';
 import { propertyQueryKeys } from '@/features/property/api/propertyQueryKeys';
 import type { PropertyChecklistProgress, PropertyPage, PropertySummary } from '@/features/property/model/Property';
 
-import RecordsMobilePage from './RecordsMobilePage';
+import RecordsMobilePage from '../DesignRecordsPage';
 
 const progress = (completedCount: number, totalCount: number): PropertyChecklistProgress => ({
   totalCount,

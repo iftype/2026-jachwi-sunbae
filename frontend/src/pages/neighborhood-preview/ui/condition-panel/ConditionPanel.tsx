@@ -5,6 +5,7 @@ import { SegmentedControl, SegmentedControlItem } from '@/shared/ui/segmented-co
 
 import type { NeighborhoodPreviewContext } from '../../hooks/useNeighborhoodPreview';
 import { MINUTE_OPTIONS } from '../../NeighborhoodFilters';
+import RentSlider from '../rent-slider/RentSlider';
 
 type ConditionPanelProps = {
   preview: Pick<
@@ -20,9 +21,14 @@ type ConditionPanelProps = {
     | 'maxTransfers'
     | 'changeMaxTransfers'
     | 'isValidCommuteTime'
+    | 'maxRent'
+    | 'changeMaxRent'
   >;
   disabled: boolean;
   onSubmit: () => void;
+  includeRent?: boolean;
+  canSubmit?: boolean;
+  submitLabel?: string;
 };
 
 /**
@@ -30,10 +36,17 @@ type ConditionPanelProps = {
  * 데스크탑은 본 방 기록처럼 왼쪽 칸에 출퇴근 장소·조건·찾기 버튼을 펼쳐 두고 지도는 위치를 찍는 데만 쓴다.
  * 월세 시세는 찾기 전에 고르지 않는다. 결과 지도 위 슬라이더에서 언제든 바꿔 가며 바로 본다.
  */
-const ConditionPanel = ({ preview, disabled, onSubmit }: ConditionPanelProps) => {
+const ConditionPanel = ({
+  preview,
+  disabled,
+  onSubmit,
+  includeRent = false,
+  canSubmit = true,
+  submitLabel = '이 조건으로 동네 찾기',
+}: ConditionPanelProps) => {
   return (
     <aside className={styles.panel} aria-label="탐색 조건">
-      <h2>어디로 출퇴근·통학하세요?</h2>
+      <h2>어디로 출퇴근하세요?</h2>
       <section className={styles.place} aria-label="출퇴근 장소">
         {preview.hasChosenMapPoint ? (
           <>
@@ -72,13 +85,19 @@ const ConditionPanel = ({ preview, disabled, onSubmit }: ConditionPanelProps) =>
           ))}
         </SegmentedControl>
       </fieldset>
+      {includeRent && (
+        <fieldset className={styles.field} disabled={disabled}>
+          <legend className="sr-only">월세 조건</legend>
+          <RentSlider preview={preview} compact />
+        </fieldset>
+      )}
       <Button
         className={styles.submit}
         fullWidth
-        disabled={disabled || !preview.hasChosenMapPoint || !preview.isValidCommuteTime}
+        disabled={disabled || !canSubmit || !preview.hasChosenMapPoint || !preview.isValidCommuteTime}
         onClick={onSubmit}
       >
-        이 조건으로 동네 찾기
+        {submitLabel}
       </Button>
     </aside>
   );

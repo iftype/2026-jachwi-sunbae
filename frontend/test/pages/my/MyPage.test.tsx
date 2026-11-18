@@ -137,6 +137,7 @@ describe('마이 화면', () => {
     expect(screen.getByRole('link', { name: /개인정보 처리방침/ })).toHaveAttribute('href', '/privacy');
     const tools = within(screen.getByRole('navigation', { name: '내 도구' }));
     expect(tools.getAllByRole('link').map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
+      ['방 비교', '/compare'],
       ['체크리스트', '/checklists'],
       ['저렴한 한 끼', '/cheap-meals'],
       ['사용방법', '/guide'],

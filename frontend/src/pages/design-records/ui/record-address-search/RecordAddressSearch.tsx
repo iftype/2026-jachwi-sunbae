@@ -106,7 +106,7 @@ const styles = {
     height: 2.5rem;
     box-sizing: border-box;
     background: white;
-    box-shadow: 0 1px 4px rgb(0 0 0 / 6%);
+    box-shadow: none;
 
     & input {
       min-height: 0;

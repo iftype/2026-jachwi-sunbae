@@ -1,13 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 
+import { useRecordsMapController } from '@/pages/design-records/RecordsMapProvider';
 import { formatManwon } from '@/features/map/api/commuteApi';
 import useViewportFacilityLayer from '@/features/map/hooks/useViewportFacilityLayer';
+import {
+  DESKTOP_FACILITY_MARKER_LEVEL,
+  FACILITY_MARKER_LEVEL,
+  facilityFocusLevel,
+  facilityMarkersVisible,
+} from '@/features/map/lib/mapFacilityVisibility';
 import type { MapCategory, MapMarker } from '@/features/map/model/Map';
 import type { MapCanvasProps, MapRegion } from '@/features/map/model/MapCanvas';
 import { usePropertyCommuteTimes, usePropertyList } from '@/features/property/api/useProperties';
 import usePropertyMarkerPhotos from '@/features/property/hooks/usePropertyMarkerPhotos';
 import { PROPERTY_PLACEHOLDER } from '@/shared/assets/propertyImageAssets';
 import useDebouncedValue from '@/shared/lib/hooks/useDebouncedValue';
+import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
 
 import type { MyPropertyRow } from '../model/myProperty';
 import { propertyCommuteLabel } from '../model/propertyCommute';
@@ -50,6 +58,10 @@ const useNeighborhoodMapView = (
   preview: NeighborhoodPreviewContext,
   { showAreaAction = true, onEmptyTap, deselectOnRegionTap = false, onSelectedRegionTap }: MapViewOptions = {},
 ) => {
+  const recordsController = useRecordsMapController();
+  const registration = preview.isPublicExplore ? null : recordsController?.layers;
+  const isDesktop = useIsDesktop();
+  const markerLevel = isDesktop ? DESKTOP_FACILITY_MARKER_LEVEL : FACILITY_MARKER_LEVEL;
   const isResultMap = !preview.isAnalyzing && !preview.error && !preview.isSelectingOnMap;
   const [railSelection, setRailSelection] = useState<RailSelection | null>(null);
   const facilityCategory = railSelection === 'MY' ? null : railSelection;
@@ -58,6 +70,7 @@ const useNeighborhoodMapView = (
   // 중개사(전화, 카카오 링크가 있는 중개사 응답)와 교통(버스정류장 응답)은 화면 안 장소 조회로 받는다.
   // 병원, 편의점은 화면을 칸으로 나눠 받는다(`useViewportFacilityLayer`). 둘 다 가까이 확대했을 때만 받는다.
   const places = useNeighborhoodPlaces(isResultMap, {
+    markerLevel,
     loadsAgencies: facilityCategory === 'AGENCY',
     loadsBusStops: showsTransport,
   });
@@ -138,6 +151,11 @@ const useNeighborhoodMapView = (
   const selectRail = (next: RailSelection) => {
     const value = railSelection === next ? null : next;
     preview.toggleMapCategory(next, value !== null);
+    if (
+      value !== null &&
+      !facilityMarkersVisible(isResultMap ? preview.resultLevel : preview.selectionLevel, markerLevel)
+    )
+      preview.zoomToFacilities(facilityFocusLevel(markerLevel));
     places.closePlace();
     setRailSelection(value);
   };
@@ -198,10 +216,12 @@ const useNeighborhoodMapView = (
   const candidateMarkers = useMemo(
     () => [
       ...(preview.hasChosenMapPoint
-        ? [{ ...preview.mapCandidate, id: 'candidate', label: DESTINATION_LABEL, tone: 'destination' as const }]
-        : []),
+        ? [{ ...preview.mapCandidate, id: 'destination', label: DESTINATION_LABEL, tone: 'destination' as const }]
+        : preview.hasSubmittedSearch
+          ? [{ ...preview.destination, id: 'destination', label: DESTINATION_LABEL, tone: 'destination' as const }]
+          : []),
     ],
-    [preview.mapCandidate, preview.hasChosenMapPoint],
+    [preview.mapCandidate, preview.hasChosenMapPoint, preview.hasSubmittedSearch, preview.destination],
   );
   const mapProps: Pick<MapCanvasProps, 'center'> & Partial<MapCanvasProps> = isResultMap
     ? {
@@ -218,7 +238,7 @@ const useNeighborhoodMapView = (
         onSelectMarker: selectMarker,
         // 빈 곳을 찍으면 열어 둔 정보를 닫는다(휴대폰은 시트를 내린다).
         onSelectLocation: tapEmpty,
-        regions: preview.regions,
+        regions: preview.areRegionsVisible ? preview.regions : NO_REGIONS,
         selectedRegionId: preview.selected?.adminDongCode,
         onSelectRegion: selectRegion,
         coordinateAction:
@@ -238,13 +258,54 @@ const useNeighborhoodMapView = (
         onCenterChange: preview.rememberSelectionCenter,
         onLevelChange: preview.rememberSelectionLevel,
         markers: candidateMarkers,
-        regions: NO_REGIONS,
+        regions: preview.hasSubmittedSearch && preview.areRegionsVisible ? preview.regions : NO_REGIONS,
         // 분석 중이거나 실패 화면이 지도를 덮고 있을 때는 위치 찍기를 끈다.
         onSelectLocation: preview.isSelectingOnMap ? preview.chooseMapPoint : undefined,
       };
+  const baseSelectLocation = mapProps.onSelectLocation;
+  const baseSelectMarker = mapProps.onSelectMarker;
+  const baseBoundsChange = mapProps.onBoundsChange;
+  const baseLevelChange = mapProps.onLevelChange;
+  const composedProps: MapCanvasProps = registration
+    ? {
+        ...mapProps,
+        markers: [
+          ...(mapProps.markers ?? []),
+          ...(registration.canvasProps.markers ?? []).filter((marker) => marker.category === 'MEMO'),
+        ],
+        coordinateMenu: preview.isMapSelectionEnabled ? undefined : registration.coordinateMenu,
+        onSelectRegion: (id, point) => {
+          if (preview.isSelectingOnMap && preview.isMapSelectionEnabled && point)
+            preview.chooseMapPoint(point.latitude, point.longitude);
+          else {
+            selectRegion(id);
+            if (point) registration.canvasProps.onSelectLocation?.(point.latitude, point.longitude);
+          }
+        },
+        onSelectLocation: (latitude, longitude) => {
+          if (preview.isSelectingOnMap && preview.isMapSelectionEnabled) baseSelectLocation?.(latitude, longitude);
+          else {
+            tapEmpty();
+            registration.canvasProps.onSelectLocation?.(latitude, longitude);
+          }
+        },
+        onSelectMarker: (marker) => {
+          if (marker.category === 'MEMO') registration.canvasProps.onSelectMarker?.(marker);
+          else baseSelectMarker?.(marker);
+        },
+        onLevelChange: (level) => {
+          baseLevelChange?.(level);
+          recordsController?.setInteractionLevel(level);
+        },
+        onBoundsChange: (bounds) => {
+          baseBoundsChange?.(bounds);
+          registration.canvasProps.onBoundsChange?.(bounds);
+        },
+      }
+    : mapProps;
   return {
     isResultMap,
-    mapProps,
+    mapProps: composedProps,
     places,
     /** 결과 지도 오른쪽에 처음부터 두는 분류 레일(중개사, 병원, 교통, 편의, My)의 값. */
     rail: {
@@ -255,21 +316,11 @@ const useNeighborhoodMapView = (
       },
       order: RESULT_RAIL_ORDER,
       labels: RESULT_RAIL_LABELS,
-      /** 시설 분류 아래에 붙이는 `My` 칸. */
-      extraItems: [
-        {
-          key: 'MY',
-          label: 'My',
-          ariaLabel: `내 매물 통근 시간 ${showsMy ? '숨기기' : '표시하기'}`,
-          selected: showsMy,
-          onToggle: () => selectRail('MY'),
-        },
-      ],
     },
     /** 레일에서 켠 칸. 없으면 null이다. */
     railSelection,
     /** 시설 칸을 켰지만 멀리 보고 있어 시설을 받지 않는 중인지. 화면은 `가까이 확대하면 보여요`를 띄운다. */
-    needsZoomForFacilities: facilityCategory !== null && !places.isClose,
+    needsZoomForFacilities: isResultMap && !facilityMarkersVisible(preview.resultLevel, markerLevel),
     /** 켠 레일 칸을 끈다(My 목록을 닫았을 때). */
     clearRail: () => {
       if (railSelection !== null) selectRail(railSelection);

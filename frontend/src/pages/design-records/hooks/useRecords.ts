@@ -1,25 +1,31 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useLocation } from 'react-router-dom';
 
-import {
-  DEFAULT_MAP_CENTER,
-  type MapCoordinate,
-  MapLocationError,
-  requestCurrentMapLocation,
-} from '@/features/map/lib/mapLocation';
+import { type MapCoordinate, MapLocationError, requestCurrentMapLocation } from '@/features/map/lib/mapLocation';
 import type { MapMarker } from '@/features/map/model/Map';
 import { usePropertyList } from '@/features/property/api/useProperties';
 import usePropertyMarkerPhotos from '@/features/property/hooks/usePropertyMarkerPhotos';
 import { takeMovedProperty } from '@/features/property/model/movedProperty';
-import { withPreviewProperties } from '@/features/property/model/sampleProperties';
+import {
+  hiddenPreviewSnapshot,
+  parseHiddenPreviewIds,
+  subscribeHiddenPreviews,
+} from '@/features/property/model/previewPropertyDismissal';
+import {
+  isPreviewProperty,
+  SAMPLE_PROPERTIES_VIEW,
+  withPreviewProperties,
+} from '@/features/property/model/sampleProperties';
 import { PROPERTY_PLACEHOLDER } from '@/shared/assets/propertyImageAssets';
 
 import { recordPresentation } from '../model/recordPresentation';
 
-type RecordsLocationState = { focusHeading?: boolean } | null;
-
 /** 화면 밖(주소 등)에서 정하는 선택 매물. 넘기지 않으면 화면 안 상태로 고른다. */
-type RecordsSelection = { selectedId: string | null; setSelectedId: (id: string | null) => void };
+type RecordsSelection = {
+  selectedId: string | null;
+  setSelectedId: (id: string | null) => void;
+  focusCenter?: (point: MapCoordinate, level: number, opensDetail: boolean) => MapCoordinate;
+};
 
 /**
  * 본 방 기록 화면의 데이터·동네 필터·선택·지도 위치. 데스크탑·휴대폰 화면이 함께 쓴다.
@@ -27,22 +33,27 @@ type RecordsSelection = { selectedId: string | null; setSelectedId: (id: string 
  */
 const useRecords = (selection?: RecordsSelection) => {
   const location = useLocation();
-  const locationState = location.state as RecordsLocationState;
+  const locationState: unknown = location.state;
   const headingRef = useRef<HTMLHeadingElement>(null);
   // 상세에서 매물을 삭제하고 돌아오면 화면 제목으로 포커스를 옮긴다.
-  const shouldFocusHeading = locationState?.focusHeading === true;
+  const shouldFocusHeading =
+    typeof locationState === 'object' &&
+    locationState !== null &&
+    'focusHeading' in locationState &&
+    locationState.focusHeading === true;
   useEffect(() => {
     if (shouldFocusHeading) headingRef.current?.focus();
   }, [shouldFocusHeading]);
 
   const properties = usePropertyList();
+  const hiddenPreviewValue = useSyncExternalStore(subscribeHiddenPreviews, hiddenPreviewSnapshot);
+  const hiddenPreviewIds = useMemo(() => parseHiddenPreviewIds(hiddenPreviewValue), [hiddenPreviewValue]);
   const allRecords = useMemo(
     () =>
-      withPreviewProperties(
-        properties.data?.pages.flatMap((page) => page.content) ?? [],
-        properties.isSuccess,
-      ).properties.map(recordPresentation),
-    [properties.data, properties.isSuccess],
+      withPreviewProperties(properties.data?.pages.flatMap((page) => page.content) ?? [], properties.isSuccess)
+        .properties.filter((property) => !hiddenPreviewIds.includes(property.propertyId))
+        .map(recordPresentation),
+    [properties.data, properties.isSuccess, hiddenPreviewIds],
   );
   // 주소가 없는 매물도 `주소 미등록` 뱃지로 모아 보여 준다.
   const districts = ['전체', ...new Set(allRecords.map((record) => record.district))];
@@ -56,9 +67,12 @@ const useRecords = (selection?: RecordsSelection) => {
   const [localSelectedId, setLocalSelectedId] = useState<string | null>(null);
   const selectedId = selection ? selection.selectedId : localSelectedId;
   const setSelectedId = selection ? selection.setSelectedId : setLocalSelectedId;
-  const [center, setCenter] = useState(DEFAULT_MAP_CENTER);
-  const [level, setLevel] = useState(8);
+  // 기록을 받기 전에는 미리보기 매물 자리에서 시작한다. 기록이 오면 아래에서 첫 기록 자리로 한 번 옮긴다.
+  const [center, setCenter] = useState<MapCoordinate>(SAMPLE_PROPERTIES_VIEW);
+  const [level, setLevel] = useState(SAMPLE_PROPERTIES_VIEW.level);
   const [notice, setNotice] = useState('');
+  const focus = (point: MapCoordinate, nextLevel = level, opensDetail = false) =>
+    setCenter(selection?.focusCenter?.(point, nextLevel, opensDetail) ?? point);
   // 지도에서 방금 만든 매물. 그 핀은 아래에서 떠오르며 나타나 새로 생긴 자리를 알린다.
   const [createdId, setCreatedId] = useState<string | null>(null);
   const records = useMemo(
@@ -77,18 +91,19 @@ const useRecords = (selection?: RecordsSelection) => {
     hasCentered.current = true;
     setDistrict('전체');
     if (selectedId !== movedId) setSelectedId(movedId);
-    setCenter({ latitude: moved.latitude, longitude: moved.longitude });
-    setLevel((current) => Math.min(current, 4));
+    focus({ latitude: moved.latitude, longitude: moved.longitude }, level, true);
   }, [allRecords, selectedId, setSelectedId]);
 
-  // 기록을 처음 받았을 때만 첫 기록 자리로 지도를 옮긴다. 매물을 만들거나 지워 목록을 다시 받을 때마다 옮기면
-  // 방금 만든 매물로 다가간 지도가 다른 자리로 튄다.
+  // 기록을 처음 받았을 때만 첫 기록 자리로 지도를 옮긴다. 확대 단계는 그대로 둔다.
+  // 매물을 만들거나 지워 목록을 다시 받을 때마다 옮기면 보고 있던 지도가 다른 자리로 튄다.
   useEffect(() => {
     if (hasCentered.current) return;
     const first = allRecords.find((record) => record.latitude !== null && record.longitude !== null);
-    if (first && first.latitude !== null && first.longitude !== null) {
-      hasCentered.current = true;
-      setCenter({ latitude: first.latitude, longitude: first.longitude });
+    if (first === undefined) return;
+    hasCentered.current = true;
+    // 미리보기 매물은 첫 시점(`SAMPLE_PROPERTIES_VIEW`)이 이미 모두 담고 있다.
+    if (!isPreviewProperty(first.id) && first.latitude !== null && first.longitude !== null) {
+      focus({ latitude: first.latitude, longitude: first.longitude });
     }
   }, [allRecords]);
 
@@ -120,12 +135,10 @@ const useRecords = (selection?: RecordsSelection) => {
    * 지도에서 방금 만든 매물을 알린다. 동네 필터를 풀고 그 자리로 다가가 매물을 고르며, 핀은 떠오르며 나타난다.
    * 등록 화면이나 상세로 넘어가지 않고 지도에 머물러, 어디에 생겼는지 바로 보게 한다.
    */
-  const revealCreated = (propertyId: string, location: MapCoordinate) => {
+  const revealCreated = (propertyId: string, _location: MapCoordinate) => {
     setDistrict('전체');
     setCreatedId(propertyId);
     setSelectedId(propertyId);
-    setCenter({ latitude: location.latitude, longitude: location.longitude });
-    setLevel((current) => Math.min(current, 4));
   };
 
   /**
@@ -145,8 +158,8 @@ const useRecords = (selection?: RecordsSelection) => {
       const current = inDistrict.findIndex((record) => record.id === selectedId);
       const target = inDistrict[(current + 1) % inDistrict.length];
       setSelectedId(target.id);
-      setCenter({ latitude: target.latitude as number, longitude: target.longitude as number });
-      setLevel((currentLevel) => Math.min(currentLevel, 5));
+      if (target.latitude !== null && target.longitude !== null)
+        focus({ latitude: target.latitude, longitude: target.longitude }, level, true);
       return;
     }
     setDistrict(next);
@@ -157,8 +170,7 @@ const useRecords = (selection?: RecordsSelection) => {
     const opened = options?.open === true && first !== undefined;
     setSelectedId(opened ? first.id : null);
     if (first && first.latitude !== null && first.longitude !== null)
-      setCenter({ latitude: first.latitude, longitude: first.longitude });
-    setLevel(next === '전체' ? 8 : 5);
+      focus({ latitude: first.latitude, longitude: first.longitude }, level, opened);
   };
 
   /**
@@ -169,13 +181,12 @@ const useRecords = (selection?: RecordsSelection) => {
     setSelectedId(recordId);
     const record = records.find((item) => item.id === recordId);
     if (record !== undefined && record.latitude !== null && record.longitude !== null)
-      setCenter({ latitude: record.latitude, longitude: record.longitude });
+      focus({ latitude: record.latitude, longitude: record.longitude }, level, true);
   };
 
   /** 주소 검색 결과처럼 고른 자리로 지도를 옮기고 동네 수준으로 확대한다. */
   const moveTo = (coordinate: MapCoordinate) => {
-    setCenter({ latitude: coordinate.latitude, longitude: coordinate.longitude });
-    setLevel(4);
+    focus(coordinate, level);
   };
 
   /**

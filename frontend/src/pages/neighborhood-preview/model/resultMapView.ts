@@ -1,23 +1,9 @@
+import { FACILITY_MARKER_LEVEL, facilityMarkersVisible } from '@/features/map/lib/mapFacilityVisibility';
 import type { MapCoordinate } from '@/features/map/lib/mapLocation';
 
-/**
- * 이 확대 단계(작을수록 가까움) 이하로 다가가면 화면 안의 정류장, 부동산을 올린다. 축척 500m 화면 정도다.
- * 동네나 출발 정류장을 고르면 경로 전체가 보이게 멀리 둘 수 있어(`routeFocusView`), 그때는 더 다가가야 마커가 보인다.
- */
-export const PLACES_SHOW_LEVEL = 7.5;
-/**
- * 한 번 올린 마커는 이 단계보다 멀어져야 거둔다. 데스크탑 휠은 한 칸에 0.15단계씩 소수로 멈춰,
- * 올리고 거두는 기준이 같으면 6.36과 6.51을 오갈 때마다 마커가 꺼졌다 켜진다.
- * 반 단계(휠 세 칸) 여유를 둔다. 더 멀리 두면 화면이 조회 반경(최대 2km)보다 훨씬 넓어져 가장자리가 빈다.
- */
-export const PLACES_HIDE_LEVEL = 8;
-
-/**
- * 지도가 멈춘 확대 단계로 마커를 올릴지 정한다. 이미 올렸으면 `PLACES_HIDE_LEVEL`까지 유지한다.
- * 지도는 6.5로 옮겨도 6.4999999나 6.5000001로 멈추므로 소수 둘째 자리에서 반올림해 비교한다.
- */
-export const nextPlacesVisible = (wasVisible: boolean, level: number) =>
-  Math.round(level * 100) / 100 <= (wasVisible ? PLACES_HIDE_LEVEL : PLACES_SHOW_LEVEL);
+/** 확대하거나 축소하는 방향과 관계없이 같은 단계에서 시설 마커를 표시한다. 작은 값일수록 가까운 지도다. */
+export const PLACES_SHOW_LEVEL = FACILITY_MARKER_LEVEL;
+export const nextPlacesVisible = facilityMarkersVisible;
 
 /** 동네를 고를 때 가장 가까이 다가가는 단계(작을수록 가까움). 작은 동네도 이보다 다가가 골목만 보이게 하지 않는다. */
 export const AREA_FOCUS_MIN_LEVEL = 5;
@@ -115,6 +101,7 @@ export const routeFocusView = (
   points: readonly MapCoordinate[],
   polygons: readonly (readonly (readonly MapCoordinate[])[])[] = [],
   viewport?: MapViewport,
+  maximumLevel = RESULT_OVERVIEW_LEVEL,
 ): MapCoordinate & { level: number } => {
   const all = [...points, ...outerRingPoints(polygons)];
   // 지도 칸을 알면 가려지지 않는 칸의 일부에 담고, 모르면(첫 렌더, 테스트) 정해 둔 칸에 담는다.
@@ -123,7 +110,7 @@ export const routeFocusView = (
     width: Math.max(MIN_FIT_SIZE, viewport.width - padding.left - padding.right) * VIEWPORT_FIT_RATIO,
     height: Math.max(MIN_FIT_SIZE, viewport.height - padding.top - padding.bottom) * VIEWPORT_FIT_RATIO,
   };
-  const level = fitLevel(all, AREA_FOCUS_MIN_LEVEL, RESULT_OVERVIEW_LEVEL, AREA_FOCUS_FALLBACK_LEVEL, size);
+  const level = fitLevel(all, AREA_FOCUS_MIN_LEVEL, maximumLevel, AREA_FOCUS_FALLBACK_LEVEL, size);
   if (!all.length) return { latitude: 0, longitude: 0, level };
   const latitudes = all.map((point) => point.latitude);
   const longitudes = all.map((point) => point.longitude);

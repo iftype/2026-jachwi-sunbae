@@ -1,14 +1,17 @@
+import { lazy, Suspense } from 'react';
+
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
 import AreaSkeleton from '@/shared/ui/area-skeleton/AreaSkeleton';
-import DesktopHeader from '@/shared/ui/desktop-header/DesktopHeader';
-import { DesktopHeaderSlotProvider } from '@/shared/ui/desktop-header/DesktopHeaderSlot';
 import ListDetailLayout from '@/shared/ui/list-detail-layout/ListDetailLayout';
+import MapListHeader from '@/shared/ui/map-list-header/MapListHeader';
+import MapViewSwitch from '@/shared/ui/map-view-switch/MapViewSwitch';
 
 import useRecordsView from './hooks/useRecordsView';
-import RecordsMobileHeader from './mobile/RecordsMobileHeader';
 
 import * as desktopStyles from './desktop/RecordsDesktopPage.styles';
 import * as mobileStyles from './mobile/RecordsMobilePage.styles';
+
+const RecordsMobileHeader = lazy(() => import('./mobile/RecordsMobileHeader'));
 
 export const RECORDS_LOADING_LABEL = '기록을 불러오는 중이에요.';
 
@@ -22,19 +25,22 @@ export const RECORDS_LOADING_LABEL = '기록을 불러오는 중이에요.';
 const RecordsPageSkeleton = () => (useIsDesktop() ? <DesktopSkeleton /> : <MobileSkeleton />);
 
 const DesktopSkeleton = () => (
-  <DesktopHeaderSlotProvider>
-    <main className={desktopStyles.page}>
-      <div className={desktopStyles.frame}>
-        <DesktopHeader />
-        <ListDetailLayout
-          className={desktopStyles.body}
-          list={<AreaSkeleton area="list" label={RECORDS_LOADING_LABEL} />}
-        >
-          <AreaSkeleton area="map" />
-        </ListDetailLayout>
-      </div>
-    </main>
-  </DesktopHeaderSlotProvider>
+  <main className={desktopStyles.page}>
+    <div className={desktopStyles.frame}>
+      <ListDetailLayout
+        floating
+        className={desktopStyles.body}
+        list={
+          <>
+            <MapListHeader />
+            <AreaSkeleton area="list" label={RECORDS_LOADING_LABEL} />
+          </>
+        }
+      >
+        <AreaSkeleton area="map" />
+      </ListDetailLayout>
+    </div>
+  </main>
 );
 
 const MobileSkeleton = () => {
@@ -44,11 +50,14 @@ const MobileSkeleton = () => {
       <div className={mobileStyles.frame}>
         {/* 지도 보기는 실제 화면처럼 뼈대 위에 헤더를 띄워, 흰 띠가 생겼다 사라지지 않게 한다. */}
         <div className={view === 'map' ? mobileStyles.mapChrome : undefined}>
-          <RecordsMobileHeader view={view} onViewChange={setView} />
+          <Suspense fallback={<MapListHeader searchInRow />}>
+            <RecordsMobileHeader view={view} onViewChange={setView} />
+          </Suspense>
         </div>
         <div className={mobileStyles.body}>
           <AreaSkeleton area={view === 'map' ? 'map' : 'list'} label={RECORDS_LOADING_LABEL} />
         </div>
+        <MapViewSwitch value={view} onChange={setView} label="기록 보기 방식" />
       </div>
     </main>
   );

@@ -64,6 +64,8 @@ const meta = {
     maxTransfers: 1,
     changeMaxTransfers: fn(),
     isValidCommuteTime: true,
+    maxRent: 0,
+    changeMaxRent: fn(),
     disabled: false,
     onSubmit: fn(),
   },

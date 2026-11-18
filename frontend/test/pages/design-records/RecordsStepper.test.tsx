@@ -72,9 +72,13 @@ const renderRecords = () =>
   render(
     <QueryClientProvider client={queryClient}>
       <PublicConfigProvider config={{ apiBaseUrl: 'http://localhost:8080' }}>
-        <MemoryRouter initialEntries={['/properties']}>
+        <MemoryRouter initialEntries={['/']}>
           <Routes>
-            <Route path="/properties/:propertyId?" element={<DesignRecordsPage />} />
+            {/* 앱처럼 한 화면 셸을 두 주소(홈과 매물 상세)가 함께 쓴다. */}
+            <Route element={<DesignRecordsPage />}>
+              <Route path="/" />
+              <Route path="/properties/:propertyId" />
+            </Route>
           </Routes>
         </MemoryRouter>
       </PublicConfigProvider>

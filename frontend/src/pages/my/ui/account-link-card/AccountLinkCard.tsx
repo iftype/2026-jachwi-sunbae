@@ -24,7 +24,7 @@ import {
 import { readPropertyCount } from '@/features/property/api/propertyCount';
 import { usePublicConfig } from '@/shared/config/PublicConfigContext';
 import { HOME_PATH } from '@/shared/lib/navigation/appPaths';
-import Icon from '@/shared/ui/icon/Icon';
+import IdentityPlaceholder from '@/shared/ui/identity-placeholder/IdentityPlaceholder';
 import Toast from '@/shared/ui/toast/Toast';
 
 type AccountLinkCardProps = {
@@ -81,9 +81,13 @@ const AccountLinkCard = ({ memberId, reloadPage = () => window.location.reload()
   const [linkRevision, setLinkRevision] = useState(0);
   const linkedProvider = useMemo(() => readLinkedProvider(memberId), [memberId, linkRevision]);
   const [status, setStatus] = useState<Status>('idle');
-  const [notice, setNotice] = useState<OAuthNotice | null>(
-    () => readOAuthNoticeFromState(location.state) ?? takeStashedOAuthNotice(),
-  );
+  const [notice, setNotice] = useState<OAuthNotice | null>(() => readOAuthNoticeFromState(location.state));
+  useEffect(() => {
+    if (readOAuthNoticeFromState(location.state) !== null) return;
+    // 렌더가 중단되거나 재시도돼도 안내를 잃지 않도록 화면에 붙은 뒤에만 저장소에서 꺼낸다.
+    const stashed = takeStashedOAuthNotice();
+    if (stashed !== null) setNotice(stashed);
+  }, [location.state]);
 
   /*
    * 제공자 화면에서 취소하거나 콜백이 실패하면 #570은 JSON 오류로 끝나 사용자가 뒤로 가기로 돌아온다.
@@ -193,9 +197,7 @@ const AccountLinkCard = ({ memberId, reloadPage = () => window.location.reload()
     return (
       <section className={styles.card} aria-labelledby="account-link-title">
         <div className={styles.linkedRow}>
-          <span className={styles.providerBadge} data-provider={linkedProvider} aria-hidden="true">
-            <img src={linkedProvider === 'KAKAO' ? kakaoSymbol : appleLogo} alt="" />
-          </span>
+          <IdentityPlaceholder size={44} label="내 프로필" />
           <div>
             <h2 id="account-link-title" className={styles.title}>
               {OAUTH_PROVIDER_LABELS[linkedProvider]} 계정으로 로그인됨
@@ -219,9 +221,7 @@ const AccountLinkCard = ({ memberId, reloadPage = () => window.location.reload()
   return (
     <section className={styles.card} aria-labelledby="account-link-title">
       <div className={styles.header}>
-        <span className={styles.icon}>
-          <Icon name="user" size={24} />
-        </span>
+        <IdentityPlaceholder size={44} label="내 프로필" />
         <div>
           {/* 연결 전에는 버튼만으로 충분해 설명을 두지 않는다. */}
           <h2 id="account-link-title" className={styles.title}>
@@ -334,15 +334,15 @@ const styles = {
 
   kakao: css`
     label: AccountLinkCard-kakao;
-    background: #fee500;
-    color: rgb(0 0 0 / 85%);
+    background: var(--color-provider-kakao);
+    color: var(--color-on-provider-kakao);
   `,
 
   /* Apple은 밝은 바탕에 검정 버튼을 쓴다. 이 서비스는 다크 모드가 없어 카드가 늘 밝으므로 흰 버튼은 두지 않는다. */
   apple: css`
     label: AccountLinkCard-apple;
-    background: #000000;
-    color: #ffffff;
+    background: var(--color-provider-apple);
+    color: var(--color-on-provider-apple);
   `,
 
   /* 카카오 심볼은 모양, 비율, 색을 바꾸지 않는다. */
@@ -376,10 +376,10 @@ const styles = {
     height: 2.5rem;
     place-items: center;
     border-radius: 50%;
-    background: #000;
+    background: var(--color-provider-apple);
 
     &[data-provider='KAKAO'] {
-      background: #fee500;
+      background: var(--color-provider-kakao);
     }
 
     & img {
@@ -396,7 +396,7 @@ const styles = {
     padding: 0 0.85rem;
     border: 0;
     border-radius: 999px;
-    background: #eff1f5;
+    background: var(--color-surface-muted);
     color: var(--color-ink-soft);
     font: inherit;
     font-size: var(--my-subtext-size, 0.78rem);
@@ -404,7 +404,7 @@ const styles = {
     cursor: pointer;
 
     &:hover {
-      background: #e4e7ec;
+      background: var(--color-surface-disabled);
     }
     &:disabled {
       cursor: wait;

@@ -9,7 +9,7 @@ import { isChecklistStage } from '@/features/checklist/model/checklist';
 import type { ChecklistStage } from '@/features/checklist/model/checklistTypes';
 import ChecklistPageLayout from '@/features/checklist/ui/checklist-page-layout/ChecklistPageLayout';
 import { usePropertyChecklistOverview, usePropertyDetail } from '@/features/property/api/useProperties';
-import { parsePositiveId } from '@/features/property/lib/propertyFormat';
+import { isPreviewProperty, parsePropertyRouteId } from '@/features/property/model/sampleProperties';
 import { HOME_PATH, propertyChecklistTabPath } from '@/shared/lib/navigation/appPaths';
 import BottomActionArea from '@/shared/ui/bottom-action-area/BottomActionArea';
 import { Button } from '@/shared/ui/button/Button';
@@ -170,9 +170,18 @@ const ResolvedPropertyActiveChecklist = ({
 
 const PropertyActiveChecklistPage = ({ embedded = false }: { embedded?: boolean }) => {
   const params = useParams();
-  const propertyId = parsePositiveId(params.propertyId);
+  const propertyId = parsePropertyRouteId(params.propertyId);
   if (propertyId === null || !isChecklistStage(params.stage))
     return <ContentState title="올바른 매물 체크리스트 주소가 아니에요.">{backToList}</ContentState>;
+  if (isPreviewProperty(propertyId))
+    return (
+      <ContentState
+        title="미리보기 체크리스트는 교체할 수 없어요"
+        description="직접 기록한 매물에서 체크리스트를 교체해 주세요."
+      >
+        <Link to={propertyChecklistTabPath(propertyId)}>매물 상세로 돌아가기</Link>
+      </ContentState>
+    );
   return (
     <ResolvedPropertyActiveChecklist
       key={params.stage}

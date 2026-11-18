@@ -28,6 +28,7 @@ type PropertyNearbyPreviewProps = {
 const RADIUS = 500;
 /** 작은 지도 칸에서 500m 원이 다 보이는 확대 단계. */
 const PREVIEW_LEVEL = 7;
+const PREVIEW_CATEGORIES: MapCategory[] = SUMMARY_CATEGORIES.filter((category) => category !== 'SCHOOL');
 
 /** 매물 상세 기본 정보 아래에 두는 작은 주변 지도와 고리 요약. 500m 안 시설을 색 점으로 모두 띄운다. */
 const PropertyNearbyPreview = ({
@@ -72,7 +73,7 @@ const PropertyNearbyPreview = ({
   const places = nearby.data?.places;
   const markers = useMemo<MapMarker[]>(() => {
     const dots: MapMarker[] = (places ?? [])
-      .filter((place) => SUMMARY_CATEGORIES.includes(place.category))
+      .filter((place) => PREVIEW_CATEGORIES.includes(place.category))
       .filter((place) => focused === null || place.category === focused)
       .map((place) => ({
         id: `nearby-${place.category}-${place.providerPlaceId}`,
@@ -99,7 +100,10 @@ const PropertyNearbyPreview = ({
   }, [places, focused, isEditingLocation, location.picked, center, propertyId, myLocation]);
   const circles = useMemo<MapRadiusCircle[]>(() => [{ radiusMeters: RADIUS, label: '500m' }], []);
   const summary = useMemo(
-    () => (nearby.isSuccess ? summarizeNearby(nearby.data.places, nearby.data.counts) : []),
+    () =>
+      nearby.isSuccess
+        ? summarizeNearby(nearby.data.places, nearby.data.counts).filter((item) => item.category !== 'SCHOOL')
+        : [],
     [nearby.isSuccess, nearby.data],
   );
   const hasAny = summary.some((item) => item.count > 0);

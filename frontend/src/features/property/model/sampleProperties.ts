@@ -1,3 +1,5 @@
+import { fitCoordinates } from '@/features/map/lib/mapCamera';
+import { DEFAULT_MAP_CENTER } from '@/features/map/lib/mapLocation';
 import samplePhoto from '@/shared/assets/sample-property-coex.webp';
 
 import { parsePositiveId } from '../lib/propertyFormat';
@@ -21,6 +23,21 @@ export const SAMPLE_PROPERTIES: PropertySummary[] = sampleProperties.properties.
         : { photoId: PREVIEW_PHOTO_ID, contentUrl, thumbnailUrl: contentUrl, contentType: 'image/webp' },
   };
 });
+
+/** 기록 지도를 처음 열 때의 확대 단계. 매물 하나와 그 주변 동네가 함께 보이는 정도다. */
+export const FIRST_MAP_LEVEL = 8;
+
+/**
+ * 첫 화면 지도 시점. 기록이 없으면 보이는 미리보기 매물이 모두 들어오게 가운데와 확대 단계를 정한다.
+ * 좌표는 미리보기 매물 데이터에서 읽으므로 매물을 바꾸면 시점도 따라간다.
+ */
+export const SAMPLE_PROPERTIES_VIEW = fitCoordinates(
+  SAMPLE_PROPERTIES.flatMap(({ location: { latitude, longitude } }) =>
+    latitude === null || longitude === null ? [] : [{ latitude, longitude }],
+  ),
+  FIRST_MAP_LEVEL,
+  DEFAULT_MAP_CENTER,
+);
 
 /** 미리보기 매물인지. 서버에 없는 매물이라 상세 데이터는 JSON에서 만들고, 삭제할 때는 기기에서 숨긴다. */
 export const isPreviewProperty = (propertyId: number | string): boolean => Number(propertyId) < 0;

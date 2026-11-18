@@ -1,26 +1,36 @@
-import { css, keyframes } from '@emotion/css';
-import { useEffect, useRef, useState } from 'react';
+import { css } from '@emotion/css';
+import { useRef, useState } from 'react';
 import { Outlet, useMatch } from 'react-router-dom';
 
+import useRecordsView from '@/pages/design-records/hooks/useRecordsView';
+import RecordsMobilePage from '@/pages/design-records/mobile/RecordsMobilePage';
+import { useRecordsMapController } from '@/pages/design-records/RecordsMapProvider';
 import MapCanvas from '@/features/map/ui/map-canvas/MapCanvas';
 import MapCategoryRail from '@/features/map/ui/map-category-rail/MapCategoryRail';
 import ExplorationRecordAction from '@/features/onboarding/ui/exploration-record-action/ExplorationRecordAction';
 import { LogClick } from '@/shared/lib/analytics/logging';
-import { ROUTE_PATTERNS } from '@/shared/lib/navigation/appPaths';
+import { NEIGHBORHOOD_ADDRESS_SEARCH_PATH, ROUTE_PATTERNS } from '@/shared/lib/navigation/appPaths';
 import BottomSheet from '@/shared/ui/bottom-sheet/BottomSheet';
 import { Button } from '@/shared/ui/button/Button';
 import Icon from '@/shared/ui/icon/Icon';
+import MapAddPropertyButton from '@/shared/ui/map-add-button/MapAddPropertyButton';
+import { useMapPanel } from '@/shared/ui/map-list-header/MapPanelContext';
+import { MapModeSwitchTile } from '@/shared/ui/map-mode-tile/MapModeContext';
+import MapViewSwitch from '@/shared/ui/map-view-switch/MapViewSwitch';
+import MobileMapHeader from '@/shared/ui/mobile-map-header/MobileMapHeader';
 
 import useMyPropertyPager from '../hooks/useMyPropertyPager';
 import useNeighborhoodMapView from '../hooks/useNeighborhoodMapView';
 import type { NeighborhoodPreviewContext } from '../hooks/useNeighborhoodPreview';
 import useResultMapViewport from '../hooks/useResultMapViewport';
-import { COMMUTE_COLORS, commuteLegend } from '../model/commuteColors';
-import { criteriaItems, criteriaSummary, rentLabel, transferLabel } from '../model/criteriaLabels';
+import { COMMUTE_COLORS, commuteLegend, NO_RENT_COLOR, NO_RENT_LEGEND_LABEL } from '../model/commuteColors';
+import { rentLabel, transferLabel } from '../model/criteriaLabels';
+import { readCriteriaCollapsed, writeCriteriaCollapsed } from '../model/neighborhoodSearchSession';
 import { MOBILE_AREA_SHEET_PERCENT, mobileMapViewport } from '../model/resultMapView';
 import type { NeighborhoodFilterField } from '../NeighborhoodFilters';
 import { NeighborhoodFilterPicker } from '../NeighborhoodFilters';
 import AnalysisOverlay from '../ui/analysis-overlay/AnalysisOverlay';
+import CriteriaSummary from '../ui/criteria-summary/CriteriaSummary';
 import LocationControls from '../ui/location-controls/LocationControls';
 import MapInfo, { type MapInfoSubject, mapInfoTitle } from '../ui/map-info/MapInfo';
 import NeighborhoodMapSearch from '../ui/map-search/NeighborhoodMapSearch';
@@ -37,40 +47,35 @@ type Props = {
  * 휴대폰 동네 찾기. 지도를 화면 전체에 두고 조건은 지도 아래 시트의 조건 칸으로, 결과는 지도 아래 가로 레일로 고른다.
  * 대중교통 상세는 지도 없이 화면 전체로 연다.
  */
-/** 월세 슬라이더가 내려온 뒤, 만지지 않으면 접히기까지의 시간. */
-const RENT_SLIDER_VISIBLE_MS = 3000;
-/** 월세 슬라이더가 올라가며 사라지는 시간. 아래 `rentSliderRiseKeyframes`와 같다. */
-const RENT_SLIDER_EXIT_MS = 250;
-
 const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
+  const controller = useRecordsMapController();
+  const usesSharedSearch = controller !== null && !preview.isPublicExplore;
+  const [recordsView, setRecordsView] = useRecordsView();
+  const isListView = recordsView === 'list';
+  // 헤더 왼쪽은 기록 화면과 같은 모드 전환 타일이다. 통합 지도 밖(공개 동네 찾기)에는 두지 않는다.
+  const returnButton = !preview.isPublicExplore && <MapModeSwitchTile />;
+  const panel = useMapPanel();
   // 위치를 고르는 동안 조건 칸 아래에 바로 펼친 피커. 같은 칸을 다시 누르면 접는다.
+  // 결과를 지도로 볼지 동네 목록으로 볼지. 기록 화면의 리스트와 지도 전환과 같은 짝이다.
   const [pickerField, setPickerField] = useState<NeighborhoodFilterField | null>(null);
   const isRoutePage = useMatch(`${preview.mapPath}/${ROUTE_PATTERNS.area}/*`);
   const isDetailPage = useMatch(`${preview.mapPath}/${ROUTE_PATTERNS.areaDetails}`);
   const submitSearch = preview.startAnalysis;
   // 지도 빈 곳을 찍으면 시트를 닫지 않고 제목만 보이게 내린다.
   const [peekSignal, setPeekSignal] = useState(0);
-  // 월세 값을 누르면 슬라이더 막대가 잠깐 내려온다. 다시 눌러도 접히지 않고 시간만 새로 센다.
-  // 막대를 잡고 있거나 값을 바꾸는 동안에는 접지 않고, 손을 떼거나 값을 마지막으로 바꾼 뒤 잠깐 지나면 접는다.
-  const [isRentOpen, setIsRentOpen] = useState(false);
-  const [isRentHeld, setIsRentHeld] = useState(false);
-  // 접을 때 올라가며 사라지는 동안(0.25초)은 슬라이더를 그대로 그리고, 끝나면 지운다.
-  const [isRentMounted, setIsRentMounted] = useState(false);
-  useEffect(() => {
-    if (isRentOpen) {
-      setIsRentMounted(true);
-      return;
-    }
-    const timer = window.setTimeout(() => setIsRentMounted(false), RENT_SLIDER_EXIT_MS);
-    return () => window.clearTimeout(timer);
-  }, [isRentOpen]);
-  const [rentOpenedAt, setRentOpenedAt] = useState(0);
-  const maxRent = preview.maxRent;
-  useEffect(() => {
-    if (!isRentOpen || isRentHeld) return;
-    const timer = window.setTimeout(() => setIsRentOpen(false), RENT_SLIDER_VISIBLE_MS);
-    return () => window.clearTimeout(timer);
-  }, [isRentOpen, isRentHeld, rentOpenedAt, maxRent]);
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+  // 결과 지도 위 조건 칩 줄과 범례는 지도를 넓게 보려고 잠깐 접어 둘 수 있다. 접은 상태는 같은 세션 동안 남는다.
+  const [isCriteriaCollapsed, setIsCriteriaCollapsed] = useState(readCriteriaCollapsed);
+  const toggleCriteria = () => {
+    writeCriteriaCollapsed(!isCriteriaCollapsed);
+    setIsCriteriaCollapsed(!isCriteriaCollapsed);
+  };
+  const openFilters = (field: NeighborhoodFilterField = 'minutes') => {
+    closeLayers();
+    preview.selectRegion(null);
+    setPickerField(field);
+    setIsFilterSheetOpen(true);
+  };
   // 동네 시트를 닫아도 동네 선택(지도 강조, 주소)은 남긴다. 닫은 동네의 행정동 코드를 두어 그 동네의 시트만 숨긴다.
   const [dismissedAreaCode, setDismissedAreaCode] = useState<string | null>(null);
   const selectedAreaCode = preview.selected?.adminDongCode;
@@ -172,12 +177,31 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
     </div>
   );
 
+  // 오른쪽 아래 `매물 추가`는 기록 지도와 같은 자리에 둔다. 아래 시트(조건 카드, 필터, 정보)나 찍은 자리 말풍선이 열리면 내린다.
+  const layers = usesSharedSearch ? controller.layers : null;
+  const startRegister = layers?.startRegister ?? null;
+  const showsSearchCard = preview.isSelectingOnMap && (!usesSharedSearch || preview.hasChosenMapPoint);
+  const showsAddButton =
+    startRegister !== null &&
+    layers !== null &&
+    (isResultMap || preview.isSelectingOnMap) &&
+    !showsSearchCard &&
+    !preview.isMapSelectionEnabled &&
+    !isFilterSheetOpen &&
+    infoSubject === null &&
+    layers.tapPoint === null &&
+    layers.memo.mode === null &&
+    !layers.isRegistering;
+
   if (isDetailPage && !preview.isAnalyzing && !preview.error)
     return (
       <div className={shared.page}>
         <Outlet context={preview} />
       </div>
     );
+  if (isListView && controller && !panel)
+    return <RecordsMobilePage {...controller} searchTo={NEIGHBORHOOD_ADDRESS_SEARCH_PATH} />;
+  if (panel) return <main className={shared.page}>{panel.content}</main>;
   return (
     <main className={shared.page} data-public-explore={preview.isPublicExplore || undefined}>
       <section
@@ -186,6 +210,7 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
         aria-label={isResultMap ? '행정동 프리셋 지도' : '지도에서 목적지 선택'}
       >
         <MapCanvas
+          shared
           animateView
           hideLoading={preview.isAnalyzing || Boolean(preview.error)}
           interactive
@@ -193,118 +218,173 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
           {...mapProps}
         />
         <AnalysisOverlay preview={preview} />
+        {isFilterSheetOpen && (
+          <BottomSheet
+            title="동네 찾기 필터"
+            closeLabel="필터 닫기"
+            onClose={() => setIsFilterSheetOpen(false)}
+            initialHeightPercent={pickerField === 'rent' ? 38 : 45}
+            fullPage={false}
+          >
+            <div className={styles.filterEditor}>
+              <p className={shared.searchCardTitle}>
+                {preview.hasChosenMapPoint ? preview.mapCandidate.name : '출퇴근 장소를 먼저 골라 주세요'}
+              </p>
+              {filterChips}
+              {pickerField === 'rent' ? (
+                <RentSlider preview={preview} bare />
+              ) : (
+                pickerField !== null && <NeighborhoodFilterPicker preview={preview} field={pickerField} />
+              )}
+              <Button
+                fullWidth
+                disabled={!preview.hasChosenMapPoint || !preview.isValidCommuteTime || preview.isAnalyzing}
+                onClick={() => {
+                  preview.startAnalysis();
+                  setIsFilterSheetOpen(false);
+                }}
+              >
+                이 조건으로 찾기
+              </Button>
+            </div>
+          </BottomSheet>
+        )}
+
         {preview.isSelectingOnMap && (
           <>
-            <header className={shared.searchHeader}>
-              <NeighborhoodMapSearch preview={preview} />
+            <header
+              className={usesSharedSearch ? `${shared.searchHeader} ${styles.resultHeader}` : shared.searchHeader}
+            >
+              {usesSharedSearch ? (
+                <MobileMapHeader
+                  leading={returnButton}
+                  searchTo={NEIGHBORHOOD_ADDRESS_SEARCH_PATH}
+                  searchLabel="출퇴근 장소 검색"
+                />
+              ) : (
+                <>
+                  {!preview.isPublicExplore && (
+                    <MobileMapHeader leading={returnButton} searchTo={NEIGHBORHOOD_ADDRESS_SEARCH_PATH} />
+                  )}
+                  <NeighborhoodMapSearch preview={preview} hideHome={!preview.isPublicExplore} />
+                </>
+              )}
             </header>
             <LocationControls
               preview={preview}
               isResult={false}
+              className={styles.railControls}
+              rail={<MapCategoryRail showIcons={false} {...rail} />}
               zoom={{ level: preview.selectionLevel, onZoom: preview.zoomSelectionBy }}
               isFilterOpen={pickerField !== null}
             />
-            {showsTapHint && <MapTapHint />}
+            {showsTapHint && preview.isMapSelectionEnabled && <MapTapHint />}
             {/* 조건 칸과 찾기 버튼은 위치를 고르기 전부터 아래 시트에 두어, 위치를 골라도 자리가 바뀌지 않게 한다.
                 위치를 고르기 전에는 찾기 버튼을 막아 두고 장소를 고르라고 적는다. 지도 위 버튼은 말풍선 핀과 겹쳐 두지 않는다. */}
-            <section
-              className={shared.searchCard}
-              aria-label={preview.hasChosenMapPoint ? '고른 출퇴근 장소' : '출퇴근 조건'}
-            >
-              <p className={shared.searchCardTitle}>이 조건으로 추천받아요</p>
-              {filterChips}
-              {pickerField !== null && (
-                <NeighborhoodFilterPicker key={pickerField} preview={preview} field={pickerField} />
-              )}
-              {preview.hasChosenMapPoint ? (
-                <Button fullWidth disabled={!preview.isValidCommuteTime} onClick={submitSearch}>
-                  <span className={shared.searchCardLabel}>
-                    <span>{preview.mapCandidate.name}</span>에서 찾기
-                  </span>
-                </Button>
-              ) : (
-                <Button fullWidth disabled>
-                  지도에서 출퇴근 장소를 골라 주세요
-                </Button>
-              )}
-            </section>
+            {(!usesSharedSearch || preview.hasChosenMapPoint) && (
+              <section
+                className={shared.searchCard}
+                aria-label={preview.hasChosenMapPoint ? '고른 출퇴근 장소' : '출퇴근 조건'}
+              >
+                <p className={shared.searchCardTitle}>이 조건으로 추천받아요</p>
+                {/* 통합 지도는 출퇴근 장소 검색 화면의 `지도에서 직접 고르기`로 지도 선택을 켠다. 그 화면이 없는 공개 탐색은 여기서 켠다. */}
+                {!usesSharedSearch && (
+                  <Button
+                    variant="secondary"
+                    aria-pressed={preview.isMapSelectionEnabled}
+                    onClick={preview.isMapSelectionEnabled ? preview.cancelMapSelection : preview.openMapSelection}
+                  >
+                    {preview.isMapSelectionEnabled ? '목적지 선택 취소' : '지도에서 목적지 선택'}
+                  </Button>
+                )}
+                {!usesSharedSearch && preview.hasSubmittedSearch && (
+                  <Button variant="secondary" onClick={preview.cancelEditing}>
+                    이전 결과 보기
+                  </Button>
+                )}
+                {filterChips}
+                {pickerField !== null && (
+                  <NeighborhoodFilterPicker key={pickerField} preview={preview} field={pickerField} />
+                )}
+                {preview.hasChosenMapPoint ? (
+                  <Button fullWidth disabled={!preview.isValidCommuteTime} onClick={submitSearch}>
+                    <span className={shared.searchCardLabel}>
+                      <span>{preview.mapCandidate.name}</span>에서 찾기
+                    </span>
+                  </Button>
+                ) : (
+                  <Button fullWidth disabled>
+                    지도에서 출퇴근 장소를 골라 주세요
+                  </Button>
+                )}
+              </section>
+            )}
           </>
         )}
         {isResultMap && (
           <>
             <header className={`${shared.resultHeader} ${styles.resultHeader}`}>
-              {/* 첫 줄: 홈으로 나가는 집 버튼, 조건 요약 한 줄, 출퇴근 장소부터 다시 고르는 아이콘 버튼. */}
-              <div className={styles.headerRow}>
-                <button type="button" className={shared.mapBack} aria-label="홈으로 돌아가기" onClick={preview.leave}>
-                  <Icon name="home" size={22} />
-                </button>
-                {/* 조건 카드: 통근, 환승, 월세 값을 나란히 둔다. 지도 색 기준은 아래 줄에 따로 카드로 둔다. */}
-                <div className={styles.criteriaCard} aria-label={`선택한 탐색 조건 ${criteriaSummary(preview)}`}>
-                  <dl className={styles.criteria}>
-                    {criteriaItems(preview).map((item) =>
-                      item.label === '월세' ? (
-                        <div key={item.label}>
-                          <dt>{item.label}</dt>
-                          <dd>
-                            <button
-                              type="button"
-                              className={styles.rentStat}
-                              aria-expanded={isRentOpen}
-                              aria-label={`월세 ${item.value}, 눌러서 바꾸기`}
-                              onClick={() => {
-                                // 열려 있을 때 다시 누르면 닫는다. 누르지 않아도 잠깐 뒤 저절로 닫힌다.
-                                if (isRentOpen) {
-                                  setIsRentOpen(false);
-                                  return;
-                                }
-                                setIsRentOpen(true);
-                                setRentOpenedAt((count) => count + 1);
-                              }}
-                            >
-                              {item.value}
-                              <Icon name="chevron-down" size={14} />
-                            </button>
-                          </dd>
-                        </div>
-                      ) : (
-                        <div key={item.label}>
-                          <dt>{item.label}</dt>
-                          <dd>{item.value}</dd>
-                        </div>
-                      ),
-                    )}
-                  </dl>
+              {usesSharedSearch ? (
+                <MobileMapHeader
+                  leading={returnButton}
+                  searchTo={NEIGHBORHOOD_ADDRESS_SEARCH_PATH}
+                  searchLabel="출퇴근 장소 검색"
+                  center={isCriteriaCollapsed ? undefined : <CriteriaSummary preview={preview} onOpen={openFilters} />}
+                />
+              ) : (
+                <div className={styles.previewHeader}>
+                  {returnButton}
+                  <button
+                    type="button"
+                    aria-label="검색 조건 바꾸기"
+                    onClick={() => {
+                      closeLayers();
+                      preview.editSearch();
+                    }}
+                  >
+                    <Icon name="search" size={20} />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  className={styles.resetButton}
-                  aria-label="다시 선택하기"
-                  onClick={() => {
-                    closeLayers();
-                    preview.reset();
-                  }}
-                >
-                  <Icon name="refresh" size={22} />
-                </button>
-              </div>
-              {/* 둘째 줄: 지도 색 기준 카드(세로)와, 월세 값을 눌렀을 때만 나오는 슬라이더 막대 카드. 끄는 동안에만 값이 뜬다. */}
+              )}
+              {!usesSharedSearch && !isCriteriaCollapsed && <CriteriaSummary preview={preview} onOpen={openFilters} />}
               <div className={styles.filterRow}>
-                <div className={styles.legendCard} aria-label="통근 시간 색상 기준">
-                  {commuteLegend(preview.maxMinutes).map(([group, label]) => (
-                    <span key={group}>
-                      <i style={{ background: COMMUTE_COLORS[group].fillColor }} />
-                      {label}
+                {!isCriteriaCollapsed && (
+                  <div className={styles.legendCard} aria-label="통근 시간 색상 기준">
+                    {commuteLegend(preview.maxMinutes).map(([group, label]) => (
+                      <span key={group}>
+                        <i style={{ background: COMMUTE_COLORS[group].fillColor }} />
+                        {label}
+                      </span>
+                    ))}
+                    <span>
+                      <i className={styles.noRentSwatch} style={{ borderColor: NO_RENT_COLOR.strokeColor }} />
+                      {NO_RENT_LEGEND_LABEL}
                     </span>
-                  ))}
-                </div>
-                {isRentMounted && (
-                  <div className={styles.filterCard} data-closing={!isRentOpen || undefined}>
-                    <RentSlider preview={preview} bare onHoldChange={setIsRentHeld} />
+                    <button
+                      className={styles.regionToggle}
+                      type="button"
+                      aria-pressed={preview.areRegionsVisible}
+                      onClick={preview.toggleRegions}
+                    >
+                      {preview.areRegionsVisible ? '행정동 숨기기' : '행정동 표시하기'}
+                    </button>
                   </div>
                 )}
+                <button
+                  type="button"
+                  className={styles.criteriaToggle}
+                  aria-label={isCriteriaCollapsed ? '조건과 범례 펼치기' : '조건과 범례 접기'}
+                  aria-expanded={!isCriteriaCollapsed}
+                  onClick={toggleCriteria}
+                >
+                  <Icon name={isCriteriaCollapsed ? 'chevron-down' : 'chevron-up'} size={14} />
+                  {isCriteriaCollapsed && <span>조건</span>}
+                </button>
               </div>
             </header>
             {resultControls}
+
+            {!infoSubject && <MapViewSwitch value="map" onChange={setRecordsView} label="동네 보기 방식" />}
             {preview.isPublicExplore && recordArea && (
               <div className={shared.recordAction}>
                 <ExplorationRecordAction
@@ -317,7 +397,7 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
                 />
               </div>
             )}
-            {mapView.needsZoomForFacilities && <p className={styles.zoomHint}>가까이 확대하면 보여요</p>}
+            {mapView.needsZoomForFacilities && <p className={styles.zoomHint}>확대하면 주변 시설이 보여요</p>}
             {/* 정보는 시트 하나에만 둔다. 마커와 `My`는 한 단계 높이로 두고, 닫으면 그 정보를 닫는다.
                 동네는 지도와 고른 동이 같이 보이게 낮게 열고 끌어 올리면 더 크게 본다. 닫아도 동네 선택은 그대로 둔다. */}
             {infoSubject && (
@@ -349,28 +429,26 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
             {isRoutePage && <Outlet context={preview} />}
           </>
         )}
+        {showsAddButton && <MapAddPropertyButton onClick={startRegister} />}
       </section>
     </main>
   );
 };
 
 /* 월세 슬라이더가 위에서 부드럽게 내려온다. */
-const rentSliderDropKeyframes = keyframes`
-  from {
-    opacity: 0;
-    transform: translateY(-0.7rem);
-  }
-`;
-
-/* 월세 슬라이더가 위로 부드럽게 올라가며 사라진다. */
-const rentSliderRiseKeyframes = keyframes`
-  to {
-    opacity: 0;
-    transform: translateY(-0.7rem);
-  }
-`;
-
 const styles = {
+  filterEditor: css`
+    label: NeighborhoodPreviewMobilePage-filterEditor;
+    display: grid;
+    gap: var(--space-md);
+    padding: var(--space-md);
+  `,
+  previewHeader: css`
+    label: NeighborhoodPreviewMobilePage-previewHeader;
+    pointer-events: auto;
+    display: flex;
+    justify-content: space-between;
+  `,
   /* 시설 칸을 켰지만 멀리 보고 있을 때 지도 아래 가운데에 띄우는 한 줄 안내. 지도 조작을 막지 않는다. */
   zoomHint: css`
     label: NeighborhoodPreviewMobilePage-zoomHint;
@@ -394,73 +472,84 @@ const styles = {
     label: NeighborhoodPreviewMobilePage-resultHeader;
 
     && {
+      pointer-events: none;
       flex-direction: column;
       align-items: stretch;
       gap: 0.45rem;
     }
   `,
 
-  headerRow: css`
-    label: NeighborhoodPreviewMobilePage-headerRow;
-    display: flex;
-    align-items: center;
-    gap: 0.45rem;
-  `,
-
-  /* 조건 카드. 지도 위에서도 읽히게 흰 바탕과 그림자를 둔다. */
-  criteriaCard: css`
-    label: NeighborhoodPreviewMobilePage-criteriaCard;
-    display: flex;
-    /* 폭을 꽉 채우지 않고 내용만큼 두어, 태블릿에서도 항목이 벌어지지 않게 한다. 양옆 버튼 사이 가운데에 놓는다. */
-    flex: 0 1 auto;
-    min-width: 0;
-    align-items: center;
-    margin-inline: auto;
-    padding: 0.45rem 1rem;
-    border: 1px solid var(--color-border);
-    border-radius: 0.9rem;
+  resultPicker: css`
+    label: NeighborhoodPreviewMobilePage-resultPicker;
+    max-width: 18rem;
+    padding: var(--space-sm);
+    border-radius: var(--radius-card);
     background: var(--color-surface);
-    box-shadow: 0 1px 6px rgb(0 0 0 / 8%);
   `,
-
-  criteria: css`
-    label: NeighborhoodPreviewMobilePage-criteria;
-    display: flex;
-    min-width: 0;
-    gap: 1.5rem;
-    margin: 0;
-
-    & div {
-      display: grid;
-      gap: 0.1rem;
-      text-align: center;
-    }
-
-    & dt {
-      color: var(--color-ink-soft);
-      font-size: 0.72rem;
-      font-weight: 600;
-    }
-
-    & dd {
-      margin: 0;
-      color: var(--color-ink);
-      font-size: 1.05rem;
-      font-weight: 750;
-      white-space: nowrap;
-    }
+  regionToggle: css`
+    label: NeighborhoodPreviewMobilePage-regionToggle;
+    width: 6.5rem;
+    white-space: nowrap;
+    margin-top: 0.2rem;
+    padding: 0.25rem 0;
+    border: 0;
+    border-top: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-brand-blue-ink);
+    font: inherit;
+    font-size: 0.68rem;
+    cursor: pointer;
   `,
-
   filterRow: css`
     label: NeighborhoodPreviewMobilePage-filterRow;
+    pointer-events: none;
     display: flex;
+    justify-content: flex-start;
     align-items: flex-start;
     gap: 0.45rem;
   `,
 
+  /* 월세 정보가 없는 동네 범례. 지도처럼 회색 채움에 점선 테두리를 둔다. */
+  noRentSwatch: css`
+    label: NeighborhoodPreviewMobilePage-noRentSwatch;
+    &&& {
+      width: 0.62rem;
+      height: 0.62rem;
+      box-sizing: border-box;
+      border: 1.5px dashed;
+      border-radius: 2px;
+      background: rgb(134 139 148 / 28%);
+    }
+  `,
+  /* 조건 칩 줄과 범례를 접고 펴는 작은 버튼. 접으면 `조건` 글자를 붙여 다시 펼 자리를 알린다. */
+  criteriaToggle: css`
+    label: NeighborhoodPreviewMobilePage-criteriaToggle;
+    pointer-events: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    min-width: 1.9rem;
+    height: 1.9rem;
+    justify-content: center;
+    padding: 0 0.5rem;
+    border: 1px solid var(--color-border);
+    border-radius: 99px;
+    background: var(--color-surface);
+    box-shadow: 0 1px 6px rgb(0 0 0 / 8%);
+    color: var(--color-ink-soft);
+    font: inherit;
+    font-size: 0.7rem;
+    font-weight: 700;
+    cursor: pointer;
+    &:focus-visible {
+      outline: 2px solid var(--color-focus);
+      outline-offset: 2px;
+    }
+  `,
   /* 지도 색 기준 카드. 항목을 세로로 쌓고 내용만큼만 폭을 둔다. */
   legendCard: css`
     label: NeighborhoodPreviewMobilePage-legendCard;
+    pointer-events: auto;
     display: grid;
     flex: none;
     gap: 0.2rem;
@@ -510,26 +599,6 @@ const styles = {
   `,
 
   /* 막대만 있는 월세 슬라이더 카드. 지도 위에서도 읽히게 흰 바탕과 그림자를 둔다. */
-  filterCard: css`
-    label: NeighborhoodPreviewMobilePage-filterCard;
-    animation: ${rentSliderDropKeyframes} 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
-
-    &[data-closing='true'] {
-      animation: ${rentSliderRiseKeyframes} ${RENT_SLIDER_EXIT_MS}ms cubic-bezier(0.64, 0, 0.78, 0) both;
-      pointer-events: none;
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      animation: none;
-    }
-    flex: 1;
-    min-width: 0;
-    padding: 0.55rem 0.9rem;
-    border-radius: 0.9rem;
-    background: rgb(255 255 255 / 70%);
-    backdrop-filter: blur(6px);
-  `,
-
   /* 월세 값은 눌러서 슬라이더를 여는 버튼이다. 파란 값으로 눌러 볼 수 있다는 걸 알린다. */
   /* 눌러서 슬라이더를 여는 버튼이라는 게 보이게 옅은 파랑 알약에 아래 화살표를 붙인다. 열리면 화살표가 뒤집힌다. */
   rentStat: css`
@@ -564,7 +633,7 @@ const styles = {
     label: NeighborhoodPreviewMobilePage-railControls;
 
     && {
-      top: calc(env(safe-area-inset-top) + 10rem);
+      top: calc(env(safe-area-inset-top) + 8rem);
     }
   `,
 };

@@ -1,12 +1,12 @@
 import { useMemo, useRef, useState } from 'react';
 
 import { useViewportPlaces } from '@/features/map/api/useViewportPlaces';
+import { FACILITY_MARKER_LEVEL, facilityMarkersVisible } from '@/features/map/lib/mapFacilityVisibility';
 import { stationVariant } from '@/features/map/lib/mapIconAssets';
 import type { MapBounds, MapMarker, NearbyAgency, NearbyPlace } from '@/features/map/model/Map';
 import useDebouncedValue from '@/shared/lib/hooks/useDebouncedValue';
 
 import type { MyPropertyRow } from '../model/myProperty';
-import { nextPlacesVisible } from '../model/resultMapView';
 
 type BusStop = ReturnType<typeof useViewportPlaces>['busStops'][number];
 /** 동네의 출발 정류장. 경로망 정류장 ID를 그대로 가지고, 고르면 지도를 그 자리로 옮긴다. */
@@ -52,7 +52,11 @@ export const MY_PROPERTY_PREFIX = 'my-property:';
 const BOUNDS_DEBOUNCE_MS = 300;
 const useNeighborhoodPlaces = (
   enabled: boolean,
-  { loadsAgencies = true, loadsBusStops = true }: { loadsAgencies?: boolean; loadsBusStops?: boolean } = {},
+  {
+    loadsAgencies = true,
+    loadsBusStops = true,
+    markerLevel = FACILITY_MARKER_LEVEL,
+  }: { loadsAgencies?: boolean; loadsBusStops?: boolean; markerLevel?: number } = {},
 ) => {
   const [bounds, setBounds] = useState<MapBounds | null>(null);
   const [isNear, setIsNear] = useState(false);
@@ -219,7 +223,7 @@ const useNeighborhoodPlaces = (
     },
     /** 지도가 멈춘 확대 단계. 지도는 범위(`rememberBounds`)보다 먼저 알린다. */
     rememberLevel: (level: number) => {
-      const near = nextPlacesVisible(nearRef.current, level);
+      const near = facilityMarkersVisible(level, markerLevel);
       // 같은 값으로 상태를 다시 넣어도 React가 한 번 더 렌더할 수 있어 바뀔 때만 넣는다.
       if (near !== nearRef.current) setIsNear(near);
       nearRef.current = near;

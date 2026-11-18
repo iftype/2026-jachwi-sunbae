@@ -2,6 +2,7 @@ import { useLocation } from 'react-router-dom';
 
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
 import {
+  ADDRESS_SEARCH_PATH,
   CHECKLISTS_PATH,
   COMPARE_PATH,
   MAP_SELECT_LOCATION_PATH,
@@ -29,10 +30,13 @@ const PropertyAppLayout = () => {
   const hasOwnBackNavigation =
     /^\/properties\/-?\d+\/(photos|memo|edit|nearby)$/.test(location.pathname) ||
     /^\/properties\/-?\d+\/active-checklists\/(ON_SITE|PRE_CONTRACT)$/.test(location.pathname) ||
-    location.pathname === NEIGHBORHOODS_NEARBY_PATH;
+    location.pathname === NEIGHBORHOODS_NEARBY_PATH ||
+    // 주소 검색 화면은 자체 "<"와 검색창을 쓴다.
+    location.pathname === ADDRESS_SEARCH_PATH;
   const shell: AppShellState = {
     fullScreen:
       location.pathname === MAP_SELECT_LOCATION_PATH ||
+      location.pathname === ADDRESS_SEARCH_PATH ||
       isPropertyDetailPath ||
       // 체크리스트 편집은 자체 상단 내비게이션을 쓴다.
       isChecklistPage ||

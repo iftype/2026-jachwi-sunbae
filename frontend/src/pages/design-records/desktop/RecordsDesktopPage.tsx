@@ -1,20 +1,17 @@
-import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 
 import PropertyActiveChecklistPage from '@/pages/property-active-checklist/PropertyActiveChecklistPage';
 import PropertyDetailPage from '@/pages/property-detail/PropertyDetailPage';
-import usePreloadMapSdk from '@/features/map/hooks/usePreloadMapSdk';
-import type { MapAddress } from '@/features/map/model/Map';
-import { RECORDS_PATH } from '@/shared/lib/navigation/appPaths';
+import MapHeaderWeather from '@/features/weather/ui/map-header-weather/MapHeaderWeather';
 import AreaSkeleton from '@/shared/ui/area-skeleton/AreaSkeleton';
-import DesktopHeader from '@/shared/ui/desktop-header/DesktopHeader';
-import DesktopHeaderSlot, { DesktopHeaderSlotProvider } from '@/shared/ui/desktop-header/DesktopHeaderSlot';
+import { DesktopHeaderSlotProvider } from '@/shared/ui/desktop-header/DesktopHeaderSlot';
 import DetailHeader from '@/shared/ui/detail-header/DetailHeader';
 import ListDetailLayout from '@/shared/ui/list-detail-layout/ListDetailLayout';
+import MapListHeader from '@/shared/ui/map-list-header/MapListHeader';
+import { useMapPanel } from '@/shared/ui/map-list-header/MapPanelContext';
 
-import useQuickCreateProperty from '../hooks/useQuickCreateProperty';
-import useRecords from '../hooks/useRecords';
-import useRecordsMapLayers from '../hooks/useRecordsMapLayers';
+import type { RecordsState } from '../hooks/useRecords';
+import type { RecordsMapLayers } from '../hooks/useRecordsMapLayers';
 import { recordNeighbors } from '../model/recordNavigation';
 import { RECORDS_LOADING_LABEL } from '../RecordsPageSkeleton';
 import RecordAddressSearch from '../ui/record-address-search/RecordAddressSearch';
@@ -38,45 +35,12 @@ import * as styles from './RecordsDesktopPage.styles';
  * 새 매물은 지도에서 위치를 찍어 등록 화면 없이 바로 만들고(이름은 `새 매물`), 만든 매물의 상세를 옆 칸에 연다.
  * 지도는 예전 인프라 지도의 시설·거리 메모 카테고리와 찍은 위치의 메모·매물 등록을 함께 맡는다.
  */
-const RecordsDesktopPage = () => {
-  const navigate = useNavigate();
+type Props = { records: RecordsState; layers: RecordsMapLayers };
+const RecordsDesktopPage = ({ records, layers }: Props) => {
+  const panel = useMapPanel();
   const params = useParams();
   const isReplacingChecklist = params.stage !== undefined;
-  const records = useRecords({
-    selectedId: params.propertyId ?? null,
-    setSelectedId: (id) => navigate(id === null ? RECORDS_PATH : `${RECORDS_PATH}/${id}`),
-  });
   const { selected, setSelectedId, setNotice } = records;
-  // 데스크탑은 늘 지도를 함께 그린다. 매물 목록을 기다리는 동안 지도 SDK를 먼저 받기 시작한다.
-  usePreloadMapSdk(true);
-  // 지도에서 찍어 매물을 만드는 중인 위치. 만드는 동안 그 자리에 등록 핀을 둔다.
-  const [creatingAt, setCreatingAt] = useState<MapAddress | null>(null);
-  const quickCreate = useQuickCreateProperty({
-    onCreated: (propertyId, location) => {
-      setCreatingAt(null);
-      // 지도도 새 매물 자리로 다가가 핀을 띄운다. 상세는 리스트 옆 칸에 연다.
-      records.revealCreated(String(propertyId), location);
-      setNotice('매물을 기록했어요. 항목을 눌러 정보를 채워 주세요.');
-    },
-    onError: () => {
-      setCreatingAt(null);
-      setNotice('매물을 만들지 못했어요. 다시 시도해 주세요.');
-    },
-  });
-  const layers = useRecordsMapLayers(records, {
-    registeringAt: creatingAt,
-    // 겹친 매물 마커를 누르면 갈라질 때까지 다가가지 않고, 맨 왼쪽 리스트를 그 자리 매물 목록(뒤로가기가 있는 목록)으로 바꾼다.
-    groupAction: 'list',
-    // 목록이나 상세를 열어 둔 채 지도 빈 곳을 눌러도 닫히지 않는다.
-    keepSelectionOnMapTap: true,
-    // 데스크탑은 화면이 넓어 거리 메모를 한 단계 더 멀리까지 낱개로 보여 준다.
-    memoLevelBoost: 1,
-    onRegister: (location) => {
-      if (quickCreate.isCreating) return;
-      setCreatingAt(location);
-      quickCreate.create(location);
-    },
-  });
   const closeDetail = () => setSelectedId(null);
 
   // 처음 여는 화면이라 남겨 둘 목록이 없다. 늦추지 않고 바로 뼈대를 보여, 화면 코드를 받는 동안의 뼈대(`RecordsPageSkeleton`)에서 이어지게 한다.
@@ -154,18 +118,23 @@ const RecordsDesktopPage = () => {
     <DesktopHeaderSlotProvider>
       <main className={styles.page}>
         <div className={styles.frame}>
-          <DesktopHeader />
-          {/* 헤더 가운데 자리에 주소 검색창을 넣는다. 고른 주소로 오른쪽 지도를 옮긴다. */}
-          <DesktopHeaderSlot>
-            <RecordAddressSearch className={styles.headerSearch} onSelect={records.moveTo} />
-          </DesktopHeaderSlot>
           <h1 ref={records.headingRef} className="sr-only" tabIndex={-1}>
             본 방 기록
           </h1>
           <ListDetailLayout
             className={styles.body}
-            list={list}
-            detail={detail}
+            floating
+            list={
+              <>
+                {!panel && (
+                  <MapListHeader center={<MapHeaderWeather />}>
+                    <RecordAddressSearch onSelect={records.moveTo} />
+                  </MapListHeader>
+                )}
+                {panel?.content ?? list}
+              </>
+            }
+            detail={panel ? undefined : detail}
             onCloseDetail={closeDetail}
             closeLabel="매물 상세 칸 닫기"
           >
@@ -183,6 +152,7 @@ const RecordsDesktopPage = () => {
                     district={records.district}
                     onSelect={records.selectDistrict}
                     overMap
+                    desktopMap
                   />
                 }
               />

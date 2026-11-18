@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { useRemoveProperty } from '@/features/property/api/usePropertyMutations';
+import { dismissPreviewProperty } from '@/features/property/model/previewPropertyDismissal';
+import { isPreviewProperty } from '@/features/property/model/sampleProperties';
 import Icon from '@/shared/ui/icon/Icon';
 
 import * as styles from './RecordList.styles';
@@ -66,6 +68,15 @@ const RecordCardMenu = ({ propertyId, propertyName, onDone }: Props) => {
             disabled={removeProperty.isPending}
             onClick={() => {
               setIsOpen(false);
+              if (isPreviewProperty(propertyId)) {
+                try {
+                  dismissPreviewProperty(propertyId);
+                  onDone('기록을 삭제했어요.');
+                } catch {
+                  onDone('기록을 삭제하지 못했어요. 다시 시도해 주세요.');
+                }
+                return;
+              }
               removeProperty.mutate(undefined, {
                 onSuccess: () => onDone('기록을 삭제했어요.'),
                 onError: () => onDone('기록을 삭제하지 못했어요. 다시 시도해 주세요.'),
