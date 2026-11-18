@@ -18,7 +18,7 @@ type Options = {
  * 그 안에 `leave()`로 벗어나면 뜨지 않는다. 벗어나면 `hideDelayMs` 뒤에 닫고, 그 사이 `hold()`(카드 위로 옮겨 감)하면 닫지 않는다.
  * 타이머는 대상이 바뀔 때마다 지우고 언마운트 때도 지운다.
  */
-const useHoverIntent = <T>({ showDelayMs = HOVER_SHOW_DELAY_MS, hideDelayMs = HOVER_HIDE_DELAY_MS }: Options = {}) => {
+function useHoverIntent<T>({ showDelayMs = HOVER_SHOW_DELAY_MS, hideDelayMs = HOVER_HIDE_DELAY_MS }: Options = {}) {
   const [target, setTarget] = useState<T | null>(null);
   const targetRef = useRef<T | null>(null);
   const showTimer = useRef<number | null>(null);
@@ -74,6 +74,6 @@ const useHoverIntent = <T>({ showDelayMs = HOVER_SHOW_DELAY_MS, hideDelayMs = HO
   );
 
   return { target, enter, leave, hold };
-};
+}
 
 export default useHoverIntent;
