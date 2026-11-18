@@ -26,6 +26,8 @@ type AddressSearchResultsProps = {
   status: AddressSearchStatus;
   onSelect: (address: MapAddress) => void;
   dropdown?: boolean;
+  /** 좁은 입력창 아래에서 주소가 잘리지 않게 목록을 가까운 위치 기준 칸 전체 너비로 두고 줄바꿈을 허용한다. */
+  wide?: boolean;
   errorMessage?: string;
 };
 /** API와 라우터 없이 검색 결과·로딩·오류를 표현한다. 지도와 위치 선택에서 함께 쓴다. */
@@ -34,6 +36,7 @@ const AddressSearchResults = ({
   status,
   onSelect,
   dropdown = false,
+  wide = false,
   errorMessage = '주소를 찾지 못했어요. 다시 시도해 주세요.',
 }: AddressSearchResultsProps) => {
   if (dropdown && status === 'idle') return null;
@@ -84,7 +87,7 @@ const AddressSearchResults = ({
       )}
     </>
   );
-  return dropdown ? <div className={styles.dropdown}>{content}</div> : content;
+  return dropdown ? <div className={cx(styles.dropdown, wide && styles.wide)}>{content}</div> : content;
 };
 
 const styles = {
@@ -101,6 +104,18 @@ const styles = {
     background: var(--color-surface);
     box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 14%);
     pointer-events: auto;
+  `,
+  /* 긴 주소를 줄바꿈해 끝까지 보인다. 너비는 가장 가까운 position: relative 조상이 정한다. */
+  wide: css`
+    label: AddressSearchResults-wide;
+    & strong,
+    & small {
+      overflow: visible;
+      text-overflow: clip;
+      white-space: normal;
+      word-break: keep-all;
+      overflow-wrap: anywhere;
+    }
   `,
   state: css`
     label: AddressSearchResults-state;

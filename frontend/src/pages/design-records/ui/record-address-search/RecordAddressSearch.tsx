@@ -1,9 +1,10 @@
 import { css } from '@emotion/css';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef } from 'react';
 
 import type { MapAddress } from '@/features/map/model/Map';
 import AddressSearchResults, { handleSearchKeys } from '@/features/map/ui/address-search-results/AddressSearchResults';
 import useAddressSearch from '@/features/property/hooks/useAddressSearch';
+import useExclusiveDropdown from '@/shared/lib/hooks/useExclusiveDropdown';
 import SearchField from '@/shared/ui/search-field/SearchField';
 
 type Props = {
@@ -33,8 +34,8 @@ const RecordAddressSearch = ({
   className,
 }: Props) => {
   const search = useAddressSearch();
-  // 검색창에서 손을 떼(포커스가 밖으로 나가) 결과 목록을 닫는다. 다시 눌러 입력하면 다시 열린다.
-  const [isOpen, setIsOpen] = useState(true);
+  // 결과 목록은 한 화면에서 하나만 열린다. 다른 검색창이 열리면 닫히고, 포커스가 밖으로 나가거나 Esc를 누르면 닫힌다. 다시 눌러 입력하면 다시 열린다.
+  const dropdown = useExclusiveDropdown(useId());
   const { query } = search;
   // 결과를 고르면 검색어가 그 주소로 바뀐다. 이때는 다시 검색하지 않는다.
   const pickedRef = useRef<string | null>(null);
@@ -53,10 +54,10 @@ const RecordAddressSearch = ({
     <div
       className={`${styles.root} ${className ?? ''}`.trim()}
       data-search-root
-      onFocus={() => setIsOpen(true)}
-      onKeyDown={(event) => handleSearchKeys(event, () => setIsOpen(false))}
+      onFocus={dropdown.open}
+      onKeyDown={(event) => handleSearchKeys(event, dropdown.close)}
       onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) setIsOpen(false);
+        if (!event.currentTarget.contains(event.relatedTarget)) dropdown.close();
       }}
     >
       <SearchField
@@ -68,11 +69,14 @@ const RecordAddressSearch = ({
         showSubmitButton={false}
         autoFocus={autoFocus}
         onBack={onBack}
-        onValueChange={search.changeQuery}
+        onValueChange={(value) => {
+          dropdown.open();
+          search.changeQuery(value);
+        }}
         onSubmit={() => void search.submit()}
         onClear={search.clear}
       />
-      {isOpen && (
+      {dropdown.isOpen && (
         // 결과를 누를 때 입력창의 포커스가 먼저 빠져 목록이 닫히지 않게 한다.
         <div onMouseDown={(event) => event.preventDefault()}>
           <AddressSearchResults
@@ -82,6 +86,7 @@ const RecordAddressSearch = ({
             onSelect={(result) => {
               pickedRef.current = formatAddress(result);
               search.pick(result);
+              dropdown.close();
               onSelect(result);
             }}
           />

@@ -1,7 +1,8 @@
 import { css } from '@emotion/css';
-import { useEffect, useRef } from 'react';
+import { useEffect, useId, useRef } from 'react';
 
-import AddressSearchResults from '@/features/map/ui/address-search-results/AddressSearchResults';
+import AddressSearchResults, { handleSearchKeys } from '@/features/map/ui/address-search-results/AddressSearchResults';
+import useExclusiveDropdown from '@/shared/lib/hooks/useExclusiveDropdown';
 import SearchField from '@/shared/ui/search-field/SearchField';
 
 import type { NeighborhoodPreviewContext } from '../../hooks/useNeighborhoodPreview';
@@ -39,6 +40,8 @@ const CommuteDestinationField = ({ preview, disabled = false }: Props) => {
   const searchRef = useRef(preview.searchDestination);
   searchRef.current = preview.searchDestination;
   const { query, hasChosenMapPoint } = preview;
+  // 위쪽 지도 검색창과 결과 목록이 겹치지 않게 한 번에 하나만 연다.
+  const dropdown = useExclusiveDropdown(useId());
   // 따로 제출하지 않고 입력이 멈추면 검색한다.
   useEffect(() => {
     if (query.trim() === '' || hasChosenMapPoint) return;
@@ -47,7 +50,18 @@ const CommuteDestinationField = ({ preview, disabled = false }: Props) => {
   }, [query, hasChosenMapPoint]);
 
   return (
-    <section className={styles.field} aria-label="출퇴근 장소">
+    <section
+      className={styles.field}
+      aria-label="출퇴근 장소"
+      data-search-root
+      onFocus={() => {
+        if (!hasChosenMapPoint) dropdown.open();
+      }}
+      onKeyDown={(event) => handleSearchKeys(event, dropdown.close)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) dropdown.close();
+      }}
+    >
       {hasChosenMapPoint ? (
         <div className={styles.chosen}>
           <div className={styles.chosenText}>
@@ -70,30 +84,43 @@ const CommuteDestinationField = ({ preview, disabled = false }: Props) => {
             placeholder="학교나 회사를 검색해요"
             value={preview.query}
             disabled={disabled}
-            onValueChange={preview.changeQuery}
+            onValueChange={(value) => {
+              dropdown.open();
+              preview.changeQuery(value);
+            }}
             onSubmit={() => void preview.searchDestination()}
           />
+          <FinderSearchTip hasInput={preview.query.trim().length > 0} enabled />
+        </div>
+      )}
+      {!hasChosenMapPoint && dropdown.isOpen && (
+        // 결과를 누를 때 입력창의 포커스가 먼저 빠져 목록이 닫히지 않게 한다. 입력창이 아니라 이 칸(`지도에서 선택` 버튼까지)을 기준으로 넓게 깐다.
+        <div onMouseDown={(event) => event.preventDefault()}>
           {preview.addressResults.length > 0 && (
             <AddressSearchResults
               dropdown
+              wide
               status="success"
               results={preview.addressResults}
-              onSelect={(address) => preview.selectAddress(address)}
+              onSelect={(address) => {
+                dropdown.close();
+                preview.selectAddress(address);
+              }}
             />
           )}
           {preview.isSearching && (
-            <AddressSearchResults dropdown status="loading" results={[]} onSelect={() => undefined} />
+            <AddressSearchResults dropdown wide status="loading" results={[]} onSelect={() => undefined} />
           )}
           {preview.searchError && !preview.isSearching && (
             <AddressSearchResults
               dropdown
+              wide
               status="error"
               errorMessage={preview.searchError}
               results={[]}
               onSelect={() => undefined}
             />
           )}
-          <FinderSearchTip hasInput={preview.query.trim().length > 0} enabled />
         </div>
       )}
       {!hasChosenMapPoint && (
@@ -102,7 +129,11 @@ const CommuteDestinationField = ({ preview, disabled = false }: Props) => {
           type="button"
           aria-pressed={preview.isMapSelectionEnabled}
           disabled={disabled}
-          onClick={preview.isMapSelectionEnabled ? preview.cancelMapSelection : preview.openMapSelection}
+          onClick={() => {
+            dropdown.close();
+            if (preview.isMapSelectionEnabled) preview.cancelMapSelection();
+            else preview.openMapSelection();
+          }}
         >
           {preview.isMapSelectionEnabled ? '선택 취소' : '지도에서 선택'}
         </button>
@@ -114,6 +145,8 @@ const CommuteDestinationField = ({ preview, disabled = false }: Props) => {
 const styles = {
   field: css`
     label: CommuteDestinationField-field;
+    /* 결과 목록이 입력창이 아니라 이 칸 전체 너비를 기준으로 깔리게 한다. */
+    position: relative;
     display: flex;
     align-items: flex-start;
     gap: 0.5rem;
