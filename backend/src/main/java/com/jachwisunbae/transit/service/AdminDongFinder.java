@@ -30,6 +30,11 @@ public class AdminDongFinder {
                 .map(AdminDong::code);
     }
 
+    // 북마크처럼 코드만 받는 요청은 메모리의 경계 대신 DB에서 지금 적재된 행정동인지 확인한다.
+    public boolean exists(final String code) {
+        return adminDongRepository.existsByCode(code);
+    }
+
     private AdminDongLocator locator() {
         AdminDongLocator loaded = locator;
         if (loaded != null) {

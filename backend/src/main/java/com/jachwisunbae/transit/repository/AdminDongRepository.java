@@ -8,4 +8,6 @@ public interface AdminDongRepository {
     void replace(List<AdminDong> adminDongs);
 
     List<AdminDong> findAll();
+
+    boolean existsByCode(String code);
 }

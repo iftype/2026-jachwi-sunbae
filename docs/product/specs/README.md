@@ -12,6 +12,7 @@
 | [저렴한 한 끼](cheap-meals.md)                               | 홈 진입, 주변 2km 착한가격업소, 편의점 행사상품·배달 할인 화면과 탐색 동작          |
 | [편의점 행사상품 수집·조회](convenience-store-promotions.md) | 브랜드별 행사상품 수집·저장과 조회 API 정책                                         |
 | [거리 메모](street-memo.md)                                  | 지도 위 나만 보는 동네 기록, 작성·조회·본인 삭제와 기능·비기능 요구사항             |
+| [동네 북마크](admin-dong-bookmark.md)                        | 동네 찾기 결과 행정동 북마크, 내 북마크 코드 조회와 본 방 기록 지도 표시            |
 | [매물 비교·PDF](compare.md)                                  | 매물 선택, 선택 순서와 비교 PDF 구성                                                |
 | [생활권 탐색](commute-area.md)                               | 목적지 기준 통근 가능 동네 탐색과 GTFS 노선망 적재                                  |
 | [생활권 탐색 GTFS 데이터](commute-area-gtfs.md)              | GTFS CSV 구조, 파싱 흐름과 단계별 적재 건수                                         |

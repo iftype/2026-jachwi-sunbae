@@ -65,6 +65,7 @@ public class JdbcMemberRepository implements MemberRepository {
         jdbcTemplate.update("UPDATE properties SET member_id = ? WHERE member_id = ?", target, source);
         jdbcTemplate.update("UPDATE user_checklists SET member_id = ? WHERE member_id = ?", target, source);
         jdbcTemplate.update("UPDATE street_memos SET member_id = ? WHERE member_id = ?", target, source);
+        mergeAdminDongBookmarks(source, target);
         jdbcTemplate.update("""
                 UPDATE member_checklist_preferences source
                 LEFT JOIN member_checklist_preferences target
@@ -96,6 +97,25 @@ public class JdbcMemberRepository implements MemberRepository {
                 """, target, mergedAt, source);
     }
 
+    // 같은 행정동을 두 회원이 모두 북마크했으면 대상 회원의 행 하나로 합친다. 원래 회원 쪽에만 살아 있으면 대상 쪽을 되살린다.
+    private void mergeAdminDongBookmarks(final Long source, final Long target) {
+        jdbcTemplate.update("""
+                UPDATE admin_dong_bookmarks source
+                LEFT JOIN admin_dong_bookmarks target
+                    ON target.member_id = ? AND target.admin_dong_code = source.admin_dong_code
+                SET source.member_id = ?
+                WHERE source.member_id = ? AND target.id IS NULL
+                """, target, target, source);
+        jdbcTemplate.update("""
+                UPDATE admin_dong_bookmarks target
+                JOIN admin_dong_bookmarks source
+                    ON source.member_id = ? AND source.admin_dong_code = target.admin_dong_code
+                SET target.created_at = GREATEST(target.created_at, source.created_at), target.deleted_at = NULL
+                WHERE target.member_id = ? AND source.deleted_at IS NULL
+                """, source, target);
+        jdbcTemplate.update("DELETE FROM admin_dong_bookmarks WHERE member_id = ?", source);
+    }
+
     @Override
     public void deleteOwnedData(final Long memberId, final LocalDateTime deletedAt) {
         jdbcTemplate.update("""
@@ -118,6 +138,11 @@ public class JdbcMemberRepository implements MemberRepository {
                 SET updated_at = ?, deleted_at = ?
                 WHERE member_id = ? AND deleted_at IS NULL
                 """, deletedAt, deletedAt, memberId);
+        jdbcTemplate.update("""
+                UPDATE admin_dong_bookmarks
+                SET deleted_at = ?
+                WHERE member_id = ? AND deleted_at IS NULL
+                """, deletedAt, memberId);
         jdbcTemplate.update("""
                 UPDATE member_notification_settings
                 SET enabled = FALSE, updated_at = ?

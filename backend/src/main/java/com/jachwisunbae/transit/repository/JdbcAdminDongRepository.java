@@ -59,6 +59,12 @@ public class JdbcAdminDongRepository implements AdminDongRepository {
                 """, (resultSet, rowNumber) -> toAdminDong(resultSet));
     }
 
+    @Override
+    public boolean existsByCode(final String code) {
+        return Boolean.TRUE.equals(jdbcTemplate.queryForObject(
+                "SELECT EXISTS (SELECT 1 FROM admin_dongs WHERE code = ?)", Boolean.class, code));
+    }
+
     private AdminDong toAdminDong(final ResultSet resultSet) throws SQLException {
         String code = resultSet.getString("code");
         try {
