@@ -115,6 +115,17 @@ const InfrastructureMap = ({ mapProps, open }: Props) => {
           mapProps.onSelectMarker?.(marker);
         }}
       />
+      {/* 매물을 고르지 않았을 때는 시설 분류 없이 이어 붙인 칸(찜한 동네)만 보인다. */}
+      {open && anchor === null && (mapProps.railExtraItems?.length ?? 0) > 0 && (
+        <MapCategoryRail
+          className={styles.rail}
+          showIcons={false}
+          selectedCategories={[]}
+          order={[]}
+          onToggle={() => undefined}
+          extraItems={mapProps.railExtraItems}
+        />
+      )}
       {open && anchor !== null && (
         <>
           <MapCategoryRail
@@ -123,6 +134,7 @@ const InfrastructureMap = ({ mapProps, open }: Props) => {
             selectedCategories={layer.category ? [layer.category] : []}
             order={[...INFRASTRUCTURE_CATEGORIES]}
             labels={{ AGENCY: '중개사' }}
+            extraItems={mapProps.railExtraItems}
             onToggle={(category) => {
               if (
                 category === 'AGENCY' ||

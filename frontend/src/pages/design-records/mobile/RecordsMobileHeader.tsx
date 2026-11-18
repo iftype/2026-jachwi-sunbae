@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import MapHeaderWeather from '@/features/weather/ui/map-header-weather/MapHeaderWeather';
 import { LOGO_DUCK } from '@/shared/assets/imageAssets';
 import { HOME_PATH } from '@/shared/lib/navigation/appPaths';
+import { MOBILE_BOTTOM_TABS_ENABLED } from '@/shared/ui/bottom-tab-bar/bottomTabConfig';
 import { MapModeSwitchTile, useHasMapModeSwitch } from '@/shared/ui/map-mode-tile/MapModeContext';
 import MobileMapHeader from '@/shared/ui/mobile-map-header/MobileMapHeader';
 
@@ -19,7 +20,7 @@ type Props = {
  * 휴대폰 기록 헤더. 지도 보기에서는 왼쪽에 동네 찾기와 내 기록을 오가는 타일을, 리스트 보기와 통합 지도 밖에서는 로고를 둔다.
  */
 const RecordsMobileHeader = ({ view, searchTo }: Props) => {
-  const showsModeTile = useHasMapModeSwitch() && view === 'map';
+  const showsModeTile = useHasMapModeSwitch() && view === 'map' && !MOBILE_BOTTOM_TABS_ENABLED;
   // 검색 아이콘을 누르면 바로 열리도록, 주소 검색 화면 코드를 미리 받아 둔다.
   useEffect(() => {
     void import('@/pages/address-search/AddressSearchPage');

@@ -90,7 +90,7 @@ const styles = {
     align-items: center;
     gap: 0.75rem;
     padding: 0.5rem 1rem;
-    padding-block: 0.65rem;
+    padding-block: 0.5rem;
     background: #f3f4f7;
     color: var(--color-muted);
     font-size: 0.66rem;
@@ -105,8 +105,8 @@ const styles = {
       grid-template-columns: var(--compare-table-columns);
       align-items: center;
       gap: 0.75rem;
-      padding: 0.5rem 1rem;
-      min-height: 3.5rem;
+      padding: 0.35rem 1rem;
+      min-height: 2.75rem;
       cursor: pointer;
       transition: background-color 0.18s ease;
 
@@ -164,7 +164,7 @@ const styles = {
   thumbnail: css`
     label: CompareTable-thumbnail;
     display: grid;
-    width: 2.5rem;
+    width: 2rem;
     aspect-ratio: 1;
     overflow: hidden;
     border-radius: var(--radius-sm);

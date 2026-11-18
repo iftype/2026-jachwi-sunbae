@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 import { useRecordsMapController } from '@/pages/design-records/RecordsMapProvider';
 import { useAdminDongBookmarks } from '@/features/map/api/useAdminDongBookmarks';
+import useMapTip from '@/features/map/hooks/useMapTip';
 import useViewportFacilityLayer from '@/features/map/hooks/useViewportFacilityLayer';
 import {
   DESKTOP_FACILITY_MARKER_LEVEL,
@@ -19,6 +20,8 @@ import useDebouncedValue from '@/shared/lib/hooks/useDebouncedValue';
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
 
 import { formatRentPair } from '../model/criteriaLabels';
+import { SHOW_RECORDED_PROPERTIES_ON_FINDER } from '../model/finderMapOptions';
+import { NEIGHBORHOOD_TAP_TIP_KEY } from '../model/mapTapTipKey';
 import type { MyPropertyRow } from '../model/myProperty';
 import { propertyCommuteLabel } from '../model/propertyCommute';
 import useNeighborhoodPlaces, { MY_PROPERTY_PREFIX } from './useNeighborhoodPlaces';
@@ -56,6 +59,13 @@ export type { MyPropertyRow } from '../model/myProperty';
 export const RESULT_RAIL_ORDER: MapCategory[] = ['AGENCY', 'HOSPITAL', 'TRANSPORT', 'CONVENIENCE'];
 export const RESULT_RAIL_LABELS: Partial<Record<MapCategory, string>> = { AGENCY: '중개사' };
 
+/** 마우스가 동에서 나간 뒤 카드를 닫기까지 기다리는 시간. 그 사이 카드로 옮겨 가면 닫지 않는다. */
+const CARD_HIDE_DELAY_MS = 150;
+/** 동 라벨 알약 높이의 절반(px). 눈대로 잡은 값이며 결과 지도에서 실측이 필요하다. */
+const REGION_LABEL_HALF_HEIGHT = 18;
+const SEARCH_PIN_ID = 'search-pin';
+const BOOKMARK_REGION_PREFIX = 'bookmark:';
+
 const useNeighborhoodMapView = (
   preview: NeighborhoodPreviewContext,
   { showAreaAction = true, onEmptyTap, deselectOnRegionTap = false, onSelectedRegionTap }: MapViewOptions = {},
@@ -70,7 +80,7 @@ const useNeighborhoodMapView = (
   const [railSelection, setRailSelection] = useState<RailSelection | null>(null);
   const facilityCategory = railSelection === 'MY' ? null : railSelection;
   // 로그인한 회원은 동네 찾기에서도 기록한 매물을 늘 지도에 띄우고, 매물마다 이번 출퇴근 장소까지 걸리는 시간을 적는다.
-  const showsMy = !preview.isPublicExplore;
+  const showsMy = SHOW_RECORDED_PROPERTIES_ON_FINDER && !preview.isPublicExplore;
   const showsTransport = facilityCategory === 'TRANSPORT';
   // 중개사(전화, 카카오 링크가 있는 중개사 응답)와 교통(버스정류장 응답)은 화면 안 장소 조회로 받는다.
   // 병원, 편의점은 화면을 칸으로 나눠 받는다(`useViewportFacilityLayer`). 둘 다 가까이 확대했을 때만 받는다.
@@ -222,18 +232,82 @@ const useNeighborhoodMapView = (
   const candidateMarkers = useMemo(
     () => [
       ...(preview.hasChosenMapPoint
-        ? [{ ...preview.mapCandidate, id: 'destination', label: DESTINATION_LABEL, tone: 'destination' as const }]
+        ? // 목적지를 고른 방법으로 핀을 가른다: 검색은 이름이 붙은 검은 핀, 지도를 눌러 고른 곳은 점선 고리가 있는 작은 핀.
+          // 분석은 이 마커와 같은 좌표(`mapCandidate`)로 요청한다. 새로 고르면 이전 마커는 같은 id라 바뀐다.
+          [
+            {
+              latitude: preview.mapCandidate.latitude,
+              longitude: preview.mapCandidate.longitude,
+              id: 'destination',
+              // 출퇴근 장소 마커: 진한 파란 라벨에 `출퇴근 장소`와 이름. 지도 검색 핀(흰 라벨)과 모양이 달라 한눈에 구분된다.
+              label: preview.mapCandidate.name || '선택한 위치',
+              caption: '출퇴근 장소',
+              tone: 'pinLabel' as const,
+              pinKind: 'commute' as const,
+            },
+          ]
         : preview.hasSubmittedSearch
           ? [{ ...preview.destination, id: 'destination', label: DESTINATION_LABEL, tone: 'destination' as const }]
           : []),
     ],
     [preview.mapCandidate, preview.hasChosenMapPoint, preview.hasSubmittedSearch, preview.destination],
   );
+  // 위치를 고르기 전, 지도 가운데 좌표에 붙는 첫 안내. 위치를 고르거나 검색을 시작하면 잠시 숨긴다.
+  const tip = useMapTip({
+    storageKey: NEIGHBORHOOD_TAP_TIP_KEY,
+    message: '지도를 눌러 출퇴근 장소를 골라요',
+    point: preview.selectionCenter,
+    enabled:
+      preview.isSelectingOnMap &&
+      preview.isMapSelectionEnabled &&
+      !preview.hasChosenMapPoint &&
+      !preview.query.trim() &&
+      preview.addressResults.length === 0,
+  });
+  // 구역 위 마우스 상태. 마우스가 동 라벨에서 카드로 옮겨 가는 사이 카드가 닫히지 않게 나갈 때 150ms를 기다린다.
+  const [hoveredCode, setHoveredCode] = useState<string | null>(null);
+  const hoverTimer = useRef<number | null>(null);
+  const holdCard = () => {
+    if (hoverTimer.current !== null) window.clearTimeout(hoverTimer.current);
+    hoverTimer.current = null;
+  };
+  const releaseCard = () => {
+    holdCard();
+    hoverTimer.current = window.setTimeout(() => setHoveredCode(null), CARD_HIDE_DELAY_MS);
+  };
+  const hoverRegion = (id: string, isHovered: boolean) => {
+    if (isHovered) {
+      holdCard();
+      setHoveredCode(id);
+    } else releaseCard();
+  };
+  const hoveredArea =
+    hoveredCode === null ? undefined : preview.resultAreas.find((area) => area.adminDongCode === hoveredCode);
+  // 지도 검색(위쪽 검색창)의 검색 핀. 흰 라벨에 `출퇴근 장소로 설정` 작은 버튼이 있고, 라벨을 누르면 지운다.
+  const searchPinMarker: MapMarker[] = preview.searchPin
+    ? [
+        {
+          latitude: preview.searchPin.latitude,
+          longitude: preview.searchPin.longitude,
+          id: SEARCH_PIN_ID,
+          label: preview.searchPin.name,
+          tone: 'pinLabel' as const,
+          pinKind: 'search' as const,
+          removable: true,
+          setsCommute: true,
+          actionable: true,
+        },
+      ]
+    : [];
+  const selectSearchPin = (marker: MapMarker) => {
+    if (marker.id === `${SEARCH_PIN_ID}:set-commute`) preview.setCommuteFromSearchPin();
+    else if (marker.id === SEARCH_PIN_ID) preview.clearSearchPin();
+  };
   const mapProps: Pick<MapCanvasProps, 'center'> & Partial<MapCanvasProps> = isResultMap
     ? {
         center: preview.center,
         level: preview.resultLevel,
-        markers: destinationMarkers,
+        markers: [...destinationMarkers, ...searchPinMarker],
         onCenterChange: preview.rememberResultCenter,
         onLevelChange: (level: number) => {
           preview.rememberResultLevel(level);
@@ -241,34 +315,43 @@ const useNeighborhoodMapView = (
         },
         onBoundsChange: places.rememberBounds,
         selectedMarkerId: places.selectedMarkerId,
-        onSelectMarker: selectMarker,
+        onSelectMarker: (marker: MapMarker) => {
+          if (marker.id.startsWith(SEARCH_PIN_ID)) selectSearchPin(marker);
+          else selectMarker(marker);
+        },
         // 빈 곳을 찍으면 열어 둔 정보를 닫는다(휴대폰은 시트를 내린다).
         onSelectLocation: tapEmpty,
-        regions: preview.areRegionsVisible ? preview.regions : NO_REGIONS,
+        regions: preview.regions,
         selectedRegionId: preview.selected?.adminDongCode,
         onSelectRegion: selectRegion,
+        // 데스크탑: 동 라벨이나 구역에 마우스를 올리면 동 이름, 소요시간, 월세 시세 카드가 그 자리에 뜬다. 모바일은 아래 시트가 같은 내용을 맡는다.
+        onHoverRegion: showAreaAction ? hoverRegion : undefined,
         coordinateAction:
-          showAreaAction && preview.selected && !hasOpenLayer
+          showAreaAction && hoveredArea && !hasOpenLayer
             ? {
-                ...preview.selected.center,
+                ...hoveredArea.center,
                 placement: 'above' as const,
-                // 동을 누르면 정보 카드를 바로 열지 않고, 그 자리에 동 이름, 소요시간, 월세 시세만 간략히 담은 마커를 띄운다.
-                // 상세 정보와 다방 링크, 동선(출발 정류장)은 넣지 않는다.
-                label: [
-                  preview.selected.name,
-                  `소요시간 ${preview.selected.commuteMinutes}분`,
-                  `월세 시세 ${preview.selected.rent ? formatRentPair(preview.selected.rent) : '시세 없음'}`,
-                  ...(preview.isPublicExplore
-                    ? []
-                    : [
-                        bookmarks.isBookmarked(preview.selected.adminDongCode)
-                          ? '★ 북마크됨 (누르면 해제)'
-                          : '☆ 북마크하기',
-                      ]),
-                ].join('\n'),
-                // 마커를 누르면 이 동네를 찜(북마크)하고, 이미 했으면 해제한다. 공개 탐색은 로그인 전이라 누르지 않는다.
-                onClick: () => {
-                  if (!preview.isPublicExplore && preview.selected) bookmarks.toggle(preview.selected.adminDongCode);
+                label: hoveredArea.name,
+                onClick: () => undefined,
+                onHoverChange: (isHovered: boolean) => (isHovered ? holdCard() : releaseCard()),
+                card: {
+                  // 동 라벨(알약)은 좌표가 가운데라 높이의 절반만큼 위에서 꼬리가 닿는다.
+                  markerAbove: REGION_LABEL_HALF_HEIGHT,
+                  markerBelow: REGION_LABEL_HALF_HEIGHT,
+                  title: hoveredArea.name,
+                  // 북마크는 로그인한 회원만 쓴다. 공개 탐색은 별을 숨긴다.
+                  bookmark: preview.isPublicExplore
+                    ? undefined
+                    : {
+                        isOn: bookmarks.isBookmarked(hoveredArea.adminDongCode),
+                        onToggle: () => bookmarks.toggle(hoveredArea.adminDongCode),
+                      },
+                  rows: [
+                    { label: '소요시간', value: `${hoveredArea.commuteMinutes}분`, tone: 'primary' as const },
+                    hoveredArea.rent
+                      ? { label: '월세 시세', value: formatRentPair(hoveredArea.rent) }
+                      : { label: '월세 시세', value: '정보 없음', isEmpty: true },
+                  ],
                 },
               }
             : undefined,
@@ -279,10 +362,13 @@ const useNeighborhoodMapView = (
         // 확대·축소 버튼이 지금 보이는 자리에서 옮기도록 움직인 시점을 기억한다.
         onCenterChange: preview.rememberSelectionCenter,
         onLevelChange: preview.rememberSelectionLevel,
-        markers: candidateMarkers,
-        regions: preview.hasSubmittedSearch && preview.areRegionsVisible ? preview.regions : NO_REGIONS,
+        markers: [...candidateMarkers, ...searchPinMarker],
+        regions: preview.hasSubmittedSearch ? preview.regions : NO_REGIONS,
+        tip,
+        // 분석 중이거나 실패 화면이 지도를 덮고 있을 때는 위치 찍기를 끈다.
         // 분석 중이거나 실패 화면이 지도를 덮고 있을 때는 위치 찍기를 끈다.
         onSelectLocation: preview.isSelectingOnMap ? preview.chooseMapPoint : undefined,
+        onSelectMarker: selectSearchPin,
       };
   const baseSelectLocation = mapProps.onSelectLocation;
   const baseSelectMarker = mapProps.onSelectMarker;
@@ -295,9 +381,18 @@ const useNeighborhoodMapView = (
           ...(mapProps.markers ?? []),
           ...(registration.canvasProps.markers ?? []).filter((marker) => marker.category === 'MEMO'),
         ],
+        // 찜한 동네는 행정동 경계 안쪽을 칠해 두 지도에 같은 모양으로 보인다. 통근 결과 구역과 id가 겹치지 않게 접두어를 붙이고, 눌러도 고르지 않는다.
+        regions: [
+          ...(mapProps.regions ?? []),
+          ...(registration.canvasProps.regions ?? []).map((region) => ({
+            ...region,
+            id: `${BOOKMARK_REGION_PREFIX}${region.id}`,
+          })),
+        ],
         // 동네 찾기에서는 지도를 눌러도 메모 남기기, 본 방 기록하기 메뉴를 띄우지 않는다.
         coordinateMenu: undefined,
         onSelectRegion: (id, point) => {
+          if (id.startsWith(BOOKMARK_REGION_PREFIX)) return;
           if (preview.isSelectingOnMap && preview.isMapSelectionEnabled && point)
             preview.chooseMapPoint(point.latitude, point.longitude);
           else {

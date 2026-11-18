@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Outlet, Route, Routes } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -87,8 +87,18 @@ describe('데스크탑 앱 셸', () => {
         </MemoryRouter>,
       );
       expect(screen.getByRole('navigation', { name: '화면 이동' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: '마이' })).toHaveAttribute('href', '/me');
-      expect(screen.getByRole('link', { name: '지도' })).toHaveAttribute('href', '/');
+      const rail = within(screen.getByRole('navigation', { name: '화면 이동' }));
+      // 위쪽 다섯 칸에는 마이가 없고, 맨 아래에 사용방법, 마이 순서로 쌓여 있다.
+      expect(rail.getAllByRole('button').map((button) => button.textContent)).toEqual([
+        '내 기록',
+        '동네 찾기',
+        '체크리스트',
+        '방 비교',
+        '저렴한 한 끼',
+        '사용방법',
+        '마이',
+      ]);
+      expect(rail.getByRole('button', { name: '체크리스트' })).toHaveAttribute('aria-current', 'page');
       expect(screen.queryByRole('link', { name: '홈으로 돌아가기' })).not.toBeInTheDocument();
       expect(screen.getByRole('heading', { name: '체크리스트' })).toBeInTheDocument();
     } finally {

@@ -104,22 +104,23 @@ const useChecklistDraft = ({ initialName, initialItems: sourceItems, isSubmittin
     setAnnouncement(`${movedItem.question} 항목을 ${targetIndex + 1}번째로 이동했어요.`);
   };
 
-  const remove = (index: number) => {
+  /** `moveFocus`가 false면 포커스를 옮기지 않는다. 다른 칸의 체크 상자로 지울 때 쓴다. */
+  const remove = (index: number, moveFocus = true) => {
     const removed = items[index];
     const nextItems = items.filter((_, candidateIndex) => candidateIndex !== index);
     const nextFocusItem = nextItems[Math.min(index, nextItems.length - 1)];
     setItems(nextItems);
-    setPendingFocusKey(nextFocusItem?.clientKey ?? null);
+    if (moveFocus) setPendingFocusKey(nextFocusItem?.clientKey ?? null);
     setAnnouncement(`${removed.question} 항목을 제거했어요. 저장하기 전까지 서버에는 반영되지 않습니다.`);
   };
 
   /** 이미 담긴 제공 항목은 건너뛰고 목록 끝에 붙인다. 새로 담은 항목이 있는지 돌려준다. */
-  const addItems = (newItems: CheckItem[]): boolean => {
+  const addItems = (newItems: CheckItem[], moveFocus = true): boolean => {
     const existingIds = new Set(providedSourceIds);
     const additions = newItems.filter((item) => !existingIds.has(item.checkItemId)).map(checkItemToEditorItem);
     if (additions.length === 0) return false;
     setItems((current) => [...current, ...additions]);
-    setPendingFocusKey(additions[0].clientKey);
+    if (moveFocus) setPendingFocusKey(additions[0].clientKey);
     setAnnouncement(`${additions.length}개 체크 항목을 목록 끝에 추가했어요.`);
     return true;
   };

@@ -45,6 +45,8 @@ const styles = {
     color: var(--color-ink);
     overflow: hidden;
     padding-top: env(safe-area-inset-top);
+    /* 하단 탭이 보이는 동안 탭 높이만큼 비운다. */
+    padding-bottom: var(--mobile-tab-space, 0px);
     box-sizing: border-box;
   `,
   header: css`

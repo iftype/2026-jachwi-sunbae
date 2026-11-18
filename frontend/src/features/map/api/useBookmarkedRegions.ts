@@ -10,8 +10,11 @@ import { getAdminBoundaryQueryOptions } from './adminBoundaryQueries';
 
 const EMPTY: MapRegion[] = [];
 
-/** 북마크한 동네를 칠하는 색. 동네 찾기의 통근 색(파랑, 초록, 빨강)과 겹치지 않게 보라 계열을 쓴다. */
-const BOOKMARK_APPEARANCE = { fillColor: '#7c3aed1f', strokeColor: '#7c3aed' } as const;
+/**
+ * 찜한 동네를 칠하는 색. 우리 primary 파랑 계열의 옅은 채움(투명도 0.18)과 진한 윤곽선이다.
+ * 동네 찾기의 통근 색(초록, 노랑, 빨강)이나 월세 정보 없음 회색 위에서도 구분되게 윤곽선은 점선으로 둔다.
+ */
+const BOOKMARK_APPEARANCE = { fillColor: '#3f6fc42e', strokeColor: '#2f56a0', dashed: true } as const;
 
 /**
  * 북마크한 행정동 코드의 경계를 지도에 칠할 구역으로 바꾼다. 켜 둘 때만 경계 파일을 받는다.
@@ -56,6 +59,7 @@ export const useBookmarkedRegions = (codes: string[], enabled: boolean): MapRegi
                     polygons: boundary.polygons,
                     simplifiedPolygons: boundary.simplifiedPolygons,
                     appearance: BOOKMARK_APPEARANCE,
+                    showsName: true,
                   },
                 ];
           }),

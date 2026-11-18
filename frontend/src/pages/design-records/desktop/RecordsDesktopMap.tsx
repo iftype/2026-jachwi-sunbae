@@ -9,9 +9,8 @@ import Icon from '@/shared/ui/icon/Icon';
 
 import type { RecordsState } from '../hooks/useRecords';
 import type { RecordsMapLayers } from '../hooks/useRecordsMapLayers';
-import { recordsMapHint } from '../model/recordPresentation';
-import RecordBookmarkToggle from '../ui/record-bookmark-toggle/RecordBookmarkToggle';
 import RecordLocationPick from '../ui/record-location-pick/RecordLocationPick';
+import RecordNeighborhoodBanner from '../ui/record-neighborhood-banner/RecordNeighborhoodBanner';
 import RecordRegisterSuggestion from '../ui/record-register-suggestion/RecordRegisterSuggestion';
 
 type Props = {
@@ -32,7 +31,6 @@ const RecordsDesktopMap = ({ records, layers, districts, className }: Props) => 
     <MapCanvas shared {...layers.canvasProps} coordinateMenu={layers.coordinateMenu} />
     {layers.locationPick && <RecordLocationPick pick={layers.locationPick} />}
     <StreetMemoImpressionLog memos={layers.memo.visibleMemos} />
-    <RecordBookmarkToggle bookmarks={layers.bookmarks} />
     {districts}
     <button
       className={styles.recenter}
@@ -43,9 +41,7 @@ const RecordsDesktopMap = ({ records, layers, districts, className }: Props) => 
       <Icon name="target" size={22} />
     </button>
     <MapZoomControl className={styles.zoom} level={records.level} onChange={records.setLevel} />
-    {!records.selected && layers.memo.mode === null && (
-      <span className={styles.hint}>{recordsMapHint(records.records, layers)}</span>
-    )}
+    {!records.selected && layers.memo.mode === null && <RecordNeighborhoodBanner className={styles.banner} />}
     <StreetMemoPanel layer={layers.memo} className={styles.memoCard} />
     <RecordRegisterSuggestion
       isOpen={layers.isSuggestingRegister}
@@ -95,16 +91,11 @@ const styles = {
     right: 1.15rem;
   `,
 
-  hint: css`
-    label: RecordsDesktopMap-hint;
-    position: absolute;
-    bottom: 2.75rem;
-    left: calc(var(--map-panel-width, 0px) + 2rem);
-    padding: 0.5rem 0.7rem;
-    border-radius: 0.5rem;
-    background: #ffffffed;
-    color: #92969d;
-    font-size: 0.8rem;
+  /* 목록 칸이 지도 위에 겹친 만큼 비켜 보이는 지도 가운데 아래에 둔다. */
+  banner: css`
+    label: RecordsDesktopMap-banner;
+    bottom: 1.25rem;
+    left: calc(var(--map-panel-width, 0px) + 1.25rem);
   `,
 
   /* 메모 카드와 겹친 매물 카드는 오른쪽 버튼을 가리지 않게 왼쪽 위, 동네 뱃지 아래에 띄운다. 둘은 함께 열리지 않는다. */

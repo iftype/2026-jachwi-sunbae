@@ -6,6 +6,7 @@ import { SegmentedControl, SegmentedControlItem } from '@/shared/ui/segmented-co
 
 import type { NeighborhoodPreviewContext } from '../../hooks/useNeighborhoodPreview';
 import { MINUTE_OPTIONS } from '../../NeighborhoodFilters';
+import CommuteDestinationField from '../commute-destination-field/CommuteDestinationField';
 import RentSlider from '../rent-slider/RentSlider';
 
 type ConditionPanelProps = {
@@ -18,6 +19,10 @@ type ConditionPanelProps = {
     | 'addressResults'
     | 'selectAddress'
     | 'editLocation'
+    | 'query'
+    | 'changeQuery'
+    | 'searchDestination'
+    | 'openMapSearch'
     | 'isMapSelectionEnabled'
     | 'openMapSelection'
     | 'cancelMapSelection'
@@ -64,46 +69,7 @@ const ConditionPanel = ({
         <h2>어디로 출퇴근하세요?</h2>
         {headerAction}
       </header>
-      <section className={styles.place} aria-label="출퇴근 장소">
-        {preview.hasChosenMapPoint ? (
-          <>
-            <div className={styles.placeText}>
-              <small>출퇴근 장소</small>
-              <strong>{preview.mapCandidate.name}</strong>
-            </div>
-            {/* 고른 목적지를 바로 바꿀 수 있게, 같은 칸에서 다시 고르는 흐름으로 이어 준다. */}
-            <button
-              className={styles.change}
-              type="button"
-              disabled={disabled}
-              onClick={() => {
-                preview.editLocation();
-                preview.openMapSelection();
-              }}
-            >
-              변경
-            </button>
-          </>
-        ) : (
-          <>
-            <p>
-              {preview.isMapSelectionEnabled
-                ? '지도에서 출퇴근할 위치를 눌러 주세요.'
-                : '학교, 회사를 검색하거나 지도에서 위치를 골라주세요.'}
-            </p>
-            {/* 데스크탑에는 지도를 눌러 고르는 모드를 켤 길이 이 버튼뿐이다. 켜면 지도의 한 곳을 눌러 목적지로 정한다. */}
-            <button
-              className={styles.change}
-              type="button"
-              aria-pressed={preview.isMapSelectionEnabled}
-              disabled={disabled}
-              onClick={preview.isMapSelectionEnabled ? preview.cancelMapSelection : preview.openMapSelection}
-            >
-              {preview.isMapSelectionEnabled ? '선택 취소' : '지도에서 선택'}
-            </button>
-          </>
-        )}
-      </section>
+      <CommuteDestinationField preview={preview} disabled={disabled} />
       <fieldset className={styles.field} disabled={disabled}>
         <legend>통근 시간</legend>
         <SegmentedControl
@@ -215,6 +181,7 @@ const styles = {
     & h2 {
       margin: 0;
       font-size: 1rem;
+      font-weight: 800;
       letter-spacing: -0.02em;
     }
   `,

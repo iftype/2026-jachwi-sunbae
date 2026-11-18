@@ -16,7 +16,6 @@ import RecordCompareLink from '../ui/record-compare-link/RecordCompareLink';
 import RecordDistricts from '../ui/record-districts/RecordDistricts';
 import RecordList from '../ui/record-list/RecordList';
 import RecordLoadError from '../ui/record-load-error/RecordLoadError';
-import RecordNeighborhoodBanner from '../ui/record-neighborhood-banner/RecordNeighborhoodBanner';
 import RecordNotice from '../ui/record-notice/RecordNotice';
 import RecordsMobileHeader from './RecordsMobileHeader';
 import RecordsMobileMap from './RecordsMobileMap';
@@ -87,7 +86,6 @@ const RecordsMobilePage = ({ records, layers, searchTo }: Props) => {
             <RecordsMobileMap records={records} layers={layers} />
           ) : (
             <>
-              {!panel && <RecordNeighborhoodBanner />}
               {/* 비교하고 PDF로 받기는 헤더에 두지 않고, 헤더 아래 목록 오른쪽 위에 둔다. */}
               {!panel && <RecordCompareLink />}
               <RecordList

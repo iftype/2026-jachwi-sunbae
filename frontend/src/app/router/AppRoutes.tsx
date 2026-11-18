@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import { lazy } from 'react';
 import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 
-import DesktopRailShell from '@/app/layouts/desktop-rail-shell/DesktopRailShell';
 import PropertyAppLayout from '@/app/layouts/property-app-layout/PropertyAppLayout';
 import PublicExploreLayout from '@/app/layouts/public-explore-layout/PublicExploreLayout';
 import RecordsPageSkeleton from '@/pages/design-records/RecordsPageSkeleton';
@@ -43,7 +42,6 @@ import ProtectedRoute from './ProtectedRoute';
 
 const AdminPage = lazy(() => import('@/pages/admin/AdminPage'));
 const AddressSearchPage = lazy(() => import('@/pages/address-search/AddressSearchPage'));
-const CheapMealsPage = lazy(() => import('@/pages/cheap-meals/CheapMealsPage'));
 const UnifiedMapPage = lazy(() => import('@/pages/unified-map/UnifiedMapPage'));
 const NeighborhoodPreviewPage = lazy(() => import('@/pages/neighborhood-preview/NeighborhoodPreviewPage'));
 const NeighborhoodRoutePage = lazy(() => import('@/pages/neighborhood-preview/NeighborhoodRoutePage'));
@@ -129,19 +127,13 @@ const AppRoutes = () => (
     {/* 첫 주소(`/`)를 포함한 회원 화면. 자동 로그인(복원 또는 익명 회원 생성)을 기다리는 동안에도 화면 뼈대를 바로 그린다. */}
     <Route element={<ProtectedRoute />}>
       {/* 탭마다 주소가 따로 있다. 탭 없는 주소와 예전 `?tab=` 주소는 화면이 탭 주소로 바꾼다. */}
-      <Route
-        path={ROUTE_PATTERNS.cheapMeals}
-        element={lazyPage(
-          <DesktopRailShell>
-            <CheapMealsPage />
-          </DesktopRailShell>,
-        )}
-      />
       <Route path={PROPERTIES_PATH} element={<LegacyRecordsRoute />} />
       <Route path={MY_ALIAS_PATH} element={<Navigate to={MY_PATH} replace />} />
       <Route element={lazyPage(<UnifiedMapPage />, <RecordsPageSkeleton />)}>
         {/* 홈이 곧 본 방 기록(지도와 리스트)이다. 화면은 이 셸이 그린다. */}
         <Route path={HOME_PATH} />
+        {/* 저렴한 한 끼도 같은 통합 지도 화면 안에서 그려, 지도와 줌, 중심이 다른 지도 화면과 이어진다. 탭마다 주소가 따로 있다. */}
+        <Route path={ROUTE_PATTERNS.cheapMeals} />
         <Route path={MY_PATH} />
         <Route path={ROUTE_PATTERNS.propertyRecords}>
           <Route index element={lazyPage(<PropertyDetailPage />)} />

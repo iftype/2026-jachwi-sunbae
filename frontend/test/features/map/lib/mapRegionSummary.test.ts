@@ -63,7 +63,7 @@ it('월세 라벨은 동 이름과 평균 월세만 보이고, 거래가 적은 
   expect(onSelect).toHaveBeenCalledOnce();
 });
 
-it('월세 시세가 없는 동도 라벨을 두고 통근 시간과 `월세 정보 없음`을 적는다', () => {
+it('월세 시세가 없는 동도 라벨을 두고 `월세 정보 없음`을 적고 통근 시간은 낭독 문구에만 둔다', () => {
   const label = createRegionRentLabelElement(
     {
       ...region,
@@ -73,7 +73,7 @@ it('월세 시세가 없는 동도 라벨을 두고 통근 시간과 `월세 정
     false,
     vi.fn(),
   );
-  expect(label).toHaveTextContent('샘플동18분월세 정보 없음');
+  expect(label).toHaveTextContent('샘플동월세 정보 없음');
   expect(label.querySelector('b')?.dataset.empty).toBe('true');
   expect(label).toHaveAttribute('aria-label', '샘플동 통근 18분 월세 정보 없음');
 });

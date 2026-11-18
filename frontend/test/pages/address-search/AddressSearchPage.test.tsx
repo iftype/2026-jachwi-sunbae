@@ -104,7 +104,7 @@ it('출퇴근 장소 검색에서 뒤로 가면 기록 지도이고 주소를 �
   show(false, '/search?target=neighborhoods');
   expect(screen.getByRole('textbox', { name: '출퇴근하는 장소 검색' })).toHaveAttribute(
     'placeholder',
-    '출퇴근하는 장소',
+    '주소로 지도 이동',
   );
   expect(screen.getByRole('button', { name: '지도에서 직접 고르기' })).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: recent.roadAddress }));

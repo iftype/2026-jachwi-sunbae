@@ -28,7 +28,7 @@ const styles = {
     label: MapTapActions-actions;
     position: absolute;
     right: 1rem;
-    bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+    bottom: calc(1.25rem + var(--map-sheet-bottom, env(safe-area-inset-bottom, 0px)));
     left: 1rem;
     z-index: 35;
     display: flex;

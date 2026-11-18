@@ -20,21 +20,14 @@ import StateIllustration from '@/shared/ui/state-illustration/StateIllustration'
 import useNeighborhoodMapView from '../hooks/useNeighborhoodMapView';
 import type { NeighborhoodPreviewContext } from '../hooks/useNeighborhoodPreview';
 import useResultMapViewport from '../hooks/useResultMapViewport';
-import {
-  COMMUTE_COLORS,
-  commuteColor,
-  commuteLegend,
-  NO_RENT_COLOR,
-  NO_RENT_LEGEND_LABEL,
-} from '../model/commuteColors';
+import { commuteColor } from '../model/commuteColors';
 import { emptyAreaMessage } from '../model/criteriaLabels';
 import { desktopMapViewport } from '../model/resultMapView';
 import AnalysisOverlay from '../ui/analysis-overlay/AnalysisOverlay';
+import CommuteLegend from '../ui/commute-legend/CommuteLegend';
 import ConditionPanel from '../ui/condition-panel/ConditionPanel';
 import LocationControls from '../ui/location-controls/LocationControls';
 import MapInfo, { type MapInfoSubject, mapInfoTitle } from '../ui/map-info/MapInfo';
-import NeighborhoodMapSearch from '../ui/map-search/NeighborhoodMapSearch';
-import MapTapHint from '../ui/map-tap-hint/MapTapHint';
 import RentSlider from '../ui/rent-slider/RentSlider';
 
 import * as shared from '../NeighborhoodPreviewPage.styles';
@@ -113,7 +106,6 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
       data-map-editor={isDocked ? undefined : true}
       aria-label="탐색 조건"
     >
-      {preview.isPublicExplore && <NeighborhoodMapSearch preview={preview} />}
       <ConditionPanel
         preview={preview}
         disabled={preview.isAnalyzing}
@@ -145,40 +137,14 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
           )
         }
       />
-      {/* 색 범례는 결과 지도에서만 뜻이 있어 결과가 나온 뒤에만 보인다. */}
-      {preview.hasSubmittedSearch && (
-        <div className={styles.editorLegend} aria-label="통근 시간 색상 기준">
-          {commuteLegend(preview.maxMinutes).map(([group, label]) => (
-            <span key={group}>
-              <i style={{ background: COMMUTE_COLORS[group].fillColor }} />
-              {label}
-            </span>
-          ))}
-          <span>
-            <i
-              style={{
-                background: 'rgb(134 139 148 / 28%)',
-                border: `1.5px dashed ${NO_RENT_COLOR.strokeColor}`,
-                boxSizing: 'border-box',
-              }}
-            />
-            {NO_RENT_LEGEND_LABEL}
-          </span>
-        </div>
-      )}
-      {preview.hasSubmittedSearch && (
-        <Button variant="secondary" aria-pressed={preview.areRegionsVisible} onClick={preview.toggleRegions}>
-          {preview.areRegionsVisible ? '행정동 숨기기' : '행정동 표시하기'}
-        </Button>
-      )}
     </section>
   );
   const foundList = (
     <aside className={isDocked ? styles.areaPanelDocked : styles.areaPanel} aria-label="동네 찾기 결과">
       {!preview.isPublicExplore && (
         <MapListHeader className={isDocked ? undefined : styles.listHeader} center={<MapHeaderWeather />}>
-          {/* 이 검색은 지도를 그 주소로 옮겨 보는 용도다. 출퇴근 장소 선택은 아래 조건 카드에서 따로 한다. */}
-          <RecordAddressSearch onSelect={preview.moveMapTo} />
+          {/* 지도 검색: 고른 장소로 지도를 옮기고 검색 핀을 찍는다. 출퇴근 장소와 통근 분석은 바꾸지 않는다(출퇴근 장소는 아래 조건 칸에서 따로 정한다). */}
+          <RecordAddressSearch onSelect={preview.searchTo} />
         </MapListHeader>
       )}
       {/* 탭이 바뀌면 지도는 함께 쓰고 왼쪽은 이 탭의 내용으로 바뀐다. 동네 찾기 탭은 조건 카드와 찾은 동네 목록이다. */}
@@ -289,6 +255,14 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
             ) : (
               editor
             ))}
+          {preview.isSelectingOnMap && preview.isMapSelectionEnabled && (
+            <div className={styles.selectHint} role="status">
+              <span>지도를 눌러 출퇴근 장소를 골라요</span>
+              <button type="button" onClick={preview.cancelMapSelection}>
+                취소
+              </button>
+            </div>
+          )}
           {preview.isSelectingOnMap && (
             <>
               <LocationControls
@@ -297,14 +271,14 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
                 className={styles.railControls}
                 zoom={{ level: preview.selectionLevel, onZoom: preview.zoomSelectionBy }}
               />
-              {preview.isMapSelectionEnabled &&
-                !preview.hasChosenMapPoint &&
-                !preview.query.trim() &&
-                preview.addressResults.length === 0 && <MapTapHint />}
             </>
           )}
           {isResultMap && (
             <>
+              {/* 지도 안 왼쪽 아래: 통근 시간 색 기준. 모바일과 같은 카드를 쓴다. */}
+              {preview.hasSubmittedSearch && (
+                <CommuteLegend maxMinutes={preview.maxMinutes} className={styles.legend} />
+              )}
               {/* 지도 안 왼쪽 위: 월세 시세 슬라이더. 동네를 찾은 뒤에 끌어서 상한을 바꾸면, 받아 둔 결과에서 지도 색이 바로 바뀐다. */}
               <section className={styles.rentCard} aria-label="월세 시세 조건">
                 <RentSlider preview={preview} />
@@ -370,25 +344,6 @@ const styles = {
     label: NeighborhoodPreviewDesktopPage-listHeader;
     width: calc(100% + 3rem);
     margin: -1.25rem -1.5rem 0;
-  `,
-  editorLegend: css`
-    label: NeighborhoodPreviewDesktopPage-editorLegend;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem 0.65rem;
-    color: var(--color-muted);
-    font-size: 0.7rem;
-    font-weight: 700;
-    & span {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.25rem;
-    }
-    & i {
-      width: 3px;
-      height: 0.7rem;
-      border-radius: 1px;
-    }
   `,
   /* 왼쪽 목록 패널 맨 위에 붙는 조건 카드. 지도 위에 띄우지 않고 목록 흐름 안에 둔다. */
   editorDocked: css`
@@ -621,6 +576,44 @@ const styles = {
 
   /* 왼쪽 패널에 조건 카드를 붙이는 회원용. 패널 바깥 여백을 두지 않고 안쪽 카드가 자기 여백만 갖는다. */
   /* 동네를 찾은 뒤 지도 왼쪽 위(뱃지 줄 아래)에 띄우는 월세 시세 슬라이더 카드. */
+  selectHint: css`
+    label: NeighborhoodPreviewDesktopPage-selectHint;
+    position: absolute;
+    top: 1rem;
+    left: 50%;
+    z-index: 33;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.5rem 0.6rem 0.5rem 0.9rem;
+    border-radius: 999px;
+    background: var(--color-brand-blue-ink);
+    box-shadow: var(--shadow-floating);
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 700;
+    transform: translateX(-50%);
+
+    & button {
+      padding: 0.2rem 0.7rem;
+      border: 0;
+      border-radius: 999px;
+      background: #fff;
+      color: var(--color-brand-blue-ink);
+      font: inherit;
+      font-size: 0.78rem;
+      font-weight: 800;
+      cursor: pointer;
+    }
+  `,
+  legend: css`
+    label: NeighborhoodPreviewDesktopPage-legend;
+    position: absolute;
+    z-index: 31;
+    /* 아래 왼쪽 정보 카드(left 2rem)와 겹치지 않게 지도 맨 아래 왼쪽 구석에 낮게 둔다. 줌 버튼은 오른쪽이다. */
+    bottom: 1.25rem;
+    left: calc(var(--map-panel-width, 0px) + 1rem);
+  `,
   rentCard: css`
     label: NeighborhoodPreviewDesktopPage-rentCard;
     position: absolute;

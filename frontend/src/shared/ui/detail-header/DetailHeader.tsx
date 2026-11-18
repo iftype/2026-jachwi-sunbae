@@ -7,6 +7,8 @@ type DetailHeaderProps = {
   title: string;
   onBack: () => void;
   backLabel: string;
+  /** false면 뒤로가기 버튼을 그리지 않는다. 다른 닫는 수단이 이미 있는 데스크탑 패널이 쓴다. */
+  hasBackButton?: boolean;
   /** 제목 오른쪽 끝에 둘 것(메뉴, 이전과 다음 등). */
   endSlot?: ReactNode;
 };
@@ -15,11 +17,13 @@ type DetailHeaderProps = {
  * 매물 상세와 같은 모양의 머리줄. 왼쪽에 둥근 "<" 버튼, 그 오른쪽에 왼쪽 정렬 제목, 오른쪽 끝에 추가 동작을 둔다.
  * 사진 관리처럼 상세에서 이어 열리는 화면이 상세와 높이와 모양이 달라 보이지 않게 이 컴포넌트를 쓴다.
  */
-const DetailHeader = ({ title, onBack, backLabel, endSlot }: DetailHeaderProps) => (
+const DetailHeader = ({ title, onBack, backLabel, hasBackButton = true, endSlot }: DetailHeaderProps) => (
   <header className={styles.header}>
-    <button className={styles.backButton} type="button" aria-label={backLabel} onClick={onBack}>
-      <Icon name="chevron-left" size={24} />
-    </button>
+    {hasBackButton && (
+      <button className={styles.backButton} type="button" aria-label={backLabel} onClick={onBack}>
+        <Icon name="chevron-left" size={24} />
+      </button>
+    )}
     <h1 className={styles.title} title={title}>
       {title}
     </h1>

@@ -35,7 +35,7 @@ const styles = {
     label: RecordLocationPick-toast;
     position: absolute;
     z-index: 35;
-    bottom: 1.5rem;
+    bottom: calc(var(--map-sheet-bottom, 0px) + 1.5rem);
     left: calc(50% + var(--map-panel-width, 0px) / 2);
     transform: translateX(-50%);
     display: flex;

@@ -57,7 +57,7 @@ const styles = {
     position: absolute;
     left: 1rem;
     right: 1rem;
-    bottom: 5.75rem;
+    bottom: calc(var(--map-sheet-bottom, 0px) + 5.75rem);
     z-index: 20;
     padding: 1rem;
     /* 공통 토스트(Toast)처럼 흰 바탕에 그림자를 두고, 글자는 우리 파랑으로 쓴다. */

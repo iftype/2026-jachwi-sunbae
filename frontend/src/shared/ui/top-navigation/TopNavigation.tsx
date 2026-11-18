@@ -2,6 +2,8 @@ import { css, cx } from '@emotion/css';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
+import { HOME_PATH } from '@/shared/lib/navigation/appPaths';
+
 import Icon from '../icon/Icon';
 
 type TopNavigationProps = {
@@ -37,7 +39,12 @@ const TopNavigation = ({
             <Icon name={navigationIcon} size={21} />
           </button>
         ) : backPath !== undefined ? (
-          <Link className={styles.backLink} to={backPath} aria-label={backLabel}>
+          <Link
+            className={styles.backLink}
+            to={backPath}
+            aria-label={backLabel}
+            data-home-back={backPath === HOME_PATH || undefined}
+          >
             <Icon name={navigationIcon} size={21} />
           </Link>
         ) : null}
@@ -116,6 +123,11 @@ const styles = {
     flex: 0 0 auto;
     margin-left: -0.55rem;
     padding: 0;
+
+    /* 휴대폰 하단 탭이 있으면 홈으로 가는 "<"는 탭과 겹치므로 숨긴다. 탭이 숨는 화면에서는 그대로 보인다. */
+    html[data-mobile-tabs='on'] &[data-home-back='true'] {
+      display: none;
+    }
     border: 0;
     background: transparent;
     color: var(--color-ink);

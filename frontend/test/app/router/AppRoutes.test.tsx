@@ -416,7 +416,7 @@ describe('익명 자동 인증 흐름', () => {
 
     await user.click(await screen.findByRole('link', { name: '마이페이지' }));
 
-    expect(await screen.findByRole('heading', { name: '마이' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '마이페이지' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '로그아웃' })).not.toBeInTheDocument();
   });
 

@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryClient } from '@/shared/api/queryClient';
 import { usePublicConfig } from '@/shared/config/PublicConfigContext';
 
+import { markJustCreated } from '../lib/justCreatedProperties';
 import type { PropertyCreationEntrypoint } from '../lib/propertyAnalytics';
 import { trackPropertyEvent } from '../lib/propertyAnalytics';
 import { rememberRecentEdit } from '../lib/recentEdit';
@@ -38,6 +39,8 @@ export const useCreateProperty = (entrypoint: PropertyCreationEntrypoint = 'form
       return { firstProperty: total === undefined ? undefined : total === 0 };
     },
     onSuccess: async (created, _request, context) => {
+      // 방금 만든 매물이라고 기억해, 그 상세만 이름 입력을 바로 연다.
+      markJustCreated(created.propertyId);
       trackPropertyEvent('property_created', {
         entrypoint,
         property_id: created.propertyId,

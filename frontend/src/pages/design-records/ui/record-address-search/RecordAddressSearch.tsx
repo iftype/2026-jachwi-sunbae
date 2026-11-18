@@ -2,7 +2,7 @@ import { css } from '@emotion/css';
 import { useEffect, useRef, useState } from 'react';
 
 import type { MapAddress } from '@/features/map/model/Map';
-import AddressSearchResults from '@/features/map/ui/address-search-results/AddressSearchResults';
+import AddressSearchResults, { handleSearchKeys } from '@/features/map/ui/address-search-results/AddressSearchResults';
 import useAddressSearch from '@/features/property/hooks/useAddressSearch';
 import SearchField from '@/shared/ui/search-field/SearchField';
 
@@ -52,7 +52,9 @@ const RecordAddressSearch = ({
   return (
     <div
       className={`${styles.root} ${className ?? ''}`.trim()}
+      data-search-root
       onFocus={() => setIsOpen(true)}
+      onKeyDown={(event) => handleSearchKeys(event, () => setIsOpen(false))}
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) setIsOpen(false);
       }}
@@ -102,9 +104,6 @@ const styles = {
   field: css`
     label: RecordAddressSearch-field;
     min-width: 0;
-    /* 입력칸 높이를 평소 헤더 버튼과 같은 2.5rem으로 고정한다. */
-    height: 2.5rem;
-    font-size: 0.9rem;
     box-sizing: border-box;
     background: white;
     box-shadow: none;

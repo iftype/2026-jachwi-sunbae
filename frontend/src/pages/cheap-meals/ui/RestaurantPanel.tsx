@@ -1,10 +1,10 @@
 import { css, cx } from '@emotion/css';
+import { type ReactNode, useEffect } from 'react';
 
-import { searchAddressWithNaver } from '@/features/map/api/mapApi';
-import useAddressSearch from '@/features/map/api/useAddressSearch';
-import AddressSearchResults from '@/features/map/ui/address-search-results/AddressSearchResults';
+import { formatStoreDistance } from '@/features/good-price/model/GoodPriceStore';
 import MapCanvas from '@/features/map/ui/map-canvas/MapCanvas';
 import MapCurrentLocationButton from '@/features/map/ui/map-current-location-button/MapCurrentLocationButton';
+import MapZoomControl from '@/features/map/ui/map-zoom-control/MapZoomControl';
 import useDelayedLoading from '@/shared/lib/hooks/useDelayedLoading';
 import BottomSheet from '@/shared/ui/bottom-sheet/BottomSheet';
 import { Button } from '@/shared/ui/button/Button';
@@ -13,37 +13,41 @@ import Icon from '@/shared/ui/icon/Icon';
 import InlineNotice from '@/shared/ui/inline-notice/InlineNotice';
 import ListDetailLayout from '@/shared/ui/list-detail-layout/ListDetailLayout';
 import ProgressCircle from '@/shared/ui/progress-circle/ProgressCircle';
-import SearchField from '@/shared/ui/search-field/SearchField';
+import Toast from '@/shared/ui/toast/Toast';
 
 import type { MealLayout } from '../hooks/useMealTabs';
 import useRestaurantMap from '../hooks/useRestaurantMap';
 import BusinessTypeChips from './business-type-chips/BusinessTypeChips';
 import MealEmptyState from './MealEmptyState';
-import MealSheet from './MealSheet';
 import StoreCard from './store-card/StoreCard';
 import StoreDetail from './store-detail/StoreDetail';
 
-type RestaurantPanelProps = { isActive: boolean; layout: MealLayout };
+/** 가게 마커(핀)의 높이(px). 좌표가 핀 아래 끝이라 카드는 이만큼 위에 뜬다. */
+const STORE_PIN_HEIGHT = 36;
 
-const RestaurantPanel = ({ isActive, layout }: RestaurantPanelProps) => {
+type RestaurantPanelProps = {
+  isActive: boolean;
+  layout: MealLayout;
+  /** 데스크탑 리스트 칸 맨 위에 둘 머리(제목과 탭). 내 기록, 동네 찾기처럼 지도 왼쪽 칸 안에 들어간다. */
+  listHeader?: ReactNode;
+  /** 데스크탑에서 식당 탭이 아닐 때 목록 칸 머리 아래에 대신 보여 줄 내용. 지도는 그대로 두고 마커만 숨긴다. */
+  listOverride?: ReactNode;
+};
+
+const RestaurantPanel = ({ isActive, layout, listHeader, listOverride }: RestaurantPanelProps) => {
   const map = useRestaurantMap(isActive);
   // 식당 탭을 처음 열어 보여 줄 목록이 없을 때는 찾는 중 문구를 바로 보여 준다.
   // 지도를 옮겨 다시 찾을 때는 이전 목록을 둔 채 기다리고, 응답이 늦을 때만 찾는 중 문구로 바꾼다.
   const isDelayedLoadingVisible = useDelayedLoading(map.query.isPlaceholderData);
   const isLoadingVisible = map.query.isPending || isDelayedLoadingVisible;
-  const search = useAddressSearch(searchAddressWithNaver);
   const data = map.query.isError ? undefined : map.query.data;
   const locate = () => void map.locate();
-  const searchButton = (
-    <button
-      type="button"
-      className={cx(styles.search, layout === 'desktop' && styles.searchDesktop)}
-      onClick={map.openSearch}
-    >
-      <Icon name="search" size={18} />
-      <span>{map.area.label}</span>
-      <small>주소 검색</small>
-    </button>
+  // 기준 위치는 마커로 보이므로 누르는 칩 없이 어느 기준인지만 한 줄로 알린다.
+  const baseCaption = (
+    <p className={styles.baseCaption}>
+      <Icon name="locate" size={16} />
+      <span>{map.area.label} 기준, 반경 {map.radius / 1000}km</span>
+    </p>
   );
   const chips = (
     <BusinessTypeChips
@@ -65,19 +69,57 @@ const RestaurantPanel = ({ isActive, layout }: RestaurantPanelProps) => {
       <MapCurrentLocationButton isLocating={map.isLocating} onClick={locate} />
     </div>
   );
+  // 데스크탑: 고른 가게는 큰 옆 칸 대신 지도 위 마커 옆 작은 정보 카드로 보인다. 휴대폰은 하단 시트를 그대로 쓴다.
+  const store = map.selectedStore;
+  const storeCard =
+    layout === 'desktop' && store
+      ? {
+          latitude: store.latitude,
+          longitude: store.longitude,
+          placement: 'above' as const,
+          label: store.name,
+          onClick: () => undefined,
+          card: {
+            title: store.name,
+            subtitle: `${store.businessType}, 직선 ${formatStoreDistance(store.distanceMeters)}`,
+            lines: [store.address],
+            rows: store.menus.slice(0, 3).map((menu) => ({
+              label: menu.name,
+              value: menu.price ?? '가격 정보 없음',
+              isEmpty: menu.price === null,
+            })),
+            note: `방문 전에 확인해 주세요. 행정안전부 착한가격업소 현황${data?.dataAsOf ? `, ${data.dataAsOf} 기준` : ''}`,
+            link: {
+              label: '길찾기',
+              href: `https://map.kakao.com/link/to/${encodeURIComponent(store.name)},${store.latitude},${store.longitude}`,
+            },
+            // 가게 핀은 좌표에서 위로 36px 솟아 있다(꼬리 끝이 핀 위쪽 가장자리에 닿게).
+            markerAbove: STORE_PIN_HEIGHT,
+            markerBelow: 0,
+          },
+        }
+      : undefined;
+  // 지도에서 가게를 누르면 목록이 그 카드 자리로 스크롤한다.
+  useEffect(() => {
+    if (layout !== 'desktop' || !store) return;
+    document.getElementById(`store-card-${store.id}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [layout, store]);
   const mapView = (
     <>
-      {isActive && (
+      {(isActive || layout === 'desktop') && (
         <MapCanvas
+          shared
           onRetry={() => window.location.reload()}
           center={map.viewport}
-          markers={map.markers}
-          circles={[{ radiusMeters: map.radius, label: `${map.radius}m` }]}
+          markers={isActive ? map.markers : []}
+          circles={isActive ? [{ radiusMeters: map.radius, label: `${map.radius}m` }] : []}
           radiusCenter={map.area}
           level={map.level}
           interactive
-          selectedMarkerId={map.selectedStore ? String(map.selectedStore.id) : null}
-          onSelectMarker={(marker) => map.openStore(Number(marker.id))}
+          selectedMarkerId={isActive && map.selectedStore ? String(map.selectedStore.id) : null}
+          onSelectMarker={(marker) => map.selectMarker(marker.id)}
+          onSelectLocation={isActive && map.selectedStore ? map.closeOverlay : undefined}
+          coordinateAction={isActive ? storeCard : undefined}
           onCenterChange={map.moveMap}
           onLevelChange={map.changeLevel}
         />
@@ -97,12 +139,7 @@ const RestaurantPanel = ({ isActive, layout }: RestaurantPanelProps) => {
   ) : data?.count === 0 ? (
     <MealEmptyState
       title="이 반경 안에 등록된 가게가 없어요"
-      description="지도를 옮겨 다시 찾거나 다른 동네를 검색해 보세요."
-      action={
-        <Button variant="secondary" onClick={map.openSearch}>
-          다른 동네 찾기
-        </Button>
-      }
+      description="지도의 다른 매물 마커를 눌러 기준을 바꾸거나, 내 위치 버튼으로 현재 위치를 기준으로 해 보세요."
     />
   ) : map.stores.length === 0 ? (
     <MealEmptyState
@@ -116,11 +153,10 @@ const RestaurantPanel = ({ isActive, layout }: RestaurantPanelProps) => {
     />
   ) : (
     <>
-      <p className={styles.notice}>가까운 순 · 기준 위치에서 직선거리 · 등록 가격</p>
       <ul className={styles.list} aria-label="가게 목록">
         {map.stores.map((store) => (
           <li key={store.id}>
-            <StoreCard store={store} onSelect={map.openStore} />
+            <StoreCard store={store} onSelect={map.openStore} isSelected={map.selectedStore?.id === store.id} />
           </li>
         ))}
       </ul>
@@ -131,34 +167,13 @@ const RestaurantPanel = ({ isActive, layout }: RestaurantPanelProps) => {
       </InlineNotice>
     </>
   );
-  const searchSheet = map.isSearchOpen && isActive && (
-    <MealSheet title="어느 동네를 둘러볼까요?" layout={layout} onClose={map.closeOverlay}>
-      <Button fullWidth variant="secondary" isLoading={map.isLocating} onClick={locate}>
-        현재 위치로 찾기
-      </Button>
-      {map.locationError && <p role="alert">{map.locationError}</p>}
-      <div className={styles.addressSearch}>
-        <SearchField
-          label="동네 주소 검색"
-          placeholder="주소나 건물명 검색"
-          value={search.query}
-          onValueChange={search.changeQuery}
-          onSubmit={() => void search.submit()}
-        />
-      </div>
-      <AddressSearchResults
-        results={search.results}
-        status={search.status}
-        onSelect={(address) => {
-          map.chooseArea({
-            latitude: address.latitude,
-            longitude: address.longitude,
-            label: address.roadAddress ?? address.jibunAddress ?? '선택한 위치',
-          });
-          search.clear();
-        }}
-      />
-    </MealSheet>
+  const noticeToast = (
+    <Toast
+      isOpen={map.notice !== null}
+      title={map.notice ?? ''}
+      duration={0}
+      onClose={map.closeNotice}
+    />
   );
 
   // 데스크탑은 목록을 지도 왼쪽에 늘 펼쳐 두고, 고른 가게의 상세를 목록 옆 칸에 붙인다.
@@ -169,33 +184,32 @@ const RestaurantPanel = ({ isActive, layout }: RestaurantPanelProps) => {
           className={styles.desktopLayout}
           list={
             <div className={styles.desktopList}>
-              <div className={styles.desktopControls}>
-                {searchButton}
-                {chips}
-              </div>
-              <div className={styles.desktopStores}>
-                <h2 className={styles.desktopTitle}>착한가격 가게 {map.stores.length}곳</h2>
-                {storeList}
-              </div>
+              {listHeader}
+              {listOverride !== undefined && !isActive ? (
+                <div className={styles.desktopStores}>{listOverride}</div>
+              ) : (
+                <>
+                  <div className={styles.desktopControls}>
+                    {baseCaption}
+                    {chips}
+                  </div>
+                  <div className={styles.desktopStores}>
+                    <h2 className={styles.desktopTitle}>착한가격 가게 {map.stores.length}곳</h2>
+                    {storeList}
+                  </div>
+                </>
+              )}
             </div>
           }
-          detail={
-            map.selectedStore && (
-              <div className={styles.desktopDetail} role="region" aria-label={`${map.selectedStore.name} 상세`}>
-                <h2 className={styles.desktopTitle}>{map.selectedStore.name}</h2>
-                <StoreDetail store={map.selectedStore} dataAsOf={data?.dataAsOf ?? null} />
-              </div>
-            )
-          }
-          onCloseDetail={map.closeOverlay}
-          closeLabel="가게 상세 닫기"
         >
           <div className={cx(styles.map, styles.desktopMap)}>
             {mapView}
-            {locationControl}
+            {/* 내 기록, 동네 찾기와 같은 자리: 오른쪽 위에 줌, 그 아래에 내 위치 버튼. */}
+            <MapZoomControl className={styles.zoomDesktop} level={map.level} onChange={map.changeLevel} />
+            {isActive && locationControl}
+            {isActive && noticeToast}
           </div>
         </ListDetailLayout>
-        {searchSheet}
       </section>
     );
   }
@@ -206,7 +220,6 @@ const RestaurantPanel = ({ isActive, layout }: RestaurantPanelProps) => {
         {mapView}
         {/* 검색창과 업종 칩은 흰 띠 없이 지도 위에 띄운다. */}
         <div className={styles.overlay}>
-          {searchButton}
           {chips}
           {locationControl}
         </div>
@@ -234,12 +247,21 @@ const RestaurantPanel = ({ isActive, layout }: RestaurantPanelProps) => {
             </div>
           </BottomSheet>
         )}
+        {noticeToast}
       </div>
-      {searchSheet}
     </section>
   );
 };
 const styles = {
+  baseCaption: css`
+    label: RestaurantPanel-baseCaption;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0;
+    color: var(--color-ink-soft);
+    font-size: 0.8125rem;
+  `,
   panel: css`
     label: RestaurantPanel-panel;
     height: 100%;
@@ -263,36 +285,6 @@ const styles = {
       pointer-events: auto;
     }
   `,
-  search: css`
-    label: RestaurantPanel-search;
-    display: flex;
-    width: 100%;
-    min-width: 0;
-    align-items: center;
-    gap: 0.55rem;
-    min-height: 44px;
-    padding: 0.6rem 0.8rem;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    background: var(--color-surface);
-    box-shadow: var(--shadow-floating);
-    color: var(--color-ink);
-    font: inherit;
-    cursor: pointer;
-    & span {
-      flex: 1;
-      text-align: left;
-      font-size: 0.83rem;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    & small {
-      flex-shrink: 0;
-      color: var(--color-ink-soft);
-      font-size: 0.7rem;
-    }
-  `,
   location: css`
     label: RestaurantPanel-location;
     display: flex;
@@ -305,9 +297,15 @@ const styles = {
   locationDesktop: css`
     label: RestaurantPanel-locationDesktop;
     position: absolute;
-    right: 1rem;
-    bottom: 1.5rem;
+    /* 줌 버튼 바로 아래(내 기록 지도와 같은 자리). */
+    top: 10.55rem;
+    right: 1.15rem;
     z-index: 20;
+  `,
+  zoomDesktop: css`
+    label: RestaurantPanel-zoomDesktop;
+    top: 4.75rem;
+    right: 1.15rem;
   `,
   locationStatus: css`
     label: RestaurantPanel-locationStatus;
@@ -330,21 +328,6 @@ const styles = {
     border-bottom: 1px solid var(--color-border);
   `,
   /* 데스크탑 목록 칸에서는 띄우지 않고 다른 검색창처럼 회색 바탕에 둔다. */
-  searchDesktop: css`
-    label: RestaurantPanel-searchDesktop;
-    border-color: transparent;
-    background: var(--color-search-surface);
-    box-shadow: none;
-  `,
-  notice: css`
-    label: RestaurantPanel-notice;
-    font-size: 0.7rem;
-    color: var(--color-ink-soft);
-    line-height: 1.5;
-    margin: 0.5rem 0 0.2rem;
-    /* 좁은 칸이나 큰 글씨에서 줄이 넘어가도 낱말 가운데서 끊지 않는다. */
-    word-break: keep-all;
-  `,
   map: css`
     label: RestaurantPanel-map;
     flex: 1;
@@ -377,7 +360,6 @@ const styles = {
     label: RestaurantPanel-desktopLayout;
     flex: 1;
     min-height: 0;
-    border-top: 1px solid var(--color-border);
   `,
   desktopList: css`
     label: RestaurantPanel-desktopList;
@@ -394,13 +376,6 @@ const styles = {
     overflow-y: auto;
     padding: 1rem;
   `,
-  desktopDetail: css`
-    label: RestaurantPanel-desktopDetail;
-    height: 100%;
-    overflow-y: auto;
-    padding: 1rem 1.25rem;
-    border-right: 1px solid var(--color-border);
-  `,
   // 목록 옆 본문 칸은 세로 배치가 아니라서 높이를 직접 채운다.
   desktopMap: css`
     label: RestaurantPanel-desktopMap;
@@ -412,10 +387,6 @@ const styles = {
     font-size: 1.1rem;
     letter-spacing: -0.035em;
     overflow-wrap: anywhere;
-  `,
-  addressSearch: css`
-    label: RestaurantPanel-addressSearch;
-    margin-top: 1rem;
   `,
   sheetContent: css`
     label: RestaurantPanel-sheetContent;

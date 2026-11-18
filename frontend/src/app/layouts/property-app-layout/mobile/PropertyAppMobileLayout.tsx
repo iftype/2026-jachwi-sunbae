@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom';
 
 import { HOME_PATH } from '@/shared/lib/navigation/appPaths';
 import AppBar from '@/shared/ui/app-bar/AppBar';
+import MobileBottomTabs from '@/shared/ui/bottom-tab-bar/MobileBottomTabs';
 
 import type { AppShellState } from '../appShell';
 import { appShellAttributes } from '../appShell';
@@ -15,13 +16,14 @@ type Props = {
   appBarTitle?: string;
 };
 
-/** 휴대폰·태블릿 앱 셸. 바텀탭 없이 홈으로 돌아가는 상단 바만 둔다. */
+/** 휴대폰·태블릿 앱 셸. 홈으로 돌아가는 상단 바와, 체크리스트와 방 비교 화면에 보이는 하단 탭을 둔다. */
 const PropertyAppMobileLayout = ({ shell, hidesAppBar, appBarTitle }: Props) => (
   <div className={shared.root} {...appShellAttributes(shell)}>
     {!shell.fullScreen && !hidesAppBar && <AppBar title={appBarTitle} backTo={HOME_PATH} backLabel="홈으로 돌아가기" />}
     <div className={shared.content}>
       <Outlet />
     </div>
+    <MobileBottomTabs />
   </div>
 );
 

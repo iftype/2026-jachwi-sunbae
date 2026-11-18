@@ -1,7 +1,6 @@
-import { css, cx } from '@emotion/css';
+import { css } from '@emotion/css';
 
 import { LogScreen } from '@/shared/lib/analytics/logging';
-import DesktopHeader from '@/shared/ui/desktop-header/DesktopHeader';
 import PageHeading from '@/shared/ui/page-heading/PageHeading';
 
 import useMealTabs from '../hooks/useMealTabs';
@@ -11,26 +10,26 @@ import MealTabPanels from '../ui/meal-tab-panels/MealTabPanels';
 import MealDetails from '../ui/MealDetails';
 
 /**
- * 데스크탑 화면. 다른 화면과 같은 공용 헤더 아래 왼쪽 칸에 제목과 카테고리(식당, 편의점, 배달)를 세로로 두고,
- * 오른쪽 본문이 남은 너비와 높이를 채운다. 카테고리를 위쪽 가로 탭으로 두면 편의점 브랜드·행사 선택과 함께 탭 줄이 겹겹이 쌓인다.
- * 목록 탭은 본문 안에 넓게 늘어놓고, 식당 탭은 지도를 본문 끝까지 넓힌다.
+ * 데스크탑 화면. 왼쪽 네비 레일 옆에서 세 탭(식당, 편의점, 배달)이 같은 구조를 쓴다.
+ * 왼쪽에 폭이 고정된 리스트 칸(제목, 가로 탭, 목록), 오른쪽에 공용 지도가 있다.
+ * 탭을 바꿔도 칸 폭과 제목, 탭 위치와 지도 중심, 줌은 그대로이고 목록 내용만 바뀐다. 편의점과 배달은 위치 데이터가 없어 지도에 마커를 그리지 않는다.
  */
 const CheapMealsDesktopPage = () => {
   const tabs = useMealTabs('desktop');
+  // 제목과 탭은 세 탭 모두 지도 왼쪽 리스트 칸 맨 위에 둬서, 탭을 바꿔도 제자리에 있다.
+  const header = (
+    <div className={styles.top}>
+      <PageHeading title="저렴한 한 끼" />
+      <MealTabList tabs={tabs} />
+    </div>
+  );
   return (
     // 탭은 주소로 바뀌므로 key 없이 화면에 처음 들어올 때만 기록한다.
     <LogScreen event={CHEAP_MEAL_EVENTS.viewed}>
       <main className={styles.page}>
-        <DesktopHeader />
         <div className={styles.layout}>
-          <aside className={styles.side}>
-            <div className={styles.heading}>
-              <PageHeading title="저렴한 한 끼" />
-            </div>
-            <MealTabList tabs={tabs} orientation="vertical" />
-          </aside>
-          <div className={cx(styles.body, tabs.tab === 'restaurant' && styles.mapBody)}>
-            <MealTabPanels tabs={tabs} />
+          <div className={styles.body}>
+            <MealTabPanels tabs={tabs} restaurantListHeader={header} />
           </div>
         </div>
         {tabs.detail && <MealDetails detail={tabs.detail} layout={tabs.layout} onClose={tabs.closeDetail} />}
@@ -50,41 +49,30 @@ const styles = {
     overflow: hidden;
   `,
 
-  /* 왼쪽 13rem 칸에 제목과 카테고리, 오른쪽에 본문을 둔다. */
   layout: css`
     label: CheapMealsDesktopPage-layout;
-    display: grid;
-    grid-template-columns: 13rem minmax(0, 1fr);
+    display: flex;
     flex: 1;
+    flex-direction: column;
     min-height: 0;
   `,
 
-  side: css`
-    label: CheapMealsDesktopPage-side;
+  /* 리스트 칸 맨 위(내 기록의 리스트 칸 머리와 같은 자리). */
+  top: css`
+    label: CheapMealsDesktopPage-top;
     display: grid;
-    align-content: start;
-    gap: 1rem;
-    padding: 1.5rem 1rem 1.5rem 1.5rem;
-    border-right: 1px solid var(--color-border);
-  `,
-
-  heading: css`
-    label: CheapMealsDesktopPage-heading;
-    padding-left: 0.9rem;
+    flex: none;
+    gap: 0.5rem;
+    padding: 1.25rem 1rem 0;
+    border-bottom: 1px solid var(--color-border);
   `,
 
   body: css`
     label: CheapMealsDesktopPage-body;
     display: flex;
     flex-direction: column;
+    flex: 1;
     min-height: 0;
-    padding: 0 2.5rem;
-  `,
-
-  // 식당 탭은 지도를 본문 여백 없이 오른쪽 끝까지 쓴다.
-  mapBody: css`
-    label: CheapMealsDesktopPage-mapBody;
-    padding: 0;
   `,
 };
 

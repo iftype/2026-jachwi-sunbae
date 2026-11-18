@@ -135,13 +135,9 @@ describe('마이 화면', () => {
     expect(screen.queryByRole('navigation', { name: '내 기록' })).not.toBeInTheDocument();
     expect(screen.queryByText(/프로토타입|샘플|시연/)).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /개인정보 처리방침/ })).toHaveAttribute('href', '/privacy');
-    const tools = within(screen.getByRole('navigation', { name: '내 도구' }));
-    expect(tools.getAllByRole('link').map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
-      ['방 비교', '/compare'],
-      ['체크리스트', '/checklists'],
-      ['저렴한 한 끼', '/cheap-meals'],
-      ['사용방법', '/guide'],
-    ]);
+    // 레일과 하단 탭이 같은 이동을 하므로 바로가기 타일과 기록 PDF 줄은 두지 않는다.
+    expect(screen.queryByRole('navigation', { name: '내 도구' })).not.toBeInTheDocument();
+    expect(screen.queryByText('기록 PDF 받기')).not.toBeInTheDocument();
 
     // 마이에는 회원 탈퇴를 두고, 기록을 바로 지우는 삭제 요청은 개인정보 처리방침의 삭제 요청 안내에서 받는다.
     expect(screen.getByRole('button', { name: '회원 탈퇴' })).toBeInTheDocument();

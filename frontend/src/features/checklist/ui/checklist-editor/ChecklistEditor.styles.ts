@@ -13,6 +13,8 @@ export const checklistEditor = cx(
   css`
     label: ChecklistEditor-checklistEditor;
     container: checklist-editor / inline-size;
+    /* 셸이 이 화면에서는 선 색을 투명으로 두므로, 구분선이 보이게 토큰의 진한 선 색을 쓴다. */
+    --color-border: var(--color-border-strong);
 
     & input,
     & textarea {
@@ -74,7 +76,7 @@ export const editorSection = cx(
       margin: 0;
       color: var(--color-ink);
       font-size: 0.9rem;
-      font-weight: 800;
+      font-weight: 700;
       letter-spacing: -0.02em;
       line-height: 1.4;
     }
@@ -150,21 +152,22 @@ export const checkItemSearchResults = cx(
   css`
     label: ChecklistEditor-checkItemSearchResults;
     display: grid;
-    gap: 0.45rem;
+    gap: 0;
     margin: 0;
     padding: 0;
     list-style: none;
-    margin-top: 0.6rem;
+    margin-top: 0.25rem;
 
     & li {
       position: relative;
       display: grid;
       align-items: center;
-      min-height: 3.65rem;
-      padding: 0.72rem;
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-md);
-      background: var(--color-surface);
+      min-height: 2.75rem;
+      padding: 0.35rem 0;
+      border: 0;
+      border-bottom: 1px solid var(--color-border);
+      border-radius: 0;
+      background: transparent;
     }
 
     & strong,
@@ -174,13 +177,13 @@ export const checkItemSearchResults = cx(
 
     & strong {
       color: var(--color-ink);
-      font-size: 0.78rem;
-      font-weight: 700;
+      font-size: 0.8125rem;
+      font-weight: 400;
       line-height: 1.4;
     }
 
     & small {
-      margin-top: 0.25rem;
+      margin-top: 0.1rem;
       color: var(--color-muted);
       font-size: 0.72rem;
       line-height: 1.45;
@@ -236,7 +239,7 @@ export const checkItemResults = css`
     margin: 0;
     color: var(--color-ink);
     font-size: 0.8rem;
-    font-weight: 800;
+    font-weight: 700;
   }
 `;
 
@@ -247,7 +250,7 @@ export const alreadyAddedItem = cx(
 
     .ChecklistEditor-checkItemSearchResults & {
       border-color: var(--color-border);
-      background: var(--color-surface-muted);
+      background: transparent;
     }
   `,
   'ChecklistEditor-alreadyAddedItem',
@@ -323,8 +326,8 @@ export const resultControl = css`
 
   & {
     display: grid;
-    width: 1.7rem;
-    height: 1.7rem;
+    width: 1.375rem;
+    height: 1.375rem;
     border: 1px solid var(--color-border-strong);
     border-radius: 50%;
     background: var(--color-surface);

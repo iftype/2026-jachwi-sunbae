@@ -36,6 +36,7 @@ const MapCanvas = ({
   animateView = false,
   coordinateAction,
   coordinateMenu,
+  tip,
   markers = EMPTY_MARKERS,
   circles = EMPTY_CIRCLES,
   level = 5,
@@ -55,6 +56,7 @@ const MapCanvas = ({
   regions,
   selectedRegionId,
   onSelectRegion,
+  onHoverRegion,
 }: MapCanvasProps) => {
   // 내 현재 위치는 모든 지도에서 파란 점으로 보인다. 위치 권한이 이미 허용돼 있으면 조용히 한 번 받아 온다.
   const currentLocation = useCurrentLocation();
@@ -87,6 +89,7 @@ const MapCanvas = ({
     animateView,
     coordinateAction,
     coordinateMenu,
+    tip,
     markers: allMarkers,
     circles,
     radiusCenter,
@@ -102,6 +105,7 @@ const MapCanvas = ({
     regions,
     selectedRegionId,
     onSelectRegion,
+    onHoverRegion,
   });
   // 지도가 금방 준비되면 불러오는 중 안내 없이 바로 보여 주고, 오래 걸릴 때만 알린다.
   const isMapLoadingVisible = useDelayedLoading(isLoading);

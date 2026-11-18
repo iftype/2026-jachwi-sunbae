@@ -32,13 +32,13 @@ const styles = {
     width: min(100%, 26rem);
     margin: auto auto 0;
     padding-top: 2rem;
-    padding-inline: 1rem;
+    padding-inline: var(--my-gutter);
   `,
   container: css`
     label: MyMobilePage-container;
     width: min(100%, 26rem);
     margin-inline: auto;
-    padding: 0.65rem 1rem 1rem;
+    padding: 0.65rem var(--my-gutter) 1rem;
   `,
 
   footer: css`
@@ -46,8 +46,8 @@ const styles = {
     width: min(100%, 26rem);
     margin-right: auto;
     margin-left: auto;
-    padding-right: 1rem;
-    padding-left: 1rem;
+    padding-right: var(--my-gutter);
+    padding-left: var(--my-gutter);
     padding-top: 0.5rem;
     padding-bottom: 1.25rem;
   `,

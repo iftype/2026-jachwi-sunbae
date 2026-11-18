@@ -45,7 +45,7 @@ const SCENARIOS: Scenario[] = [
   },
   {
     title: '매물 추가',
-    steps: ['기록 지도에서 자리 누르기', '여기에 매물 등록 고르기', '이름, 보증금, 월세 채우기'],
+    steps: ['기록 지도에서 자리 누르기', '본 방 기록하기 고르기', '이름, 보증금, 월세 채우기'],
     action: { to: RECORDS_MAP_PATH, label: '기록 지도에서 등록하기' },
     video: {
       src: propertyVideo,

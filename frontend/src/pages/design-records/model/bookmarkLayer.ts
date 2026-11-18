@@ -1,4 +1,4 @@
-const BOOKMARK_LAYER_KEY = 'jachwi:records-bookmark-layer';
+const BOOKMARK_LAYER_KEY = 'jachwi:records-bookmark-layer-rail';
 
 /** 내 기록 지도에 북마크한 동네를 칠할지. 한 번 켜면 다음에 열어도 켜진 채로 둔다. */
 export const readBookmarkLayerOn = (): boolean => {

@@ -16,7 +16,7 @@ const MyDesktopPage = () => {
     <main className={shared.page}>
       <div className={styles.layout}>
         {/* 화면 제목은 보이지 않게 두고 읽기 도구에만 알린다. */}
-        <h1 className="sr-only">마이</h1>
+        <h1 className="sr-only">마이페이지</h1>
         <MyPageContent />
       </div>
       {/* 홈과 같은 서비스 안내 푸터를 두고, 그 아래에 앱 버전을 작게 적는다. */}
@@ -35,7 +35,7 @@ const styles = {
     width: min(100%, 21rem);
     margin: auto auto 0;
     padding-top: 2rem;
-    padding-inline: 1rem;
+    padding-inline: var(--my-gutter);
   `,
   /*
    * 데스크탑 마이: 도구 타일 네 개(5.5rem씩)가 한 줄에 꼭 맞는 한 열(26rem)에 계정, 날씨, 도구 카드를 위에서 아래로 쌓아 화면 가운데에 둔다.
@@ -51,12 +51,12 @@ const styles = {
     width: min(100%, 26rem);
     margin-right: auto;
     margin-left: auto;
-    padding-right: 1rem;
-    padding-left: 1rem;
+    padding-right: var(--my-gutter);
+    padding-left: var(--my-gutter);
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     align-items: start;
-    gap: 0.6rem;
+    gap: 1rem;
     padding-top: 1rem;
     padding-bottom: 2rem;
   `,
@@ -66,8 +66,8 @@ const styles = {
     width: min(100%, 21rem);
     margin-right: auto;
     margin-left: auto;
-    padding-right: 1rem;
-    padding-left: 1rem;
+    padding-right: var(--my-gutter);
+    padding-left: var(--my-gutter);
     padding-top: 0.5rem;
     padding-bottom: 1.25rem;
   `,

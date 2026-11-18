@@ -59,7 +59,7 @@ const PropertyAppLayout = () => {
         <PropertyAppMobileLayout
           shell={shell}
           hidesAppBar={location.pathname === COMPARE_PATH || isMapPage || hasOwnBackNavigation}
-          appBarTitle={location.pathname === MY_PATH ? '마이' : undefined}
+          appBarTitle={location.pathname === MY_PATH ? '마이페이지' : undefined}
         />
       )}
     </DesktopHeaderSlotProvider>

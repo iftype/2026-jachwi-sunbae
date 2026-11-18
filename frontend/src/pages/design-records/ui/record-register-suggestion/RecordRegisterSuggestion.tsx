@@ -59,7 +59,7 @@ const styles = {
     position: absolute;
     z-index: 20;
     right: 1rem;
-    bottom: 5.75rem;
+    bottom: calc(var(--map-sheet-bottom, 0px) + 5.75rem);
     left: 1rem;
     display: flex;
     align-items: center;

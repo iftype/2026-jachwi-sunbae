@@ -18,7 +18,10 @@ export const section = css`
 export const sectionDesktop = css`
   label: MealContent-sectionDesktop;
   max-width: none;
-  padding: 2rem 0 3rem;
+  padding: 0 0 1.5rem;
+  & h2 {
+    font-size: 1.1rem;
+  }
 `;
 export const description = css`
   label: MealContent-description;
