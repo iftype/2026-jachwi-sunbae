@@ -10,7 +10,6 @@ import { commuteBoundaryFixtures } from '@/app/mocks/fixtures/commuteBoundaryFix
 import { propertyPageFixture, propertySummaryFixture, successEnvelope } from '@/app/mocks/fixtures/propertyFixtures';
 import { createCommuteAreaHandlers } from '@/app/mocks/handlers/commuteAreaHandlers';
 import { mapHandlers } from '@/app/mocks/handlers/mapHandlers';
-import { propertyHandlers } from '@/app/mocks/handlers/propertyHandlers';
 import { createStreetMemoHandlers } from '@/app/mocks/handlers/streetMemoHandlers';
 import { RecordsMapProvider } from '@/pages/design-records/RecordsMapProvider';
 import NeighborhoodPreviewPage from '@/pages/neighborhood-preview/NeighborhoodPreviewPage';
