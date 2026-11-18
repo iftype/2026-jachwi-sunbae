@@ -88,8 +88,7 @@ export type MapCanvasProps = {
     /** 카드 위로 마우스가 들어오고 나갈 때. 마우스가 동 라벨에서 카드로 옮겨 가도 닫히지 않게 한다. */
     onHoverChange?: (hovered: boolean) => void;
   };
-  /** 시설 분류 칸 아래에 이어 붙일 항목(내 기록 지도의 `찜한 동네`). */
-  railExtraItems?: MapRailExtraItem[];
+  bookmarkControl?: { count: number; isOn: boolean; onToggle: () => void };
   /** 처음 한 번 보이는 안내 말풍선. 지도 좌표에 붙어 있다. */
   tip?: MapTip;
   /** 찍은 좌표에 고정된 동작 말풍선. 꼬리 끝이 좌표를 가리킨다. */

@@ -1,6 +1,7 @@
 import { css, cx } from '@emotion/css';
 import { type ReactNode, useEffect } from 'react';
 
+import { useRecordsMapController } from '@/pages/design-records/RecordsMapProvider';
 import { formatStoreDistance } from '@/features/good-price/model/GoodPriceStore';
 import MapCanvas from '@/features/map/ui/map-canvas/MapCanvas';
 import MapCurrentLocationButton from '@/features/map/ui/map-current-location-button/MapCurrentLocationButton';
@@ -36,6 +37,7 @@ type RestaurantPanelProps = {
 
 const RestaurantPanel = ({ isActive, layout, listHeader, listOverride }: RestaurantPanelProps) => {
   const isMapActive = isActive || layout === 'desktop';
+  const sharedMap = useRecordsMapController()?.layers.canvasProps;
   const map = useRestaurantMap(isMapActive);
   // 식당 탭을 처음 열어 보여 줄 목록이 없을 때는 찾는 중 문구를 바로 보여 준다.
   // 지도를 옮겨 다시 찾을 때는 이전 목록을 둔 채 기다리고, 응답이 늦을 때만 찾는 중 문구로 바꾼다.
@@ -63,7 +65,12 @@ const RestaurantPanel = ({ isActive, layout, listHeader, listOverride }: Restaur
   );
   // 다른 지도 화면처럼 현재 위치는 지도 위 동그란 공용 버튼으로 두고, 확인 중이거나 실패하면 그 옆에 짧게 알린다.
   const locationControl = (
-    <div className={cx(styles.location, layout === 'desktop' && styles.locationDesktop)}>
+    <div
+      className={cx(
+        styles.location,
+        layout === 'desktop' ? styles.locationDesktop : sharedMap && styles.locationSharedMobile,
+      )}
+    >
       {(map.isLocating || map.locationError) && (
         <p className={styles.locationStatus} role={map.locationError ? 'alert' : 'status'}>
           {map.isLocating ? '현재 위치를 확인하는 중이에요.' : map.locationError}
@@ -115,6 +122,8 @@ const RestaurantPanel = ({ isActive, layout, listHeader, listOverride }: Restaur
           onRetry={() => window.location.reload()}
           center={map.viewport}
           markers={map.markers}
+          regions={sharedMap?.regions}
+          bookmarkControl={sharedMap?.bookmarkControl}
           circles={[{ radiusMeters: map.radius, label: `${map.radius}m` }]}
           radiusCenter={map.area}
           level={map.level}
@@ -299,6 +308,12 @@ const styles = {
     top: 10.55rem;
     right: 1.15rem;
     z-index: 20;
+  `,
+  locationSharedMobile: css`
+    position: fixed;
+    top: calc(max(0.85rem, env(safe-area-inset-top)) + 13.8rem);
+    right: 0.95rem;
+    z-index: 21;
   `,
   zoomDesktop: css`
     label: RestaurantPanel-zoomDesktop;

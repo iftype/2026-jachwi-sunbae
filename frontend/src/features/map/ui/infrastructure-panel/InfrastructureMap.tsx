@@ -12,6 +12,7 @@ import {
 } from '../../lib/mapFacilityVisibility';
 import type { MapBounds, MapMarker } from '../../model/Map';
 import type { MapCanvasProps, MapRadiusCircle } from '../../model/MapCanvas';
+import MapBookmarkToggle from '../map-bookmark-toggle/MapBookmarkToggle';
 import MapCanvasSurface from '../map-canvas/MapCanvasSurface';
 import MapCategoryRail from '../map-category-rail/MapCategoryRail';
 
@@ -115,17 +116,7 @@ const InfrastructureMap = ({ mapProps, open }: Props) => {
           mapProps.onSelectMarker?.(marker);
         }}
       />
-      {/* 찜한 동네는 시설 분류 카드와 떨어진 별도 버튼이다. 매물이나 카드가 생겨도 자리가 변하지 않게 항상 같은 자리에 둔다. */}
-      {open && (mapProps.railExtraItems?.length ?? 0) > 0 && (
-        <MapCategoryRail
-          className={styles.extraRail}
-          showIcons={false}
-          selectedCategories={[]}
-          order={[]}
-          onToggle={() => undefined}
-          extraItems={mapProps.railExtraItems}
-        />
-      )}
+      {mapProps.bookmarkControl && <MapBookmarkToggle {...mapProps.bookmarkControl} />}
       {open && anchor !== null && (
         <>
           <MapCategoryRail
@@ -171,20 +162,7 @@ const InfrastructureMap = ({ mapProps, open }: Props) => {
   );
 };
 const styles = {
-  /* 찜한 동네 버튼. 고정 자리(위쪽). 카드 표시 여부와 상관없이 움직이지 않는다. */
-  extraRail: css`
-    label: InfrastructureMap-extraRail;
-    && {
-      top: 16.85rem;
-      right: 1.15rem;
-      z-index: 35;
-    }
-    [data-desktop='false'] && {
-      top: calc(max(0.85rem, env(safe-area-inset-top)) + 20.1rem);
-      right: 0.95rem;
-    }
-  `,
-  /* 시설 분류 카드. 찜한 동네 버튼(2.5rem) 아래에 0.6rem 띄워 둔다. 별도 카드라 서로 붙지 않는다. */
+  /* 시설 분류 카드의 자리와 간격은 시트나 찜 버튼에 연동하지 않는다. */
   rail: css`
     label: InfrastructureMap-rail;
     && {

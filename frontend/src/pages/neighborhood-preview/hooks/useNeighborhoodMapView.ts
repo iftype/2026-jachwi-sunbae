@@ -370,6 +370,7 @@ const useNeighborhoodMapView = (
   const composedProps: MapCanvasProps = registration
     ? {
         ...mapProps,
+        bookmarkControl: registration.canvasProps.bookmarkControl,
         markers: [
           ...(mapProps.markers ?? []),
           ...(registration.canvasProps.markers ?? []).filter((marker) => marker.category === 'MEMO'),

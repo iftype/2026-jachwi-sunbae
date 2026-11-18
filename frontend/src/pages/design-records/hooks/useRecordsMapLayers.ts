@@ -388,42 +388,22 @@ const useRecordsMapLayers = (
     onBoundsChange: rememberBounds,
     tip: firstPropertyTip ?? tip,
     regions: bookmarkRegions,
-    // 오른쪽 위 레이어 칸의 `찜한 동네`. 찜한 동네가 있으면 켜고 끄고(개수 배지), 하나도 없으면 연한 회색으로 보이고 누르면 동네 찾기로 간다.
-    railExtraItems: [
-      {
-        key: 'bookmarks',
-        label: '찜한 동네',
-        ariaLabel:
-          bookmarkStore.codes.length === 0
-            ? '찜한 동네가 없어요. 동네 찾기로 가서 찜하기'
-            : `찜한 동네 ${isBookmarkLayerOn ? '숨기기' : '표시하기'}, ${bookmarkStore.codes.length}곳`,
-        icon: 'heart' as const,
-        selected: isBookmarkLayerOn && bookmarkStore.codes.length > 0,
-        badge: bookmarkStore.codes.length,
-        isMuted: bookmarkStore.codes.length === 0,
-        onToggle: () => {
-          if (bookmarkStore.codes.length === 0) {
-            onFindBookmarks?.();
-            return;
-          }
-          writeBookmarkLayerOn(!isBookmarkLayerOn);
-          setIsBookmarkLayerOn(!isBookmarkLayerOn);
-        },
-      },
-    ],
-  } satisfies MapCanvasProps;
-
-  return {
-    canvasProps,
-    /** 북마크한 동네를 지도에 칠하는 층의 켜고 끄기. count는 북마크한 동네 수다. */
-    bookmarks: {
-      isOn: isBookmarkLayerOn,
+    bookmarkControl: {
       count: bookmarkStore.codes.length,
-      toggle: () => {
+      isOn: isBookmarkLayerOn && bookmarkStore.codes.length > 0,
+      onToggle: () => {
+        if (bookmarkStore.codes.length === 0) {
+          onFindBookmarks?.();
+          return;
+        }
         writeBookmarkLayerOn(!isBookmarkLayerOn);
         setIsBookmarkLayerOn(!isBookmarkLayerOn);
       },
     },
+  } satisfies MapCanvasProps;
+
+  return {
+    canvasProps,
     memo,
     /** 겹친 매물 묶음을 눌러 함께 보는 매물. 묶음을 고르지 않았으면 빈 목록이다. */
     groupRecords: records.records.filter((record) => groupIds.includes(record.id)),
