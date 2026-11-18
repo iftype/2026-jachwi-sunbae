@@ -1,11 +1,12 @@
 import { css } from '@emotion/css';
 
+import Icon, { type IconName } from '../icon/Icon';
 import { MOBILE_TAB_SPACE } from './bottomTabConfig';
 
 export type BottomTab = {
   key: string;
   label: string;
-  image: string;
+  icon: IconName;
   isActive: boolean;
   onSelect: () => void;
 };
@@ -24,7 +25,7 @@ const BottomTabBar = ({ tabs, hidden }: Props) => (
         tabIndex={hidden ? -1 : undefined}
         onClick={tab.onSelect}
       >
-        <img src={tab.image} alt="" width={24} height={24} />
+        <Icon name={tab.icon} size={26} />
         <span>{tab.label}</span>
       </button>
     ))}
@@ -66,32 +67,23 @@ const styles = {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 2px;
-    min-width: 44px;
+    gap: 0.35rem;
+    min-width: 0;
     min-height: 44px;
     padding: 0;
     border: 0;
     background: transparent;
     color: var(--color-muted);
     font: inherit;
-    font-size: 10px;
+    font-size: clamp(11px, 3.2vw, 14px);
     font-weight: 700;
     letter-spacing: -0.04em;
     line-height: 1.2;
     white-space: nowrap;
     cursor: pointer;
 
-    & img {
-      width: 24px;
-      height: 24px;
-      object-fit: contain;
-      opacity: 0.55;
-    }
     &[aria-current='page'] {
-      color: var(--color-primary);
-    }
-    &[aria-current='page'] img {
-      opacity: 1;
+      color: var(--color-brand-blue-ink);
     }
     &:focus-visible {
       outline: 2px solid var(--color-focus);

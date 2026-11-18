@@ -22,8 +22,8 @@ export const MOBILE_BOTTOM_TAB_HEIGHT = 112;
 export const MOBILE_TAB_SPACE_VAR = '--mobile-tab-space';
 export const MOBILE_TAB_SPACE = `calc(${MOBILE_BOTTOM_TAB_HEIGHT}px + env(safe-area-inset-bottom))`;
 
-/** 탭 바에 둘 화면 키. `navRailItems`의 위쪽 목록에서 이 순서대로 골라 쓴다. 6번째 탭은 여기에 키만 더하면 된다. */
-export const MOBILE_BOTTOM_TAB_KEYS = ['records', 'neighborhoods', 'checklists', 'compare', 'meals'] as const;
+/** 탭 바에 둘 화면 키. `navRailItems`의 위쪽 목록에서 이 순서대로 골라 쓴다. 마이는 저렴한 한 끼 다음에 둔다. */
+export const MOBILE_BOTTOM_TAB_KEYS = ['records', 'neighborhoods', 'checklists', 'compare', 'meals', 'my'] as const;
 
 /** 탭을 보여 주는 화면 주소. 이 밖의 화면(매물 상세, 등록과 수정, 검색, 전체 화면)에서는 숨긴다. */
 export const isMobileBottomTabsPath = (pathname: string) =>

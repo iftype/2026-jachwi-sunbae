@@ -2,8 +2,9 @@ import { useEffect, useLayoutEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
-import { NEIGHBORHOODS_PATH, RECORDS_PATH } from '@/shared/lib/navigation/appPaths';
+import { MY_PATH, NEIGHBORHOODS_PATH, RECORDS_PATH } from '@/shared/lib/navigation/appPaths';
 
+import type { IconName } from '../icon/Icon';
 import { NAV_RAIL_ITEMS } from '../nav-rail/navRailItems';
 import BottomTabBar from './BottomTabBar';
 import {
@@ -13,6 +14,15 @@ import {
   MOBILE_TAB_SPACE,
   MOBILE_TAB_SPACE_VAR,
 } from './bottomTabConfig';
+
+const TAB_ICONS = {
+  records: 'home',
+  neighborhoods: 'map',
+  checklists: 'checklist',
+  compare: 'replace',
+  meals: 'utensils',
+  my: 'user',
+} satisfies Record<(typeof MOBILE_BOTTOM_TAB_KEYS)[number], IconName>;
 
 const TEXT_ENTRY =
   'input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]), textarea, select, [contenteditable="true"]';
@@ -90,17 +100,21 @@ const MobileBottomTabs = ({ recordsTo = RECORDS_PATH, neighborhoodsTo = NEIGHBOR
   }, [visible, enabled, isDesktop]);
 
   if (!enabled) return null;
-  const targets: Record<string, string | undefined> = { records: recordsTo, neighborhoods: neighborhoodsTo };
+  const targets: Partial<Record<(typeof MOBILE_BOTTOM_TAB_KEYS)[number], string>> = {
+    records: recordsTo,
+    neighborhoods: neighborhoodsTo,
+    my: MY_PATH,
+  };
   const tabs = MOBILE_BOTTOM_TAB_KEYS.flatMap((key) => {
     const item = NAV_RAIL_ITEMS.find((entry) => entry.key === key);
     if (!item) return [];
     const path = item.path ?? targets[key] ?? RECORDS_PATH;
-    const base = item.path ?? (key === 'neighborhoods' ? NEIGHBORHOODS_PATH : RECORDS_PATH);
+    const base = key === 'records' ? RECORDS_PATH : key === 'neighborhoods' ? NEIGHBORHOODS_PATH : (item.path ?? path);
     return [
       {
         key,
         label: item.label,
-        image: item.image,
+        icon: TAB_ICONS[key],
         isActive: item.path !== undefined || key === 'neighborhoods' ? pathname.startsWith(base) : pathname === base,
         onSelect: () => navigate(path),
       },

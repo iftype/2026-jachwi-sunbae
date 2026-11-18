@@ -13,14 +13,20 @@ const renderAt = (path: string) =>
   );
 
 describe('휴대폰 하단 탭', () => {
-  it('다섯 개 탭을 두고 지금 화면만 aria-current로 표시한다', () => {
+  it('여섯 개 탭을 두고 지금 화면만 aria-current로 표시한다', () => {
     renderAt('/neighborhoods');
     const bar = screen.getByRole('navigation', { name: '하단 탭' });
-    expect(bar.querySelectorAll('button')).toHaveLength(5);
+    expect(bar.querySelectorAll('button')).toHaveLength(6);
     expect(screen.getByRole('button', { name: '동네 찾기' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('button', { name: '내 기록' })).not.toHaveAttribute('aria-current');
-    expect(screen.queryByRole('button', { name: '마이' })).not.toBeInTheDocument();
+    expect(bar.lastElementChild).toBe(screen.getByRole('button', { name: '마이' }));
     expect(screen.queryByRole('button', { name: '사용방법' })).not.toBeInTheDocument();
+  });
+
+  it('마이 탭을 눌러 마이페이지로 갈 수 있다', () => {
+    renderAt('/cheap-meals/restaurant');
+    fireEvent.click(screen.getByRole('button', { name: '마이' }));
+    expect(screen.getByRole('button', { name: '마이' })).toHaveAttribute('aria-current', 'page');
   });
 
   it.each(['/properties/3', '/properties/3/edit', '/search', '/checklists/new'])(
