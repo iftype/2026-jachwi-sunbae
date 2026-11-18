@@ -9,7 +9,6 @@ import MapCanvas from '@/features/map/ui/map-canvas/MapCanvas';
 import ExplorationRecordAction from '@/features/onboarding/ui/exploration-record-action/ExplorationRecordAction';
 import MapHeaderWeather from '@/features/weather/ui/map-header-weather/MapHeaderWeather';
 import { ROUTE_PATTERNS } from '@/shared/lib/navigation/appPaths';
-import { Button } from '@/shared/ui/button/Button';
 import Icon from '@/shared/ui/icon/Icon';
 import ListDetailLayout from '@/shared/ui/list-detail-layout/ListDetailLayout';
 import MapBadgeRail from '@/shared/ui/map-badge-rail/MapBadgeRail';
@@ -127,13 +126,6 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
             >
               <Icon name="chevron-down" size={22} />
             </button>
-          )
-        }
-        secondaryAction={
-          preview.hasSubmittedSearch ? undefined : (
-            <Button variant="secondary" fullWidth onClick={preview.leave}>
-              동네 찾기 취소
-            </Button>
           )
         }
       />
@@ -734,6 +726,7 @@ const styles = {
 
     && {
       top: 4.75rem;
+      right: 1.15rem;
     }
   `,
 

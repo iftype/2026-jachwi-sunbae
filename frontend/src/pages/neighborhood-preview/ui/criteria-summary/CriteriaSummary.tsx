@@ -38,7 +38,8 @@ const styles = {
     label: CriteriaSummary-card;
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    width: 100%;
+    width: min(100%, 12rem);
+    margin-inline: auto;
     /* 모드 타일(2.75rem)과 같은 높이로 맞춰, 기록과 동네 찾기를 오갈 때 헤더 높이가 바뀌지 않게 한다. */
     box-sizing: border-box;
     min-height: 2.75rem;

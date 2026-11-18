@@ -506,7 +506,10 @@ const useNeighborhoodPreview = () => {
       setPhase('map');
     },
     chooseMapPoint: (latitude: number, longitude: number) => {
-      if (phase === 'analyzing' || !isMapSelectionEnabled) return;
+      if (phase === 'analyzing') {
+        if (!commute.isSuccess || commute.isFetching) return;
+        selectionView.current = { ...resultCenter, level: resultLevel };
+      }
       setIsMapSelectionEnabled(false);
       locationIntent.current += 1;
       setShouldFocusMapSearch(false);

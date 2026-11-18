@@ -398,6 +398,28 @@ it('조건에 맞는 동네가 없으면 통근·환승 조건을 넓혀보라�
     matchMedia.mockRestore();
   }
 });
+it('지도에서 바로 누른 위치를 확인하면 출퇴근 장소로 쓴다', async () => {
+  show(true);
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
+  expect(screen.queryByRole('button', { name: /에서 찾기$/ })).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: '출퇴근 장소로 설정' }));
+  expect(screen.getByRole('button', { name: /에서 찾기$/ })).toBeEnabled();
+});
+
+it('색 기준표를 닫아도 검색 조건은 남고 표를 다시 열 수 있다', async () => {
+  show(true);
+  const user = await choosePoint();
+  await submitCurrentSearch(user);
+
+  await user.click(await screen.findByRole('button', { name: '표 닫기' }));
+  expect(screen.getByRole('button', { name: '통근 40분 이내' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: '표 닫기' })).not.toBeInTheDocument();
+
+  await user.click(screen.getByRole('button', { name: '색 기준표 보기' }));
+  expect(screen.getByRole('button', { name: '표 닫기' })).toBeInTheDocument();
+});
+
 it('첫 진입은 지도이며 위치 권한을 묻지 않고 직접 선택 입구, 하단 확인 화면이 없다', async () => {
   show();
   // 진입만으로는 현재 위치를 묻거나 지도를 옮기지 않는다. 현재 위치는 버튼을 누를 때만 쓴다.

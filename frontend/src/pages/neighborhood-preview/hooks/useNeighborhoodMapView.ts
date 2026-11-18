@@ -10,6 +10,7 @@ import {
   facilityFocusLevel,
   facilityMarkersVisible,
 } from '@/features/map/lib/mapFacilityVisibility';
+import type { MapCoordinate } from '@/features/map/lib/mapLocation';
 import { groupMemberIds, groupOverlappingMarkers, propertyGroupMarker } from '@/features/map/lib/propertyMarkerGroups';
 import type { MapCategory, MapMarker } from '@/features/map/model/Map';
 import type { MapCanvasProps, MapRegion } from '@/features/map/model/MapCanvas';
@@ -76,6 +77,7 @@ const useNeighborhoodMapView = (
   const bookmarks = useAdminDongBookmarks(!preview.isPublicExplore);
   const markerLevel = isDesktop ? DESKTOP_FACILITY_MARKER_LEVEL : FACILITY_MARKER_LEVEL;
   const isResultMap = !preview.isAnalyzing && !preview.error && !preview.isSelectingOnMap;
+  const [commutePoint, setCommutePoint] = useState<MapCoordinate | null>(null);
   const [railSelection, setRailSelection] = useState<RailSelection | null>(null);
   const facilityCategory = railSelection === 'MY' ? null : railSelection;
   // 로그인한 회원은 동네 찾기에서도 기록한 매물을 늘 지도에 띄우고, 매물마다 이번 출퇴근 장소까지 걸리는 시간을 적는다.
@@ -159,15 +161,31 @@ const useNeighborhoodMapView = (
       !facilityMarkersVisible(isResultMap ? preview.resultLevel : preview.selectionLevel, markerLevel)
     )
       preview.zoomToFacilities(facilityFocusLevel(markerLevel));
-    places.closePlace();
+    closeLayers();
     setRailSelection(value);
   };
   const hasOpenLayer = places.selectedPlace !== null;
-  const closeLayers = () => places.closePlace();
+  const closeLayers = () => {
+    places.closePlace();
+    setCommutePoint(null);
+  };
   /** 지도 빈 곳·고른 동네 안을 찍었을 때. 화면별 동작(시트 내리기) 또는 열린 정보 닫기를 한다. */
   const tapEmpty = () => {
+    setCommutePoint(null);
     if (onEmptyTap) onEmptyTap();
     else if (hasOpenLayer) closeLayers();
+  };
+  const tapMap = (latitude: number, longitude: number) => {
+    if (isResultMap && (hasOpenLayer || preview.selected)) {
+      tapEmpty();
+      return;
+    }
+    if (preview.isSelectingOnMap && preview.isMapSelectionEnabled) {
+      setCommutePoint(null);
+      preview.chooseMapPoint(latitude, longitude);
+      return;
+    }
+    setCommutePoint({ latitude, longitude });
   };
   /** 지도의 동네를 찍었을 때. 이미 고른 동네 안을 다시 찍으면 열어 둔 정보만 닫고, 다른 동네를 찍으면 동네를 바꾼다. */
   const selectRegion = (id: string) => {
@@ -258,7 +276,7 @@ const useNeighborhoodMapView = (
     point: preview.selectionCenter,
     enabled:
       preview.isSelectingOnMap &&
-      preview.isMapSelectionEnabled &&
+      !commutePoint &&
       !preview.hasChosenMapPoint &&
       !preview.query.trim() &&
       preview.addressResults.length === 0,
@@ -307,11 +325,11 @@ const useNeighborhoodMapView = (
         onBoundsChange: places.rememberBounds,
         selectedMarkerId: places.selectedMarkerId,
         onSelectMarker: (marker: MapMarker) => {
+          setCommutePoint(null);
           if (marker.id.startsWith(SEARCH_PIN_ID)) selectSearchPin(marker);
           else selectMarker(marker);
         },
-        // 빈 곳을 찍으면 열어 둔 정보를 닫는다(휴대폰은 시트를 내린다).
-        onSelectLocation: tapEmpty,
+        onSelectLocation: tapMap,
         regions: preview.regions,
         selectedRegionId: preview.selected?.adminDongCode,
         onSelectRegion: selectRegion,
@@ -357,11 +375,14 @@ const useNeighborhoodMapView = (
         regions: preview.hasSubmittedSearch ? preview.regions : NO_REGIONS,
         tip,
         // 분석 중이거나 실패 화면이 지도를 덮고 있을 때는 위치 찍기를 끈다.
-        // 분석 중이거나 실패 화면이 지도를 덮고 있을 때는 위치 찍기를 끈다.
-        onSelectLocation: preview.isSelectingOnMap ? preview.chooseMapPoint : undefined,
+        onSelectLocation: preview.isSelectingOnMap ? tapMap : undefined,
+        onSelectRegion: preview.isSelectingOnMap
+          ? (_, point) => {
+              if (point) tapMap(point.latitude, point.longitude);
+            }
+          : undefined,
         onSelectMarker: selectSearchPin,
       };
-  const baseSelectLocation = mapProps.onSelectLocation;
   const baseSelectMarker = mapProps.onSelectMarker;
   const baseBoundsChange = mapProps.onBoundsChange;
   const baseLevelChange = mapProps.onLevelChange;
@@ -384,17 +405,7 @@ const useNeighborhoodMapView = (
         coordinateMenu: undefined,
         onSelectRegion: (id, point) => {
           if (id.startsWith(BOOKMARK_REGION_PREFIX)) return;
-          if (preview.isSelectingOnMap && preview.isMapSelectionEnabled && point)
-            preview.chooseMapPoint(point.latitude, point.longitude);
-          else {
-            selectRegion(id);
-          }
-        },
-        onSelectLocation: (latitude, longitude) => {
-          if (preview.isSelectingOnMap && preview.isMapSelectionEnabled) baseSelectLocation?.(latitude, longitude);
-          else {
-            tapEmpty();
-          }
+          mapProps.onSelectRegion?.(id, point);
         },
         onSelectMarker: (marker) => {
           if (marker.category === 'MEMO') registration.canvasProps.onSelectMarker?.(marker);
@@ -412,7 +423,21 @@ const useNeighborhoodMapView = (
     : mapProps;
   return {
     isResultMap,
-    mapProps: composedProps,
+    mapProps: {
+      ...composedProps,
+      coordinateAction:
+        commutePoint && !hasOpenLayer && !preview.isMapSelectionEnabled && (preview.isSelectingOnMap || isResultMap)
+          ? {
+              ...commutePoint,
+              placement: 'above',
+              label: '출퇴근 장소로 설정',
+              onClick: () => {
+                setCommutePoint(null);
+                preview.chooseMapPoint(commutePoint.latitude, commutePoint.longitude);
+              },
+            }
+          : composedProps.coordinateAction,
+    } satisfies MapCanvasProps,
     places,
     /** 결과 지도 오른쪽에 처음부터 두는 분류 레일(중개사, 병원, 교통, 편의, My)의 값. */
     rail: {

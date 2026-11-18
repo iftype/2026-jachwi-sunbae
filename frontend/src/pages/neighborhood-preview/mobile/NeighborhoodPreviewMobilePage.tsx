@@ -279,13 +279,6 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
                     이전 결과 보기
                   </Button>
                 )}
-                {/* 처음 들어왔을 때는 기록 지도로 나가고, 지난 검색이 있으면 그 결과로 돌아간다. */}
-                <Button
-                  variant="secondary"
-                  onClick={preview.hasSubmittedSearch ? preview.cancelEditing : preview.leave}
-                >
-                  동네 찾기 취소
-                </Button>
                 {filterChips}
                 {pickerField !== null && (
                   <NeighborhoodFilterPicker key={pickerField} preview={preview} field={pickerField} />
@@ -552,7 +545,8 @@ const styles = {
     label: NeighborhoodPreviewMobilePage-railControls;
 
     && {
-      top: calc(env(safe-area-inset-top) + 8rem);
+      top: calc(max(0.85rem, env(safe-area-inset-top)) + 8rem);
+      right: 0.95rem;
     }
   `,
 };
