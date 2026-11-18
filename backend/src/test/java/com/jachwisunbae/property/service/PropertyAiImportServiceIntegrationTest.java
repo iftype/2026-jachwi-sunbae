@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.jachwisunbae.common.exception.JachwiException;
+import com.jachwisunbae.common.exception.client.RateLimitExceededException;
 import com.jachwisunbae.common.exception.errorcode.ErrorCode;
 import com.jachwisunbae.common.exception.server.UpstreamServiceException;
 import com.jachwisunbae.property.ai.BedrockPropertyExtractor;
@@ -89,6 +90,10 @@ class PropertyAiImportServiceIntegrationTest {
 
     @MockitoBean
     private BedrockPropertyExtractor extractor;
+
+    // 횟수 계산은 PropertyAiUsageLimiterTest가 확인하고, 여기서는 언제 차감하고 차단 시 Bedrock을 부르지 않는지만 본다.
+    @MockitoBean
+    private PropertyAiUsageLimiter usageLimiter;
 
     private long propertyId;
 
@@ -184,7 +189,7 @@ class PropertyAiImportServiceIntegrationTest {
                 ErrorCode.PROPERTY_AI_IMAGE_INVALID);
         assertError(() -> service.importFromImages(MEMBER_ID, propertyId, List.of(tooLarge)),
                 ErrorCode.PROPERTY_AI_IMAGE_INVALID);
-        verifyNoInteractions(extractor);
+        verifyNoInteractions(usageLimiter, extractor);
     }
 
     @Test
@@ -199,7 +204,7 @@ class PropertyAiImportServiceIntegrationTest {
                 ErrorCode.PHOTO_CONTENT_TYPE_UNSUPPORTED);
         assertError(() -> service.importFromImages(MEMBER_ID, propertyId, List.of(fakePng)),
                 ErrorCode.PHOTO_CONTENT_TYPE_UNSUPPORTED);
-        verifyNoInteractions(extractor);
+        verifyNoInteractions(usageLimiter, extractor);
     }
 
     @Test
@@ -208,11 +213,25 @@ class PropertyAiImportServiceIntegrationTest {
         // when & then
         assertError(() -> service.importFromImages(OTHER_MEMBER_ID, propertyId, List.of(png("capture.png"))),
                 ErrorCode.PROPERTY_NOT_FOUND);
-        verifyNoInteractions(extractor);
+        verifyNoInteractions(usageLimiter, extractor);
     }
 
     @Test
-    @DisplayName("이미지 분석이 실패하면 매물 정보와 메모를 바꾸지 않는다")
+    @DisplayName("이미지 분석 한도를 넘으면 Bedrock을 호출하지 않고 매물을 바꾸지 않는다")
+    void rejectsWithoutAnalysisWhenUsageLimitExceeded() {
+        // given
+        doThrow(new RateLimitExceededException(ErrorCode.PROPERTY_AI_DAILY_LIMIT_EXCEEDED, "일간 한도 초과"))
+                .when(usageLimiter).acquire(MEMBER_ID);
+
+        // when & then
+        assertError(() -> service.importFromImages(MEMBER_ID, propertyId, List.of(png("capture.png"))),
+                ErrorCode.PROPERTY_AI_DAILY_LIMIT_EXCEEDED);
+        verifyNoInteractions(extractor);
+        assertUnchanged();
+    }
+
+    @Test
+    @DisplayName("이미지 분석이 실패하면 매물 정보와 메모를 바꾸지 않고 분석 횟수는 차감한다")
     void keepsPropertyWhenAnalysisFails() {
         // given
         given(extractor.extract(anyList())).willThrow(new UpstreamServiceException(
@@ -221,6 +240,7 @@ class PropertyAiImportServiceIntegrationTest {
         // when & then
         assertError(() -> service.importFromImages(MEMBER_ID, propertyId, List.of(png("capture.png"))),
                 ErrorCode.PROPERTY_AI_PROVIDER_UNAVAILABLE);
+        verify(usageLimiter).acquire(MEMBER_ID);
         assertUnchanged();
     }
 

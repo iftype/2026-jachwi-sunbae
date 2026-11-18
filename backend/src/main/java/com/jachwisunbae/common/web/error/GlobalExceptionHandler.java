@@ -5,6 +5,7 @@ import com.jachwisunbae.common.exception.client.AuthenticationFailedException;
 import com.jachwisunbae.common.exception.client.AuthorizationFailedException;
 import com.jachwisunbae.common.exception.client.BusinessRuleViolationException;
 import com.jachwisunbae.common.exception.client.InvalidInputException;
+import com.jachwisunbae.common.exception.client.RateLimitExceededException;
 import com.jachwisunbae.common.exception.client.ResourceNotFoundException;
 import com.jachwisunbae.common.exception.errorcode.ErrorCode;
 import com.jachwisunbae.common.exception.server.DataInconsistencyException;
@@ -184,6 +185,7 @@ public class GlobalExceptionHandler {
             case AuthenticationFailedException authenticationFailed -> HttpStatus.UNAUTHORIZED;
             case AuthorizationFailedException authorizationFailed -> HttpStatus.FORBIDDEN;
             case ResourceNotFoundException notFound -> HttpStatus.NOT_FOUND;
+            case RateLimitExceededException rateLimitExceeded -> HttpStatus.TOO_MANY_REQUESTS;
             case DataInconsistencyException dataInconsistency -> HttpStatus.INTERNAL_SERVER_ERROR;
             case InternalSystemException internalSystem -> HttpStatus.INTERNAL_SERVER_ERROR;
             case UpstreamServiceException upstream -> HttpStatus.BAD_GATEWAY;

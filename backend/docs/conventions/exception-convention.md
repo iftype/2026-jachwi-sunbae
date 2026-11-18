@@ -66,6 +66,7 @@ common
 │   │   ├── InvalidInputException
 │   │   ├── BusinessRuleViolationException
 │   │   ├── ResourceNotFoundException
+│   │   ├── RateLimitExceededException
 │   │   ├── AuthenticationFailedException
 │   │   └── AuthorizationFailedException
 │   ├── server
@@ -169,6 +170,17 @@ Access Token 오류는 `ACCESS_TOKEN_INVALID`, 토큰 갱신의 인증 실패는
 ### 5.5. AuthorizationFailedException (403)
 
 인증은 되었지만 요청한 작업을 수행할 권한이 없을 때 사용한다.
+
+### 5.6. RateLimitExceededException (429)
+
+정해진 기간 안에 허용된 호출 횟수를 넘었을 때 사용한다. 기간이 지나면 같은 요청이 성공하므로 클라이언트는 `ErrorCode`로 언제 다시 시도할지 안내한다.
+
+- 이미지 분석의 회원별 분당·일간·월간 횟수 제한을 넘는다.
+
+```java
+throw new RateLimitExceededException(ErrorCode.PROPERTY_AI_DAILY_LIMIT_EXCEEDED,
+        "memberId=" + memberId + " 이미지 분석 일간 한도 초과");
+```
 
 ## 6. Server Exception
 
@@ -324,6 +336,7 @@ API 계약을 바꿀 때는 다음을 확인한다.
 | 인증 실패                | `401 Unauthorized`           |
 | 권한 없음                | `403 Forbidden`              |
 | 리소스 없음              | `404 Not Found`              |
+| 호출 횟수 제한 초과      | `429 Too Many Requests`      |
 | 지원하지 않는 Method     | `405 Method Not Allowed`     |
 | Body가 너무 큼           | `413 Payload Too Large`      |
 | 지원하지 않는 Media Type | `415 Unsupported Media Type` |
@@ -385,6 +398,7 @@ Controller 이후 발생한 예외의 HTTP 변환은 `@RestControllerAdvice` 한
 | `AuthenticationFailedException`  | `401`     |
 | `AuthorizationFailedException`   | `403`     |
 | `ResourceNotFoundException`      | `404`     |
+| `RateLimitExceededException`     | `429`     |
 | `DataInconsistencyException`     | `500`     |
 | `InternalSystemException`        | `500`     |
 | `UpstreamServiceException`       | `502`     |

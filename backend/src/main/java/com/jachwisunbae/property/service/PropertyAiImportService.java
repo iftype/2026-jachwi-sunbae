@@ -26,13 +26,16 @@ public class PropertyAiImportService {
     private final PropertyRepository propertyRepository;
     private final BedrockPropertyExtractor extractor;
     private final PropertyService propertyService;
+    private final PropertyAiUsageLimiter usageLimiter;
 
     public PropertyAiImportService(final PropertyRepository propertyRepository,
                                    final BedrockPropertyExtractor extractor,
-                                   final PropertyService propertyService) {
+                                   final PropertyService propertyService,
+                                   final PropertyAiUsageLimiter usageLimiter) {
         this.propertyRepository = propertyRepository;
         this.extractor = extractor;
         this.propertyService = propertyService;
+        this.usageLimiter = usageLimiter;
     }
 
     // 트랜잭션을 걸지 않는다. 걸면 Bedrock 응답을 기다리는 동안(최대 60초) DB 커넥션을 잡고 있어 요청이 몰리면 커넥션 풀이 고갈되어 다른 API까지 느려진다.
@@ -44,6 +47,8 @@ public class PropertyAiImportService {
             throw new ResourceNotFoundException(ErrorCode.PROPERTY_NOT_FOUND, "매물을 찾을 수 없습니다.");
         }
         List<PropertyImage> images = loadImages(files);
+        // 검증을 통과해 실제로 Bedrock을 호출할 요청만 센다. 호출이 실패해도 비용이 생길 수 있어 횟수를 되돌리지 않는다.
+        usageLimiter.acquire(memberId);
         PropertyExtraction extraction = extractor.extract(images);
         return propertyService.applyAiExtraction(memberId, propertyId, extraction);
     }

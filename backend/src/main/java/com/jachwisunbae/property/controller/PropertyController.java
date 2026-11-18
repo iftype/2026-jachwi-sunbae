@@ -117,7 +117,9 @@ public class PropertyController {
     @Operation(summary = "이미지로 매물 정보 채우기",
             description = "매물 캡처 이미지(PNG·JPEG 1~10장, 장당 3MB 이하)를 AI로 분석해 보증금·월세·입주 가능일·관리비·"
                     + "관리비 포함 공과금·방 옵션을 저장하고 추출 메모를 자유 메모 뒤에 덧붙입니다. "
-                    + "읽지 못한 항목과 이름·주소 등 추출 대상이 아닌 항목은 기존 값을 유지합니다.")
+                    + "읽지 못한 항목과 이름·주소 등 추출 대상이 아닌 항목은 기존 값을 유지합니다. "
+                    + "회원별로 최근 60초 3회, 하루 30회, 한 달 300회(Asia/Seoul 기준)까지 분석하며, 넘으면 429와 "
+                    + "PROPERTY_AI_MINUTE_LIMIT_EXCEEDED/DAILY_LIMIT_EXCEEDED/MONTHLY_LIMIT_EXCEEDED로 응답합니다.")
     public ApiResponse<PropertyAiImportResponse> importFromImages(
             @AuthenticatedMemberId final Long memberId,
             @PathVariable final Long propertyId,
