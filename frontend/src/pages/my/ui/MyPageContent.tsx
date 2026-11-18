@@ -81,18 +81,17 @@ const styles = {
       background: var(--color-primary);
     }
     display: grid;
-    gap: 0.5rem;
+    gap: 0.75rem;
+
+    & > section {
+      border: 0;
+      background: transparent;
+    }
   `,
   settingsRows: css`
     label: MyPageContent-settingsRows;
-    overflow: hidden;
-    border-radius: var(--my-card-radius);
-    background: var(--my-card-surface);
-    border: 1px solid var(--color-border);
-
-    & > :is(a, button) + :is(a, button) {
-      border-top: 1px solid var(--color-border);
-    }
+    display: grid;
+    gap: 0.35rem;
   `,
 };
 

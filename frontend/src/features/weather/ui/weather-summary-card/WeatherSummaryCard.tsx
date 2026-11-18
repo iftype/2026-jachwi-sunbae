@@ -244,7 +244,7 @@ const styles = {
     label: WeatherSummaryCard-divider;
     margin-top: 0.5rem;
     padding-top: 0.25rem;
-    border-top: 1px solid var(--color-border);
+    margin-top: 0.35rem;
   `,
 
   /* 알림을 켜고 끌 때 바뀐 내용이 살짝 올라오며 나타난다. 카드 높이는 그대로라 아래 내용은 움직이지 않는다. */

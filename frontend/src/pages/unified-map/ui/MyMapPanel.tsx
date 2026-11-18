@@ -6,7 +6,6 @@ import { formatAppVersionLabel } from '@/pages/my/lib/appVersionLabel';
 import MyPageContent from '@/pages/my/ui/MyPageContent';
 import { useMember } from '@/features/auth/api/useCurrentMember';
 import { usePublicConfig } from '@/shared/config/PublicConfigContext';
-import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
 import AreaSkeleton from '@/shared/ui/area-skeleton/AreaSkeleton';
 import DetailHeader from '@/shared/ui/detail-header/DetailHeader';
 
@@ -15,11 +14,9 @@ import * as myStyles from '@/pages/my/MyPage.styles';
 const MyMapPanelContent = ({ onClose }: { onClose: () => void }) => {
   useMember();
   const config = usePublicConfig();
-  const isDesktop = useIsDesktop();
   return (
     <section className={`${myStyles.page} ${styles.panel}`} aria-label="목록 안의 마이페이지">
-      {/* 데스크탑은 왼쪽 레일의 내 기록과 동네 찾기로 나가므로 뒤로가기 버튼을 두지 않는다. */}
-      <DetailHeader title="마이페이지" backLabel="목록으로 돌아가기" onBack={onClose} hasBackButton={!isDesktop} />
+      <DetailHeader title="마이페이지" backLabel="목록으로 돌아가기" onBack={onClose} hasBackButton={false} />
       <MyPageContent />
       <HomeFooter className={styles.siteFooter} />
       <footer className={`${myStyles.footer} ${styles.version}`}>{formatAppVersionLabel(config)}</footer>
@@ -66,10 +63,6 @@ const styles = {
     padding: 0.5rem var(--my-gutter) 1rem;
     & > header {
       padding: 0;
-    }
-    /* 뒤로가기 화살표 그림이 여백선에서 시작하도록 버튼 안쪽 여백(8px)만큼 당긴다. */
-    & > header > button {
-      margin-left: -0.5rem;
     }
     [data-desktop='false'] & {
       height: 100%;
