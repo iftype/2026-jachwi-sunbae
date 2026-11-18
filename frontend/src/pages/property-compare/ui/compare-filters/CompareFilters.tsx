@@ -78,17 +78,37 @@ const styles = {
     align-items: center;
     justify-content: flex-end;
     gap: 0.5rem 0.9rem;
+
+    @media (max-width: 1023px) {
+      display: grid;
+      justify-content: stretch;
+      gap: 0.65rem;
+      padding: 0.75rem;
+      border-radius: var(--radius-md);
+      background: var(--color-surface);
+    }
   `,
 
   search: css`
     label: CompareFilters-search;
     width: 9rem;
 
+    @media (max-width: 1023px) {
+      width: 100%;
+    }
+
     /* 공용 채움형 입력칸보다 작게 두려고 크기만 덮어쓴다. */
     & input {
       min-height: 2rem !important;
       padding: 0.35rem 0.7rem !important;
       font-size: 0.66rem !important;
+    }
+
+    @media (max-width: 1023px) {
+      & input {
+        min-height: 2.5rem !important;
+        font-size: 0.86rem !important;
+      }
     }
 
     & label {
@@ -110,6 +130,15 @@ const styles = {
     padding: 0;
     border: 0;
 
+    @media (max-width: 1023px) {
+      display: grid;
+      gap: 0.32rem;
+
+      & legend {
+        font-size: 0.75rem;
+      }
+    }
+
     & legend {
       float: left;
       margin-right: 0.4rem;
@@ -124,6 +153,15 @@ const styles = {
     label: CompareFilters-chips;
     display: flex;
     gap: 0.25rem;
+
+    @media (max-width: 1023px) {
+      flex-wrap: wrap;
+
+      && button {
+        min-height: 2.25rem;
+        font-size: 0.75rem;
+      }
+    }
 
     /* 고른 칩은 파란 글자·옅은 파란 바탕, 나머지는 흰 칩으로 둔다. */
     & button {

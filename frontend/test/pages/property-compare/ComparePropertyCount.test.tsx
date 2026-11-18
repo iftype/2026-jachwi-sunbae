@@ -9,7 +9,10 @@ import type { PropertySummary } from '@/features/property/model/Property';
 import { PublicConfigProvider } from '@/shared/config/PublicConfigContext';
 
 const { listQuery } = vi.hoisted(() => ({ listQuery: { current: null as unknown } }));
-vi.mock('@/features/property/api/useProperties', () => ({ usePropertyList: () => listQuery.current }));
+vi.mock('@/features/property/api/useProperties', () => ({
+  usePropertyList: () => listQuery.current,
+  usePropertyDetail: () => ({ data: undefined, isPending: false, isError: false }),
+}));
 vi.mock('@/features/property/api/usePropertyMutations', () => ({
   useRecordPropertyComparisonView: () => ({ mutate: vi.fn() }),
 }));

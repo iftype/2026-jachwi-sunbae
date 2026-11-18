@@ -74,7 +74,7 @@ const CompareTable = ({ properties, selectedIds, maxSelection, onToggle, preview
               className={styles.previewButton}
               onClick={() => onPreview(property.propertyId)}
               aria-label={`${property.name} 미리 보기`}
-              aria-controls="compare-property-preview"
+              aria-controls={previewId === property.propertyId ? 'compare-property-preview' : undefined}
               aria-pressed={previewId === property.propertyId}
             >
               상세

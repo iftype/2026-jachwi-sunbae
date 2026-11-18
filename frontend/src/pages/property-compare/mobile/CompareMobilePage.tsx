@@ -1,4 +1,4 @@
-import { css } from '@emotion/css';
+import { css, cx } from '@emotion/css';
 import { useState } from 'react';
 
 import { usePropertyList } from '@/features/property/api/useProperties';
@@ -31,7 +31,7 @@ const CompareMobilePage = () => {
       <TopNavigation title="비교할 매물 선택" backTo={HOME_PATH} />
       <CompareLoadState properties={properties}>
         {() => (
-          <div className={shared.content}>
+          <div className={cx(shared.content, styles.content)}>
             <div className={shared.selectionHeader} aria-live="polite">
               <strong>{selectedIds.length}개 선택</strong>
               <span>최대 {MAX_SELECTION}개</span>
@@ -76,6 +76,15 @@ const CompareMobilePage = () => {
 };
 
 const styles = {
+  content: css`
+    padding-top: 0.8rem;
+    & > div[aria-live] {
+      font-size: 0.86rem;
+    }
+    & > div[aria-live] strong {
+      font-size: 1rem;
+    }
+  `,
   /* 매물은 따로 떨어진 카드 대신 한 상자 안에 이어진 리스트로 두고, 항목 사이는 얇은 줄로 나눈다. */
   propertyList: css`
     label: CompareMobilePage-propertyList;
