@@ -335,11 +335,21 @@ const useNeighborhoodPreview = () => {
           selectionView.current = null;
           setSelectionCenter(current);
           setSelectionLevel(currentLevel);
+          // 현재 위치 버튼은 지도에서 고른 위치("선택한 위치")를 현재 위치로 바꾼다.
+          setSearchPin(null);
+          setIsMapSelectionEnabled(false);
           setMapCandidate(current);
           setHasChosenMapPoint(true);
           setShouldFocusMapSearch(false);
           setPhase('conditions');
           prefetchBoundaries();
+          // 좌표만 있으면 어디인지 알 수 없어, 주소를 찾으면 이름으로 쓴다. 실패하면 `현재 위치`를 그대로 둔다.
+          void reverseGeocode(config, coordinate.latitude, coordinate.longitude)
+            .then((address) => {
+              if (intent !== locationIntent.current || !address.address) return;
+              setMapCandidate({ ...current, address: address.address });
+            })
+            .catch(() => undefined);
         }
       } catch (error) {
         if (intent !== locationIntent.current) return;
