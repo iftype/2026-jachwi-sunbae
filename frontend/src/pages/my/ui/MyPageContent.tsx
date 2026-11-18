@@ -49,8 +49,9 @@ const styles = {
     display: grid;
     gap: var(--space-md);
     color: var(--color-ink);
+    /* 카드 테두리는 두지 않는다. */
     & > section {
-      border: 1px solid var(--color-border);
+      border: 0;
       border-radius: var(--radius-card);
     }
 

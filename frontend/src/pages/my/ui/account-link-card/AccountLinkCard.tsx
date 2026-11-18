@@ -24,7 +24,6 @@ import {
 import { readPropertyCount } from '@/features/property/api/propertyCount';
 import { usePublicConfig } from '@/shared/config/PublicConfigContext';
 import { HOME_PATH } from '@/shared/lib/navigation/appPaths';
-import IdentityPlaceholder from '@/shared/ui/identity-placeholder/IdentityPlaceholder';
 import Toast from '@/shared/ui/toast/Toast';
 
 type AccountLinkCardProps = {
@@ -197,7 +196,6 @@ const AccountLinkCard = ({ memberId, reloadPage = () => window.location.reload()
     return (
       <section className={styles.card} aria-labelledby="account-link-title">
         <div className={styles.linkedRow}>
-          <IdentityPlaceholder size={44} label="내 프로필" />
           <div>
             <h2 id="account-link-title" className={styles.title}>
               {OAUTH_PROVIDER_LABELS[linkedProvider]} 계정으로 로그인됨
@@ -221,7 +219,6 @@ const AccountLinkCard = ({ memberId, reloadPage = () => window.location.reload()
   return (
     <section className={styles.card} aria-labelledby="account-link-title">
       <div className={styles.header}>
-        <IdentityPlaceholder size={44} label="내 프로필" />
         <div>
           {/* 연결 전에는 버튼만으로 충분해 설명을 두지 않는다. */}
           <h2 id="account-link-title" className={styles.title}>
@@ -269,9 +266,7 @@ const styles = {
   header: css`
     label: AccountLinkCard-header;
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    gap: 0.6rem;
-    /* 아이콘을 제목 글자 줄의 세로 가운데에 맞춘다. */
+    grid-template-columns: minmax(0, 1fr);
     align-items: center;
   `,
 
@@ -363,7 +358,7 @@ const styles = {
   linkedRow: css`
     label: AccountLinkCard-linkedRow;
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: 0.75rem;
   `,

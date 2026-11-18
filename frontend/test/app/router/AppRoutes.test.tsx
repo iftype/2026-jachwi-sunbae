@@ -457,7 +457,10 @@ it('데스크톱의 홈은 통합 지도로 이어지고 모드 URL을 바꿔도
     expect(screen.getByTestId('route-path')).toHaveTextContent('/');
     const map = document.querySelector('[data-shared-map]');
     expect(map).not.toBeNull();
-    expect(screen.queryByRole('button', { name: '동네 찾기' })).not.toBeInTheDocument();
+    // 데스크탑은 왼쪽 네비 레일로 화면을 옮긴다.
+    expect(
+      within(screen.getByRole('navigation', { name: '화면 이동' })).getByRole('button', { name: '동네 찾기' }),
+    ).toBeInTheDocument();
     tapMapForRecommendation();
     await userEvent.click(screen.getByRole('menuitem', { name: '동네 추천받기' }));
     // 찍은 자리의 주소를 받은 뒤 동네 찾기로 넘어간다.
@@ -466,9 +469,11 @@ it('데스크톱의 홈은 통합 지도로 이어지고 모드 URL을 바꿔도
     await userEvent.click(screen.getByRole('button', { name: '이 조건으로 동네 찾기' }));
     expect(await screen.findByRole('region', { name: '행정동 프리셋 지도' })).toBeInTheDocument();
     expect(document.querySelector('[data-shared-map]')).toBe(map);
-    // 데스크탑은 떠 있는 전환 버튼 없이 왼쪽 칸 로고로 기록 지도에 돌아간다.
+    // 데스크탑은 떠 있는 전환 버튼 없이 왼쪽 레일의 `내 기록`으로 기록 지도에 돌아간다.
     expect(screen.queryByRole('navigation', { name: '지도 모드' })).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('link', { name: '자취선배 홈' }));
+    await userEvent.click(
+      within(screen.getByRole('navigation', { name: '화면 이동' })).getByRole('button', { name: '내 기록' }),
+    );
     expect(await screen.findByRole('region', { name: '본 방 기록 지도' })).toBeInTheDocument();
     expect(document.querySelector('[data-shared-map]')).toBe(map);
   } finally {

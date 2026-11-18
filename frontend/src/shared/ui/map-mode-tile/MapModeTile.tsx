@@ -1,7 +1,8 @@
 import { css } from '@emotion/css';
 import { Link } from 'react-router-dom';
 
-import Icon from '../icon/Icon';
+import iconHome from '@/shared/assets/illustrations/icon-home.webp';
+import iconMap from '@/shared/assets/illustrations/icon-map.webp';
 
 type Props = { mode: 'records' | 'neighborhoods'; to?: string; onClick?: () => void };
 const MapModeTile = ({ mode, to, onClick }: Props) => {
@@ -9,7 +10,7 @@ const MapModeTile = ({ mode, to, onClick }: Props) => {
   const ariaLabel = mode === 'records' ? '기록으로 전환' : '동네 찾기로 전환';
   const content = (
     <>
-      <Icon name={mode === 'records' ? 'home' : 'map'} size={20} />
+      <img src={mode === 'records' ? iconHome : iconMap} alt="" width={22} height={22} />
       <span>{label}</span>
     </>
   );

@@ -27,17 +27,21 @@ const styles = {
   /* 회색 화면 바탕 위에 흰 타일을 한 줄 4칸으로 왼쪽부터 채운다. 빈 칸은 자리만 남는다. */
   links: css`
     label: MyQuickLinks-links;
-    /* 공용 타일의 그림 칸 바탕은 투명하게 두고, 그림과 이름을 함께 감싼 흰 카드 하나로 보이게 한다. */
-    --color-card-surface: transparent;
+    /* 그림이 들어가는 칸에는 채도를 낮춘 연한 파랑 그라데이션의 둥근 네모를 깔고, 카드 둘레 테두리는 두지 않는다. */
+    --color-card-surface: linear-gradient(145deg, #eef3ff 0%, #d6e2fb 100%);
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.65rem;
+
+    /* 정사각형 그림(방 비교의 집 사진)도 타일 안에서 모서리를 둥글게 맞춘다. */
+    & > a img {
+      border-radius: 22%;
+    }
 
     & > a {
       padding: 0.35rem 0.35rem 0.6rem;
       border-radius: var(--my-card-radius);
       background: var(--my-card-surface);
-      border: 1px solid var(--color-border);
     }
 
     /* 칸이 넓어져도 타일이 휴대폰 크기를 넘지 않게 상한을 둔다. */

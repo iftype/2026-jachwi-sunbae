@@ -123,7 +123,6 @@ const RecordsDesktopPage = ({ records, layers }: Props) => {
           </h1>
           <ListDetailLayout
             className={styles.body}
-            floating
             list={
               <>
                 {!panel && (

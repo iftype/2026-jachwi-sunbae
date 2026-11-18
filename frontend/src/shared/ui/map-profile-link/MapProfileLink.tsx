@@ -28,7 +28,7 @@ const styles = {
     & img {
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: contain;
     }
     &:focus-visible {
       outline: 2px solid var(--color-focus);
