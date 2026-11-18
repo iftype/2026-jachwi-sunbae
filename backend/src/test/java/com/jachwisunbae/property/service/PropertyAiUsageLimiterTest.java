@@ -31,6 +31,9 @@ class PropertyAiUsageLimiterTest {
     private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
     // 분당 한도에 걸리지 않도록 호출 사이에 둔다.
     private static final Duration AFTER_MINUTE_WINDOW = Duration.ofSeconds(61);
+    // 매일 일간 한도까지 쓰면 월간 한도에 닿는 날 수다.
+    private static final int DAYS_TO_REACH_MONTHLY_LIMIT =
+            PropertyAiUsageLimiter.MONTHLY_LIMIT / PropertyAiUsageLimiter.DAILY_LIMIT;
 
     private final MutableClock clock = new MutableClock(seoul(2026, 11, 18, 9, 0));
     private final PropertyAiUsageLimiter limiter = new PropertyAiUsageLimiter(clock);
@@ -50,7 +53,7 @@ class PropertyAiUsageLimiterTest {
     }
 
     @Test
-    @DisplayName("하루에 10번을 넘으면 차단한다")
+    @DisplayName("하루에 30번을 넘으면 차단한다")
     void limitsDailyCalls() {
         // given
         acquireSpacedOut(MEMBER_ID, PropertyAiUsageLimiter.DAILY_LIMIT);
@@ -60,16 +63,16 @@ class PropertyAiUsageLimiterTest {
     }
 
     @Test
-    @DisplayName("한 달에 50번을 넘으면 날이 바뀌어도 차단한다")
+    @DisplayName("한 달에 300번을 넘으면 날이 바뀌어도 차단한다")
     void limitsMonthlyCalls() {
         // given
-        for (int day = 1; day <= 5; day++) {
+        for (int day = 1; day <= DAYS_TO_REACH_MONTHLY_LIMIT; day++) {
             clock.set(seoul(2026, 11, day, 9, 0));
             acquireSpacedOut(MEMBER_ID, PropertyAiUsageLimiter.DAILY_LIMIT);
         }
 
         // when
-        clock.set(seoul(2026, 11, 6, 9, 0));
+        clock.set(seoul(2026, 11, DAYS_TO_REACH_MONTHLY_LIMIT + 1, 9, 0));
 
         // then
         assertExceeded(MEMBER_ID, ErrorCode.PROPERTY_AI_MONTHLY_LIMIT_EXCEEDED);
@@ -104,7 +107,7 @@ class PropertyAiUsageLimiterTest {
     @DisplayName("일간 횟수는 UTC가 아니라 한국 시간 자정에 초기화한다")
     void resetsDailyCountAtSeoulMidnight() {
         // given
-        clock.set(seoul(2026, 11, 18, 23, 40));
+        clock.set(seoul(2026, 11, 18, 23, 0));
         acquireSpacedOut(MEMBER_ID, PropertyAiUsageLimiter.DAILY_LIMIT);
         assertExceeded(MEMBER_ID, ErrorCode.PROPERTY_AI_DAILY_LIMIT_EXCEEDED);
 
@@ -120,7 +123,7 @@ class PropertyAiUsageLimiterTest {
     @DisplayName("월간 횟수는 한국 시간으로 다음 달 1일 0시에 초기화한다")
     void resetsMonthlyCountAtSeoulMonthStart() {
         // given
-        for (int day = 26; day <= 30; day++) {
+        for (int day = 31 - DAYS_TO_REACH_MONTHLY_LIMIT; day <= 30; day++) {
             clock.set(seoul(2026, 11, day, 9, 0));
             acquireSpacedOut(MEMBER_ID, PropertyAiUsageLimiter.DAILY_LIMIT);
         }

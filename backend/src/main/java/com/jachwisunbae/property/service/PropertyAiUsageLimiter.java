@@ -21,8 +21,8 @@ import org.springframework.stereotype.Component;
 public class PropertyAiUsageLimiter {
 
     static final int MINUTE_LIMIT = 3;
-    static final int DAILY_LIMIT = 10;
-    static final int MONTHLY_LIMIT = 50;
+    static final int DAILY_LIMIT = 30;
+    static final int MONTHLY_LIMIT = 300;
     private static final Duration MINUTE_WINDOW = Duration.ofSeconds(60);
     private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 
