@@ -68,12 +68,12 @@ it('경계를 아직 받지 못한 동네는 정해 둔 단계로 다가간다',
   expect(areaFocusLevel([])).toBe(AREA_FOCUS_FALLBACK_LEVEL);
   expect(nextPlacesVisible(AREA_FOCUS_FALLBACK_LEVEL)).toBe(true);
 });
-it('마커는 확대와 축소 모두 같은 8.5 기준으로 표시한다', () => {
-  expect(nextPlacesVisible(8.51)).toBe(false);
+it('마커는 확대와 축소 모두 같은 7.5 기준으로 표시한다', () => {
+  expect(nextPlacesVisible(7.51)).toBe(false);
   expect(nextPlacesVisible(PLACES_SHOW_LEVEL)).toBe(true);
   expect(nextPlacesVisible(PLACES_SHOW_LEVEL + 1e-7)).toBe(true);
-  expect(nextPlacesVisible(8.49)).toBe(true);
-  expect(nextPlacesVisible(8.51)).toBe(false);
+  expect(nextPlacesVisible(7.49)).toBe(true);
+  expect(nextPlacesVisible(7.51)).toBe(false);
 });
 
 describe('routeFocusView', () => {

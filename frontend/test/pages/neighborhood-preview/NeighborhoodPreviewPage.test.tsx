@@ -929,7 +929,7 @@ it('휴대폰은 멀리 본 채 시설 칸을 켜면 시설이 보이는 단계�
   await user.click(screen.getByRole('button', { name: '지도 축소' }));
   expect(screen.getByLabelText('지도 시점')).toHaveTextContent('"level":9');
   await user.click(await screen.findByRole('button', { name: /^병원 표시하기/ }));
-  expect(screen.getByLabelText('지도 시점')).toHaveTextContent('"level":8');
+  expect(screen.getByLabelText('지도 시점')).toHaveTextContent('"level":7');
   await user.click(screen.getByRole('button', { name: '가까이 확대' }));
   await waitFor(() => expect(markerList().some((marker) => marker.category === 'HOSPITAL')).toBe(true));
   expect(screen.queryByText('확대하면 주변 시설이 보여요')).not.toBeInTheDocument();
