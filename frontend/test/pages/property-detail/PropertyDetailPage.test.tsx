@@ -159,14 +159,14 @@ it('사진 아래에는 중복 이름이 없고 더보기 메뉴는 상단 헤�
 const capture = (name: string, type = 'image/png', size = 1_024) => new File([new Uint8Array(size)], name, { type });
 const aiImportInput = () => {
   const input = document.querySelector<HTMLInputElement>('input[type="file"][accept="image/png,image/jpeg"]');
-  if (input === null) throw new Error('이미지로 정보 채우기 파일 입력이 없습니다.');
+  if (input === null) throw new Error('매물정보 자동 입력 파일 입력이 없습니다.');
   return input;
 };
 
 it('이미지로 정보를 채우면 저장된 기본 정보와 메모로 화면을 바꾸고 다시 열어도 유지한다', async () => {
   const user = userEvent.setup();
   renderDetail();
-  await screen.findByRole('button', { name: '이미지로 정보 채우기' });
+  await screen.findByRole('button', { name: '매물정보 자동 입력' });
 
   await user.upload(aiImportInput(), capture('capture.png'));
 
@@ -197,7 +197,7 @@ it('이미지 10장을 한 번에 보내고 분석하는 동안 버튼을 막는
   );
   const user = userEvent.setup();
   renderDetail();
-  await screen.findByRole('button', { name: '이미지로 정보 채우기' });
+  await screen.findByRole('button', { name: '매물정보 자동 입력' });
 
   await user.upload(
     aiImportInput(),
@@ -223,7 +223,7 @@ it('보낼 수 없는 이미지는 요청하지 않고 이유를 알린다', asy
   );
   const user = userEvent.setup({ applyAccept: false });
   renderDetail();
-  await screen.findByRole('button', { name: '이미지로 정보 채우기' });
+  await screen.findByRole('button', { name: '매물정보 자동 입력' });
 
   await user.upload(
     aiImportInput(),

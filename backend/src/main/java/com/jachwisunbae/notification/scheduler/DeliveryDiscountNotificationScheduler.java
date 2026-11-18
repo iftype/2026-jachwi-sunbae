@@ -21,16 +21,6 @@ public class DeliveryDiscountNotificationScheduler {
         service.dispatch(DeliveryDiscountNotificationType.BAEMIN_FIRST_COME);
     }
 
-    @Scheduled(cron = "0 0 11 * * *", zone = "Asia/Seoul")
-    public void coupangEatsFirstCome() {
-        service.dispatch(DeliveryDiscountNotificationType.COUPANG_EATS_FIRST_COME);
-    }
-
-    @Scheduled(cron = "0 0 18 * * *", zone = "Asia/Seoul")
-    public void evening() {
-        service.dispatch(DeliveryDiscountNotificationType.EVENING);
-    }
-
     @Scheduled(cron = "0 0 22 * * *", zone = "Asia/Seoul")
     public void closingSoon() {
         service.dispatch(DeliveryDiscountNotificationType.CLOSING_SOON);
