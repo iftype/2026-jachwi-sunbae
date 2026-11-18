@@ -827,6 +827,14 @@ const styles = {
     font-size: 0.8rem;
     font-weight: 700;
     line-height: 1.3;
+
+    /* 출퇴근 장소는 멀리서도 보이게 라벨과 글자를 키운다. */
+    &[data-kind='commute'] {
+      max-width: 260px;
+      padding: 0.45rem 0.85rem;
+      border-radius: 10px;
+      font-size: 1.05rem;
+    }
   `,
   pinLabelBody: css`
     label: MapMarkerView-pinLabelBody;
@@ -838,6 +846,10 @@ const styles = {
       font-size: 0.65rem;
       font-weight: 600;
       opacity: 0.85;
+    }
+
+    [data-kind='commute'] > & small {
+      font-size: 0.8rem;
     }
   `,
   pinActions: css`
@@ -902,6 +914,9 @@ const styles = {
     transform: rotate(45deg);
 
     &[data-kind='commute'] {
+      width: 0.8rem;
+      height: 0.8rem;
+      margin-bottom: 0.55rem;
       border-color: var(--color-brand-blue-ink, #3f6fc4);
       background: var(--color-brand-blue-ink, #3f6fc4);
     }
@@ -922,10 +937,11 @@ const styles = {
 
     /* 출퇴근 장소는 더 큰 점으로 구분한다. */
     &[data-kind='commute'] {
-      bottom: -9px;
-      width: 18px;
-      height: 18px;
-      margin-left: -9px;
+      bottom: -13px;
+      width: 26px;
+      height: 26px;
+      margin-left: -13px;
+      border-width: 3px;
     }
   `,
   destinationMarker: css`
