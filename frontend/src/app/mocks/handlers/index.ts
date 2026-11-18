@@ -1,3 +1,4 @@
+import { adminDongBookmarkHandlers } from './adminDongBookmarkHandlers';
 import { authHandlers } from './authHandlers';
 import { checklistHandlers } from './checklistHandlers';
 import { commuteAreaHandlers } from './commuteAreaHandlers';
@@ -9,6 +10,7 @@ import { weatherHandlers } from './weatherHandlers';
 
 export const handlers = [
   ...authHandlers,
+  ...adminDongBookmarkHandlers,
   ...propertyHandlers,
   ...checklistHandlers,
   ...propertyChecklistHandlers,

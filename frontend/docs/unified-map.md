@@ -11,6 +11,10 @@
 - 직접 매물과 동네 상세 URL로 들어올 수 있다. 모드 버튼은 각 모드에서 마지막으로 열었던 URL로 이동하고 브라우저 뒤로가기도 처리한다.
 - 휴대폰의 지도와 리스트 전환, 매물 요약 시트, 동네 정보 시트와 상세 화면의 자체 내비게이션은 유지한다. 모드 버튼 영역과 시트는 안전 영역을 비운다.
 
+## 동네 북마크
+
+동네 찾기 결과에서 동을 누르면 뜨는 요약 마커의 `북마크하기`로 행정동을 북마크하고, 내 기록 지도의 `찜한 동네 보기` 버튼으로 북마크한 동네의 경계를 칠한다. API 클라이언트는 `features/map/api/adminDongBookmarkApi.ts`, 낙관적 갱신은 `useAdminDongBookmarks`, 경계 변환은 `useBookmarkedRegions`가 맡는다. 개발용 MSW 목업은 `app/mocks/handlers/adminDongBookmarkHandlers.ts`다. 서버 API는 백엔드 PR #712가 병합된 뒤에 동작한다.
+
 ## 상태와 지도 수명
 
 `SharedMapCanvasProvider`가 실제 `MapCanvasSurface`와 Naver SDK 인스턴스를 소유한다. 기록과 동네 찾기는 `MapCanvas shared` 슬롯에 활성 모드의 지도 설정만 전달한다. 같은 포털 컨테이너를 활성 슬롯으로 옮겨 모드와 화면 폭이 바뀌어도 실제 지도를 다시 마운트하지 않는다. 매물 상세 안의 작은 주변 지도는 공유 슬롯에 참여하지 않는다.

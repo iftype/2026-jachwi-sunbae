@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 
 import { useRecordsMapController } from '@/pages/design-records/RecordsMapProvider';
+import { useAdminDongBookmarks } from '@/features/map/api/useAdminDongBookmarks';
 import useViewportFacilityLayer from '@/features/map/hooks/useViewportFacilityLayer';
 import {
   DESKTOP_FACILITY_MARKER_LEVEL,
@@ -62,6 +63,8 @@ const useNeighborhoodMapView = (
   const recordsController = useRecordsMapController();
   const registration = preview.isPublicExplore ? null : recordsController?.layers;
   const isDesktop = useIsDesktop();
+  // 로그인한 회원은 동네를 북마크해 내 기록 지도에서 다시 볼 수 있다.
+  const bookmarks = useAdminDongBookmarks(!preview.isPublicExplore);
   const markerLevel = isDesktop ? DESKTOP_FACILITY_MARKER_LEVEL : FACILITY_MARKER_LEVEL;
   const isResultMap = !preview.isAnalyzing && !preview.error && !preview.isSelectingOnMap;
   const [railSelection, setRailSelection] = useState<RailSelection | null>(null);
@@ -255,9 +258,18 @@ const useNeighborhoodMapView = (
                   preview.selected.name,
                   `소요시간 ${preview.selected.commuteMinutes}분`,
                   `월세 시세 ${preview.selected.rent ? formatRentPair(preview.selected.rent) : '시세 없음'}`,
+                  ...(preview.isPublicExplore
+                    ? []
+                    : [
+                        bookmarks.isBookmarked(preview.selected.adminDongCode)
+                          ? '★ 북마크됨 (누르면 해제)'
+                          : '☆ 북마크하기',
+                      ]),
                 ].join('\n'),
-                // 요약만 보여 주는 마커라 누를 동작은 없다.
-                onClick: () => undefined,
+                // 마커를 누르면 이 동네를 찜(북마크)하고, 이미 했으면 해제한다. 공개 탐색은 로그인 전이라 누르지 않는다.
+                onClick: () => {
+                  if (!preview.isPublicExplore && preview.selected) bookmarks.toggle(preview.selected.adminDongCode);
+                },
               }
             : undefined,
       }

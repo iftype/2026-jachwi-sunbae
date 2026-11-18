@@ -163,13 +163,13 @@ const styles = {
   rail: css`
     label: InfrastructureMap-rail;
     && {
-      /* 현재 위치(10.55rem) 버튼 바로 아래. */
-      top: 13.7rem;
+      /* 현재 위치(10.55rem)와 찜한 동네(13.7rem) 버튼 줄 바로 아래. */
+      top: 16.85rem;
       right: 1.15rem;
       z-index: 35;
     }
     [data-desktop='false'] && {
-      top: calc(max(0.85rem, env(safe-area-inset-top)) + 16.95rem);
+      top: calc(max(0.85rem, env(safe-area-inset-top)) + 20.1rem);
       right: 0.95rem;
     }
   `,

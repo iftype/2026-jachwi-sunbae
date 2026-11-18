@@ -10,6 +10,7 @@ import Icon from '@/shared/ui/icon/Icon';
 import type { RecordsState } from '../hooks/useRecords';
 import type { RecordsMapLayers } from '../hooks/useRecordsMapLayers';
 import { recordsMapHint } from '../model/recordPresentation';
+import RecordBookmarkToggle from '../ui/record-bookmark-toggle/RecordBookmarkToggle';
 import RecordLocationPick from '../ui/record-location-pick/RecordLocationPick';
 import RecordRegisterSuggestion from '../ui/record-register-suggestion/RecordRegisterSuggestion';
 
@@ -31,6 +32,7 @@ const RecordsDesktopMap = ({ records, layers, districts, className }: Props) => 
     <MapCanvas shared {...layers.canvasProps} coordinateMenu={layers.coordinateMenu} />
     {layers.locationPick && <RecordLocationPick pick={layers.locationPick} />}
     <StreetMemoImpressionLog memos={layers.memo.visibleMemos} />
+    <RecordBookmarkToggle bookmarks={layers.bookmarks} />
     {districts}
     <button
       className={styles.recenter}
