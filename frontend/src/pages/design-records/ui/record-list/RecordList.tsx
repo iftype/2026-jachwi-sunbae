@@ -5,6 +5,7 @@ import { RECORDS_PATH } from '@/shared/lib/navigation/appPaths';
 import EmptyState from '@/shared/ui/empty-state/EmptyState';
 
 import type { RecordsState } from '../../hooks/useRecords';
+import RecordCompareLink from '../record-compare-link/RecordCompareLink';
 import RecordCardMenu from './RecordCardMenu';
 
 import * as styles from './RecordList.styles';
@@ -18,9 +19,18 @@ type RecordListProps = {
   selectedId?: string;
   onNotice: (message: string) => void;
   className?: string;
+  showCompare?: boolean;
 };
 
-const RecordList = ({ records, district, onOpen, selectedId, onNotice, className }: RecordListProps) => {
+const RecordList = ({
+  records,
+  district,
+  onOpen,
+  selectedId,
+  onNotice,
+  className,
+  showCompare = false,
+}: RecordListProps) => {
   const selectedRef = useRef<HTMLLIElement>(null);
   useEffect(() => {
     // scrollIntoView가 없는 환경(jsdom 등)에서도 터지지 않게 있을 때만 부른다.
@@ -39,6 +49,7 @@ const RecordList = ({ records, district, onOpen, selectedId, onNotice, className
           description="집을 보러 가면 사진과 체크한 내용을 남겨 두세요. 여기에 모여요."
         />
       )}
+      {showCompare && records.length > 0 && <RecordCompareLink />}
       <ul className={styles.items}>
         {records.map((record) => (
           <li

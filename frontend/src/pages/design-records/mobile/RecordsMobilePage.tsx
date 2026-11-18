@@ -12,7 +12,6 @@ import type { RecordsState } from '../hooks/useRecords';
 import type { RecordsMapLayers } from '../hooks/useRecordsMapLayers';
 import useRecordsView from '../hooks/useRecordsView';
 import { RECORDS_LOADING_LABEL } from '../RecordsPageSkeleton';
-import RecordCompareLink from '../ui/record-compare-link/RecordCompareLink';
 import RecordDistricts from '../ui/record-districts/RecordDistricts';
 import RecordList from '../ui/record-list/RecordList';
 import RecordLoadError from '../ui/record-load-error/RecordLoadError';
@@ -85,16 +84,13 @@ const RecordsMobilePage = ({ records, layers, searchTo }: Props) => {
           ) : showsMap ? (
             <RecordsMobileMap records={records} layers={layers} />
           ) : (
-            <>
-              {/* 비교하고 PDF로 받기는 헤더에 두지 않고, 헤더 아래 목록 오른쪽 위에 둔다. */}
-              {!panel && <RecordCompareLink />}
-              <RecordList
-                className={styles.list}
-                records={records.records}
-                district={records.district}
-                onNotice={setNotice}
-              />
-            </>
+            <RecordList
+              className={styles.list}
+              records={records.records}
+              district={records.district}
+              onNotice={setNotice}
+              showCompare={!panel}
+            />
           )}
         </div>
         {!panel && <MapViewSwitch value={view} onChange={setView} label="기록 보기 방식" />}

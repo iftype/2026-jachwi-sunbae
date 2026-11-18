@@ -15,7 +15,6 @@ import type { RecordsMapLayers } from '../hooks/useRecordsMapLayers';
 import { recordNeighbors } from '../model/recordNavigation';
 import { RECORDS_LOADING_LABEL } from '../RecordsPageSkeleton';
 import RecordAddressSearch from '../ui/record-address-search/RecordAddressSearch';
-import RecordCompareLink from '../ui/record-compare-link/RecordCompareLink';
 import RecordDistricts from '../ui/record-districts/RecordDistricts';
 import RecordGroupList from '../ui/record-group/RecordGroupList';
 import RecordList from '../ui/record-list/RecordList';
@@ -81,17 +80,15 @@ const RecordsDesktopPage = ({ records, layers }: Props) => {
       />
     </div>
   ) : (
-    <>
-      <RecordCompareLink />
-      <RecordList
-        className={styles.list}
-        records={records.records}
-        district={records.district}
-        onOpen={records.showRecord}
-        selectedId={records.selected?.id}
-        onNotice={setNotice}
-      />
-    </>
+    <RecordList
+      className={styles.list}
+      records={records.records}
+      district={records.district}
+      onOpen={records.showRecord}
+      selectedId={records.selected?.id}
+      onNotice={setNotice}
+      showCompare
+    />
   );
 
   // 상세 칸 머리의 이전, 다음은 리스트 순서대로 넘기고, 지도도 그 매물 자리로 옮긴다.
