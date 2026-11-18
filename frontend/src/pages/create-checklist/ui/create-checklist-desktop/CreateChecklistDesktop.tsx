@@ -201,8 +201,8 @@ const CreateChecklistDesktop = ({
             )}
           </section>
           <div className={styles.actions}>
-            <Button type="submit" fullWidth isLoading={isSubmitting} loadingLabel="저장 중…">
-              저장
+            <Button type="submit" size="large" fullWidth isLoading={isSubmitting} loadingLabel="저장 중…">
+              체크리스트 저장
             </Button>
           </div>
         </form>
@@ -417,10 +417,12 @@ const styles = {
     position: sticky;
     top: 0;
     display: grid;
-    gap: 0.75rem;
+    gap: 0.9rem;
     min-width: 0;
-    padding-bottom: 0.5rem;
-    background: var(--color-canvas);
+    padding: 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
   `,
   status: css`
     label: CreateChecklistDesktop-status;
@@ -438,7 +440,7 @@ const styles = {
   `,
   selectedList: css`
     label: CreateChecklistDesktop-selectedList;
-    max-height: calc(100dvh - 22rem);
+    max-height: max(8rem, calc(100dvh - 28rem));
     min-height: 8rem;
     overflow-y: auto;
     padding: 0 0.85rem;
@@ -449,7 +451,7 @@ const styles = {
     label: CreateChecklistDesktop-empty;
     margin: 0;
     padding: 1.5rem 0.85rem;
-    border: 1px dashed var(--color-border-strong, var(--color-border));
+    background: var(--color-card-surface);
     border-radius: 12px;
     color: var(--color-muted);
     font-size: 0.8125rem;
@@ -457,7 +459,11 @@ const styles = {
   `,
   actions: css`
     label: CreateChecklistDesktop-actions;
-    padding-top: 0.25rem;
+    position: sticky;
+    bottom: 0;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--color-border);
+    background: var(--color-surface);
   `,
 };
 

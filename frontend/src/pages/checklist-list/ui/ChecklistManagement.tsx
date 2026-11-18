@@ -190,8 +190,6 @@ const styles = {
     display: grid;
     gap: var(--space-md);
     padding: var(--space-lg) var(--space-md);
-    border: 1px solid var(--color-border);
-    border-radius: 12px;
     text-align: center;
     justify-items: center;
     & a > span {
