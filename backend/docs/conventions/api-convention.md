@@ -72,6 +72,7 @@ createdAt
 | 인증 필요                | `401 Unauthorized`          |
 | 권한 없음                | `403 Forbidden`             |
 | 리소스 없음              | `404 Not Found`             |
+| 호출 횟수 제한 초과      | `429 Too Many Requests`     |
 | 서버 오류                | `500 Internal Server Error` |
 
 `409 Conflict`는 사용하지 않는다. 상태 충돌은 `400`으로 표현한다.

@@ -62,6 +62,9 @@ public enum ErrorCode {
     PROPERTY_AI_IMAGE_INVALID("이미지는 1~10장, 장당 3MB 이하로 올려 주세요."),
     PROPERTY_AI_PROVIDER_UNAVAILABLE("이미지 분석을 잠시 이용할 수 없습니다. 잠시 후 다시 시도해 주세요."),
     PROPERTY_AI_RESPONSE_INVALID("이미지에서 매물 정보를 읽지 못했습니다."),
+    PROPERTY_AI_MINUTE_LIMIT_EXCEEDED("이미지 분석은 1분에 3번까지 할 수 있습니다. 잠시 후 다시 시도해 주세요."),
+    PROPERTY_AI_DAILY_LIMIT_EXCEEDED("이미지 분석은 하루에 10번까지 할 수 있습니다. 내일 다시 시도해 주세요."),
+    PROPERTY_AI_MONTHLY_LIMIT_EXCEEDED("이미지 분석은 한 달에 50번까지 할 수 있습니다. 다음 달에 다시 시도해 주세요."),
 
     // 거리 메모
     STREET_MEMO_CONTENT_INVALID("거리 메모 내용을 확인해 주세요."),
