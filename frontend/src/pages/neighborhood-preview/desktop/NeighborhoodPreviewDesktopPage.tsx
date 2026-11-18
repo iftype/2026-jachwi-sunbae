@@ -214,7 +214,6 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
   return (
     <main className={`${shared.page} ${styles.page}`} data-public-explore={preview.isPublicExplore || undefined}>
       <ListDetailLayout
-        floating={!preview.isPublicExplore}
         list={panel ? panel.content : list}
         // 목록 옆 칸에는 동네 대중교통 상세만 연다. 장소, 동네, 내 매물 정보는 지도 안 왼쪽 아래 카드에 둔다.
         detail={!panel && hasDetail ? <Outlet context={preview} /> : undefined}

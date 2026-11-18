@@ -1,10 +1,10 @@
 import { css } from '@emotion/css';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import DesignRecordsPage from '@/pages/design-records/DesignRecordsPage';
 import useRecordsView from '@/pages/design-records/hooks/useRecordsView';
-import { RecordsMapProvider } from '@/pages/design-records/RecordsMapProvider';
+import { RecordsMapProvider, useRecordsMapController } from '@/pages/design-records/RecordsMapProvider';
 import {
   neighborhoodSearchKey,
   readNeighborhoodSearch,
@@ -21,8 +21,64 @@ import {
 } from '@/shared/lib/navigation/appPaths';
 import { MapPanelProvider } from '@/shared/ui/map-list-header/MapPanelContext';
 import { MapModeProvider, type MapModeSwitch } from '@/shared/ui/map-mode-tile/MapModeContext';
+import NavRail from '@/shared/ui/nav-rail/NavRail';
+import { NAV_RAIL_ITEMS } from '@/shared/ui/nav-rail/navRailItems';
 
 import MyMapPanel from './ui/MyMapPanel';
+
+/** 지도 화면 왼쪽 레일. 기록 지도 컨트롤러(`본 방 기록하기`)를 쓰려고 `RecordsMapProvider` 안에 둔다. */
+const UnifiedNavRail = ({
+  isMy,
+  isFinding,
+  onRecords,
+  onFinding,
+  onMy,
+  onTool,
+}: {
+  isMy: boolean;
+  isFinding: boolean;
+  onRecords: () => void;
+  onFinding: () => void;
+  onMy: () => void;
+  onTool: (path: string) => void;
+}) => {
+  const controller = useRecordsMapController();
+  // 동네 찾기나 마이에서 `본 방 기록하기`를 누르면 먼저 기록 지도로 돌아온 뒤, 지도가 이어받은 시점이 자리 잡고 나서 말풍선을 연다.
+  // 바로 열면 기록 지도의 옛 가운데에 열려 지금 보던 자리와 달라진다.
+  const [wantsRegister, setWantsRegister] = useState(false);
+  useEffect(() => {
+    if (!wantsRegister || isFinding || isMy) return;
+    const timer = window.setTimeout(() => {
+      controller?.layers.startRegister?.();
+      setWantsRegister(false);
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [wantsRegister, isFinding, isMy, controller]);
+  return (
+    <NavRail
+      label="화면 이동"
+      items={NAV_RAIL_ITEMS.map((item) => ({
+        ...item,
+        isActive:
+          (item.key === 'records' && !isMy && !isFinding) ||
+          (item.key === 'neighborhoods' && !isMy && isFinding) ||
+          (item.key === 'my' && isMy),
+        onSelect: () => {
+          if (item.key === 'register') {
+            // 기록 지도로 돌아와 지도 가운데에 `여기에 본 방 기록하기` 말풍선을 연다.
+            if (isFinding || isMy) {
+              onRecords();
+              setWantsRegister(true);
+            } else controller?.layers.startRegister?.();
+          } else if (item.key === 'records') onRecords();
+          else if (item.key === 'neighborhoods') onFinding();
+          else if (item.key === 'my') onMy();
+          else if (item.path !== undefined) onTool(item.path);
+        },
+      }))}
+    />
+  );
+};
 
 const UnifiedMapPage = () => {
   const { pathname, search } = useLocation();
@@ -58,29 +114,41 @@ const UnifiedMapPage = () => {
         infrastructure={{ open: !isFinding && (isDesktop || recordsView === 'map'), onClose: () => undefined }}
       >
         <div className={styles.page} data-desktop={isDesktop}>
-          <div hidden={isFinding || isMobileDetail} className={styles.screen} data-mobile={!isDesktop || undefined}>
-            <MapCanvasMode active={!isFinding && !isMobileDetail}>
-              <MapPanelProvider value={isMy && !isFinding ? panel : null}>
-                <MapModeProvider value={toFinding}>
-                  <DesignRecordsPage />
-                </MapModeProvider>
-              </MapPanelProvider>
-            </MapCanvasMode>
-          </div>
-          <div hidden={!isFinding} className={styles.screen} data-mobile={!isDesktop || undefined}>
-            <MapCanvasMode active={isFinding}>
-              <MapPanelProvider value={isMy && isFinding ? panel : null}>
-                <MapModeProvider value={toRecords}>
-                  <NeighborhoodPreviewPage />
-                </MapModeProvider>
-              </MapPanelProvider>
-            </MapCanvasMode>
-          </div>
-          {isMobileDetail && (
-            <div className={styles.detail}>
-              <Outlet />
-            </div>
+          {isDesktop && (
+            <UnifiedNavRail
+              isMy={isMy}
+              isFinding={isFinding}
+              onRecords={toRecords.onSwitch}
+              onFinding={toFinding.onSwitch}
+              onMy={() => navigate(MY_PATH)}
+              onTool={(path) => navigate(path)}
+            />
           )}
+          <div className={styles.content}>
+            <div hidden={isFinding || isMobileDetail} className={styles.screen} data-mobile={!isDesktop || undefined}>
+              <MapCanvasMode active={!isFinding && !isMobileDetail}>
+                <MapPanelProvider value={isMy && !isFinding ? panel : null}>
+                  <MapModeProvider value={toFinding}>
+                    <DesignRecordsPage />
+                  </MapModeProvider>
+                </MapPanelProvider>
+              </MapCanvasMode>
+            </div>
+            <div hidden={!isFinding} className={styles.screen} data-mobile={!isDesktop || undefined}>
+              <MapCanvasMode active={isFinding}>
+                <MapPanelProvider value={isMy && isFinding ? panel : null}>
+                  <MapModeProvider value={toRecords}>
+                    <NeighborhoodPreviewPage />
+                  </MapModeProvider>
+                </MapPanelProvider>
+              </MapCanvasMode>
+            </div>
+            {isMobileDetail && (
+              <div className={styles.detail}>
+                <Outlet />
+              </div>
+            )}
+          </div>
         </div>
       </SharedMapCanvasProvider>
     </RecordsMapProvider>
@@ -100,10 +168,18 @@ const styles = {
     --map-mode-bottom: 0px;
     --map-profile-space: 0px;
     &[data-desktop='true'] {
-      --unified-panel-top: 1rem;
+      display: grid;
+      grid-template-columns: 76px minmax(0, 1fr);
+      --unified-panel-top: 0px;
       --map-mode-bottom: 0px;
       --map-profile-space: 0px;
     }
+  `,
+  content: css`
+    label: UnifiedMapPage-content;
+    position: relative;
+    min-width: 0;
+    height: 100%;
   `,
   screen: css`
     label: UnifiedMapPage-screen;

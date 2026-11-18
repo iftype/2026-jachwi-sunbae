@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Outlet, Route, Routes } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -64,7 +64,7 @@ describe('모바일 앱 셸', () => {
 });
 
 describe('데스크탑 앱 셸', () => {
-  it('데스크톱 공용 헤더를 제거하고 지도와 마이 진입점을 둔다', () => {
+  it('데스크톱 공용 헤더 대신 왼쪽 네비 레일에 지도와 마이 진입점을 둔다', async () => {
     const matchMedia = vi.spyOn(window, 'matchMedia').mockImplementation(
       (query) =>
         ({
@@ -87,8 +87,10 @@ describe('데스크탑 앱 셸', () => {
         </MemoryRouter>,
       );
       expect(screen.getByRole('navigation', { name: '화면 이동' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: '마이' })).toHaveAttribute('href', '/me');
-      expect(screen.getByRole('link', { name: '지도' })).toHaveAttribute('href', '/');
+      const rail = within(screen.getByRole('navigation', { name: '화면 이동' }));
+      for (const name of ['내 기록', '동네 찾기', '체크리스트', '방 비교', '저렴한 한 끼', '마이', '사용방법']) {
+        expect(rail.getByRole('button', { name })).toBeInTheDocument();
+      }
       expect(screen.queryByRole('link', { name: '홈으로 돌아가기' })).not.toBeInTheDocument();
       expect(screen.getByRole('heading', { name: '체크리스트' })).toBeInTheDocument();
     } finally {
