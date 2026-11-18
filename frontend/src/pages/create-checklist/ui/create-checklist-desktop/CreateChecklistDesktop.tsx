@@ -290,7 +290,7 @@ const styles = {
   columns: css`
     label: CreateChecklistDesktop-columns;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr);
     gap: 1.5rem;
     align-items: start;
   `,
@@ -443,9 +443,19 @@ const styles = {
     max-height: max(8rem, calc(100dvh - 28rem));
     min-height: 8rem;
     overflow-y: auto;
-    padding: 0 0.85rem;
-    border: 1px solid var(--color-border);
-    border-radius: 12px;
+    padding: 0 0.125rem;
+
+    & section > h3 {
+      padding: 0.4rem 0;
+      color: var(--color-ink-soft);
+    }
+
+    & [data-editor-item-key] {
+      border: 0;
+      border-bottom: 1px solid var(--color-border);
+      border-radius: 0;
+      background: transparent;
+    }
   `,
   empty: css`
     label: CreateChecklistDesktop-empty;
