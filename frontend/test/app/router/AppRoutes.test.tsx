@@ -460,12 +460,15 @@ it('데스크톱의 홈은 통합 지도로 이어지고 모드 URL을 바꿔도
     expect(screen.queryByRole('button', { name: '동네 찾기' })).not.toBeInTheDocument();
     tapMapForRecommendation();
     await userEvent.click(screen.getByRole('menuitem', { name: '동네 추천받기' }));
-    expect(screen.getByTestId('route-path')).toHaveTextContent('/neighborhoods');
+    // 찍은 자리의 주소를 받은 뒤 동네 찾기로 넘어간다.
+    await waitFor(() => expect(screen.getByTestId('route-path')).toHaveTextContent('/neighborhoods'));
     expect(await screen.findByRole('complementary', { name: '탐색 조건' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: '이 조건으로 동네 찾기' }));
     expect(await screen.findByRole('region', { name: '행정동 프리셋 지도' })).toBeInTheDocument();
     expect(document.querySelector('[data-shared-map]')).toBe(map);
-    await userEvent.click(screen.getByRole('button', { name: '기록으로 전환' }));
+    // 데스크탑은 떠 있는 전환 버튼 없이 왼쪽 칸 로고로 기록 지도에 돌아간다.
+    expect(screen.queryByRole('navigation', { name: '지도 모드' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('link', { name: '자취선배 홈' }));
     expect(await screen.findByRole('region', { name: '본 방 기록 지도' })).toBeInTheDocument();
     expect(document.querySelector('[data-shared-map]')).toBe(map);
   } finally {
@@ -473,7 +476,7 @@ it('데스크톱의 홈은 통합 지도로 이어지고 모드 URL을 바꿔도
   }
 });
 
-it('모바일은 지도 클릭 메뉴로 추천 필터를 열고 조건을 제출한 뒤 같은 기록 지도에 복귀한다', async () => {
+it('모바일은 지도 클릭 메뉴로 추천 조건 카드를 열고 찾은 뒤 헤더 타일로 같은 기록 지도에 복귀한다', async () => {
   neighborhoodResponses();
   renderRoutes('/');
   await screen.findByRole('region', { name: '본 방 기록 지도' });
@@ -483,9 +486,9 @@ it('모바일은 지도 클릭 메뉴로 추천 필터를 열고 조건을 제�
   const action = screen.getByRole('menuitem', { name: '동네 추천받기' });
   expect(action.querySelector('img')).toHaveAttribute('src', expect.stringContaining('menu-neighborhood.webp'));
   await userEvent.click(action);
-  const filters = await screen.findByRole('region', { name: '동네 찾기 필터' });
-  expect(within(filters).getByRole('listbox', { name: '최대 통근 시간' })).toBeInTheDocument();
-  await userEvent.click(within(filters).getByRole('button', { name: '이 조건으로 찾기' }));
+  const card = await screen.findByRole('region', { name: '고른 출퇴근 장소' });
+  expect(within(card).getByRole('button', { name: '통근 40분 이내' })).toBeInTheDocument();
+  await userEvent.click(within(card).getByRole('button', { name: /에서 찾기$/ }));
   await screen.findByRole('region', { name: '행정동 프리셋 지도' });
   const back = screen.getByRole('button', { name: '기록으로 전환' });
   expect(back.closest('header')).not.toBeNull();
@@ -518,11 +521,94 @@ it('동네 찾기의 원형 검색은 공용 검색 페이지에서 고른 주�
   tapMapForRecommendation();
   await userEvent.click(screen.getByRole('menuitem', { name: '동네 추천받기' }));
   await userEvent.click(
-    within(await screen.findByRole('region', { name: '동네 찾기 필터' })).getByRole('button', {
-      name: '이 조건으로 찾기',
+    within(await screen.findByRole('region', { name: '고른 출퇴근 장소' })).getByRole('button', {
+      name: /에서 찾기$/,
     }),
   );
   expect(await screen.findByRole('region', { name: '행정동 프리셋 지도' })).toBeInTheDocument();
+});
+
+const commuteSearchResponses = () =>
+  server.use(
+    ...mapHandlers,
+    ...createCommuteAreaHandlers({ delayMs: 0 }),
+    http.get('*/boundaries/manifest.json', () =>
+      HttpResponse.json({ version: '20250630', file: 'admin-dongs.20250630.123456abcdef.geojson' }),
+    ),
+    http.get('*/boundaries/:filename', () => HttpResponse.json({ type: 'FeatureCollection', features: [] })),
+  );
+/** 통근 결과 요청 주소를 모은다. 끝나면 `stop`으로 듣기를 멈춘다. */
+const trackCommuteRequests = () => {
+  const urls: URL[] = [];
+  const track = ({ request }: { request: Request }) => {
+    const url = new URL(request.url);
+    if (url.pathname === '/api/commute-areas/with-rents') urls.push(url);
+  };
+  server.events.on('request:start', track);
+  return { urls, stop: () => server.events.removeListener('request:start', track) };
+};
+const pickDestination = async (index: number) => {
+  await userEvent.click(await screen.findByRole('link', { name: '출퇴근 장소 검색' }));
+  await userEvent.type(await screen.findByRole('textbox', { name: '출퇴근하는 장소 검색' }), '신림');
+  const result = await screen.findByRole('list', { name: '주소 검색 결과' });
+  await userEvent.click(within(result).getAllByRole('button')[index]);
+  await screen.findByRole('region', { name: '행정동 프리셋 지도' });
+};
+
+it('기록 지도에 다녀와 동네 찾기 타일을 눌러도 지난 결과로 돌아가고 통근 결과를 다시 요청하지 않는다', async () => {
+  commuteSearchResponses();
+  const requests = trackCommuteRequests();
+  try {
+    renderRoutes('/neighborhoods');
+    await pickDestination(0);
+    await waitFor(() => expect(requests.urls).toHaveLength(1));
+    await userEvent.click(screen.getByRole('button', { name: '기록으로 전환' }));
+    await screen.findByRole('region', { name: '본 방 기록 지도' });
+    await userEvent.click(screen.getByRole('button', { name: '동네 찾기로 전환' }));
+    expect(await screen.findByRole('region', { name: '행정동 프리셋 지도' })).toBeInTheDocument();
+    expect(screen.getByTestId('route-path')).toHaveTextContent(/^\/neighborhoods$/);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(requests.urls).toHaveLength(1);
+  } finally {
+    requests.stop();
+  }
+});
+
+it('결과를 본 뒤 출퇴근 장소를 다른 곳으로 고르면 새 좌표로 통근 결과를 다시 요청한다', async () => {
+  commuteSearchResponses();
+  const places = [
+    {
+      address: '서울 관악구 신림로 1',
+      roadAddress: '서울 관악구 신림로 1',
+      jibunAddress: null,
+      latitude: 37.4842,
+      longitude: 126.9297,
+    },
+    {
+      address: '서울 강남구 테헤란로 1',
+      roadAddress: '서울 강남구 테헤란로 1',
+      jibunAddress: null,
+      latitude: 37.4981,
+      longitude: 127.0276,
+    },
+  ];
+  const twoPlaces = () => HttpResponse.json({ code: 'SUCCESS', message: '성공', data: places });
+  server.use(http.get('*/api/maps/geocode', twoPlaces), http.get('*/api/maps/search', twoPlaces));
+  const requests = trackCommuteRequests();
+  try {
+    renderRoutes('/neighborhoods');
+    await pickDestination(0);
+    await waitFor(() => expect(requests.urls).toHaveLength(1));
+    await pickDestination(1);
+    await waitFor(() => expect(requests.urls).toHaveLength(2));
+    const [first, second] = requests.urls.map((url) => [
+      url.searchParams.get('latitude'),
+      url.searchParams.get('longitude'),
+    ]);
+    expect(second).not.toEqual(first);
+  } finally {
+    requests.stop();
+  }
 });
 
 it('예시 매물의 체크리스트 교체 주소는 서버 요청 대신 안내와 상세 복귀를 제공한다', async () => {

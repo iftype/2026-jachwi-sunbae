@@ -471,9 +471,12 @@ const useNeighborhoodPreview = () => {
     openMapSelection: () => {
       setIsMapSelectionEnabled(true);
       setShouldFocusMapSearch(false);
-      setMapCandidate(destination);
-      selectionView.current = null;
-      setSelectionCenter(destination);
+      // 지난 검색이 있으면 그 출퇴근 장소에서 다시 고른다. 처음이면 보고 있던 지도를 그대로 두고 고른다(기본 목적지로 옮기지 않는다).
+      if (submitted) {
+        setMapCandidate(destination);
+        selectionView.current = null;
+        setSelectionCenter(destination);
+      }
       setHasChosenMapPoint(false);
       setPhase('map');
     },
