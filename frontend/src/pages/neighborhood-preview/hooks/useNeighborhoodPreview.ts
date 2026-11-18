@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import { markFinderUsed } from '@/pages/design-records/model/finderUsed';
 import { ApiError } from '@/features/auth/api/apiClient';
-import { type CommuteArea, commuteAreaToRegion, rentLabelOf } from '@/features/map/api/commuteApi';
+import { commuteAreaToRegion, rentLabelOf } from '@/features/map/api/commuteApi';
 import { fetchCommuteRoute } from '@/features/map/api/commuteRouteApi';
 import { reverseGeocode, searchPlacesAndAddresses } from '@/features/map/api/mapApi';
 import { useCommuteAreas } from '@/features/map/api/useCommuteAreas';
@@ -62,13 +62,6 @@ export const describeRouteError = (error: unknown) => {
   }
   return '경로를 불러오지 못했어요. 다른 정류장을 선택해 보세요.';
 };
-
-/** 동네를 고를 때의 결과 지도 시점. 동네 경계, 첫 출발 정류장, 출퇴근 장소가 모두 들어온다. */
-const areaRouteView = (
-  area: Pick<CommuteArea, 'polygons' | 'stations'>,
-  destination: { latitude: number; longitude: number },
-  viewport?: MapViewport,
-) => routeFocusView([destination, ...area.stations.slice(0, 1)], area.polygons, viewport);
 
 const useNeighborhoodPreview = () => {
   const config = usePublicConfig();
@@ -580,16 +573,7 @@ const useNeighborhoodPreview = () => {
       // 회색(월세 조건 밖) 동네도 지도에서 고를 수 있어 받은 동네 전체에서 찾는다.
       const area = allAreas?.find((area) => area.adminDongCode === id);
       if (area) analytics.selectArea();
-      // 기본은 동네 경계와 첫 출발 정류장, 출퇴근 장소까지 통근 경로 전체가 한 화면에 들어오게 옮긴다.
-      // 데스크탑 동네 목록에서 고르면(`area`) 그 행정동 경계만 화면에 들어오게 옮긴다.
-      // 지도에서 동네를 직접 누르면(`none`) 보던 화면을 그대로 둔다.
-      if (area && options?.focus !== 'none') {
-        resultView.current =
-          options?.focus === 'area'
-            ? { ...area.center, level: resultView.current?.level ?? resultLevel }
-            : areaRouteView(area, destination, readMapViewport());
-        setResultViewVersion((version) => version + 1);
-      }
+      // 동네를 골라도 지도의 확대 단계와 위치는 바꾸지 않는다. 카드만 띄운다(`focus` 옵션은 호출부 호환용으로만 남긴다).
       setSelectedId(id);
       setSelectedStopId(area?.stations[0]?.stopId ?? null);
       // 데스크탑은 상세를 목록 옆에 붙여 지도를 가리지 않으므로, 동네를 고르면 바로 상세를 연다.
