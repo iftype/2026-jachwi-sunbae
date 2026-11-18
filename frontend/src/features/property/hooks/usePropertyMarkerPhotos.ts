@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { usePublicConfig } from '@/shared/config/PublicConfigContext';
 
 import { fetchPropertyPhotoContent } from '../api/photoApi';
+import { fetchPhotoContentOrPreview } from '../api/previewPropertyApi';
 import { propertyQueryKeys } from '../api/propertyQueryKeys';
 
 /** 마커 사진이 필요한 매물의 최소 정보. 매물 번호는 숫자나 숫자 문자열이다. */
@@ -32,7 +33,10 @@ const usePropertyMarkerPhotos = (records: readonly PhotoMarkerSource[]): Readonl
       const photo = record.representativePhoto as NonNullable<PhotoMarkerSource['representativePhoto']>;
       return {
         queryKey: propertyQueryKeys.photoContent(Number(record.id), photo.photoId, 'thumbnail'),
-        queryFn: ({ signal }: { signal: AbortSignal }) => fetchPropertyPhotoContent(config, photo.thumbnailUrl, signal),
+        queryFn: ({ signal }: { signal: AbortSignal }) =>
+          fetchPhotoContentOrPreview(Number(record.id), photo.thumbnailUrl, () =>
+            fetchPropertyPhotoContent(config, photo.thumbnailUrl, signal),
+          ),
         staleTime: Number.POSITIVE_INFINITY,
         gcTime: 0,
       };

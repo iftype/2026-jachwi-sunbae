@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { usePublicConfig } from '@/shared/config/PublicConfigContext';
 
 import { fetchPropertyPhotoContent } from './photoApi';
+import { fetchPhotoContentOrPreview } from './previewPropertyApi';
 import { propertyQueryKeys } from './propertyQueryKeys';
 
 export const useAuthenticatedPhoto = (
@@ -15,7 +16,8 @@ export const useAuthenticatedPhoto = (
   const config = usePublicConfig();
   const photoQuery = useQuery({
     queryKey: propertyQueryKeys.photoContent(propertyId, photoId, kind),
-    queryFn: ({ signal }) => fetchPropertyPhotoContent(config, contentUrl, signal),
+    queryFn: ({ signal }) =>
+      fetchPhotoContentOrPreview(propertyId, contentUrl, () => fetchPropertyPhotoContent(config, contentUrl, signal)),
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: 0,
   });

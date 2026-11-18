@@ -22,6 +22,7 @@ export { default as PlusIcon } from './PlusIcon';
 export { default as RefreshIcon } from './RefreshIcon';
 export { default as ReplaceIcon } from './ReplaceIcon';
 export { default as SearchIcon } from './SearchIcon';
+export { default as SparklesIcon } from './SparklesIcon';
 export { default as TargetIcon } from './TargetIcon';
 export { default as TrashIcon } from './TrashIcon';
 export { default as UserIcon } from './UserIcon';

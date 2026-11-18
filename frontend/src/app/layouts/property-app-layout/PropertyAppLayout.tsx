@@ -19,15 +19,16 @@ import PropertyAppMobileLayout from './mobile/PropertyAppMobileLayout';
 const PropertyAppLayout = () => {
   const location = useLocation();
   const isDesktop = useIsDesktop();
-  const isPropertyDetailPath = /^\/properties\/\d+$/.test(location.pathname);
+  // 미리보기 매물은 음수 id(-1)라 앞의 `-`도 받는다.
+  const isPropertyDetailPath = /^\/properties\/-?\d+$/.test(location.pathname);
   const isChecklistPage = location.pathname === CHECKLISTS_PATH || location.pathname.startsWith(`${CHECKLISTS_PATH}/`);
   const isMapPage =
     location.pathname === NEIGHBORHOODS_PATH || location.pathname.startsWith(`${NEIGHBORHOODS_PATH}/areas/`);
   // 매물 사진·메모·수정·주변 분석과 동네 주변 분석은 상세로 돌아가는 자체 "<"를 쓴다.
   // 홈으로 가는 상단 바를 위에 겹치면 그 "<"를 눌러 홈으로 빠져나가 버린다.
   const hasOwnBackNavigation =
-    /^\/properties\/\d+\/(photos|memo|edit|nearby)$/.test(location.pathname) ||
-    /^\/properties\/\d+\/active-checklists\/(ON_SITE|PRE_CONTRACT)$/.test(location.pathname) ||
+    /^\/properties\/-?\d+\/(photos|memo|edit|nearby)$/.test(location.pathname) ||
+    /^\/properties\/-?\d+\/active-checklists\/(ON_SITE|PRE_CONTRACT)$/.test(location.pathname) ||
     location.pathname === NEIGHBORHOODS_NEARBY_PATH;
   const shell: AppShellState = {
     fullScreen:
@@ -35,7 +36,7 @@ const PropertyAppLayout = () => {
       isPropertyDetailPath ||
       // 체크리스트 편집은 자체 상단 내비게이션을 쓴다.
       isChecklistPage ||
-      /^\/properties\/\d+\/checklists\/\d+$/.test(location.pathname),
+      /^\/properties\/-?\d+\/checklists\/\d+$/.test(location.pathname),
     isMapPage,
     isPropertyDetailPath,
     isHomeWidthPage: location.pathname === MY_PATH || isChecklistPage,

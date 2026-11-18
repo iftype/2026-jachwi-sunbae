@@ -23,6 +23,7 @@ const iconNames: IconName[] = [
   'external-link',
   'link',
   'image',
+  'sparkles',
   'info',
   'locate',
   'target',

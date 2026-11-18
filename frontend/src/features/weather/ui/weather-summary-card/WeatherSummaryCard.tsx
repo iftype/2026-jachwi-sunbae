@@ -45,7 +45,7 @@ const WeatherSummaryCard = () => {
 
   // 알림이 꺼져 있거나 날씨를 아직 못 그릴 때 대표 줄에 보일 안내
   const state = !isEnabled
-    ? { icon: BELL_OFF, title: '알림이 꺼져 있어요', detail: '켜면 오늘 날씨를 여기에 보여 드려요' }
+    ? { icon: BELL_OFF, title: '알림이 꺼져 있어요', detail: null }
     : isLocationOff
       ? { icon: BELL, title: '현재 위치가 꺼져 있어요', detail: '위치를 허용하면 지금 동네 날씨를 보여 드려요' }
       : hasNoLocation
@@ -69,83 +69,85 @@ const WeatherSummaryCard = () => {
         ? deniedMessage
         : hasNoLocation
           ? '지금 위치를 확인하지 못했어요. 다음에 열 때 다시 확인할게요.'
-          : platform === 'web'
-            ? '알림은 앱에서 받을 수 있어요.'
-            : null);
+          : null);
+  // 웹 안내는 문제가 아니라 사실이라 카드 밖 아래에 따로 적는다.
+  const webNote = platform === 'web' && message === null ? '알림은 앱에서 받을 수 있어요.' : null;
 
   return (
-    <section className={styles.card} aria-labelledby="weather-summary-heading">
-      <h2 id="weather-summary-heading" className="sr-only">
-        생활 날씨
-      </h2>
-      <div className={styles.location}>
-        <Icon name="locate" size={15} />
-        <strong>{isEnabled ? (placeName ?? '내 위치') : '우리 동네'}</strong>
-        {isEnabled && location.isStale && <span>마지막 위치 기준</span>}
-        <span className={styles.today}>오늘</span>
-      </div>
-      {/* 알림을 켜고 끌 때 카드 높이가 바뀌지 않도록 켜짐·꺼짐 모두 같은 두 줄(대표 줄·보조 줄)로 그린다. */}
-      {/* 켜짐·꺼짐이 바뀔 때마다 새로 그려 전환 효과를 다시 재생한다. */}
-      <div key={showsWeather ? 'weather' : 'state'} className={styles.swap}>
-        <div className={styles.weather}>
-          {showsWeather ? (
-            <>
-              <WeatherSymbol hour={hour} size={46} />
-              <strong className={styles.temperature}>{weatherValue(hour.tmp, '°')}</strong>
-              <div>
-                <b>{weatherLabel(hour)}</b>
-                <p>{forecastHour(hour.forecastAt)}시 예보</p>
-              </div>
-            </>
-          ) : (
-            <>
-              <span className={styles.stateIcon}>
-                <IconBase size={40}>
-                  <path d={state.icon} />
-                </IconBase>
-              </span>
-              <div>
-                <b>{state.title}</b>
-                <p>{state.detail}</p>
-              </div>
-            </>
-          )}
-        </div>
-        <p className={styles.range}>
-          {showsWeather && forecast.data ? (
-            <>
+    <>
+      <section className={styles.card} aria-labelledby="weather-summary-heading">
+        <h2 id="weather-summary-heading" className="sr-only">
+          생활 날씨
+        </h2>
+        {/* 알림을 켜서 동네를 알 때만 동네 이름 줄을 둔다. */}
+        {isEnabled && (
+          <div className={styles.location}>
+            <Icon name="locate" size={18} />
+            <strong>{placeName ?? '내 위치'}</strong>
+            {location.isStale && <span>마지막 위치 기준</span>}
+          </div>
+        )}
+        {/* 알림을 켜고 끌 때 카드 높이가 바뀌지 않도록 켜짐·꺼짐 모두 같은 두 줄(대표 줄·보조 줄)로 그린다. */}
+        {/* 켜짐·꺼짐이 바뀔 때마다 새로 그려 전환 효과를 다시 재생한다. */}
+        <div key={showsWeather ? 'weather' : 'state'} className={styles.swap}>
+          <div className={styles.weather}>
+            {showsWeather ? (
+              <>
+                <WeatherSymbol hour={hour} size={34} />
+                <strong className={styles.temperature}>{weatherValue(hour.tmp, '°')}</strong>
+                <div>
+                  <b>{weatherLabel(hour)}</b>
+                  <p>{forecastHour(hour.forecastAt)}시 예보</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <span className={styles.stateIcon}>
+                  <IconBase size={24}>
+                    <path d={state.icon} />
+                  </IconBase>
+                </span>
+                <div>
+                  <b>{state.title}</b>
+                  {state.detail && <p>{state.detail}</p>}
+                </div>
+              </>
+            )}
+          </div>
+          {/* 예보가 있을 때만 최저, 최고 기온 줄을 둔다. 알림 설명은 아래 토글 이름으로 충분하다. */}
+          {showsWeather && forecast.data && (
+            <p className={styles.range}>
               오늘 최저 {weatherValue(forecast.data.tmn, '°')} <span>/</span> 최고{' '}
               {weatherValue(forecast.data.tmx, '°')}
-            </>
-          ) : (
-            '생활 날씨와 배달 할인 소식을 알림으로 알려드려요.'
+            </p>
           )}
-        </p>
-      </div>
-      <div className={styles.divider}>
-        <NotificationToggle
-          checked={isEnabled}
-          disabled={isLoading || isUpdating}
-          isBusy={isLocating}
-          busyLabel="현재 위치를 확인하고 있어요."
-          message={message}
-          onToggle={toggle}
-        />
-        {canOpenSettings && (
-          <Button variant="secondary" onClick={openSettings}>
-            설정 열기
-          </Button>
-        )}
-        {testPush.canSend && (
-          <WeatherTestPushButton status={testPush.status} secondsLeft={testPush.secondsLeft} onSend={testPush.send} />
-        )}
-        {canRetry && (
-          <Button variant="secondary" onClick={retry}>
-            알림 연결 다시 시도
-          </Button>
-        )}
-      </div>
-    </section>
+        </div>
+        <div className={styles.divider}>
+          <NotificationToggle
+            checked={isEnabled}
+            disabled={isLoading || isUpdating}
+            isBusy={isLocating}
+            busyLabel="현재 위치를 확인하고 있어요."
+            message={message}
+            onToggle={toggle}
+          />
+          {canOpenSettings && (
+            <Button variant="secondary" onClick={openSettings}>
+              설정 열기
+            </Button>
+          )}
+          {testPush.canSend && (
+            <WeatherTestPushButton status={testPush.status} secondsLeft={testPush.secondsLeft} onSend={testPush.send} />
+          )}
+          {canRetry && (
+            <Button variant="secondary" onClick={retry}>
+              알림 연결 다시 시도
+            </Button>
+          )}
+        </div>
+      </section>
+      {webNote && <p className={styles.webNote}>{webNote}</p>}
+    </>
   );
 };
 
@@ -157,10 +159,18 @@ const swapInKeyframes = keyframes`
 `;
 
 const styles = {
+  /* 카드 밖 아래에 두는 웹 안내. 경고가 아니라 검은 글씨로 적는다. */
+  webNote: css`
+    label: WeatherSummaryCard-webNote;
+    margin: 0;
+    padding-inline: 0.25rem;
+    color: var(--color-ink);
+    font-size: var(--my-subtext-size, 0.78rem);
+  `,
   card: css`
     label: WeatherSummaryCard-card;
     padding: var(--my-card-padding, 1.15rem);
-    border-radius: var(--radius-card);
+    border-radius: var(--radius-md);
     background: var(--my-card-surface, var(--color-card-surface));
     color: var(--color-ink);
   `,
@@ -184,16 +194,16 @@ const styles = {
     label: WeatherSummaryCard-weather;
     display: flex;
     align-items: center;
-    gap: 0.7rem;
-    min-height: 3.6rem;
-    margin: 1rem 0;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+    margin: 0.4rem 0;
 
     & b {
       font-size: var(--my-text-size, 0.95rem);
     }
 
     & p {
-      margin: 0.3rem 0 0;
+      margin: 0.15rem 0 0;
       color: var(--color-ink-soft);
       font-size: var(--my-subtext-size, 0.78rem);
     }
@@ -204,13 +214,14 @@ const styles = {
     display: inline-flex;
     flex-shrink: 0;
     justify-content: center;
-    width: 46px;
+    /* 계정 카드 아이콘(24px)과 같은 크기, 같은 왼쪽 선에 둔다. */
+    width: 24px;
     color: var(--color-ink);
   `,
 
   temperature: css`
     label: WeatherSummaryCard-temperature;
-    font-size: 2.4rem;
+    font-size: 1.65rem;
     font-weight: 750;
     letter-spacing: -0.08rem;
   `,
@@ -229,15 +240,10 @@ const styles = {
     }
   `,
 
-  today: css`
-    label: WeatherSummaryCard-today;
-    margin-left: auto;
-  `,
-
   divider: css`
     label: WeatherSummaryCard-divider;
-    margin-top: 1rem;
-    padding-top: 0.8rem;
+    margin-top: 0.55rem;
+    padding-top: 0.45rem;
     border-top: 1px solid var(--color-border);
   `,
 

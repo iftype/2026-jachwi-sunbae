@@ -4,27 +4,17 @@ import { Link, NavLink } from 'react-router-dom';
 
 import iconProfile from '@/shared/assets/icon-profile.webp';
 import { LOGO_DUCK } from '@/shared/assets/imageAssets';
-import {
-  CHEAP_MEALS_PATH,
-  CHECKLISTS_PATH,
-  COMPARE_PATH,
-  HOME_PATH,
-  MY_PATH,
-  NEIGHBORHOODS_PATH,
-  RECORDS_PATH,
-} from '@/shared/lib/navigation/appPaths';
+import { COMPARE_PATH, HOME_PATH, MY_PATH, NEIGHBORHOODS_PATH, RECORDS_PATH } from '@/shared/lib/navigation/appPaths';
 
 import { useRegisterDesktopHeaderSlot } from './DesktopHeaderSlot';
 
 const { src: logo, src2x: logo2x } = LOGO_DUCK;
 
 /** 데스크탑 헤더에서 바로 옮겨 갈 수 있는 주요 화면. */
-const DESKTOP_NAV_ITEMS = [
+const NAV_ITEMS = [
   { label: '본 방 기록', to: RECORDS_PATH },
   { label: '동네 찾기', to: NEIGHBORHOODS_PATH },
-  { label: '체크리스트', to: CHECKLISTS_PATH },
   { label: '방 비교', to: COMPARE_PATH },
-  { label: '저렴한 한 끼', to: CHEAP_MEALS_PATH },
 ] as const;
 
 type DesktopHeaderProps = {
@@ -50,35 +40,39 @@ const DesktopHeader = ({ className, center }: DesktopHeaderProps) => {
       <div ref={registerSlot} className={styles.slot} />
       {center !== undefined && <div className={styles.center}>{center}</div>}
       <nav className={styles.nav} aria-label="주요 화면">
-        {DESKTOP_NAV_ITEMS.map((item) => (
+        {NAV_ITEMS.map((item) => (
           <NavLink key={item.to} to={item.to}>
             {item.label}
           </NavLink>
         ))}
       </nav>
-      <Link className={styles.profile} to={MY_PATH} aria-label="마이페이지">
+      <NavLink className={styles.profile} to={MY_PATH} aria-label="마이페이지">
         <img src={iconProfile} alt="" width={96} height={96} />
-      </Link>
+      </NavLink>
     </header>
   );
 };
 
+/*
+ * css 템플릿 안의 주석은 그대로 main 번들에 실린다. 헤더는 첫 화면부터 쓰므로 설명은 템플릿 밖에 둔다.
+ */
 const styles = {
+  /*
+   * 화면마다 기준 글자 크기(rem)를 키우는 경우가 있어도 헤더는 어디서나 같은 크기로 보이게
+   * 글자 크기를 16px로 고정하고 안쪽 크기는 em으로 잡는다.
+   * 가운데 자리가 비어도 메뉴·마이페이지 위치가 바뀌지 않게 격자 대신 가로 줄로 둔다.
+   * 화면마다 표면색 변수가 달라도 헤더는 흰색으로 통일한다.
+   */
   header: css`
     label: DesktopHeader-header;
-    /*
-     * 화면마다 기준 글자 크기(rem)를 키우는 경우가 있어도 헤더는 어디서나 같은 크기로 보이게
-     * 글자 크기를 16px로 고정하고 안쪽 크기는 em으로 잡는다.
-     */
     font-size: 16px;
-    /* 가운데 자리가 비어도 메뉴·마이페이지 위치가 바뀌지 않게 격자 대신 가로 줄로 둔다. */
     display: flex;
     align-items: center;
     gap: 1em;
     box-sizing: border-box;
+    position: relative;
     width: 100%;
     padding: max(1.1em, env(safe-area-inset-top)) 1.5em 0.8em;
-    /* 화면마다 표면색 변수가 달라도 헤더는 흰색으로 통일한다. */
     background: #fff;
     border-bottom: 1px solid #eceef1;
   `,
@@ -119,23 +113,29 @@ const styles = {
     }
   `,
 
+  /* 화면 전용 요소(홈의 날씨 등)는 메뉴 수와 상관없이 헤더 정가운데에 둔다. */
   center: css`
     label: DesktopHeader-center;
+    position: absolute;
+    left: 50%;
     display: flex;
+    max-width: 40%;
     min-width: 0;
-    flex: 1;
     justify-content: center;
+    transform: translateX(-50%);
   `,
 
+  /*
+   * 좁은 데스크탑(1024px)에서도 메뉴 이름이 두 줄로 꺾이지 않게 메뉴는 줄이지 않고 가운데 검색 자리가 줄어든다.
+   * 메뉴는 마우스를 올리면 살짝 둥근 네모로 옅게만 표시하고, 지금 화면은 파란 글자로 둔다.
+   */
   nav: css`
     label: DesktopHeader-nav;
     display: flex;
-    /* 좁은 데스크탑(1024px)에서도 메뉴 이름이 두 줄로 꺾이지 않게 메뉴는 줄이지 않고 가운데 검색 자리가 줄어든다. */
     flex: none;
     gap: 0;
     margin-left: auto;
 
-    /* 메뉴는 마우스를 올리면 살짝 둥근 네모로 옅게만 표시하고, 지금 화면은 파란 글자로 둔다. */
     & a {
       padding: 0.5em 0.6em;
       border-radius: 0.5em;
@@ -164,7 +164,7 @@ const styles = {
     }
   `,
 
-  /* 메뉴와 구분되도록 마이페이지는 메뉴에서 조금 떨어뜨린다. */
+  /* 메뉴와 구분되도록 마이페이지는 메뉴에서 조금 떨어뜨린다. 지금 화면이 마이면 메뉴의 파란 글자처럼 옅은 파란 바탕으로 표시한다. */
   profile: css`
     label: DesktopHeader-profile;
     display: grid;
@@ -182,6 +182,10 @@ const styles = {
 
     &:hover {
       background: #f6f7f9;
+    }
+
+    &[aria-current='page'] {
+      background: #eef3fd;
     }
 
     &:focus-visible {

@@ -19,8 +19,21 @@ describe('DesktopHeader', () => {
       within(nav)
         .getAllByRole('link')
         .map((link) => link.textContent),
-    ).toEqual(['본 방 기록', '동네 찾기', '체크리스트', '방 비교', '저렴한 한 끼']);
+    ).toEqual(['본 방 기록', '동네 찾기', '방 비교']);
     expect(within(nav).getByRole('link', { name: '동네 찾기' })).toHaveAttribute('aria-current', 'page');
     expect(within(nav).getByRole('link', { name: '본 방 기록' })).not.toHaveAttribute('aria-current');
+    expect(screen.getByRole('link', { name: '마이페이지' })).not.toHaveAttribute('aria-current');
+  });
+
+  it('마이 화면에서는 프로필 링크를 지금 화면으로 표시한다', () => {
+    render(
+      <MemoryRouter initialEntries={['/me']}>
+        <DesktopHeader />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('link', { name: '마이페이지' })).toHaveAttribute('aria-current', 'page');
+    const nav = screen.getByRole('navigation', { name: '주요 화면' });
+    expect(within(nav).queryByRole('link', { current: 'page' })).not.toBeInTheDocument();
   });
 });

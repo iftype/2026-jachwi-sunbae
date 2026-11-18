@@ -40,6 +40,7 @@ const markerClassName = (marker: MapMarker, selectedMarkerId: string | null | un
     marker.pop ? styles.popMarker : '',
     marker.tone === 'property' || marker.tone === 'propertyCluster' ? styles.propertyMarker : '',
     marker.tone === 'current' ? styles.currentMarker : '',
+    marker.tone === 'dot' ? styles.dotMarker : '',
     marker.tone === 'selected' ? styles.selectedMarker : '',
     marker.tone === 'destination' || marker.tone === 'flash' ? styles.destinationMarker : '',
     marker.tone === 'rank' ? styles.rankMarker : '',
@@ -104,7 +105,7 @@ const MapMarkerView = ({ marker, selectedMarkerId = null, onSelectMarker }: MapM
             </span>
           )}
         </span>
-      ) : isCurrentLocationDot(marker) ? null : isPinMarker(marker) ? (
+      ) : isCurrentLocationDot(marker) || marker.tone === 'dot' ? null : isPinMarker(marker) ? (
         <img className={styles.pinImage} src={pinImageSrc(marker)} alt="" draggable={false} decoding="async" />
       ) : (
         <span className={styles.markerIcon} aria-hidden="true">
@@ -122,7 +123,13 @@ const MapMarkerView = ({ marker, selectedMarkerId = null, onSelectMarker }: MapM
     'data-tally': marker.tally ? '' : undefined,
     'data-rank': marker.rank,
     'aria-label': marker.label,
-    style: marker.pop ? { animationDelay: `${marker.pop.delayMs}ms` } : undefined,
+    style:
+      marker.pop || marker.color
+        ? {
+            ...(marker.pop && { animationDelay: `${marker.pop.delayMs}ms` }),
+            ...(marker.tone === 'dot' && marker.color && { background: marker.color }),
+          }
+        : undefined,
   };
 
   if (!canSelect)
@@ -602,6 +609,19 @@ const styles = {
     border-radius: 50%;
     background: #1a73e8;
     box-shadow: 0 0 0 0.45rem rgb(26 115 232 / 16%);
+  `,
+
+  /* 시설을 아이콘 없이 작은 색 점으로 그린다. 색은 marker.color로 준다. */
+  dotMarker: css`
+    label: MapMarkerView-dotMarker;
+    /* 기본 마커의 흰 테두리를 확실히 덮도록 선택자를 겹친다. */
+    && {
+      width: 0.4rem;
+      height: 0.4rem;
+      border: 0;
+      border-radius: 50%;
+      box-shadow: none;
+    }
   `,
 
   markerCount: css`

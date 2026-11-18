@@ -15,6 +15,7 @@ import type {
   UpdatePropertyRequestDto,
 } from './dtos/PropertyDto';
 import { removePropertyPhoto, setRepresentativePropertyPhoto, uploadPropertyPhoto } from './photoApi';
+import { blockPreviewSave, previewPropertyMemo, skipPreviewSave } from './previewPropertyApi';
 import {
   createProperty,
   importPropertyFromImages,
@@ -77,8 +78,18 @@ const toUpdatePropertyRequest = (current: PropertyDetail, changes: PropertyChang
 export const useUpdateProperty = (propertyId: number) => {
   const config = usePublicConfig();
   return useMutation({
-    mutationFn: ({ current, changes }: { current: PropertyDetail; changes: PropertyChanges }) =>
-      updateProperty(config, propertyId, toUpdatePropertyRequest(current, changes)),
+    mutationFn: ({
+      current,
+      changes,
+    }: {
+      current: PropertyDetail;
+      changes: PropertyChanges;
+    }): Promise<PropertyBasicInfo> =>
+      skipPreviewSave(
+        propertyId,
+        () => current,
+        () => updateProperty(config, propertyId, toUpdatePropertyRequest(current, changes)),
+      ),
     onSuccess: async (updated: PropertyBasicInfo, { current: before }) => {
       const { latitude, longitude } = updated.location;
       // 위치를 옮겼으면 본 방 기록 지도가 새 자리로 가서 핀을 보이게 알린다.
@@ -115,7 +126,12 @@ export const useUpdateProperty = (propertyId: number) => {
 export const useSavePropertyMemoDocument = (propertyId: number) => {
   const config = usePublicConfig();
   return useMutation({
-    mutationFn: (request: SavePropertyMemoDocumentRequestDto) => savePropertyMemoDocument(config, propertyId, request),
+    mutationFn: (request: SavePropertyMemoDocumentRequestDto) =>
+      skipPreviewSave(
+        propertyId,
+        () => previewPropertyMemo(propertyId),
+        () => savePropertyMemoDocument(config, propertyId, request),
+      ),
     onSuccess: (memo) => {
       queryClient.setQueryData(propertyQueryKeys.memo(propertyId), memo);
       rememberRecentEdit(propertyId, 'info');
@@ -144,7 +160,7 @@ export const useImportPropertyFromImages = (propertyId: number) => {
 export const useRemoveProperty = (propertyId: number) => {
   const config = usePublicConfig();
   return useMutation({
-    mutationFn: () => removeProperty(config, propertyId),
+    mutationFn: () => blockPreviewSave(propertyId, () => removeProperty(config, propertyId)),
     onSuccess: async () => {
       queryClient.removeQueries({ queryKey: propertyQueryKeys.detail(propertyId) });
       await queryClient.invalidateQueries({ queryKey: propertyQueryKeys.lists() });
@@ -164,7 +180,7 @@ const invalidatePhotoAggregates = async (propertyId: number) => {
 export const useUploadPropertyPhoto = (propertyId: number) => {
   const config = usePublicConfig();
   return useMutation({
-    mutationFn: (file: File) => uploadPropertyPhoto(config, propertyId, file),
+    mutationFn: (file: File) => blockPreviewSave(propertyId, () => uploadPropertyPhoto(config, propertyId, file)),
     onSuccess: async () => invalidatePhotoAggregates(propertyId),
   });
 };
@@ -172,7 +188,8 @@ export const useUploadPropertyPhoto = (propertyId: number) => {
 export const useSetRepresentativePropertyPhoto = (propertyId: number) => {
   const config = usePublicConfig();
   return useMutation({
-    mutationFn: (photoId: number) => setRepresentativePropertyPhoto(config, propertyId, photoId),
+    mutationFn: (photoId: number) =>
+      blockPreviewSave(propertyId, () => setRepresentativePropertyPhoto(config, propertyId, photoId)),
     onSuccess: async () => invalidatePhotoAggregates(propertyId),
   });
 };
@@ -180,7 +197,8 @@ export const useSetRepresentativePropertyPhoto = (propertyId: number) => {
 export const useRemovePropertyPhoto = (propertyId: number) => {
   const config = usePublicConfig();
   return useMutation({
-    mutationFn: (photoId: number) => removePropertyPhoto(config, propertyId, photoId),
+    mutationFn: (photoId: number) =>
+      blockPreviewSave(propertyId, () => removePropertyPhoto(config, propertyId, photoId)),
     onSuccess: async (_, photoId) => {
       for (const kind of ['original', 'thumbnail'] as const) {
         queryClient.removeQueries({ queryKey: propertyQueryKeys.photoContent(propertyId, photoId, kind), exact: true });

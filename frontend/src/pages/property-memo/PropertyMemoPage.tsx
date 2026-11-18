@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { getPropertyErrorMessage } from '@/features/property/api/propertyErrorMessages';
 import { usePropertyDetail } from '@/features/property/api/useProperties';
-import { parsePositiveId } from '@/features/property/lib/propertyFormat';
+import { parsePropertyRouteId } from '@/features/property/model/sampleProperties';
 import { HOME_PATH, propertyDetailPath } from '@/shared/lib/navigation/appPaths';
 import ContentState from '@/shared/ui/content-state/ContentState';
 import LoadingRegion from '@/shared/ui/skeleton/LoadingRegion';
@@ -13,7 +13,7 @@ import PropertyMemoSkeleton from './PropertyMemoSkeleton';
 import PropertyAdditionalInfoForm from './ui/property-additional-info-form/PropertyAdditionalInfoForm';
 
 const PropertyMemoPage = () => {
-  const propertyId = parsePositiveId(useParams().propertyId);
+  const propertyId = parsePropertyRouteId(useParams().propertyId);
   if (propertyId === null) {
     return (
       <ContentState title="올바른 매물 주소가 아니에요.">

@@ -11,6 +11,7 @@ const HomePageSkeleton = () => (
       <span />
       <span />
       <span />
+      <span />
     </div>
   </div>
 );

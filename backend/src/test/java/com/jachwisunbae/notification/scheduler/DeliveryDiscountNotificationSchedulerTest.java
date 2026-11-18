@@ -6,6 +6,8 @@ import static org.mockito.Mockito.verify;
 
 import com.jachwisunbae.notification.domain.DeliveryDiscountNotificationType;
 import com.jachwisunbae.notification.service.DeliveryDiscountNotificationService;
+import java.util.Arrays;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
@@ -27,11 +29,6 @@ class DeliveryDiscountNotificationSchedulerTest {
         return Stream.of(
                 Arguments.of("baeminFirstCome", "0 0 10 * * *", DeliveryDiscountNotificationType.BAEMIN_FIRST_COME,
                         (Consumer<DeliveryDiscountNotificationScheduler>) DeliveryDiscountNotificationScheduler::baeminFirstCome),
-                Arguments.of("coupangEatsFirstCome", "0 0 11 * * *",
-                        DeliveryDiscountNotificationType.COUPANG_EATS_FIRST_COME,
-                        (Consumer<DeliveryDiscountNotificationScheduler>) DeliveryDiscountNotificationScheduler::coupangEatsFirstCome),
-                Arguments.of("evening", "0 0 18 * * *", DeliveryDiscountNotificationType.EVENING,
-                        (Consumer<DeliveryDiscountNotificationScheduler>) DeliveryDiscountNotificationScheduler::evening),
                 Arguments.of("closingSoon", "0 0 22 * * *", DeliveryDiscountNotificationType.CLOSING_SOON,
                         (Consumer<DeliveryDiscountNotificationScheduler>) DeliveryDiscountNotificationScheduler::closingSoon));
     }
@@ -48,6 +45,16 @@ class DeliveryDiscountNotificationSchedulerTest {
         run.accept(scheduler);
 
         verify(service).dispatch(type);
+    }
+
+    @Test
+    @DisplayName("배달 할인 알림은 하루 10시와 22시 두 번만 실행한다")
+    void runsOnlyAtTenAndTwentyTwo() {
+        assertThat(Arrays.stream(DeliveryDiscountNotificationScheduler.class.getDeclaredMethods())
+                .map(method -> method.getAnnotation(Scheduled.class))
+                .filter(Objects::nonNull)
+                .map(Scheduled::cron))
+                .containsExactlyInAnyOrder("0 0 10 * * *", "0 0 22 * * *");
     }
 
     @Test

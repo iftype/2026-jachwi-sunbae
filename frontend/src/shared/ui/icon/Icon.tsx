@@ -27,6 +27,7 @@ import {
   RefreshIcon,
   ReplaceIcon,
   SearchIcon,
+  SparklesIcon,
   TargetIcon,
   TrashIcon,
   UserIcon,
@@ -61,6 +62,7 @@ export type IconName =
   | 'refresh'
   | 'replace'
   | 'search'
+  | 'sparkles'
   | 'target'
   | 'trash'
   | 'user';
@@ -101,6 +103,7 @@ const iconComponents: Record<IconName, ComponentType<IconComponentProps>> = {
   refresh: RefreshIcon,
   replace: ReplaceIcon,
   search: SearchIcon,
+  sparkles: SparklesIcon,
   target: TargetIcon,
   trash: TrashIcon,
   user: UserIcon,
