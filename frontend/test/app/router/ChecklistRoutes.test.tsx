@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { StrictMode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   checkItemPageFixture,
@@ -30,6 +30,8 @@ import { server } from '../../server';
 const config: PublicConfig = {
   apiBaseUrl: 'http://localhost:8080',
 };
+
+beforeEach(() => queryClient.clear());
 
 type TestEntry = string | { pathname: string; state?: unknown };
 

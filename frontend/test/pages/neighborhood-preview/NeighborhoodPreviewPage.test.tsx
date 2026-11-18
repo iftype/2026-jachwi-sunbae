@@ -331,7 +331,11 @@ it.each([
   [true, ['/', '/explore', '/explore/areas/1168064000']],
 ])('복귀 버튼은 진입 이력이나 내부 동네 이동과 관계없이 홈으로 간다 (%s, %s)', async (isPublic, entries) => {
   show(isPublic, entries);
-  await userEvent.click(screen.getByRole('button', { name: isPublic ? '홈으로 돌아가기' : '기록으로 전환' }));
+  await userEvent.click(
+    isPublic
+      ? screen.getByRole('button', { name: '홈으로 돌아가기' })
+      : screen.getByRole('link', { name: '자취선배 홈' }),
+  );
   expect(await screen.findByRole('heading', { name: '홈' })).toBeInTheDocument();
 });
 it('주소로 바로 들어와도 홈 버튼으로 홈에 간다', async () => {
@@ -474,7 +478,13 @@ it.each([false, true])('지도(공개 %s)에서 현재 위치로 가도 현재 �
   await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
   const markers = JSON.parse(screen.getByLabelText('목적지 좌표').textContent ?? '[]');
   expect(markers).toEqual([
-    expect.objectContaining({ id: 'destination', tone: 'destination', latitude: 37.4, longitude: 127.12 }),
+    expect.objectContaining({
+      id: 'destination',
+      tone: 'pinLabel',
+      pinKind: 'commute',
+      latitude: 37.4,
+      longitude: 127.12,
+    }),
   ]);
 });
 it('현재 위치 조회 실패 시 지도에서 직접 찍을 수 있다', async () => {
@@ -528,9 +538,9 @@ it('지도에서 찍으면 시점을 옮기지 않아 누른 자리에 핀이 �
   expect(card.getByRole('button', { name: '월세 전체' })).toBeInTheDocument();
   expect(screen.getByLabelText('지도 안내')).toBeEmptyDOMElement();
   expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
-  // 핀에는 장소 이름 대신 고른 자리라는 것만 적는다.
+  // 핀은 선택된 출퇴근 장소를 표시한다.
   expect(JSON.parse(screen.getByLabelText('목적지 좌표').textContent ?? '[]')).toEqual([
-    expect.objectContaining({ id: 'destination', label: '선택한 지역' }),
+    expect.objectContaining({ id: 'destination', pinKind: 'commute' }),
   ]);
   expect(screen.getByLabelText('목적지 좌표')).toHaveTextContent('37.4');
 });
@@ -549,8 +559,8 @@ it.each([false, true])('로그인 여부와 관계없이 주소 검색 결과로
   await user.keyboard('{Enter}');
   await user.click(await screen.findByRole('button', { name: '서울 강남구 봉은사로 102' }));
   expect(screen.getByLabelText('목적지 좌표')).toHaveTextContent('37.5045');
-  // 고른 주소로 지도를 옮기되 보고 있던 확대 단계는 그대로 둔다.
-  expect(screen.getByLabelText('지도 시점')).toHaveTextContent('"level":8');
+  // 고른 주소를 확인할 수 있게 가까운 단계로 옮긴다.
+  expect(screen.getByLabelText('지도 시점')).toHaveTextContent('"level":5');
 });
 it('통근 필터·조회·동네 선택 및 닫기에도 결과와 시점을 유지한다', async () => {
   show();
@@ -675,7 +685,7 @@ it('전국 파일 하나뿐인 manifest는 미리 받지 않고, 조회 버튼 �
     await submitCurrentSearch(user);
     await screen.findByRole('region', { name: '행정동 프리셋 지도' });
     expect(paths.filter((path) => path.endsWith('.geojson'))).toHaveLength(1);
-    await user.click(screen.getByRole('button', { name: '검색 조건 바꾸기' }));
+    await user.click(screen.getByRole('button', { name: '조건 다시 선택' }));
     if (screen.queryByRole('button', { name: '지도에서 목적지 선택' }))
       await user.click(screen.getByRole('button', { name: '지도에서 목적지 선택' }));
     await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
@@ -733,7 +743,7 @@ it('분할 manifest에서는 결과에 나온 시도 파일만 받아 합치고 
     expect(requested.sort()).toEqual([files['11'], files['31']]);
     expect(screen.getByRole('button', { name: '역삼1동' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '정자동' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: '검색 조건 바꾸기' }));
+    await user.click(screen.getByRole('button', { name: '조건 다시 선택' }));
     if (screen.queryByRole('button', { name: '지도에서 목적지 선택' }))
       await user.click(screen.getByRole('button', { name: '지도에서 목적지 선택' }));
     await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
@@ -837,7 +847,7 @@ it('manifest의 해시가 바뀌면 이전 경계 캐시 대신 새 파일을 �
     await submitCurrentSearch(user);
     await screen.findByRole('region', { name: '행정동 프리셋 지도' });
     file = 'admin-dongs.20250630.abcdef123456.geojson';
-    await user.click(screen.getByRole('button', { name: '검색 조건 바꾸기' }));
+    await user.click(screen.getByRole('button', { name: '조건 다시 선택' }));
     if (screen.queryByRole('button', { name: '지도에서 목적지 선택' }))
       await user.click(screen.getByRole('button', { name: '지도에서 목적지 선택' }));
     await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
@@ -871,7 +881,7 @@ it('결과 지도 클릭은 목적지·결과를 유지하고 다시 선택하�
   expect(screen.getByRole('region', { name: '행정동 프리셋 지도' })).toBeInTheDocument();
   expect(JSON.parse(screen.getByLabelText('목적지 좌표').textContent ?? '[]')).toEqual(markers);
   expect(screen.queryByRole('button', { name: /메모 남기기/ })).not.toBeInTheDocument();
-  await user.click(screen.getByRole('button', { name: '검색 조건 바꾸기' }));
+  await user.click(screen.getByRole('button', { name: '조건 다시 선택' }));
   if (screen.queryByRole('button', { name: '지도에서 목적지 선택' }))
     await user.click(screen.getByRole('button', { name: '지도에서 목적지 선택' }));
   await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
@@ -890,7 +900,7 @@ it('위치 선택·분석·결과·다시 선택하기 내내 지도를 새로 �
   await waitFor(() => expect(screen.queryByRole('button', { name: /에서 찾기$/ })).not.toBeInTheDocument());
   expect(screen.getByRole('region', { name: '지도에서 목적지 선택' })).toBeInTheDocument();
   await screen.findByRole('region', { name: '행정동 프리셋 지도' });
-  await user.click(screen.getByRole('button', { name: '검색 조건 바꾸기' }));
+  await user.click(screen.getByRole('button', { name: '조건 다시 선택' }));
   expect(await screen.findByRole('region', { name: '지도에서 목적지 선택' })).toBeInTheDocument();
   expect(mapMounts.count).toBe(1);
 });
@@ -1010,7 +1020,7 @@ it('공개 탐색 데스크탑 왼쪽 칸은 찾은 동네 카드를 통근 시�
     await user.click(cards[1]);
     expect(cards[1]).toHaveAttribute('aria-pressed', 'true');
     // 동을 누르면 정보 카드 대신 그 자리에 동 이름, 소요시간, 월세 시세만 담은 요약 마커가 뜬다.
-    expect(await screen.findByRole('button', { name: /신림동\s*소요시간 \d+분\s*월세 시세/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '신림동', exact: true })).toBeInTheDocument();
     // 목록은 그대로 둔다.
     expect(list.getAllByRole('button')).toHaveLength(3);
   } finally {
@@ -1085,20 +1095,20 @@ it('모바일은 지도 위 핀으로 목적지 선택을 켜고 결과에서도
   const toggle = screen.getByRole('button', { name: '지도에서 목적지 선택' });
   const searchHeader = screen.getByRole('textbox', { name: '출퇴근 장소' }).closest('header');
   expect(toggle.closest('header')).toBeNull();
-  expect(searchHeader).toContainElement(screen.getByRole('button', { name: '기록으로 전환' }));
+  expect(searchHeader).toContainElement(screen.getByRole('link', { name: '자취선배 홈' }));
   expect(toggle).toHaveAttribute('aria-pressed', 'false');
   await user.click(toggle);
   expect(screen.getByRole('button', { name: '목적지 선택 취소' })).toHaveAttribute('aria-pressed', 'true');
   await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
   await submitCurrentSearch(user);
   await screen.findByRole('region', { name: '행정동 프리셋 지도' });
-  expect(screen.getByRole('button', { name: '기록으로 전환' }).closest('header')).not.toBeNull();
-  await user.click(screen.getByRole('button', { name: '검색 조건 바꾸기' }));
+  expect(screen.getByRole('link', { name: '자취선배 홈' }).closest('header')).not.toBeNull();
+  await user.click(screen.getByRole('button', { name: '조건 다시 선택' }));
   expect(screen.getByRole('button', { name: '이전 결과 보기' }).closest('header')).toBeNull();
   expect(screen.getByRole('button', { name: '지도에서 목적지 선택' }).closest('header')).toBeNull();
   await user.click(screen.getByRole('button', { name: '이전 결과 보기' }));
   await screen.findByRole('region', { name: '행정동 프리셋 지도' });
-  await user.click(screen.getByRole('button', { name: '기록으로 전환' }));
+  await user.click(screen.getByRole('link', { name: '자취선배 홈' }));
   expect(await screen.findByRole('heading', { name: '홈' })).toBeInTheDocument();
 });
 
@@ -1132,23 +1142,24 @@ it('동네 찾기 지도에서는 행정동 안을 눌러도 메모 남기기나
   expect(screen.queryByRole('button', { name: '말풍선 여기에 본 방 기록하기' })).not.toBeInTheDocument();
 });
 
-it('결과를 유지한 채 하단 필터 시트에서 조건을 바꾸고 다시 검색할 수 있다', async () => {
+it('모바일 결과에서 월세는 상단 슬라이더로, 통근은 조건을 다시 선택해 바꾼다', async () => {
   show();
   const user = await choosePoint();
   await submitCurrentSearch(user);
   await screen.findByRole('region', { name: '행정동 프리셋 지도' });
-  await user.click(screen.getByRole('button', { name: /^통근 \d+분 이내$/ }));
-  const sheet = within(screen.getByRole('region', { name: '동네 찾기 필터' }));
+  const rent = screen.getByRole('button', { name: /월세 전체, 눌러서 바꾸기/ });
+  await user.click(rent);
+  expect(screen.getByRole('slider', { name: '최대 월세 시세' })).toBeInTheDocument();
   expect(screen.getByRole('region', { name: '행정동 프리셋 지도' })).toBeInTheDocument();
-  const minutes = sheet.getByRole('listbox', { name: '최대 통근 시간' });
-  minutes.focus();
-  await user.keyboard('{ArrowDown}');
-  await user.click(sheet.getByRole('button', { name: '이 조건으로 찾기' }));
-  await waitFor(() => expect(screen.queryByRole('region', { name: '동네 찾기 필터' })).not.toBeInTheDocument());
+  await user.click(rent);
+  expect(screen.queryByRole('slider', { name: '최대 월세 시세' })).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: '조건 다시 선택' }));
+  const form = within(screen.getByRole('region', { name: '고른 출퇴근 장소' }));
+  await user.click(form.getByRole('button', { name: '통근 40분 이내' }));
+  await user.click(form.getByRole('option', { name: '50분 이내' }));
+  await submitCurrentSearch(user);
   await screen.findByRole('region', { name: '행정동 프리셋 지도' });
   expect(screen.getByLabelText(/선택한 탐색 조건 통근 50분/)).toBeInTheDocument();
-  await user.click(screen.getByRole('button', { name: /^통근 \d+분 이내$/ }));
-  expect(screen.getByRole('region', { name: '동네 찾기 필터' })).toBeInTheDocument();
 });
 
 it('데스크탑 통합 지도는 왼쪽 조건 칸과 지도 위 찾은 동네 배지를 함께 보여 준다', async () => {

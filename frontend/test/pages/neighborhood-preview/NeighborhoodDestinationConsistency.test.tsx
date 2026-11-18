@@ -178,7 +178,7 @@ const renderMember = () =>
   );
 const searchPin = () => lastMap.props?.markers?.find((marker) => marker.id === 'search-pin');
 
-it('지도 검색은 출퇴근 장소를 바꾸지 않고, 검색 핀의 설정 버튼이 값을 복사하며, 분석 좌표는 항상 출퇴근 장소다', async () => {
+it('지도 검색은 출퇴근 장소를 바꾸지 않고, 검색 핀을 한 번 누르면 값을 복사하며, 분석 좌표는 항상 출퇴근 장소다', async () => {
   const matchMedia = useDesktopViewport();
   try {
     const user = userEvent.setup();
@@ -196,25 +196,27 @@ it('지도 검색은 출퇴근 장소를 바꾸지 않고, 검색 핀의 설정 
     await user.type(mapSearch, '동대문');
     await user.click(await screen.findByRole('button', { name: /서울 동대문구 왕산로 214/ }));
     await waitFor(() => expect(searchPin()).toBeDefined());
-    // 지도 검색은 주소 지오코딩 좌표(POI 좌표 + 0.01)를 쓰고, 지도 중심과 핀이 같다.
-    expect(round(searchPin()?.latitude)).toBe('37.5844');
-    expect(round(center()?.latitude)).toBe('37.5844');
-    expect(round(center()?.longitude)).toBe('127.0496');
-    expect(searchPin()).toMatchObject({ pinKind: 'search', setsCommute: true });
+    // 지도 검색은 검색 결과의 좌표를 쓰고, 지도 중심과 핀이 같다.
+    expect(round(searchPin()?.latitude)).toBe('37.5744');
+    expect(round(center()?.latitude)).toBe('37.5744');
+    expect(round(center()?.longitude)).toBe('127.0396');
+    expect(searchPin()).toMatchObject({ pinKind: 'search', actionable: true });
     expect(pin()).toMatchObject({ pinKind: 'commute', latitude: 37.5001, longitude: 127.0002 });
     expect(analysisRequests).toHaveLength(0);
 
-    // 검색 핀의 `출퇴근 장소로 설정`: 이때만 지도 검색의 값이 출퇴근 장소로 복사된다.
-    act(() => lastMap.props?.onSelectMarker?.({ ...searchPin()!, id: 'search-pin:set-commute' }));
-    await waitFor(() => expect(round(pin()?.latitude)).toBe('37.5844'));
-    expect(round(pin()?.longitude)).toBe('127.0496');
+    // 검색 핀 클릭: 이때만 지도 검색의 값이 출퇴근 장소로 복사된다.
+    const marker = searchPin();
+    if (!marker) throw new Error('검색 핀이 표시되지 않았습니다.');
+    act(() => lastMap.props?.onSelectMarker?.(marker));
+    await waitFor(() => expect(round(pin()?.latitude)).toBe('37.5744'));
+    expect(round(pin()?.longitude)).toBe('127.0396');
     expect(analysisRequests).toHaveLength(0);
 
     // 분석 요청의 목적지는 출퇴근 장소(commute 마커)와 같다.
     await user.click(await screen.findByRole('button', { name: '이 조건으로 동네 찾기' }));
     await waitFor(() => expect(analysisRequests).toHaveLength(1));
-    expect(analysisRequests[0]?.latitude).toBeCloseTo(37.5844, 6);
-    expect(analysisRequests[0]?.longitude).toBeCloseTo(127.0496, 6);
+    expect(analysisRequests[0]?.latitude).toBeCloseTo(37.5744, 6);
+    expect(analysisRequests[0]?.longitude).toBeCloseTo(127.0396, 6);
   } finally {
     matchMedia.mockRestore();
   }

@@ -95,11 +95,11 @@ const tapMap = () => {
 };
 
 describe('익명 자동 인증 흐름', () => {
-  it('비인증 사용자도 동네 찾기 시안을 바텀탭 없이 볼 수 있다', async () => {
-    renderRoutes('/neighborhoods');
+  it('비인증 사용자도 공개 동네 찾기를 바텀탭 없이 볼 수 있다', async () => {
+    renderRoutes('/explore');
 
-    expect(await screen.findByRole('link', { name: '출퇴근 장소 검색' })).toBeInTheDocument();
-    expect(screen.queryByRole('navigation', { name: '주요 메뉴' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('textbox', { name: '출퇴근 장소' })).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: '하단 탭' })).not.toBeInTheDocument();
   });
   it.each([
     ['/explore/commute?mode=commute&utm_source=instagram', '/explore', '?utm_source=instagram'],
@@ -108,11 +108,7 @@ describe('익명 자동 인증 흐름', () => {
   ])('기준을 고르던 예전 동네 찾기 주소 %s는 통합 지도로 보낸다', async (path, pathname, search) => {
     renderRoutes(path);
 
-    expect(
-      await screen.findByRole(pathname === '/explore' ? 'textbox' : 'link', {
-        name: pathname === '/explore' ? '출퇴근 장소' : '출퇴근 장소 검색',
-      }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('textbox', { name: '출퇴근 장소' })).toBeInTheDocument();
     expect(screen.getByTestId('route-path')).toHaveTextContent(pathname);
     expect(screen.getByTestId('route-search').textContent).toBe(search);
   });
@@ -214,7 +210,7 @@ describe('익명 자동 인증 흐름', () => {
 
       release();
 
-      expect(await screen.findByRole('heading', { name: /사용자 체크리스트/ })).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { name: /내 체크리스트/ })).toBeInTheDocument();
       expect(screen.queryByText('체크리스트를 불러오는 중이에요.')).not.toBeInTheDocument();
     });
 
@@ -485,40 +481,24 @@ it('데스크톱의 홈은 통합 지도로 이어지고 모드 URL을 바꿔도
   }
 });
 
-it('모바일은 내 기록 목록의 안내 배너로 동네 찾기를 열고 찾은 뒤 헤더 타일로 같은 기록 지도에 복귀한다', async () => {
+it('모바일은 내 기록 지도 안내에서 동네 찾기를 열고 로고로 기록 지도에 복귀한다', async () => {
   neighborhoodResponses();
-  renderRoutes('/?view=list');
-  await userEvent.click(await screen.findByRole('button', { name: '10초만에 동네 찾기' }));
+  renderRoutes('/');
+  await userEvent.click(await screen.findByRole('button', { name: /출퇴근 시간으로 동네 찾아보기/ }));
   // 처음에는 출퇴근 장소 검색 화면을 거치지 않고 동네 찾기 지도로 바로 가고, 지도 위 검색 칸에서 장소를 고른다.
   await pickDestination(0);
-  const back = screen.getByRole('button', { name: '기록으로 전환' });
+  const back = screen.getByRole('link', { name: '자취선배 홈' });
   expect(back.closest('header')).not.toBeNull();
   expect(screen.queryByRole('navigation', { name: '지도 모드' })).not.toBeInTheDocument();
   await userEvent.click(back);
   await screen.findByRole('region', { name: '본 방 기록 지도' });
 });
 
-it('동네 찾기의 원형 검색은 공용 검색 페이지에서 고른 주소로 바로 분석한다', async () => {
-  server.use(
-    ...mapHandlers,
-    ...createCommuteAreaHandlers({ delayMs: 0 }),
-    http.get('*/boundaries/manifest.json', () =>
-      HttpResponse.json({ version: '20250630', file: 'admin-dongs.20250630.123456abcdef.geojson' }),
-    ),
-    http.get('*/boundaries/:filename', () => HttpResponse.json({ type: 'FeatureCollection', features: [] })),
-  );
+it('동네 찾기의 원형 검색은 공용 주소 검색으로 연결된다', async () => {
   renderRoutes('/neighborhoods');
-  await userEvent.click(await screen.findByRole('link', { name: '출퇴근 장소 검색' }));
+  await userEvent.click(await screen.findByRole('link', { name: '주소 검색' }));
   expect(screen.getByTestId('route-path')).toHaveTextContent('/search');
   expect(screen.getByTestId('route-search')).toHaveTextContent('target=neighborhoods');
-  await userEvent.type(await screen.findByRole('textbox', { name: '출퇴근하는 장소 검색' }), '신림');
-  const result = await screen.findByRole('list', { name: '주소 검색 결과' });
-  await userEvent.click(within(result).getAllByRole('button')[0]);
-  expect(await screen.findByRole('region', { name: '행정동 프리셋 지도' })).toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: /에서 찾기$/ })).not.toBeInTheDocument();
-  expect(screen.getByTestId('route-path')).toHaveTextContent(/^\/neighborhoods$/);
-  await userEvent.click(screen.getByRole('button', { name: '기록으로 전환' }));
-  await screen.findByRole('region', { name: '본 방 기록 지도' });
 });
 
 const commuteSearchResponses = () =>
@@ -540,16 +520,14 @@ const trackCommuteRequests = () => {
   server.events.on('request:start', track);
   return { urls, stop: () => server.events.removeListener('request:start', track) };
 };
-/** 출퇴근 장소 검색 화면에서 주소를 찾아 고른다. */
-const searchDestination = async (index: number) => {
-  await userEvent.type(await screen.findByRole('textbox', { name: '출퇴근하는 장소 검색' }), '신림');
+const pickDestination = async (index: number) => {
+  const input = await screen.findByRole('textbox', { name: '출퇴근 장소' });
+  await userEvent.type(input, '신림');
+  await userEvent.keyboard('{Enter}');
   const result = await screen.findByRole('list', { name: '주소 검색 결과' });
   await userEvent.click(within(result).getAllByRole('button')[index]);
+  await userEvent.click(await screen.findByRole('button', { name: /에서 찾기$/ }));
   await screen.findByRole('region', { name: '행정동 프리셋 지도' });
-};
-const pickDestination = async (index: number) => {
-  await userEvent.click(await screen.findByRole('link', { name: '출퇴근 장소 검색' }));
-  await searchDestination(index);
 };
 
 it('기록 지도에 다녀와 동네 찾기 타일을 눌러도 지난 결과로 돌아가고 통근 결과를 다시 요청하지 않는다', async () => {
@@ -559,9 +537,11 @@ it('기록 지도에 다녀와 동네 찾기 타일을 눌러도 지난 결과�
     renderRoutes('/neighborhoods');
     await pickDestination(0);
     await waitFor(() => expect(requests.urls).toHaveLength(1));
-    await userEvent.click(screen.getByRole('button', { name: '기록으로 전환' }));
+    await userEvent.click(screen.getByRole('link', { name: '자취선배 홈' }));
     await screen.findByRole('region', { name: '본 방 기록 지도' });
-    await userEvent.click(screen.getByRole('button', { name: '동네 찾기로 전환' }));
+    await userEvent.click(
+      within(screen.getByRole('navigation', { name: '하단 탭' })).getByRole('button', { name: '동네 찾기' }),
+    );
     expect(await screen.findByRole('region', { name: '행정동 프리셋 지도' })).toBeInTheDocument();
     expect(screen.getByTestId('route-path')).toHaveTextContent(/^\/neighborhoods$/);
     await new Promise((resolve) => setTimeout(resolve, 50));
@@ -596,6 +576,8 @@ it('결과를 본 뒤 출퇴근 장소를 다른 곳으로 고르면 새 좌표�
     renderRoutes('/neighborhoods');
     await pickDestination(0);
     await waitFor(() => expect(requests.urls).toHaveLength(1));
+    await userEvent.click(screen.getByRole('button', { name: '조건 다시 선택' }));
+    await userEvent.click(screen.getByRole('button', { name: '바꾸기' }));
     await pickDestination(1);
     await waitFor(() => expect(requests.urls).toHaveLength(2));
     const [first, second] = requests.urls.map((url) => [

@@ -46,18 +46,17 @@ it('출퇴근 장소를 고르기 전에는 `지도에서 선택`으로 지도�
 it('모드를 켠 동안에는 `선택 취소`로 끈다', async () => {
   const value = preview({ isMapSelectionEnabled: true });
   render(<ConditionPanel preview={value} disabled={false} onSubmit={vi.fn()} />);
-  expect(screen.getByText('지도에서 출퇴근할 위치를 눌러 주세요.')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '선택 취소' })).toHaveAttribute('aria-pressed', 'true');
   await userEvent.click(screen.getByRole('button', { name: '선택 취소' }));
   expect(value.cancelMapSelection).toHaveBeenCalledOnce();
 });
 
-it('장소를 고른 뒤에는 이름과 `변경`을 보이고, 변경은 다시 고르는 모드를 연다', async () => {
+it('장소를 고른 뒤에는 이름과 `바꾸기`를 눌러 출퇴근 장소 검색을 다시 연다', async () => {
   const value = preview({ hasChosenMapPoint: true });
   render(<ConditionPanel preview={value} disabled={false} onSubmit={vi.fn()} />);
   expect(screen.getByText('서울시청')).toBeInTheDocument();
-  await userEvent.click(screen.getByRole('button', { name: '변경' }));
-  expect(value.editLocation).toHaveBeenCalledOnce();
-  expect(value.openMapSelection).toHaveBeenCalledOnce();
+  await userEvent.click(screen.getByRole('button', { name: '바꾸기' }));
+  expect(value.openMapSearch).toHaveBeenCalledOnce();
 });
 
 it('장소를 고르지 않았으면 찾기 버튼을 막고, `showActions`가 꺼지면 버튼 줄을 그리지 않는다', () => {

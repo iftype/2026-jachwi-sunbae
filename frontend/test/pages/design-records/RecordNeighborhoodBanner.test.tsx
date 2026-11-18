@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { hasUsedFinder, markFinderUsed } from '@/pages/design-records/model/finderUsed';
 import {
   hasSeenRecordsMapIntro,
   hideRecordsMapIntroToday,
@@ -9,6 +10,10 @@ import {
 } from '@/pages/design-records/model/recordsMapIntro';
 import RecordNeighborhoodBanner from '@/pages/design-records/ui/record-neighborhood-banner/RecordNeighborhoodBanner';
 import { MapModeProvider } from '@/shared/ui/map-mode-tile/MapModeContext';
+
+vi.mock('@/features/map/api/useAdminDongBookmarks', () => ({
+  useAdminDongBookmarks: () => ({ codes: [] }),
+}));
 
 beforeEach(() => {
   localStorage.clear();
@@ -47,28 +52,19 @@ describe('RecordNeighborhoodBanner', () => {
 
   it('동네 찾기 버튼을 누르면 동네 찾기로 넘어가고 다시 띄우지 않는다', async () => {
     const onSwitch = renderBanner();
-    await userEvent.click(screen.getByRole('button', { name: '10초만에 동네 찾기' }));
+    await userEvent.click(screen.getByRole('button', { name: /출퇴근 시간으로 동네 찾아보기/ }));
     expect(onSwitch).toHaveBeenCalledOnce();
-    expect(screen.queryByRole('complementary', { name: '동네 찾기 안내' })).not.toBeInTheDocument();
-    expect(hasSeenRecordsMapIntro()).toBe(true);
+    expect(hasUsedFinder()).toBe(true);
   });
 
-  it('닫기는 영영 숨기고, 오늘 하루 보지 않기는 오늘만 숨긴다', async () => {
+  it('이미 사용하면 지도에 돌아와도 다시 보이지 않는다', () => {
+    markFinderUsed();
     renderBanner();
-    await userEvent.click(screen.getByRole('button', { name: '오늘 하루 보지 않기' }));
-    expect(screen.queryByRole('complementary', { name: '동네 찾기 안내' })).not.toBeInTheDocument();
-    expect(localStorage.getItem('jachwi:records-map-intro-seen')).toBeNull();
-    expect(localStorage.getItem('jachwi:records-map-intro-hidden-day')).not.toBeNull();
-  });
-
-  it('이미 본 사람에게는 보이지 않고, 통합 지도 밖에서도 보이지 않는다', () => {
-    markRecordsMapIntroSeen();
-    renderBanner();
-    expect(screen.queryByRole('complementary', { name: '동네 찾기 안내' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /출퇴근 시간으로 동네 찾아보기/ })).not.toBeInTheDocument();
   });
 
   it('동네 찾기로 넘어갈 방법이 없으면 그리지 않는다', () => {
     render(<RecordNeighborhoodBanner />);
-    expect(screen.queryByRole('complementary', { name: '동네 찾기 안내' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /출퇴근 시간으로 동네 찾아보기/ })).not.toBeInTheDocument();
   });
 });

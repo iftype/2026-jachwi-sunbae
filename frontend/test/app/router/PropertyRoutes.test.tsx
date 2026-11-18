@@ -20,6 +20,7 @@ import {
 } from '@/app/mocks/fixtures/propertyFixtures';
 import AppRoutes from '@/app/router/AppRoutes';
 import { setAuthentication } from '@/features/auth/model/authStore';
+import { markJustCreated } from '@/features/property/lib/justCreatedProperties';
 import { queryClient } from '@/shared/api/queryClient';
 import { PublicConfigProvider } from '@/shared/config/PublicConfigContext';
 import type { PublicConfig } from '@/shared/config/publicConfigTypes';
@@ -285,6 +286,7 @@ describe('FE-2 등록·수정·메모', () => {
       }),
     );
     const user = userEvent.setup();
+    markJustCreated(10);
     renderAuthenticated('/properties/10');
 
     const section = within(await screen.findByRole('region', { name: '매물 기본 정보' }));
