@@ -30,12 +30,13 @@ type RestaurantPanelProps = {
   layout: MealLayout;
   /** 데스크탑 리스트 칸 맨 위에 둘 머리(제목과 탭). 내 기록, 동네 찾기처럼 지도 왼쪽 칸 안에 들어간다. */
   listHeader?: ReactNode;
-  /** 데스크탑에서 식당 탭이 아닐 때 목록 칸 머리 아래에 대신 보여 줄 내용. 지도는 그대로 두고 마커만 숨긴다. */
+  /** 데스크탑에서 식당 탭이 아닐 때 목록 칸 머리 아래에 대신 보여 줄 내용. 지도와 선택한 기준 위치는 유지한다. */
   listOverride?: ReactNode;
 };
 
 const RestaurantPanel = ({ isActive, layout, listHeader, listOverride }: RestaurantPanelProps) => {
-  const map = useRestaurantMap(isActive);
+  const isMapActive = isActive || layout === 'desktop';
+  const map = useRestaurantMap(isMapActive);
   // 식당 탭을 처음 열어 보여 줄 목록이 없을 때는 찾는 중 문구를 바로 보여 준다.
   // 지도를 옮겨 다시 찾을 때는 이전 목록을 둔 채 기다리고, 응답이 늦을 때만 찾는 중 문구로 바꾼다.
   const isDelayedLoadingVisible = useDelayedLoading(map.query.isPlaceholderData);
@@ -108,20 +109,20 @@ const RestaurantPanel = ({ isActive, layout, listHeader, listOverride }: Restaur
   }, [layout, store]);
   const mapView = (
     <>
-      {(isActive || layout === 'desktop') && (
+      {isMapActive && (
         <MapCanvas
           shared
           onRetry={() => window.location.reload()}
           center={map.viewport}
-          markers={isActive ? map.markers : []}
-          circles={isActive ? [{ radiusMeters: map.radius, label: `${map.radius}m` }] : []}
+          markers={map.markers}
+          circles={[{ radiusMeters: map.radius, label: `${map.radius}m` }]}
           radiusCenter={map.area}
           level={map.level}
           interactive
-          selectedMarkerId={isActive && map.selectedStore ? String(map.selectedStore.id) : null}
+          selectedMarkerId={map.selectedStore ? String(map.selectedStore.id) : null}
           onSelectMarker={(marker) => map.selectMarker(marker.id)}
-          onSelectLocation={isActive && map.selectedStore ? map.closeOverlay : undefined}
-          coordinateAction={isActive ? storeCard : undefined}
+          onSelectLocation={map.selectedStore ? map.closeOverlay : undefined}
+          coordinateAction={storeCard}
           onCenterChange={map.moveMap}
           onLevelChange={map.changeLevel}
         />
@@ -203,8 +204,8 @@ const RestaurantPanel = ({ isActive, layout, listHeader, listOverride }: Restaur
             {mapView}
             {/* 내 기록, 동네 찾기와 같은 자리: 오른쪽 위에 줌, 그 아래에 내 위치 버튼. */}
             <MapZoomControl className={styles.zoomDesktop} level={map.level} onChange={map.changeLevel} />
-            {isActive && locationControl}
-            {isActive && noticeToast}
+            {locationControl}
+            {noticeToast}
           </div>
         </ListDetailLayout>
       </section>
