@@ -39,8 +39,11 @@ const styles = {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     width: 100%;
-    padding: 0.5rem 0.25rem;
-    border-radius: var(--radius-card);
+    /* 모드 타일(2.75rem)과 같은 높이로 맞춰, 기록과 동네 찾기를 오갈 때 헤더 높이가 바뀌지 않게 한다. */
+    box-sizing: border-box;
+    min-height: 2.75rem;
+    padding: 0 0.25rem;
+    border-radius: 1.5rem;
     background: var(--color-surface);
     box-shadow: var(--shadow-floating);
     pointer-events: auto;
@@ -49,7 +52,7 @@ const styles = {
       display: grid;
       justify-items: center;
       align-content: center;
-      gap: 0.15rem;
+      gap: 0;
       padding: 0;
       border: 0;
       background: transparent;
@@ -58,7 +61,8 @@ const styles = {
       cursor: pointer;
     }
     & button > span {
-      font-size: 0.68rem;
+      font-size: 0.6rem;
+      line-height: 1.1;
       color: var(--color-muted);
       font-weight: 700;
     }
@@ -67,8 +71,8 @@ const styles = {
       align-items: center;
       justify-content: center;
       gap: 0.15rem;
-      min-height: 1.7rem;
-      font-size: 1.1rem;
+      min-height: 1.4rem;
+      font-size: 1rem;
       font-weight: 800;
       white-space: nowrap;
     }

@@ -44,3 +44,9 @@ export const criteriaItems = ({
   { label: '환승', value: maxTransfers === 0 ? '없음' : `${maxTransfers}회` },
   { label: '월세', value: maxRent === 0 ? '전체' : `${maxRent}만` },
 ];
+
+const WON_PER_MANWON = 10_000;
+
+/** 월세 시세를 `55 / 3,000`처럼 월세와 보증금(만원)만 슬래시로 이어 보여 준다. */
+export const formatRentPair = (rent: { monthlyRentKrw: number; depositKrw: number }): string =>
+  `${Math.round(rent.monthlyRentKrw / WON_PER_MANWON).toLocaleString('ko-KR')} / ${Math.round(rent.depositKrw / WON_PER_MANWON).toLocaleString('ko-KR')}`;

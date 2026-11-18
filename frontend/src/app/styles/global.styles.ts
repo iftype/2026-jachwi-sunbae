@@ -50,10 +50,10 @@ button {
   font: inherit;
 }
 
-/* 입력 중 깜빡이는 커서는 브랜드색을 쓴다. */
+/* 입력 중 깜빡이는 커서는 검정(글자색)으로 둔다. 노랑은 흰 바탕에서 잘 안 보인다. */
 input,
 textarea {
-  caret-color: var(--color-brand-yellow);
+  caret-color: var(--color-ink);
 }
 
 button:focus-visible,

@@ -1,5 +1,7 @@
 import { css } from '@emotion/css';
 
+import iconProfile from '@/shared/assets/icon-profile.webp';
+
 type Props = { size?: number; label?: string };
 const IdentityPlaceholder = ({ size = 44, label }: Props) => (
   <span
@@ -9,10 +11,8 @@ const IdentityPlaceholder = ({ size = 44, label }: Props) => (
     aria-label={label}
     aria-hidden={label ? undefined : true}
   >
-    <svg viewBox="0 0 40 40" aria-hidden="true" focusable="false">
-      <circle cx="20" cy="14" r="7" />
-      <path d="M6 37a14 14 0 0 1 28 0Z" />
-    </svg>
+    {/* 기본 회색 사람 그림 대신 우리가 만든 프로필 그림을 쓴다. */}
+    <img src={iconProfile} alt="" width={size} height={size} />
   </span>
 );
 const root = css`
@@ -25,10 +25,10 @@ const root = css`
   border-radius: 50%;
   background: color-mix(in srgb, var(--color-brand-blue-ink) 12%, var(--color-surface));
   color: var(--color-brand-blue-ink);
-  & svg {
+  & img {
     width: 100%;
     height: 100%;
-    fill: currentColor;
+    object-fit: contain;
   }
 `;
 export default IdentityPlaceholder;

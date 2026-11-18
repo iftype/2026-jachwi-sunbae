@@ -104,6 +104,7 @@ const styles = {
     min-width: 0;
     /* 입력칸 높이를 평소 헤더 버튼과 같은 2.5rem으로 고정한다. */
     height: 2.5rem;
+    font-size: 0.9rem;
     box-sizing: border-box;
     background: white;
     box-shadow: none;

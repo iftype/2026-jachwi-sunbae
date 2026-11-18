@@ -1,5 +1,4 @@
 import { css } from '@emotion/css';
-import { useState } from 'react';
 
 import PropertyAdditionalInfoForm from '@/pages/property-memo/ui/property-additional-info-form/PropertyAdditionalInfoForm';
 import { formatManwon } from '@/features/property/lib/propertyFormat';
@@ -11,7 +10,7 @@ import InfoValue from '@/shared/ui/info-value/InfoValue';
 
 import type { AdditionalEditField, PropertyEditField } from '../../model/editField';
 import PropertyInfoSection from '../property-info-section/PropertyInfoSection';
-import PropertyEditToggle from '../PropertyEditToggle';
+import PropertySavedNote from '../PropertySavedNote';
 
 type PropertyAdditionalInfoSectionProps = {
   property: PropertyDetail;
@@ -62,14 +61,13 @@ const PropertyAdditionalInfoSection = ({
   onCancel,
   savedField,
 }: PropertyAdditionalInfoSectionProps) => {
-  const [isEditMode, setIsEditMode] = useState(false);
   // 확인한 곳은 글자 하나만 고치므로 값 자리에서 바로 고친다. 나머지는 시트에서 고친다(날짜와 일정은 데스크탑만 제외).
   const isDesktop = useIsDesktop();
   // 날짜와 일정은 데스크탑에서는 값 자리에서 바로 고치고, 휴대폰에서는 시트에서 고친다.
   const isInlineField = (field: AdditionalEditField) =>
     field === 'discoverySource' || (isDesktop && (field === 'availableMoveInDate' || field === 'visitScheduledAt'));
   const row = (field: AdditionalEditField) => ({
-    onEdit: isEditMode ? () => onEdit(field) : undefined,
+    onEdit: () => onEdit(field),
     editor:
       isInlineField(field) && editingField === field ? (
         <PropertyAdditionalInfoForm
@@ -81,7 +79,6 @@ const PropertyAdditionalInfoSection = ({
         />
       ) : undefined,
     editorLayout: 'inline' as const,
-    feedback: savedField === field ? SAVED_TEXT : undefined,
   });
   const sheetField =
     editingField !== null && isAdditionalField(editingField) && !isInlineField(editingField) ? editingField : null;
@@ -92,14 +89,9 @@ const PropertyAdditionalInfoSection = ({
         title="부가 정보"
         label="매물 부가 정보"
         meta={
-          <PropertyEditToggle
-            section="부가 정보"
-            isEditing={isEditMode}
-            onToggle={() => {
-              onCancel();
-              setIsEditMode((current) => !current);
-            }}
-          />
+          savedField !== null && savedField !== 'price' && savedField !== 'location' ? (
+            <PropertySavedNote text={SAVED_TEXT} />
+          ) : undefined
         }
       >
         <InfoValue
@@ -115,7 +107,7 @@ const PropertyAdditionalInfoSection = ({
         <InfoValue
           label="관리비 포함 공과금"
           value={utilityOptionLabels(property.utilityOptions)}
-          onEdit={isEditMode ? () => onEdit('maintenance') : undefined}
+          onEdit={() => onEdit('maintenance')}
         />
         <InfoValue label="방 옵션" value={roomOptionLabels(property.roomOptions)} {...row('roomOptions')} />
         <InfoValue label="방문 일정" value={formatDateTime(property.visitScheduledAt)} {...row('visitScheduledAt')} />

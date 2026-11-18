@@ -1,9 +1,9 @@
 import { css } from '@emotion/css';
 
-import { formatManwon } from '@/features/map/api/commuteApi';
 import ExplorationRecordAction from '@/features/onboarding/ui/exploration-record-action/ExplorationRecordAction';
 
 import type { NeighborhoodPreviewContext } from '../../hooks/useNeighborhoodPreview';
+import { formatRentPair } from '../../model/criteriaLabels';
 import ListingLink from '../listing-link/ListingLink';
 import RouteGuide from '../route-guide/RouteGuide';
 
@@ -17,23 +17,7 @@ const RouteDetailBody = ({ preview, area }: Props) => (
   <>
     <section className={styles.rent} aria-label="월세 시세">
       <span>월세 시세</span>
-      {area.rent ? (
-        <>
-          <strong>
-            월세 {formatManwon(area.rent.monthlyRentKrw)} · 보증금 {formatManwon(area.rent.depositKrw)}
-          </strong>
-          <small>
-            {area.rent.legalDongNames.join('·')} 거래 {area.rent.transactionCount}건 중앙값
-          </small>
-          {preview.rentPeriod && (
-            <small>
-              {preview.rentPeriod.startDate} ~ {preview.rentPeriod.endDate} 계약
-            </small>
-          )}
-        </>
-      ) : (
-        <strong>거래가 적어 시세를 내지 않았어요</strong>
-      )}
+      {area.rent ? <strong>{formatRentPair(area.rent)}</strong> : <strong>거래가 적어 시세를 내지 않았어요</strong>}
     </section>
     <RouteGuide
       route={preview.route}

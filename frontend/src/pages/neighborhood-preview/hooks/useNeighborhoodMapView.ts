@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { useRecordsMapController } from '@/pages/design-records/RecordsMapProvider';
-import { formatManwon } from '@/features/map/api/commuteApi';
+import { useAdminDongBookmarks } from '@/features/map/api/useAdminDongBookmarks';
 import useViewportFacilityLayer from '@/features/map/hooks/useViewportFacilityLayer';
 import {
   DESKTOP_FACILITY_MARKER_LEVEL,
@@ -9,6 +9,7 @@ import {
   facilityFocusLevel,
   facilityMarkersVisible,
 } from '@/features/map/lib/mapFacilityVisibility';
+import { groupMemberIds, groupOverlappingMarkers, propertyGroupMarker } from '@/features/map/lib/propertyMarkerGroups';
 import type { MapCategory, MapMarker } from '@/features/map/model/Map';
 import type { MapCanvasProps, MapRegion } from '@/features/map/model/MapCanvas';
 import { usePropertyCommuteTimes, usePropertyList } from '@/features/property/api/useProperties';
@@ -17,6 +18,7 @@ import { PROPERTY_PLACEHOLDER } from '@/shared/assets/propertyImageAssets';
 import useDebouncedValue from '@/shared/lib/hooks/useDebouncedValue';
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
 
+import { formatRentPair } from '../model/criteriaLabels';
 import type { MyPropertyRow } from '../model/myProperty';
 import { propertyCommuteLabel } from '../model/propertyCommute';
 import useNeighborhoodPlaces, { MY_PROPERTY_PREFIX } from './useNeighborhoodPlaces';
@@ -61,11 +63,14 @@ const useNeighborhoodMapView = (
   const recordsController = useRecordsMapController();
   const registration = preview.isPublicExplore ? null : recordsController?.layers;
   const isDesktop = useIsDesktop();
+  // 로그인한 회원은 동네를 북마크해 내 기록 지도에서 다시 볼 수 있다.
+  const bookmarks = useAdminDongBookmarks(!preview.isPublicExplore);
   const markerLevel = isDesktop ? DESKTOP_FACILITY_MARKER_LEVEL : FACILITY_MARKER_LEVEL;
   const isResultMap = !preview.isAnalyzing && !preview.error && !preview.isSelectingOnMap;
   const [railSelection, setRailSelection] = useState<RailSelection | null>(null);
   const facilityCategory = railSelection === 'MY' ? null : railSelection;
-  const showsMy = railSelection === 'MY';
+  // 로그인한 회원은 동네 찾기에서도 기록한 매물을 늘 지도에 띄우고, 매물마다 이번 출퇴근 장소까지 걸리는 시간을 적는다.
+  const showsMy = !preview.isPublicExplore;
   const showsTransport = facilityCategory === 'TRANSPORT';
   // 중개사(전화, 카카오 링크가 있는 중개사 응답)와 교통(버스정류장 응답)은 화면 안 장소 조회로 받는다.
   // 병원, 편의점은 화면을 칸으로 나눠 받는다(`useViewportFacilityLayer`). 둘 다 가까이 확대했을 때만 받는다.
@@ -136,17 +141,6 @@ const useNeighborhoodMapView = (
         : NO_MARKERS,
     [showsMy, myRows, commuteMaxMinutes, myPhotoUrls],
   );
-  // `My`를 켜면 받은 매물 마커가 한 화면에 모두 들어오게 한 번 옮긴다. 다시 켤 때마다 한 번씩 맞춘다.
-  const [hasFittedMy, setHasFittedMy] = useState(false);
-  useEffect(() => {
-    if (!showsMy) {
-      setHasFittedMy(false);
-      return;
-    }
-    if (hasFittedMy || myMarkers.length === 0) return;
-    setHasFittedMy(true);
-    preview.fitPoints(myMarkers);
-  }, [showsMy, hasFittedMy, myMarkers, preview]);
   /** 레일 칸을 켜고 끈다. 같은 칸을 다시 누르면 끈다. 열어 둔 장소 정보는 닫는다. */
   const selectRail = (next: RailSelection) => {
     const value = railSelection === next ? null : next;
@@ -183,6 +177,13 @@ const useNeighborhoodMapView = (
   };
   /** 마커를 누르면 그 마커 하나의 정보를 열고 지도를 그 자리로 옮긴다. */
   const selectMarker = (marker: MapMarker) => {
+    // 겹쳐 묶인 내 매물은 갈라져 보일 때까지 묶인 매물이 한 화면에 들어오게 다가간다. 내 기록 지도와 같은 묶음이다.
+    const memberIds = groupMemberIds(marker.id);
+    if (memberIds !== null) {
+      places.closePlace();
+      preview.fitPoints(myMarkers.filter((member) => memberIds.includes(member.id)));
+      return;
+    }
     if (marker.id.startsWith(MY_PROPERTY_PREFIX)) {
       const row = myRows.find((item) => `${MY_PROPERTY_PREFIX}${item.propertyId}` === marker.id);
       if (row) places.selectProperty(row);
@@ -195,6 +196,11 @@ const useNeighborhoodMapView = (
   };
   // 시설 마커는 레일 칸을 켰고 가까이 확대했을 때 지금 화면 범위로 받은 것만 올린다. 동네를 골라도 따로 마커를 받지 않는다.
   // 아무 칸도 켜지 않으면 동네 경계와 출퇴근 장소 핀만 남는다. 거리 메모는 동네 찾기에 띄우지 않는다.
+  // 내 기록 지도와 같은 기준으로, 화면에서 포개질 만큼 가까운 내 매물은 묶어 개수만 보인다.
+  const groupedMyMarkers = useMemo(
+    () => groupOverlappingMarkers(myMarkers, places.bounds).map(propertyGroupMarker),
+    [myMarkers, places.bounds],
+  );
   const railMarkers = useMemo<MapMarker[]>(() => {
     if (facilityCategory === 'AGENCY' || facilityCategory === 'TRANSPORT')
       return places.isClose
@@ -204,8 +210,8 @@ const useNeighborhoodMapView = (
         : NO_MARKERS;
     if (facilityCategory === 'HOSPITAL' || facilityCategory === 'CONVENIENCE')
       return places.isClose ? facilities.markers : NO_MARKERS;
-    return myMarkers;
-  }, [facilityCategory, places.isClose, places.markers, facilities.markers, myMarkers]);
+    return groupedMyMarkers;
+  }, [facilityCategory, places.isClose, places.markers, facilities.markers, groupedMyMarkers]);
   const destinationMarkers = useMemo(
     () => [
       ...railMarkers,
@@ -246,8 +252,24 @@ const useNeighborhoodMapView = (
             ? {
                 ...preview.selected.center,
                 placement: 'above' as const,
-                label: `${preview.selected.name} · 약 ${preview.selected.commuteMinutes}분${preview.selected.rent ? ` · 월세 ${formatManwon(preview.selected.rent.monthlyRentKrw)}` : ''}\n대중교통 정보 보기 →`,
-                onClick: preview.openAreaDetails,
+                // 동을 누르면 정보 카드를 바로 열지 않고, 그 자리에 동 이름, 소요시간, 월세 시세만 간략히 담은 마커를 띄운다.
+                // 상세 정보와 다방 링크, 동선(출발 정류장)은 넣지 않는다.
+                label: [
+                  preview.selected.name,
+                  `소요시간 ${preview.selected.commuteMinutes}분`,
+                  `월세 시세 ${preview.selected.rent ? formatRentPair(preview.selected.rent) : '시세 없음'}`,
+                  ...(preview.isPublicExplore
+                    ? []
+                    : [
+                        bookmarks.isBookmarked(preview.selected.adminDongCode)
+                          ? '★ 북마크됨 (누르면 해제)'
+                          : '☆ 북마크하기',
+                      ]),
+                ].join('\n'),
+                // 마커를 누르면 이 동네를 찜(북마크)하고, 이미 했으면 해제한다. 공개 탐색은 로그인 전이라 누르지 않는다.
+                onClick: () => {
+                  if (!preview.isPublicExplore && preview.selected) bookmarks.toggle(preview.selected.adminDongCode);
+                },
               }
             : undefined,
       }
@@ -273,20 +295,19 @@ const useNeighborhoodMapView = (
           ...(mapProps.markers ?? []),
           ...(registration.canvasProps.markers ?? []).filter((marker) => marker.category === 'MEMO'),
         ],
-        coordinateMenu: preview.isMapSelectionEnabled ? undefined : registration.coordinateMenu,
+        // 동네 찾기에서는 지도를 눌러도 메모 남기기, 본 방 기록하기 메뉴를 띄우지 않는다.
+        coordinateMenu: undefined,
         onSelectRegion: (id, point) => {
           if (preview.isSelectingOnMap && preview.isMapSelectionEnabled && point)
             preview.chooseMapPoint(point.latitude, point.longitude);
           else {
             selectRegion(id);
-            if (point) registration.canvasProps.onSelectLocation?.(point.latitude, point.longitude);
           }
         },
         onSelectLocation: (latitude, longitude) => {
           if (preview.isSelectingOnMap && preview.isMapSelectionEnabled) baseSelectLocation?.(latitude, longitude);
           else {
             tapEmpty();
-            registration.canvasProps.onSelectLocation?.(latitude, longitude);
           }
         },
         onSelectMarker: (marker) => {
@@ -319,6 +340,8 @@ const useNeighborhoodMapView = (
     },
     /** 레일에서 켠 칸. 없으면 null이다. */
     railSelection,
+    /** 기록한 매물을 지도에 띄우는 중인지(로그인한 회원). */
+    showsMy,
     /** 시설 칸을 켰지만 멀리 보고 있어 시설을 받지 않는 중인지. 화면은 `가까이 확대하면 보여요`를 띄운다. */
     needsZoomForFacilities: isResultMap && !facilityMarkersVisible(preview.resultLevel, markerLevel),
     /** 켠 레일 칸을 끈다(My 목록을 닫았을 때). */

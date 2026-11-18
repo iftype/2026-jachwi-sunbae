@@ -1,11 +1,15 @@
 import { css } from '@emotion/css';
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
 import Icon from '@/shared/ui/icon/Icon';
 
 import useInfrastructureLayer, { INFRASTRUCTURE_CATEGORIES } from '../../hooks/useInfrastructureLayer';
-import { DESKTOP_FACILITY_MARKER_LEVEL, FACILITY_MARKER_LEVEL } from '../../lib/mapFacilityVisibility';
+import {
+  DESKTOP_FACILITY_MARKER_LEVEL,
+  FACILITY_MARKER_LEVEL,
+  facilityMarkersVisible,
+} from '../../lib/mapFacilityVisibility';
 import type { MapBounds, MapMarker } from '../../model/Map';
 import type { MapCanvasProps, MapRadiusCircle } from '../../model/MapCanvas';
 import MapCanvasSurface from '../map-canvas/MapCanvasSurface';
@@ -28,50 +32,82 @@ const boundsAround = ({ latitude, longitude }: { latitude: number; longitude: nu
   };
 };
 
+/** 두 좌표 사이의 거리(m). 500m는 짧아 평면 근사로 충분하다. */
+const distanceMeters = (a: { latitude: number; longitude: number }, b: { latitude: number; longitude: number }) => {
+  const northSouth = (a.latitude - b.latitude) * METERS_PER_LATITUDE_DEGREE;
+  const eastWest = (a.longitude - b.longitude) * METERS_PER_LATITUDE_DEGREE * Math.cos((b.latitude * Math.PI) / 180);
+  return Math.hypot(northSouth, eastWest);
+};
+
+/** 멀리서 점으로 줄일 때 쓰는 시설별 색. 매물 상세 주변 지도의 색과 같다. */
+const DOT_COLOR: Partial<Record<NonNullable<MapMarker['category']>, string>> = {
+  TRANSPORT: '#3b82f6',
+  CONVENIENCE: '#22c55e',
+  HOSPITAL: '#ef4444',
+  AGENCY: '#f59e0b',
+};
+
 const isPropertyMarker = (marker: MapMarker) => marker.tone === 'property' || marker.tone === 'propertyCluster';
-const squaredDistance = (marker: MapMarker, point: { latitude: number; longitude: number }) =>
-  (marker.latitude - point.latitude) ** 2 + (marker.longitude - point.longitude) ** 2;
 
 const InfrastructureMap = ({ mapProps, open }: Props) => {
+  const [observedLevel, setObservedLevel] = useState(mapProps.level ?? 8);
+  useEffect(() => setObservedLevel(mapProps.level ?? 8), [mapProps.level]);
   const center = useRef(mapProps.center);
   const isDesktop = useIsDesktop();
   const markerLevel = isDesktop ? DESKTOP_FACILITY_MARKER_LEVEL : FACILITY_MARKER_LEVEL;
-  // 시설은 화면 범위나 확대 단계가 아니라 기준 매물 500m 안만 보여, 확대해도 나오는 자리가 달라지지 않는다.
-  // 기준은 고른 매물, 없으면 지도 가운데에서 가장 가까운 매물이다.
-  const anchor = useMemo(() => {
-    const properties = (mapProps.markers ?? []).filter(isPropertyMarker);
-    return (
-      properties.find((marker) => marker.id === mapProps.selectedMarkerId) ??
-      properties.reduce<MapMarker | null>(
-        (nearest, marker) =>
-          nearest === null || squaredDistance(marker, mapProps.center) < squaredDistance(nearest, mapProps.center)
-            ? marker
-            : nearest,
-        null,
-      )
-    );
-  }, [mapProps.markers, mapProps.selectedMarkerId, mapProps.center]);
+  // 시설은 화면 범위나 확대 단계에 따라 달라지지 않게, 고른 매물 500m 안만 보여 준다. 매물을 고르지 않았으면 분류 레일도 두지 않는다.
+  const anchor = useMemo(
+    () =>
+      (mapProps.markers ?? []).find((marker) => marker.id === mapProps.selectedMarkerId && isPropertyMarker(marker)) ??
+      null,
+    [mapProps.markers, mapProps.selectedMarkerId],
+  );
   const anchorPoint = useMemo(
     () => (anchor === null ? null : { latitude: anchor.latitude, longitude: anchor.longitude }),
     [anchor?.latitude, anchor?.longitude],
   );
   const anchorBounds = useMemo(() => (anchorPoint === null ? null : boundsAround(anchorPoint)), [anchorPoint]);
-  const circles = useMemo<MapRadiusCircle[] | undefined>(
-    () => (open && anchorPoint ? [{ radiusMeters: INFRASTRUCTURE_RADIUS_METERS, label: '500m' }] : undefined),
-    [open, anchorPoint],
-  );
   const layer = useInfrastructureLayer(open, anchorBounds, 0, markerLevel);
+  // 500m 범위는 시설을 보고 있을 때만 그린다.
+  const circles = useMemo<MapRadiusCircle[] | undefined>(
+    () =>
+      open && anchorPoint && layer.category !== null
+        ? [{ radiusMeters: INFRASTRUCTURE_RADIUS_METERS, label: '500m' }]
+        : undefined,
+    [open, anchorPoint, layer.category],
+  );
+  // 받아 온 시설은 네모 범위라 모서리와 칸 경계 밖의 것이 섞인다. 원 안(500m)에 든 것만 그린다.
+  const isNear = facilityMarkersVisible(observedLevel, markerLevel);
+  const facilityMarkers = useMemo<MapMarker[]>(() => {
+    if (anchorPoint === null) return [];
+    const inside = layer.markers.filter(
+      (marker) => distanceMeters(marker, anchorPoint) <= INFRASTRUCTURE_RADIUS_METERS,
+    );
+    if (isNear) return inside;
+    // 멀리 축소하면 핀 대신 작은 색 점으로만 남긴다. 화면이 넓은 데스크탑만 보여 준다.
+    return isDesktop
+      ? inside.map((marker) => ({
+          ...marker,
+          tone: 'dot' as const,
+          color: marker.category ? DOT_COLOR[marker.category] : undefined,
+        }))
+      : [];
+  }, [layer.markers, anchorPoint, isNear, isDesktop]);
   return (
     <>
       <MapCanvasSurface
         {...mapProps}
         circles={circles ?? mapProps.circles}
         radiusCenter={open && anchorPoint ? anchorPoint : mapProps.radiusCenter}
-        markers={[...(mapProps.markers ?? []), ...layer.markers]}
+        markers={[...(mapProps.markers ?? []), ...facilityMarkers]}
         selectedMarkerId={open && layer.selected ? layer.selected.id : mapProps.selectedMarkerId}
         onCenterChange={(latitude, longitude) => {
           center.current = { latitude, longitude };
           mapProps.onCenterChange?.(latitude, longitude);
+        }}
+        onLevelChange={(next) => {
+          setObservedLevel(next);
+          mapProps.onLevelChange?.(next);
         }}
         onSelectMarker={(marker) => {
           if (open && layer.selectMarker(marker)) return;
@@ -79,7 +115,7 @@ const InfrastructureMap = ({ mapProps, open }: Props) => {
           mapProps.onSelectMarker?.(marker);
         }}
       />
-      {open && (
+      {open && anchor !== null && (
         <>
           <MapCategoryRail
             className={styles.rail}
@@ -98,7 +134,6 @@ const InfrastructureMap = ({ mapProps, open }: Props) => {
               }
             }}
           />
-          {anchor === null && layer.category && <p className={styles.hint}>매물을 고르면 500m 안 시설이 보여요</p>}
           {layer.isError && (
             <div className={styles.hint} role="alert">
               시설 정보를 불러오지 못했어요.{' '}
@@ -128,12 +163,13 @@ const styles = {
   rail: css`
     label: InfrastructureMap-rail;
     && {
-      top: 10.5rem;
+      /* 현재 위치(10.55rem)와 찜한 동네(13.7rem) 버튼 줄 바로 아래. */
+      top: 16.85rem;
       right: 1.15rem;
       z-index: 35;
     }
     [data-desktop='false'] && {
-      top: calc(max(0.85rem, env(safe-area-inset-top)) + 13.75rem);
+      top: calc(max(0.85rem, env(safe-area-inset-top)) + 20.1rem);
       right: 0.95rem;
     }
   `,

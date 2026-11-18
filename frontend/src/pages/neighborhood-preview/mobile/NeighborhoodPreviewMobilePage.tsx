@@ -6,14 +6,12 @@ import useRecordsView from '@/pages/design-records/hooks/useRecordsView';
 import RecordsMobilePage from '@/pages/design-records/mobile/RecordsMobilePage';
 import { useRecordsMapController } from '@/pages/design-records/RecordsMapProvider';
 import MapCanvas from '@/features/map/ui/map-canvas/MapCanvas';
-import MapCategoryRail from '@/features/map/ui/map-category-rail/MapCategoryRail';
 import ExplorationRecordAction from '@/features/onboarding/ui/exploration-record-action/ExplorationRecordAction';
 import { LogClick } from '@/shared/lib/analytics/logging';
 import { NEIGHBORHOOD_ADDRESS_SEARCH_PATH, ROUTE_PATTERNS } from '@/shared/lib/navigation/appPaths';
 import BottomSheet from '@/shared/ui/bottom-sheet/BottomSheet';
 import { Button } from '@/shared/ui/button/Button';
 import Icon from '@/shared/ui/icon/Icon';
-import MapAddPropertyButton from '@/shared/ui/map-add-button/MapAddPropertyButton';
 import { useMapPanel } from '@/shared/ui/map-list-header/MapPanelContext';
 import { MapModeSwitchTile } from '@/shared/ui/map-mode-tile/MapModeContext';
 import MapViewSwitch from '@/shared/ui/map-view-switch/MapViewSwitch';
@@ -97,16 +95,14 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
     // 시트를 닫아 둔 동네 안을 다시 찍으면 그 동네 시트를 다시 연다.
     onSelectedRegionTap: isAreaSheetDismissed ? () => setDismissedAreaCode(null) : undefined,
   });
-  const { isResultMap, mapProps, places, closeLayers, rail, railSelection } = mapView;
+  const { isResultMap, mapProps, places, closeLayers } = mapView;
   const recordArea = preview.selected ?? preview.topAreas[0];
   const selectedArea = isRoutePage && !isAreaSheetDismissed ? preview.selected : undefined;
   const infoSubject: MapInfoSubject | null = places.selectedPlace
     ? { kind: 'place', place: places.selectedPlace }
     : selectedArea
       ? { kind: 'area', area: selectedArea }
-      : railSelection === 'MY'
-        ? { kind: 'my' }
-        : null;
+      : null;
   // 고른 동네가 있으면(시트를 닫아 두었어도) 빈 곳을 찍어 선택을 푼다. 마커나 `My` 시트만 열려 있으면 제목만 보이게 내린다.
   emptyTapRef.current = () => {
     if (preview.selected && (infoSubject === null || infoSubject.kind === 'area')) {
@@ -129,7 +125,6 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
       isResult
       zoom={{ level: preview.resultLevel, onZoom: preview.zoomResultBy }}
       className={styles.railControls}
-      rail={<MapCategoryRail showIcons={false} {...rail} />}
     />
   );
   // 통근, 환승, 월세 조건 칸. 위치를 고르기 전후 모두 아래 시트에 둔다.
@@ -176,22 +171,6 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
       ))}
     </div>
   );
-
-  // 오른쪽 아래 `매물 추가`는 기록 지도와 같은 자리에 둔다. 아래 시트(조건 카드, 필터, 정보)나 찍은 자리 말풍선이 열리면 내린다.
-  const layers = usesSharedSearch ? controller.layers : null;
-  const startRegister = layers?.startRegister ?? null;
-  const showsSearchCard = preview.isSelectingOnMap && (!usesSharedSearch || preview.hasChosenMapPoint);
-  const showsAddButton =
-    startRegister !== null &&
-    layers !== null &&
-    (isResultMap || preview.isSelectingOnMap) &&
-    !showsSearchCard &&
-    !preview.isMapSelectionEnabled &&
-    !isFilterSheetOpen &&
-    infoSubject === null &&
-    layers.tapPoint === null &&
-    layers.memo.mode === null &&
-    !layers.isRegistering;
 
   if (isDetailPage && !preview.isAnalyzing && !preview.error)
     return (
@@ -274,7 +253,6 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
               preview={preview}
               isResult={false}
               className={styles.railControls}
-              rail={<MapCategoryRail showIcons={false} {...rail} />}
               zoom={{ level: preview.selectionLevel, onZoom: preview.zoomSelectionBy }}
               isFilterOpen={pickerField !== null}
             />
@@ -302,6 +280,13 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
                     이전 결과 보기
                   </Button>
                 )}
+                {/* 처음 들어왔을 때는 기록 지도로 나가고, 지난 검색이 있으면 그 결과로 돌아간다. */}
+                <Button
+                  variant="secondary"
+                  onClick={preview.hasSubmittedSearch ? preview.cancelEditing : preview.leave}
+                >
+                  동네 찾기 취소
+                </Button>
                 {filterChips}
                 {pickerField !== null && (
                   <NeighborhoodFilterPicker key={pickerField} preview={preview} field={pickerField} />
@@ -360,26 +345,11 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
                       <i className={styles.noRentSwatch} style={{ borderColor: NO_RENT_COLOR.strokeColor }} />
                       {NO_RENT_LEGEND_LABEL}
                     </span>
-                    <button
-                      className={styles.regionToggle}
-                      type="button"
-                      aria-pressed={preview.areRegionsVisible}
-                      onClick={preview.toggleRegions}
-                    >
-                      {preview.areRegionsVisible ? '행정동 숨기기' : '행정동 표시하기'}
+                    <button className={styles.regionToggle} type="button" onClick={toggleCriteria}>
+                      표 닫기
                     </button>
                   </div>
                 )}
-                <button
-                  type="button"
-                  className={styles.criteriaToggle}
-                  aria-label={isCriteriaCollapsed ? '조건과 범례 펼치기' : '조건과 범례 접기'}
-                  aria-expanded={!isCriteriaCollapsed}
-                  onClick={toggleCriteria}
-                >
-                  <Icon name={isCriteriaCollapsed ? 'chevron-down' : 'chevron-up'} size={14} />
-                  {isCriteriaCollapsed && <span>조건</span>}
-                </button>
               </div>
             </header>
             {resultControls}
@@ -429,7 +399,6 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
             {isRoutePage && <Outlet context={preview} />}
           </>
         )}
-        {showsAddButton && <MapAddPropertyButton onClick={startRegister} />}
       </section>
     </main>
   );

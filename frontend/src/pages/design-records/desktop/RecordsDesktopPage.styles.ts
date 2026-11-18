@@ -24,10 +24,9 @@ export const frame = css`
   }
 `;
 
-/* 지도 위쪽 동네 뱃지 줄 아래에 상세 닫기 버튼을 둔다. */
 export const body = css`
   label: RecordsDesktopPage-body;
-  --list-detail-close-top: 1rem;
+  --list-detail-close-top: 6rem;
   flex: 1;
   height: auto;
 `;

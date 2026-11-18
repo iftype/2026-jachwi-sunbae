@@ -68,7 +68,7 @@ const NeighborhoodMapSearch = ({ preview, hideHome = false }: NeighborhoodMapSea
             shape="pill"
             showSubmitButton={false}
             label="출퇴근 장소"
-            placeholder="출퇴근하는 장소 검색"
+            placeholder="주소로 지도 이동"
             value={preview.query}
             onValueChange={preview.changeQuery}
             onSubmit={() => {

@@ -9,8 +9,7 @@ import Icon from '@/shared/ui/icon/Icon';
 import type { RecordsState } from '../hooks/useRecords';
 import type { RecordsMapLayers } from '../hooks/useRecordsMapLayers';
 import { recordNeighbors } from '../model/recordNavigation';
-import RecordMapTapIntro from '../ui/record-map-tap-intro/RecordMapTapIntro';
-import RecordRecommendButton from '../ui/record-recommend-button/RecordRecommendButton';
+import RecordBookmarkToggle from '../ui/record-bookmark-toggle/RecordBookmarkToggle';
 import RecordRegisterSuggestion from '../ui/record-register-suggestion/RecordRegisterSuggestion';
 import RecordStepper from '../ui/record-stepper/RecordStepper';
 import RecordsSelectedSheet from './RecordsSelectedSheet';
@@ -34,8 +33,8 @@ const RecordsMobileMap = ({ records, layers }: Props) => {
   return (
     <section className={styles.map} aria-label="본 방 기록 지도">
       <MapCanvas shared {...layers.canvasProps} coordinateMenu={layers.coordinateMenu} />
-      <RecordMapTapIntro hasTapped={layers.tapPoint !== null || layers.memo.mode !== null} />
       <StreetMemoImpressionLog memos={layers.memo.visibleMemos} />
+      <RecordBookmarkToggle bookmarks={layers.bookmarks} />
       <button
         className={styles.recenter}
         type="button"
@@ -52,9 +51,6 @@ const RecordsMobileMap = ({ records, layers }: Props) => {
         onNotice={records.setNotice}
       />
       <StreetMemoSheet layer={layers.memo} />
-      {layers.recommendMode && (
-        <RecordRecommendButton isActive={layers.recommendMode.isActive} onToggle={layers.recommendMode.toggle} />
-      )}
       <RecordRegisterSuggestion
         isOpen={layers.isSuggestingRegister}
         onAccept={layers.acceptRegisterSuggestion}
@@ -77,7 +73,8 @@ const styles = {
   recenter: css`
     label: RecordsMobileMap-recenter;
     position: absolute;
-    top: calc(max(0.85rem, env(safe-area-inset-top)) + 25rem);
+    /* 확대 축소 바로 아래(zoom 8rem + 높이 약 5.3rem + 간격 0.5rem)에 붙인다. */
+    top: calc(max(0.85rem, env(safe-area-inset-top)) + 13.8rem);
     right: 0.95rem;
     z-index: 12;
     display: grid;

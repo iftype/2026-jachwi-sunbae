@@ -15,10 +15,12 @@ import type { RecordsMapLayers } from '../hooks/useRecordsMapLayers';
 import { recordNeighbors } from '../model/recordNavigation';
 import { RECORDS_LOADING_LABEL } from '../RecordsPageSkeleton';
 import RecordAddressSearch from '../ui/record-address-search/RecordAddressSearch';
+import RecordCompareLink from '../ui/record-compare-link/RecordCompareLink';
 import RecordDistricts from '../ui/record-districts/RecordDistricts';
 import RecordGroupList from '../ui/record-group/RecordGroupList';
 import RecordList from '../ui/record-list/RecordList';
 import RecordLoadError from '../ui/record-load-error/RecordLoadError';
+import RecordNeighborhoodBanner from '../ui/record-neighborhood-banner/RecordNeighborhoodBanner';
 import RecordNotice from '../ui/record-notice/RecordNotice';
 import RecordStepper from '../ui/record-stepper/RecordStepper';
 import RecordsDesktopMap from './RecordsDesktopMap';
@@ -74,17 +76,22 @@ const RecordsDesktopPage = ({ records, layers }: Props) => {
         records={records.records}
         district={records.district}
         onOpen={records.showRecord}
+        selectedId={records.selected?.id}
         onNotice={setNotice}
       />
     </div>
   ) : (
-    <RecordList
-      className={styles.list}
-      records={records.records}
-      district={records.district}
-      onOpen={records.showRecord}
-      onNotice={setNotice}
-    />
+    <>
+      <RecordCompareLink />
+      <RecordList
+        className={styles.list}
+        records={records.records}
+        district={records.district}
+        onOpen={records.showRecord}
+        selectedId={records.selected?.id}
+        onNotice={setNotice}
+      />
+    </>
   );
 
   // 상세 칸 머리의 이전, 다음은 리스트 순서대로 넘기고, 지도도 그 매물 자리로 옮긴다.
@@ -123,15 +130,15 @@ const RecordsDesktopPage = ({ records, layers }: Props) => {
           </h1>
           <ListDetailLayout
             className={styles.body}
-            floating
             list={
               <>
                 {!panel && (
                   <MapListHeader center={<MapHeaderWeather />}>
-                    <RecordAddressSearch onSelect={records.moveTo} />
+                    <RecordAddressSearch onSelect={records.searchTo} />
                   </MapListHeader>
                 )}
                 {panel?.content ?? list}
+                {!panel && <RecordNeighborhoodBanner />}
               </>
             }
             detail={panel ? undefined : detail}
