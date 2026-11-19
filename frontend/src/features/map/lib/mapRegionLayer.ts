@@ -1,6 +1,12 @@
 import type { MapRegion } from '../model/MapCanvas';
 import { mapZoomScale, REGION_NAME_LABEL_Z_INDEX } from './mapMarkerPresentation';
-import { createRegionRentLabelElement, createRegionSummaryElement, regionLabelPosition } from './mapRegionSummary';
+import { pickVisibleChips } from './mapRegionChips';
+import {
+  createRegionChipElement,
+  createRegionRentLabelElement,
+  createRegionSummaryElement,
+  regionLabelPosition,
+} from './mapRegionSummary';
 import type { LiveMap, LiveOverlay, naverEngine } from './naverMapEngine';
 
 type Engine = Pick<ReturnType<typeof naverEngine>, 'latLng' | 'createOverlay' | 'removeListener'> &
@@ -16,6 +22,11 @@ export const READY_TIMEOUT_MS = 3000;
 export const RENT_LABEL_SHOW_LEVEL = 7;
 /** 마우스를 올린 동네를 이만큼 진하게 한다. 옅게 깐 색에 맞춰 조금만 올린다. */
 const HOVER_OPACITY = 0.04;
+/**
+ * 동 라벨을 그리는 방식. `full`은 데스크탑의 요약 카드와 월세 라벨, `chip`은 휴대폰의 `동 이름 통근 시간` 한 줄 이름표다.
+ * 휴대폰은 요약 카드를 두지 않고, 서로 겹치는 이름표는 숨긴다.
+ */
+export type RegionLabelStyle = 'full' | 'chip';
 type Polygon = InstanceType<NaverMapsNamespace['Polygon']>;
 const anchorOf = (region: MapRegion) => region.center ?? region.polygons?.[0]?.[0]?.[0] ?? region.paths[0]?.[0];
 /** 화면 중심에서 가까운 순서를 정하는 용도라 위도에 따른 경도 축척만 맞춘 근사 거리다. */
@@ -93,10 +104,10 @@ export const createMapRegionLayer = (
 ) => {
   const entries = new Map<string, Entry>();
   // 처음 그릴 때 GL 등록이 한 프레임에 몰리지 않도록 drawStage 순서로 나눠 만든다.
-  let latest: { regions: MapRegion[]; selectedId: string | null; hidesLabels: boolean } = {
+  let latest: { regions: MapRegion[]; selectedId: string | null; labelStyle: RegionLabelStyle } = {
     regions: [],
     selectedId: null,
-    hidesLabels: false,
+    labelStyle: 'full',
   };
   let allowedStage = Infinity;
   let staging = false;
@@ -157,8 +168,15 @@ export const createMapRegionLayer = (
     return entry;
   };
   const apply = () => {
-    const { regions, selectedId, hidesLabels } = latest;
+    const { regions, selectedId, labelStyle } = latest;
     const level = getLevel();
+    const isChip = labelStyle === 'chip';
+    // 월세 라벨은 데스크탑과 같은 단계부터 보이고, 이름만 두는 찜한 동네는 단계와 상관없이 보인다. 휴대폰은 그중 겹치지 않는 것만 남긴다.
+    const wantsChip = (region: MapRegion) =>
+      region.name !== '' &&
+      ((region.rentLabel !== undefined && level <= RENT_LABEL_SHOW_LEVEL) ||
+        (region.showsName === true && !region.rentLabel));
+    const visibleChips = isChip ? pickVisibleChips(regions.filter(wantsChip), selectedId, level) : null;
     // 나눠 그리는 중이면 이번 묶음에 넣을 동을 고른다. 같은 단계 안에서는 지금 화면 중심에 가까운 동부터 넣는다.
     let toCreate: Set<string> | null = null;
     if (staging) {
@@ -212,26 +230,31 @@ export const createMapRegionLayer = (
         );
       }
       // 요약이 없는 통근 경계에는 불필요한 DOM을 만들지 않는다.
+      const showsChip = visibleChips?.has(region.id) === true;
       const showsRentLabel =
-        !hidesLabels && region.rentLabel !== undefined && region.name !== '' && level <= RENT_LABEL_SHOW_LEVEL;
-      const showsSummary = !hidesLabels && Boolean(region.summary);
-      const showsNameLabel = !hidesLabels && region.showsName === true && !region.summary && !showsRentLabel;
-      const labelKey = showsSummary
-        ? JSON.stringify([region.name, region.summary, region.center, region.appearance, selected])
-        : showsRentLabel
-          ? JSON.stringify(['rent', region.name, region.rentLabel, region.center, selected])
-          : showsNameLabel
-            ? JSON.stringify(['name', region.name, region.nameCaption, region.center, selected])
-            : '';
+        !isChip && region.rentLabel !== undefined && region.name !== '' && level <= RENT_LABEL_SHOW_LEVEL;
+      const showsSummary = !isChip && Boolean(region.summary);
+      const showsNameLabel = !isChip && region.showsName === true && !region.summary && !showsRentLabel;
+      const labelKey = showsChip
+        ? JSON.stringify(['chip', region.name, region.rentLabel, region.showsName, region.center, selected])
+        : showsSummary
+          ? JSON.stringify([region.name, region.summary, region.center, region.appearance, selected])
+          : showsRentLabel
+            ? JSON.stringify(['rent', region.name, region.rentLabel, region.center, selected])
+            : showsNameLabel
+              ? JSON.stringify(['name', region.name, region.nameCaption, region.center, selected])
+              : '';
       if (entry.labelKey !== labelKey) {
         entry.label?.setMap(null);
         entry.label = null;
         entry.summary = null;
         entry.labelKey = labelKey;
-        if (showsSummary || showsRentLabel || showsNameLabel) {
-          const summary = showsSummary
-            ? createRegionSummaryElement(region, selected, () => onSelect(region.id))
-            : createRegionRentLabelElement(region, selected, () => onSelect(region.id));
+        if (showsChip || showsSummary || showsRentLabel || showsNameLabel) {
+          const summary = showsChip
+            ? createRegionChipElement(region, selected, () => onSelect(region.id))
+            : showsSummary
+              ? createRegionSummaryElement(region, selected, () => onSelect(region.id))
+              : createRegionRentLabelElement(region, selected, () => onSelect(region.id));
           summary.dataset.hovered = String(entry.hovered);
           summary.addEventListener('mouseenter', () => hover(entry, true));
           summary.addEventListener('mouseleave', () => hover(entry, false));
@@ -243,7 +266,8 @@ export const createMapRegionLayer = (
             { id: region.id, label: region.name, ...regionLabelPosition(region) },
             summary,
             // 찜한 동네 이름표는 그 위의 메모와 매물 마커에 가려 누르지 못하지 않게 마커보다 앞에 둔다.
-            showsNameLabel ? REGION_NAME_LABEL_Z_INDEX : 5,
+            // 휴대폰에서 고른 동네의 이름표도 이웃 이름표와 마커보다 앞에 둔다.
+            showsNameLabel || (showsChip && (selected || region.showsName === true)) ? REGION_NAME_LABEL_Z_INDEX : 5,
           );
         }
       }
@@ -270,8 +294,8 @@ export const createMapRegionLayer = (
     });
   };
   return {
-    /** `hidesLabels`가 참이면 동 이름과 요약 라벨은 그리지 않고 영역(색칠)과 누르기만 남긴다. 휴대폰 지도가 쓴다. */
-    sync: (regions: MapRegion[], selectedId: string | null, hidesLabels = false) => {
+    /** 휴대폰 지도는 `labelStyle`에 `chip`을 넘겨 겹치지 않는 작은 이름표만 그린다. */
+    sync: (regions: MapRegion[], selectedId: string | null, labelStyle: RegionLabelStyle = 'full') => {
       cancelPending();
       // 이미 그려진 동이 하나도 없는 새 결과만 단계를 나눈다. 선택·확대 같은 갱신은 바로 반영한다.
       if (!regions.some((region) => entries.has(region.id))) {
@@ -279,7 +303,7 @@ export const createMapRegionLayer = (
         allowedStage = stages.length ? Math.min(...stages) : Infinity;
         staging = stages.length > 0;
       }
-      latest = { regions, selectedId, hidesLabels };
+      latest = { regions, selectedId, labelStyle };
       apply();
     },
     dispose: (sdkUnavailable = false) => {

@@ -1,5 +1,7 @@
 import { css, cx, keyframes } from '@emotion/css';
 
+import { MAP_LAYER } from '@/shared/lib/map-layers/mapLayers';
+
 const searchCardRiseKeyframes = keyframes`
   from {
     opacity: 0;
@@ -834,7 +836,7 @@ export const resultHeader = css`
   display: flex;
   gap: 0.45rem;
   align-items: flex-start;
-  z-index: 31;
+  z-index: ${MAP_LAYER.header};
 
   @media (max-width: 370px) {
     left: 0.6rem;

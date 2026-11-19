@@ -1,5 +1,7 @@
 import { css } from '@emotion/css';
 
+import { MAP_LAYER } from '@/shared/lib/map-layers/mapLayers';
+
 import {
   DESKTOP_MAP_CONTROLS_RIGHT,
   DESKTOP_MAP_CONTROLS_TOP,
@@ -51,7 +53,7 @@ const styles = {
   button: css`
     label: MapBookmarkToggle-button;
     position: absolute;
-    z-index: 32;
+    z-index: ${MAP_LAYER.bookmarkToggle};
     top: ${DESKTOP_MAP_CONTROLS_TOP};
     right: ${DESKTOP_MAP_CONTROLS_RIGHT};
     display: grid;

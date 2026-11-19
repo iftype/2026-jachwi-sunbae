@@ -69,7 +69,12 @@ const setup = ({
   const engine = {
     latLng: (lat: number, lng: number) => ({ lat, lng }),
     createOverlay: vi.fn(
-      (_map: unknown, marker: { id: string; latitude: number; longitude: number }, content: HTMLElement) => {
+      (
+        _map: unknown,
+        marker: { id: string; latitude: number; longitude: number },
+        content: HTMLElement,
+        _zIndex?: number,
+      ) => {
         const overlay = { marker, content, setMap: vi.fn() };
         overlays.push(overlay);
         return overlay;
@@ -324,28 +329,76 @@ describe('경계 레이어', () => {
     expect(overlays.every((overlay) => overlay.setMap.mock.calls.some(([value]) => value === null))).toBe(true);
   });
 
-  it('휴대폰에서는 동 이름과 요약, 월세 라벨을 그리지 않고 영역과 누르기는 그대로 둔다', () => {
+  it('휴대폰에서는 요약 카드 대신 동 이름과 통근 시간만 적은 이름표를 그리고, 누르면 그 동을 고른다', () => {
     const { layer, polygons, overlays, onSelect, fire } = setup();
-    const rentLabel = { price: null, count: 0, sparse: false, filteredOut: false, commute: '12분' };
+    const rentLabel = { price: '55만', count: 40, sparse: false, filteredOut: false, commute: '4분' };
     const regions = [
       region('summary', { center: { latitude: 37.5, longitude: 127 }, summary: { price: '50만원' } }),
-      region('rent', { center: { latitude: 37.5, longitude: 127.01 }, rentLabel }),
+      region('삼성2동', { center: { latitude: 37.5, longitude: 127.01 }, rentLabel }),
       region('name', { center: { latitude: 37.5, longitude: 127.02 }, showsName: true }),
     ];
-    layer.sync(regions, null, true);
-    expect(overlays).toHaveLength(0);
+    layer.sync(regions, null, 'chip');
     expect(polygons).toHaveLength(3);
+    expect(overlays.map((overlay) => overlay.marker.id)).toEqual(['삼성2동', 'name']);
+    const chip = overlays[0].content;
+    expect(chip).toHaveTextContent('삼성2동4분');
+    // 월세는 글자로 적지 않고 읽기 도구 이름에만 둔다.
+    expect(chip).not.toHaveTextContent('월세');
+    expect(chip).toHaveAttribute('aria-label', '삼성2동 통근 4분 월세 55만, 거래 40건');
+    chip.click();
+    expect(onSelect).toHaveBeenCalledWith('삼성2동');
     fire(polygons[0], 'click');
     expect(onSelect).toHaveBeenCalledWith('summary', undefined);
-    // 데스크탑 기준으로 다시 맞추면 라벨이 돌아온다.
-    layer.sync(regions, null, false);
-    expect(overlays).toHaveLength(3);
-    // 다시 휴대폰 기준이 되면 이미 그린 라벨도 거둔다.
-    layer.sync(regions, null, true);
-    expect(overlays.every((overlay) => overlay.setMap.mock.calls.some(([value]) => value === null))).toBe(true);
+    // 데스크탑 기준으로 다시 맞추면 요약 카드와 월세 라벨로 바꿔 그린다.
+    layer.sync(regions, null, 'full');
+    expect(overlays.slice(2).map((overlay) => overlay.marker.id)).toEqual(['summary', '삼성2동', 'name']);
+    expect(overlays[3].content).toHaveTextContent('월세 55만');
   });
 
-  it('찜한 동네 이름표는 월세 시세가 도착하면 이름표만 새로 만들고, 휴대폰에서는 시세가 있어도 그리지 않는다', () => {
+  it('휴대폰 이름표는 데스크탑과 같은 7단계부터 보이고, 고른 동은 강조해 앞에 둔다', () => {
+    const { layer, overlays, engine, setLevel } = setup();
+    const rentLabel = { price: null, count: 0, sparse: false, filteredOut: false, commute: '12분' };
+    const regions = [region('a', { center: { latitude: 37.5, longitude: 127 }, rentLabel })];
+    setLevel(8);
+    layer.sync(regions, null, 'chip');
+    expect(overlays).toHaveLength(0);
+    setLevel(7);
+    layer.sync(regions, 'a', 'chip');
+    expect(overlays).toHaveLength(1);
+    expect(overlays[0].content).toHaveAttribute('aria-pressed', 'true');
+    expect(engine.createOverlay.mock.calls[0][3]).toBeGreaterThan(5);
+  });
+
+  it('휴대폰 이름표가 서로 겹치면 고른 동, 찜한 동, 통근이 짧은 동 순으로 남기고 나머지는 숨긴다', () => {
+    const { layer, overlays, setLevel } = setup();
+    const label = (commute: string, extra = {}) => ({
+      price: null,
+      count: 0,
+      sparse: false,
+      filteredOut: false,
+      commute,
+      ...extra,
+    });
+    // 경도 0.0005도는 확대 단계 6(네이버 zoom 14)에서 약 6px라 이름표가 서로 겹친다.
+    const regions = [
+      region('far', { center: { latitude: 37.5, longitude: 127 }, rentLabel: label('40분') }),
+      region('near', { center: { latitude: 37.5, longitude: 127.0005 }, rentLabel: label('10분') }),
+      region('apart', { center: { latitude: 37.5, longitude: 127.05 }, rentLabel: label('50분') }),
+    ];
+    setLevel(6);
+    layer.sync(regions, null, 'chip');
+    expect(overlays.map((overlay) => overlay.marker.id)).toEqual(['near', 'apart']);
+    layer.sync(regions, 'far', 'chip');
+    const shown = overlays.filter((overlay) => !overlay.setMap.mock.calls.some(([value]) => value === null));
+    expect(shown.map((overlay) => overlay.marker.id).sort()).toEqual(['apart', 'far']);
+    // 가까이 다가가면 떨어져 보여 모두 남는다.
+    setLevel(1);
+    layer.sync(regions, null, 'chip');
+    const closer = overlays.filter((overlay) => !overlay.setMap.mock.calls.some(([value]) => value === null));
+    expect(closer.map((overlay) => overlay.marker.id).sort()).toEqual(['apart', 'far', 'near']);
+  });
+
+  it('찜한 동네 이름표는 월세 시세가 도착하면 이름표만 새로 만들고, 휴대폰에서는 이름만 적은 이름표로 둔다', () => {
     const { layer, polygons, overlays } = setup();
     const bookmark = region('name', { center: { latitude: 37.5, longitude: 127 }, showsName: true });
     layer.sync([bookmark], null);
@@ -355,8 +408,10 @@ describe('경계 레이어', () => {
     expect(polygons).toHaveLength(1);
     expect(overlays).toHaveLength(2);
     expect(overlays[1].content.querySelector('small')).toHaveTextContent('월세 70만');
-    layer.sync([{ ...bookmark, nameCaption: '월세 70만' }], null, true);
-    expect(overlays).toHaveLength(2);
+    layer.sync([{ ...bookmark, nameCaption: '월세 70만' }], null, 'chip');
+    expect(overlays).toHaveLength(3);
+    expect(overlays[2].content).toHaveTextContent(/^name$/);
+    expect(overlays[2].content.dataset.bookmark).toBe('true');
   });
 
   it('점선으로 표시하는 색(월세 정보 없음)은 테두리를 점선으로 그리고, 고르면 실선으로 강조한다', () => {

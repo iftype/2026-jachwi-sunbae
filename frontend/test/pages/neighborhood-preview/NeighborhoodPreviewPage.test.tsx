@@ -464,7 +464,12 @@ it('모바일에서 동네 시트가 열려 있어도 출퇴근 장소 다시 �
 
   await user.click(screen.getByRole('button', { name: '역삼1동' }));
   const sheet = await screen.findByRole('region', { name: /역삼1동/ });
-  const reselect = within(sheet).getByRole('button', { name: '출퇴근 장소 다시 선택' });
+  // 시트 바로 앞 형제인 띄운 버튼 줄에 있어 시트와 함께 오르내리되, 지도 위 카드보다 아래층이다.
+  expect(within(sheet).queryByRole('button', { name: '출퇴근 장소 다시 선택' })).toBeNull();
+  const floatingRow = sheet.previousElementSibling;
+  expect(floatingRow).toBeInstanceOf(HTMLElement);
+  if (!(floatingRow instanceof HTMLElement)) return;
+  const reselect = within(floatingRow).getByRole('button', { name: '출퇴근 장소 다시 선택' });
   expect(screen.getAllByRole('button', { name: '출퇴근 장소 다시 선택' })).toHaveLength(1);
   await user.click(reselect);
   expect(screen.getByRole('textbox', { name: '출퇴근 장소' })).toBeInTheDocument();
@@ -1054,8 +1059,11 @@ it('휴대폰은 지도에서 동네를 누르면 낮은 시트에 그 동네의
   expect(sheet.getByText('68 / 1,000')).toBeInTheDocument();
   expect(sheet.getByText('소요시간')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /다방에서 역삼1동 원·투룸 보기/ })).toBeInTheDocument();
-  // 동네 시트는 낮게 열고, 끌어 올려 더 크게 볼 수 있게 손잡이를 둔다.
-  expect(screen.getByRole('button', { name: '상세 패널 높이 조절' })).toBeInTheDocument();
+  // 동네 시트는 내용 높이가 끝이라, 손잡이로 내려 닫을 수는 있어도 위 화살표로 더 크게 열리지 않는다.
+  const handle = screen.getByRole('button', { name: '상세 패널 높이 조절' });
+  handle.focus();
+  await user.keyboard('{ArrowUp}');
+  expect(screen.getByRole('region', { name: '역삼1동' })).toHaveAttribute('data-mode', 'default');
 });
 it('공개 동네 찾기는 My 칸과 개인 매물 조회를 제공하지 않는다', async () => {
   let propertyRequests = 0;

@@ -1,6 +1,8 @@
 import { css, cx } from '@emotion/css';
 import type { CSSProperties, PointerEvent, ReactNode } from 'react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+
+import { MAP_LAYER } from '@/shared/lib/map-layers/mapLayers';
 
 import Icon from '../icon/Icon';
 
@@ -40,11 +42,16 @@ type BottomSheetProps = {
    * 접혀 있는 동안 `default`로 바뀌면(마커를 눌러 펼치는 경우) 시트도 펼친다.
    */
   initialMode?: SheetMode;
+  /**
+   * 끌어 올리거나 키보드로 펼칠 수 있는 가장 높은 단계. `default`면 처음 높이가 끝이라 위로 끌어도 그 높이에 머문다.
+   * 내리기와 닫기는 그대로다. 주지 않으면 `fullPage`에 따라 `full`이나 `expanded`까지 연다.
+   */
+  maxMode?: SheetMode;
   /** 높이 단계가 바뀌면(처음 열 때 포함) 알린다. */
   onModeChange?: (mode: SheetMode) => void;
   /**
    * 시트 바로 위 오른쪽에 띄울 것(지도 현재 위치 버튼 등). 시트와 함께 오르내려 시트에 가리지 않는다.
-   * 페이지로 열면 숨긴다.
+   * 시트 밖 아래층(`MAP_LAYER.sheetFloating`)에 두어, 시트를 올려 지도 위 카드 높이에 닿으면 카드 밑으로 깔린다. 페이지로 열면 숨긴다.
    */
   floating?: ReactNode;
   /** 시트 상자에 덧붙일 클래스. 내용이 바뀔 때 다시 올라오는 전환처럼 화면마다 다른 움직임만 덧붙인다. */
@@ -73,6 +80,7 @@ const BottomSheet = ({
   subtitle,
   collapsible = false,
   initialMode = 'default',
+  maxMode,
   onModeChange,
   floating,
   className,
@@ -87,7 +95,11 @@ const BottomSheet = ({
   useEffect(() => {
     if (initialMode === 'default') setMode((current) => (current === 'peek' ? 'default' : current));
   }, [initialMode]);
-  const modes: SheetMode[] = fullPage ? ['peek', 'default', 'expanded', 'full'] : ['peek', 'default', 'expanded'];
+  const allModes: SheetMode[] = fullPage ? ['peek', 'default', 'expanded', 'full'] : ['peek', 'default', 'expanded'];
+  const maxIndex = maxMode === undefined ? -1 : allModes.indexOf(maxMode);
+  const modes = maxIndex < 0 ? allModes : allModes.slice(0, maxIndex + 1);
+  const canExpand = modes.includes('expanded');
+  const canOpenFull = modes.includes('full');
   const lastPeekSignal = useRef(peekSignal);
   useEffect(() => {
     if (peekSignal === lastPeekSignal.current) return;
@@ -98,6 +110,26 @@ const BottomSheet = ({
   const gesture = useRef<{ startY: number; height: number; limit: number; frame: number | null } | null>(null);
   const dragged = useRef(false);
   const sheetRef = useRef<HTMLElement>(null);
+  const floatingRef = useRef<HTMLDivElement>(null);
+  // 띄운 버튼 줄은 시트 밖에 있어 시트 높이를 직접 따라가지 못한다. 시트의 지금 높이(끄는 동안 밀어 내린 것은 빼고)와 키패드 높이를 옮겨 적는다.
+  const syncFloating = () => {
+    const sheet = sheetRef.current;
+    const floatingLayer = floatingRef.current;
+    if (!sheet || !floatingLayer) return;
+    floatingLayer.style.setProperty('--sheet-offset', `${sheet.offsetHeight}px`);
+    floatingLayer.style.setProperty('--keyboard-inset', sheet.style.getPropertyValue('--keyboard-inset'));
+    floatingLayer.style.transform = sheet.style.transform;
+  };
+  const hasFloating = Boolean(floating) && mode !== 'full';
+  useLayoutEffect(() => {
+    if (!hasFloating) return;
+    syncFloating();
+    const sheet = sheetRef.current;
+    if (sheet === null || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(syncFloating);
+    observer.observe(sheet);
+    return () => observer.disconnect();
+  }, [hasFloating, mode]);
   // 휴대폰 키패드가 오르면 시트 아래쪽이 가려진다. 키패드 높이만큼 시트를 위로 올려, 시트를 높게 열지 않아도 입력칸이 보이게 한다.
   useEffect(() => {
     const viewport = window.visualViewport;
@@ -106,6 +138,7 @@ const BottomSheet = ({
     const update = () => {
       const inset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
       sheet.style.setProperty('--keyboard-inset', `${Math.round(inset)}px`);
+      syncFloating();
     };
     update();
     viewport.addEventListener('resize', update);
@@ -132,6 +165,7 @@ const BottomSheet = ({
     sheet.style.removeProperty('--sheet-height');
     sheet.style.removeProperty('transform');
     delete sheet.dataset.dragging;
+    syncFloating();
   };
   const finish = (event: PointerEvent<HTMLButtonElement>) => {
     const start = gesture.current;
@@ -144,127 +178,135 @@ const BottomSheet = ({
     else if (released < start.limit * 0.25) {
       if (collapsible) setMode('peek');
       else onClose();
-    } else if (fullPage && released > start.limit * 0.85) setMode('full');
-    else setMode(released > start.limit * 0.6 ? 'expanded' : 'default');
+    } else if (canOpenFull && released > start.limit * 0.85) setMode('full');
+    else setMode(canExpand && released > start.limit * 0.6 ? 'expanded' : 'default');
   };
   return (
-    <section
-      ref={sheetRef}
-      className={className ? cx(styles.sheet, className) : styles.sheet}
-      aria-label={title}
-      tabIndex={-1}
-      data-resizable={resizable}
-      data-expanded={mode === 'expanded' || mode === 'full' || undefined}
-      data-mode={mode}
-      style={
-        {
-          '--sheet-default-height': `${Math.max(25, Math.min(88, initialHeightPercent))}%`,
-        } as CSSProperties
-      }
-      onKeyDown={(event) => {
-        if (event.key === 'Escape') {
-          event.stopPropagation();
-          onClose();
-        }
-      }}
-    >
-      {floating && !isFullPage && <div className={styles.floating}>{floating}</div>}
-      {resizable && !isFullPage && (
-        <button
-          ref={handleRef}
-          className={styles.grabber}
-          type="button"
-          aria-label="상세 패널 높이 조절"
-          aria-expanded={mode === 'expanded'}
-          onPointerDown={(event) => {
-            if (event.button !== 0) return;
-            dragged.current = false;
-            const sheet = sheetRef.current;
-            if (!sheet) return;
-            gesture.current = {
-              startY: event.clientY,
-              height: sheet.getBoundingClientRect().height,
-              limit: sheet.parentElement?.getBoundingClientRect().height ?? window.innerHeight,
-              frame: null,
-            };
-            event.currentTarget.setPointerCapture?.(event.pointerId);
-          }}
-          onPointerMove={(event) => {
-            const start = gesture.current;
-            const sheet = sheetRef.current;
-            if (!start || !sheet || Math.abs(event.clientY - start.startY) < 6) return;
-            dragged.current = true;
-            const max = start.limit * (fullPage ? 1 : 0.9);
-            const target = Math.max(80, Math.min(max, start.height + start.startY - event.clientY));
-            // 높이를 바꾸면 움직일 때마다 시트 안 전체를 다시 배치하고 그린다. 시작에 한 번만 최대 높이로 늘리고,
-            // 그 뒤로는 보이는 높이만큼만 올라오게 아래로 밀어(transform) 합성만 일어나게 한다.
-            if (start.frame === null) {
-              sheet.dataset.dragging = 'true';
-              sheet.style.setProperty('--sheet-height', `${max}px`);
-              // max-height에 걸리면 덜 늘어나므로 실제 높이를 기준으로 민다.
-              start.frame = sheet.getBoundingClientRect().height;
-            }
-            sheet.style.transform = `translateY(${Math.max(0, start.frame - Math.min(target, start.frame))}px)`;
-          }}
-          onPointerUp={finish}
-          onPointerCancel={(event) => {
-            gesture.current = null;
-            clearDrag();
-            event.currentTarget.releasePointerCapture?.(event.pointerId);
-          }}
-          // 누르기만 해서는 높이를 바꾸지 않는다. 끌어서 바꾸고, 키보드는 위·아래 화살표로 한 단계씩 바꾼다.
-          onClick={() => {
-            const wasDragged = dragged.current;
-            dragged.current = false;
-            if (collapsible && mode === 'peek' && !wasDragged) setMode('default');
-          }}
-          onKeyDown={(event) => {
-            if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
-            event.preventDefault();
-            const index = modes.indexOf(mode);
-            setMode(modes[Math.max(0, Math.min(modes.length - 1, index + (event.key === 'ArrowUp' ? 1 : -1)))]);
-          }}
-        >
-          <span />
-        </button>
-      )}
-      <header className={hideHeader ? `${styles.header} sr-only` : styles.header}>
-        {back && (
-          <button type="button" className={styles.back} aria-label="뒤로 가기" onClick={back}>
-            <Icon name="chevron-left" size={22} />
-          </button>
-        )}
-        <div className={styles.titles}>
-          <h2 className={hideTitle ? 'sr-only' : undefined}>{title}</h2>
-          {subtitle && <p>{subtitle}</p>}
+    <>
+      {hasFloating && (
+        <div ref={floatingRef} className={styles.floating} data-mode={mode}>
+          {floating}
         </div>
-        {hidesHeaderEndWhenExpanded && (mode === 'expanded' || mode === 'full') ? null : headerEnd}
-        {collapsible && !isFullPage && (
+      )}
+      <section
+        ref={sheetRef}
+        className={className ? cx(styles.sheet, className) : styles.sheet}
+        aria-label={title}
+        tabIndex={-1}
+        data-resizable={resizable}
+        data-expanded={mode === 'expanded' || mode === 'full' || undefined}
+        data-mode={mode}
+        style={
+          {
+            '--sheet-default-height': `${Math.max(25, Math.min(88, initialHeightPercent))}%`,
+          } as CSSProperties
+        }
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            event.stopPropagation();
+            onClose();
+          }
+        }}
+      >
+        {resizable && !isFullPage && (
           <button
+            ref={handleRef}
+            className={styles.grabber}
             type="button"
-            aria-label={mode === 'peek' ? '시트 펼치기' : '시트 접기'}
-            aria-expanded={mode !== 'peek'}
-            onClick={() => setMode(mode === 'peek' ? 'default' : 'peek')}
+            aria-label="상세 패널 높이 조절"
+            aria-expanded={mode === 'expanded'}
+            onPointerDown={(event) => {
+              if (event.button !== 0) return;
+              dragged.current = false;
+              const sheet = sheetRef.current;
+              if (!sheet) return;
+              gesture.current = {
+                startY: event.clientY,
+                height: sheet.getBoundingClientRect().height,
+                limit: sheet.parentElement?.getBoundingClientRect().height ?? window.innerHeight,
+                frame: null,
+              };
+              event.currentTarget.setPointerCapture?.(event.pointerId);
+            }}
+            onPointerMove={(event) => {
+              const start = gesture.current;
+              const sheet = sheetRef.current;
+              if (!start || !sheet || Math.abs(event.clientY - start.startY) < 6) return;
+              dragged.current = true;
+              // 펼칠 단계가 없으면 처음 높이 위로는 끌려 올라가지 않는다.
+              const max = canExpand || mode === 'peek' ? start.limit * (canOpenFull ? 1 : 0.9) : start.height;
+              const target = Math.max(80, Math.min(max, start.height + start.startY - event.clientY));
+              // 높이를 바꾸면 움직일 때마다 시트 안 전체를 다시 배치하고 그린다. 시작에 한 번만 최대 높이로 늘리고,
+              // 그 뒤로는 보이는 높이만큼만 올라오게 아래로 밀어(transform) 합성만 일어나게 한다.
+              if (start.frame === null) {
+                sheet.dataset.dragging = 'true';
+                sheet.style.setProperty('--sheet-height', `${max}px`);
+                // max-height에 걸리면 덜 늘어나므로 실제 높이를 기준으로 민다.
+                start.frame = sheet.getBoundingClientRect().height;
+              }
+              sheet.style.transform = `translateY(${Math.max(0, start.frame - Math.min(target, start.frame))}px)`;
+              syncFloating();
+            }}
+            onPointerUp={finish}
+            onPointerCancel={(event) => {
+              gesture.current = null;
+              clearDrag();
+              event.currentTarget.releasePointerCapture?.(event.pointerId);
+            }}
+            // 누르기만 해서는 높이를 바꾸지 않는다. 끌어서 바꾸고, 키보드는 위·아래 화살표로 한 단계씩 바꾼다.
+            onClick={() => {
+              const wasDragged = dragged.current;
+              dragged.current = false;
+              if (collapsible && mode === 'peek' && !wasDragged) setMode('default');
+            }}
+            onKeyDown={(event) => {
+              if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+              event.preventDefault();
+              const index = modes.indexOf(mode);
+              setMode(modes[Math.max(0, Math.min(modes.length - 1, index + (event.key === 'ArrowUp' ? 1 : -1)))]);
+            }}
           >
-            <Icon name={mode === 'peek' ? 'chevron-up' : 'chevron-down'} size={20} />
+            <span />
           </button>
         )}
-        {(showCloseButton || isFullPage) && (
-          <button
-            ref={closeButtonRef}
-            type="button"
-            className={compactClose ? styles.compactClose : undefined}
-            onClick={onClose}
-            aria-label={closeLabel}
-          >
-            <Icon name="close" size={compactClose ? 16 : 20} />
-          </button>
-        )}
-      </header>
-      <div className={styles.content} data-header-hidden={hideHeader || undefined}>
-        {children}
-      </div>
-    </section>
+        <header className={hideHeader ? `${styles.header} sr-only` : styles.header}>
+          {back && (
+            <button type="button" className={styles.back} aria-label="뒤로 가기" onClick={back}>
+              <Icon name="chevron-left" size={22} />
+            </button>
+          )}
+          <div className={styles.titles}>
+            <h2 className={hideTitle ? 'sr-only' : undefined}>{title}</h2>
+            {subtitle && <p>{subtitle}</p>}
+          </div>
+          {hidesHeaderEndWhenExpanded && (mode === 'expanded' || mode === 'full') ? null : headerEnd}
+          {collapsible && !isFullPage && (
+            <button
+              type="button"
+              aria-label={mode === 'peek' ? '시트 펼치기' : '시트 접기'}
+              aria-expanded={mode !== 'peek'}
+              onClick={() => setMode(mode === 'peek' ? 'default' : 'peek')}
+            >
+              <Icon name={mode === 'peek' ? 'chevron-up' : 'chevron-down'} size={20} />
+            </button>
+          )}
+          {(showCloseButton || isFullPage) && (
+            <button
+              ref={closeButtonRef}
+              type="button"
+              className={compactClose ? styles.compactClose : undefined}
+              onClick={onClose}
+              aria-label={closeLabel}
+            >
+              <Icon name="close" size={compactClose ? 16 : 20} />
+            </button>
+          )}
+        </header>
+        <div className={styles.content} data-header-hidden={hideHeader || undefined}>
+          {children}
+        </div>
+      </section>
+    </>
   );
 };
 
@@ -281,7 +323,7 @@ const styles = {
       max-height: calc(100% - var(--map-sheet-bottom, 0px) - var(--keyboard-inset, 0px) - 1rem);
       display: flex;
       flex-direction: column;
-      z-index: 35;
+      z-index: ${MAP_LAYER.sheet};
       border-radius: 1.25rem 1.25rem 0 0;
       background: var(--color-surface);
       color: var(--color-ink);
@@ -311,7 +353,7 @@ const styles = {
       &[data-mode='full'] {
         position: fixed;
         inset: 0;
-        z-index: 50;
+        z-index: ${MAP_LAYER.fullPageSheet};
         height: auto;
         max-height: none;
         border-radius: 0;
@@ -328,13 +370,33 @@ const styles = {
     'BottomSheet-sheet',
   ),
 
-  /* 시트 위 가장자리 바로 위 오른쪽. 시트와 같은 상자 안에 있어 끄는 동안 transform으로 함께 움직인다. */
-  floating: css`
-    label: BottomSheet-floating;
-    position: absolute;
-    right: 0.85rem;
-    bottom: calc(100% + 0.75rem);
-  `,
+  /* 시트 위 가장자리 바로 위 오른쪽. 시트의 형제라 지도 위 카드보다 아래층에 둘 수 있고, 높이와 끄는 동안의 transform은 시트에서 옮겨 적는다.
+     빈 자리는 지도 조작을 막지 않는다. 다른 요소의 선택자에서 `.BottomSheet-floating`으로 가리킨다. */
+  floating: cx(
+    css`
+      label: BottomSheet-floating;
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: calc(var(--map-sheet-bottom, 0px) + var(--keyboard-inset, 0px) + var(--sheet-offset, 0px) + 0.75rem);
+      z-index: ${MAP_LAYER.sheetFloating};
+      display: flex;
+      justify-content: flex-end;
+      padding: 0 0.85rem;
+      pointer-events: none;
+
+      & > * {
+        pointer-events: auto;
+      }
+
+      @media (min-width: 1024px) {
+        max-width: 30rem;
+        margin-right: auto;
+        margin-left: auto;
+      }
+    `,
+    'BottomSheet-floating',
+  ),
 
   grabber: css`
     label: BottomSheet-grabber;

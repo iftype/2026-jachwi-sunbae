@@ -135,6 +135,8 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
       initialHeightPercent={infoSubject.kind === 'area' ? MOBILE_AREA_SHEET_PERCENT : isPropertySheet ? 55 : 40}
       resizable={infoSubject.kind === 'area' || isPropertySheet}
       fullPage={false}
+      // 동네 시트는 처음 높이(내용 높이)가 끝이다. 위로 끌어도 커지지 않고, 내리면 닫힌다.
+      maxMode={infoSubject.kind === 'area' ? 'default' : undefined}
       className={infoSubject.kind === 'area' ? styles.areaSheet : undefined}
       closeLabel="정보 닫기"
       collapsible={isPropertySheet}
@@ -352,7 +354,7 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
               </div>
             )}
             {/* 정보는 시트 하나에만 둔다. 마커와 `My`는 한 단계 높이로 두고, 닫으면 그 정보를 닫는다.
-                동네는 지도와 고른 동이 같이 보이게 낮게 열고 끌어 올리면 더 크게 본다. 닫아도 동네 선택은 그대로 둔다. */}
+                동네는 지도와 고른 동이 같이 보이게 내용 높이로만 열고 더 끌어 올리지 않는다. 닫아도 동네 선택은 그대로 둔다. */}
             {infoSheet}
             {isRoutePage && <Outlet context={preview} />}
           </>
@@ -368,7 +370,7 @@ const styles = {
   areaSheet: css`
     label: NeighborhoodPreviewMobilePage-areaSheet;
 
-    /* 처음 높이는 퍼센트 대신 내용 높이를 따른다(시세 문구가 길어져도 잘리지 않는다). 끌어 올리면 기존 단계로 커진다. */
+    /* 높이는 퍼센트 대신 내용 높이를 따르고 더 키우지 않는다. 내용이 화면보다 길면 시트 안에서 스크롤한다. */
     &&[data-mode='default'] {
       height: auto;
     }

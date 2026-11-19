@@ -83,9 +83,10 @@ describe('InfrastructureMap 시설 마커 말풍선', () => {
   it('중개업소는 전화번호가 있을 때만 전화 링크를 보인다', async () => {
     renderMap();
     fireEvent.click(await screen.findByRole('button', { name: '마커 강남공인' }));
-    expect(screen.getByRole('menuitem', { name: '강남공인 전화걸기' })).toHaveAttribute('href', 'tel:02-123-4567');
+    expect(screen.getByRole('menuitem', { name: '강남공인 전화하기' })).toHaveAttribute('href', 'tel:02-123-4567');
+    expect(screen.getByRole('menuitem', { name: '강남공인 전화하기' })).toHaveTextContent('전화하기');
     fireEvent.click(screen.getByRole('button', { name: '마커 역삼공인' }));
-    expect(screen.queryByRole('menuitem', { name: /전화걸기/ })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: /전화하기/ })).toBeNull();
   });
 
   it('중개업소가 아닌 시설은 전화 링크 없이 이름만 보인다', async () => {

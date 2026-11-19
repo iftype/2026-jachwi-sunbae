@@ -10,7 +10,7 @@ export type MapTapAction = {
   label: string;
   /** 글자 앞에 둘 작은 그림 주소. 이모지 대신 쓴다. */
   icon?: string;
-  /** 있으면 버튼 대신 이 주소로 가는 링크로 그린다(전화걸기 `tel:`). */
+  /** 있으면 버튼 대신 이 주소로 가는 링크로 그린다(전화하기 `tel:`). */
   href?: string;
   /** 화면 낭독기가 읽는 이름. 없으면 `label`을 읽는다. */
   ariaLabel?: string;
