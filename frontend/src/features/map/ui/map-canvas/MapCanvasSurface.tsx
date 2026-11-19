@@ -92,7 +92,7 @@ const MapCanvas = ({
     tip,
     markers: allMarkers,
     circles,
-      radiusCenter,
+    radiusCenter,
     level,
     customStyleId,
     selectedMarkerId,
