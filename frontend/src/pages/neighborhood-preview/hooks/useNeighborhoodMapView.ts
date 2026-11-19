@@ -271,8 +271,7 @@ const useNeighborhoodMapView = (
     const memberIds = groupMemberIds(marker.id);
     if (memberIds !== null) {
       closeLayers();
-      // 결과 지도의 시점만 옮긴다. 위치를 고르는 지도는 그대로 둔다.
-      if (isResultMap) preview.fitPoints(myMarkers.filter((member) => memberIds.includes(member.id)));
+      preview.fitPoints(myMarkers.filter((member) => memberIds.includes(member.id)));
       return;
     }
     if (marker.id.startsWith(MY_PROPERTY_PREFIX)) {
@@ -502,7 +501,7 @@ const useNeighborhoodMapView = (
         onCenterChange: preview.rememberSelectionCenter,
         onLevelChange: preview.rememberSelectionLevel,
         onBoundsChange: preview.rememberMapBounds,
-        // 내 매물은 선택 전과 선택 중에도 그리지만 누르면 반응하지 않는다. 지도 빈 곳이 출퇴근 장소 후보가 된다.
+        // 내 매물은 선택 전과 선택 중에도 눌러 결과 지도와 같은 패널을 연다. 눌림은 마커에서 막혀 출퇴근 장소를 바꾸지 않고, 지도 빈 곳이 출퇴근 장소 후보가 된다.
         markers: [...candidateMarkers, ...searchPinMarker, ...groupedMyMarkers],
         // 출퇴근 장소를 다시 고르는 동안에는 이전 결과의 동 영역을 지운다. 새로 찾아야 다시 그려지고, 이전 결과 보기로 돌아오면 그대로 복원된다.
         regions: NO_REGIONS,
@@ -514,12 +513,12 @@ const useNeighborhoodMapView = (
               if (point) tapMap(point.latitude, point.longitude);
             }
           : undefined,
-        // 시작 전과 선택 중에는 매물 마커를 눌러도 아무 일도 하지 않는다. 눌림은 마커에서 막혀 지도 클릭으로 번지지 않는다.
         onSelectMarker: (marker: MapMarker) => {
           if (marker.id.startsWith(SEARCH_PIN_ID)) selectSearchPin(marker);
+          else if (isMyPropertyMarker(marker)) selectMarker(marker);
         },
-        // 시작 전과 선택 중에는 고른 매물이 없다. 시설 분류 카드도 결과 지도에서 매물을 골랐을 때만 선다.
-        selectedMarkerId: null,
+        // 고른 매물을 표시하고, 시설 분류 카드도 매물을 골랐을 때 함께 선다.
+        selectedMarkerId: selectedProperty ? `${MY_PROPERTY_PREFIX}${selectedProperty.propertyId}` : null,
       };
   const baseSelectMarker = mapProps.onSelectMarker;
   const baseBoundsChange = mapProps.onBoundsChange;
@@ -618,6 +617,8 @@ const useNeighborhoodMapView = (
     : mapProps;
   return {
     isResultMap,
+    /** 찜한 동네만 보는 중인지. 추천 동네를 지도에서 걷는 동안에는 화면도 찾은 동네 뱃지 줄을 숨긴다. */
+    showsBookmarkOnly,
     showsPropertyPanel,
     mapProps: composedProps,
     bookmark: (code: string) =>

@@ -1282,6 +1282,31 @@ it('데스크탑 통합 지도는 왼쪽 조건 칸과 지도 위 찾은 동네 
   }
 });
 
+it('데스크탑 동네 찾기는 찜한 동네만 보는 동안 지도 위 찾은 동네 뱃지 줄을 숨기고, 끄면 다시 보인다', async () => {
+  const viewport = useDesktopViewport();
+  writeBookmarkedAdminDongs(['11210690']);
+  localStorage.setItem('jachwi:records-bookmark-layer-rail', 'off');
+  server.use(...adminDongBookmarkHandlers);
+  try {
+    show(false, undefined, true);
+    const user = await choosePoint();
+    await user.click(screen.getByRole('button', { name: '이 조건으로 동네 찾기' }));
+    await screen.findByRole('navigation', { name: '찾은 동네' });
+    const toggle = await screen.findByRole('button', { name: '찜한 동네 토글' });
+    await user.click(toggle);
+    await waitFor(() => expect(toggle).toHaveAttribute('aria-pressed', 'true'));
+    expect(screen.queryByRole('navigation', { name: '찾은 동네' })).not.toBeInTheDocument();
+    // 지도 아래 가운데의 다시 선택 버튼은 뱃지 줄과 따로라 그대로 남는다.
+    expect(screen.getByRole('button', { name: '출퇴근 장소 다시 선택' })).toBeInTheDocument();
+    await user.click(toggle);
+    expect(await screen.findByRole('navigation', { name: '찾은 동네' })).toBeInTheDocument();
+  } finally {
+    writeBookmarkedAdminDongs([]);
+    localStorage.removeItem('jachwi:records-bookmark-layer-rail');
+    viewport.mockRestore();
+  }
+});
+
 it('데스크탑 결과 지도의 출퇴근 장소 다시 선택은 동네 뱃지 줄 밖 지도 아래 가운데에 있고, 선택 모드에서는 보이지 않는다', async () => {
   const viewport = useDesktopViewport();
   try {
@@ -1329,7 +1354,7 @@ const routeRequests = () => {
   server.events.on('request:start', track);
   return { paths, stop: () => server.events.removeListener('request:start', track) };
 };
-it('선택 전에 매물 마커를 눌러도 아무 일도 없고 출퇴근 장소도 잡히지 않는다', async () => {
+it('선택 전에 매물 마커를 누르면 패널이 열리고 지도는 줌 변경 없이 그 매물 쪽으로만 옮기며 출퇴근 장소는 잡히지 않는다', async () => {
   const viewport = useDesktopViewport();
   useOneRecordedProperty();
   const requests = routeRequests();
@@ -1337,16 +1362,27 @@ it('선택 전에 매물 마커를 눌러도 아무 일도 없고 출퇴근 장�
     show(false, undefined, true);
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: '취소' }));
+    const before = mapView();
     await user.click(await screen.findByRole('button', { name: '마커 신림역 원룸' }));
-    expect(screen.queryByRole('complementary', { name: '내 매물 정보' })).not.toBeInTheDocument();
+    const panel = await screen.findByRole('complementary', { name: '내 매물 정보' });
+    expect(panel).toHaveTextContent('신림역 원룸');
+    // 출퇴근 장소가 없으면 노선 대신 안내만 보이고 노선은 부르지 않는다.
+    expect(panel).toHaveTextContent('출퇴근 장소를 정하면 이 집에서 가는 노선을 알려 드려요');
     expect(markerList().map((marker) => marker.id)).not.toContain('destination');
     expect(requests.paths).toEqual([]);
+    expect(screen.getByRole('button', { name: '마커 신림역 원룸' })).toHaveAttribute('aria-pressed', 'true');
+    const after = mapView();
+    expect(after.center).toMatchObject({
+      latitude: propertySummaryFixture.location.latitude,
+      longitude: propertySummaryFixture.location.longitude,
+    });
+    expect(after.level).toBe(before.level);
   } finally {
     requests.stop();
     viewport.mockRestore();
   }
 });
-it('선택 모드에서 매물 마커를 눌러도 아무 일도 없고, 지도 빈 곳은 후보를 정한다', async () => {
+it('선택 모드에서도 매물 마커를 누르면 패널이 열리고 선택 모드는 그대로며, 지도 빈 곳은 후보를 정하고 패널을 닫는다', async () => {
   const viewport = useDesktopViewport();
   useOneRecordedProperty();
   try {
@@ -1354,13 +1390,48 @@ it('선택 모드에서 매물 마커를 눌러도 아무 일도 없고, 지도 
     const user = userEvent.setup();
     await screen.findByText('지도에서 출퇴근 장소를 눌러 주세요');
     await user.click(await screen.findByRole('button', { name: '마커 신림역 원룸' }));
-    expect(screen.queryByRole('complementary', { name: '내 매물 정보' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('complementary', { name: '내 매물 정보' })).toHaveTextContent('신림역 원룸');
     expect(markerList().map((marker) => marker.id)).not.toContain('destination');
     expect(screen.getByText('지도에서 출퇴근 장소를 눌러 주세요')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
     expect(markerList().find((marker) => marker.id === 'destination')).toMatchObject({ latitude: 37.4 });
+    expect(screen.queryByRole('complementary', { name: '내 매물 정보' })).not.toBeInTheDocument();
   } finally {
     viewport.mockRestore();
+  }
+});
+it('선택 전에 지도 빈 곳을 누르면 출퇴근 장소가 잡히고, 그 뒤 매물 마커를 눌러도 출퇴근 장소는 그대로다', async () => {
+  const viewport = useDesktopViewport();
+  useOneRecordedProperty();
+  try {
+    show(false, undefined, true);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: '취소' }));
+    await user.click(await screen.findByRole('button', { name: '지도에서 위치 찍기' }));
+    const destination = markerList().find((marker) => marker.id === 'destination');
+    expect(destination).toMatchObject({ latitude: 37.4 });
+    await user.click(await screen.findByRole('button', { name: '마커 신림역 원룸' }));
+    await screen.findByRole('complementary', { name: '내 매물 정보' });
+    expect(markerList().find((marker) => marker.id === 'destination')).toEqual(destination);
+  } finally {
+    viewport.mockRestore();
+  }
+});
+it('모바일도 선택 전에 매물 마커를 누르면 하단 시트가 열리고 출퇴근 장소는 잡히지 않는다', async () => {
+  useOneRecordedProperty();
+  const requests = routeRequests();
+  try {
+    show(false, undefined, true);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: '취소' }));
+    const before = mapView();
+    await user.click(await screen.findByRole('button', { name: '마커 신림역 원룸' }));
+    expect(await screen.findByText('출퇴근 장소를 정하면 이 집에서 가는 노선을 알려 드려요')).toBeInTheDocument();
+    expect(markerList().map((marker) => marker.id)).not.toContain('destination');
+    expect(requests.paths).toEqual([]);
+    expect(mapView().level).toBe(before.level);
+  } finally {
+    requests.stop();
   }
 });
 it('결과 후 매물 마커를 누르면 접어 둔 패널이 펼쳐지고 지도는 그 매물 쪽으로만 옮긴다(확대 단계는 그대로)', async () => {

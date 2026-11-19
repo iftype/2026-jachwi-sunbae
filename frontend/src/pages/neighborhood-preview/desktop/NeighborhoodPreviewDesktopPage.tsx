@@ -52,7 +52,7 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
     // 동을 누르면 코너 정보 카드 대신 그 자리의 마커(소요시간, 월세 시세 포함)를 띄운다.
     showAreaAction: true,
   });
-  const { isResultMap, showsPropertyPanel, mapProps, places, closeLayers } = mapView;
+  const { isResultMap, showsBookmarkOnly, showsPropertyPanel, mapProps, places, closeLayers } = mapView;
   // 지도 칸은 목록과 상세 패널 아래까지 깔린다. 패널이 가리는 폭을 왼쪽 여백으로 빼고 시점을 맞춘다.
   const mapSectionRef = useResultMapViewport<HTMLElement>(preview, (section) => {
     const layout = section.parentElement?.parentElement;
@@ -213,8 +213,9 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
     </aside>
   );
 
-  // 로그인한 회원은 지도 위에 찾은 동네 뱃지 줄을 둔다.
+  // 로그인한 회원은 지도 위에 찾은 동네 뱃지 줄을 둔다. 찜한 동네만 보는 동안에는 추천 동네를 지도에서 걷으므로 줄도 숨긴다.
   const showsRecords = !preview.isPublicExplore && recordsController !== null;
+  const showsBadgeRail = isResultMap && showsRecords && !showsBookmarkOnly;
   const list = foundList;
 
   return (
@@ -244,7 +245,7 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
             {...mapProps}
           />
           <AnalysisOverlay preview={preview} />
-          {isResultMap && showsRecords && (
+          {showsBadgeRail && (
             <MapBadgeRail
               desktopMap
               overMap
