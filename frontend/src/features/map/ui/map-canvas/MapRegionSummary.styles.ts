@@ -158,7 +158,10 @@ export const rentLabel = css`
 
   /* 찜한 동네 이름표. 동 이름만 두므로 크게 쓰고 찜 색 테두리로 찜한 영역임을 알린다. */
   &[data-bookmark='true'] {
-    max-width: 140px;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 5px;
+    max-width: 220px;
     padding: 5px 11px;
     border: 1.5px solid #2554b8;
     border-radius: 999px;
@@ -170,6 +173,13 @@ export const rentLabel = css`
   &[data-bookmark='true'] > strong {
     font-size: 14px;
     font-weight: 800;
+  }
+
+  &[data-bookmark='true'] > small {
+    color: #3f6fc4;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
   }
 
   &[aria-pressed='true'] {

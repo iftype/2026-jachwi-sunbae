@@ -2,8 +2,15 @@ import { useMemo, useRef, useState } from 'react';
 
 import { reverseGeocode } from '@/features/map/api/mapApi';
 import { useAdminDongBookmarks } from '@/features/map/api/useAdminDongBookmarks';
+import { useBookmarkedRegionRents } from '@/features/map/api/useBookmarkedRegionRents';
 import { BOOKMARK_LABEL_HALF_HEIGHT, useBookmarkedRegions } from '@/features/map/api/useBookmarkedRegions';
 import useMapTip from '@/features/map/hooks/useMapTip';
+import {
+  bookmarkRentCardRows,
+  bookmarkRentNote,
+  rentOf,
+  withRentCaptions,
+} from '@/features/map/lib/bookmarkedRegionRent';
 import {
   groupOverlappingMarkers,
   propertyGroupMarker,
@@ -18,6 +25,7 @@ import { focusOnMemos } from '@/features/street-memo/lib/streetMemoFocus';
 import { MENU_MEMO_ICON, MENU_PROPERTY_ICON, PROPERTY_PLACEHOLDER } from '@/shared/assets/propertyImageAssets';
 import { usePublicConfig } from '@/shared/config/PublicConfigContext';
 import { useLogger } from '@/shared/lib/analytics/logging';
+import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
 
 import { readBookmarkLayerOn, writeBookmarkLayerOn } from '../model/bookmarkLayer';
 import { FIRST_PROPERTY_TIP_KEY, RECORDS_TAP_TIP_KEY, SHOW_FIRST_PROPERTY_TIP } from '../model/mapTapTipKey';
@@ -83,8 +91,17 @@ const useRecordsMapLayers = (
   const [storedBookmarkLayerOn, setStoredBookmarkLayerOn] = useState(readBookmarkLayerOn);
   const isBookmarkLayerOn = storedBookmarkLayerOn ?? true;
   const bookmarkRegions = useBookmarkedRegions(bookmarkStore.codes, isBookmarkLayerOn);
+  // 찜한 동네의 월세 시세. 받는 동안과 실패했을 때는 비어 있어 영역과 이름만 그린다.
+  const bookmarkRents = useBookmarkedRegionRents(bookmarkStore.codes, isBookmarkLayerOn);
+  const captionedBookmarkRegions = useMemo(
+    () => withRentCaptions(bookmarkRegions, bookmarkRents),
+    [bookmarkRegions, bookmarkRents],
+  );
+  const isDesktop = useIsDesktop();
   // 찜한 동네의 이름표를 누르면 그 자리에 `찜 해제하기` 카드를 띄운다.
   const [openBookmarkCode, setOpenBookmarkCode] = useState<string | null>(null);
+  // 찜한 동네 안을 눌러 동작 말풍선을 띄웠을 때 그 동 코드. 휴대폰은 이름표가 없어 말풍선 위에 시세를 적는다.
+  const [tapBookmarkCode, setTapBookmarkCode] = useState<string | null>(null);
   const openBookmarkRegion = bookmarkRegions.find((region) => region.id === openBookmarkCode);
   // 매물 상세에서 주소를 바꿀 때, 옆의 큰 지도를 눌러 새 자리를 고르는 모드. 상세는 저장 함수를 맡기고, 고른 자리와 저장은 이 겹이 맡는다.
   const [pickRequest, setPickRequest] = useState<{ onSave: (address: MapAddress) => Promise<void> } | null>(null);
@@ -300,6 +317,7 @@ const useRecordsMapLayers = (
    */
   const tapLocation = (latitude: number, longitude: number) => {
     setOpenBookmarkCode(null);
+    setTapBookmarkCode(null);
     // 주소를 바꾸는 중에는 지도를 눌러 새 자리를 고르기만 한다.
     if (pickRequest !== null) {
       pickAt(latitude, longitude);
@@ -377,6 +395,10 @@ const useRecordsMapLayers = (
     setGroupIds([]);
     records.showRecord(marker.id);
   };
+  const tapBookmarkRegion = bookmarkRegions.find((region) => region.id === tapBookmarkCode);
+  const tapBookmarkNote = tapBookmarkRegion
+    ? bookmarkRentNote(tapBookmarkRegion.name, rentOf(bookmarkRents, tapBookmarkRegion.id))
+    : undefined;
   /** 두 화면의 지도가 그대로 넘기는 MapCanvas 설정. 찍은 자리 말풍선(coordinateMenu)은 데스크탑만 더한다. */
   const canvasProps = {
     // 동네 뱃지, 현재 위치, 매물 넘기기로 지도를 옮길 때 부드럽게 이동한다.
@@ -392,7 +414,7 @@ const useRecordsMapLayers = (
     onLevelChange: records.setLevel,
     onBoundsChange: rememberBounds,
     tip: firstPropertyTip ?? tip,
-    regions: bookmarkRegions,
+    regions: captionedBookmarkRegions,
     // 찜한 동네의 칠한 영역을 누르면 지도 빈 곳을 누른 것과 같다(메모 남기기, 본 방 기록하기).
     // 찜한 동네 위의 기록과 메모를 눌러도 구역이 먼저 눌릴 수 있어, 누른 자리 아래 마커가 있으면 그 마커의 말풍선을 연다.
     // 동 이름표를 누를 때만 좌표 없이 불려, 그때 `찜 해제하기` 카드를 띄운다.
@@ -405,6 +427,7 @@ const useRecordsMapLayers = (
           return;
         }
         tapLocation(point.latitude, point.longitude);
+        setTapBookmarkCode(id);
         return;
       }
       setTapPoint(null);
@@ -430,7 +453,7 @@ const useRecordsMapLayers = (
                   setOpenBookmarkCode(null);
                 },
               },
-              rows: [],
+              ...bookmarkRentCardRows(rentOf(bookmarkRents, openBookmarkRegion.id)),
             },
           },
     bookmarkControl: {
@@ -506,7 +529,9 @@ const useRecordsMapLayers = (
       if (point !== null) registerAt(point);
     },
     closeRegisterSuggestion: () => setSuggestAt(null),
-    coordinateMenu: (tapPoint === null ? undefined : { ...tapPoint, actions: tapActions }) satisfies
+    coordinateMenu: (tapPoint === null
+      ? undefined
+      : { ...tapPoint, note: isDesktop ? undefined : tapBookmarkNote, actions: tapActions }) satisfies
       MapCoordinateMenu | undefined,
     closeTap: () => setTapPoint(null),
     /** 열어 둔 매물·메모·찍은 위치를 모두 닫는다. */

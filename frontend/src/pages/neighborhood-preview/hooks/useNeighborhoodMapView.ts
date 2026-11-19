@@ -3,9 +3,11 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { useRecordsMapController } from '@/pages/design-records/RecordsMapProvider';
 import { useAdminDongBookmarks } from '@/features/map/api/useAdminDongBookmarks';
+import { useBookmarkedRegionRents } from '@/features/map/api/useBookmarkedRegionRents';
 import { BOOKMARK_LABEL_HALF_HEIGHT, useBookmarkedRegions } from '@/features/map/api/useBookmarkedRegions';
 import useMapTip from '@/features/map/hooks/useMapTip';
 import useViewportFacilityLayer from '@/features/map/hooks/useViewportFacilityLayer';
+import { bookmarkRentCardRows, rentOf, withRentCaptions } from '@/features/map/lib/bookmarkedRegionRent';
 import {
   DESKTOP_FACILITY_MARKER_LEVEL,
   FACILITY_MARKER_LEVEL,
@@ -97,6 +99,8 @@ const useNeighborhoodMapView = (
     if (preview.isAnalyzing) setIsBookmarkOnly(false);
   }
   const bookmarkRegions = useBookmarkedRegions(bookmarks.codes, showsBookmarkOnly);
+  // 찜한 동네의 월세 시세. 이번 통근 결과에 든 동은 그 결과의 시세를 그대로 쓰고, 모자란 동만 따로 받는다.
+  const bookmarkRents = useBookmarkedRegionRents(bookmarks.codes, showsBookmarkOnly);
   // 찜한 동네의 이름표를 눌러 연 `찜 해제하기` 카드의 동 코드.
   const [openBookmarkCode, setOpenBookmarkCode] = useState<string | null>(null);
   const openBookmarkRegion = showsBookmarkOnly
@@ -490,7 +494,10 @@ const useNeighborhoodMapView = (
             ],
         // 찜한 동네만 볼 때는 추천 동네 대신 찜한 동네를 칠한다. 통근 결과 구역과 id가 겹치지 않게 접두어를 붙인다.
         regions: showsBookmarkOnly
-          ? bookmarkRegions.map((region) => ({ ...region, id: `${BOOKMARK_REGION_PREFIX}${region.id}` }))
+          ? withRentCaptions(bookmarkRegions, bookmarkRents).map((region) => ({
+              ...region,
+              id: `${BOOKMARK_REGION_PREFIX}${region.id}`,
+            }))
           : (mapProps.regions ?? []),
         selectedRegionId: showsBookmarkOnly ? null : mapProps.selectedRegionId,
         onHoverRegion: showsBookmarkOnly ? undefined : mapProps.onHoverRegion,
@@ -537,7 +544,7 @@ const useNeighborhoodMapView = (
                       setOpenBookmarkCode(null);
                     },
                   },
-                  rows: [],
+                  ...bookmarkRentCardRows(rentOf(bookmarkRents, openBookmarkRegion.id)),
                 },
               },
         onSelectMarker: (marker) => {

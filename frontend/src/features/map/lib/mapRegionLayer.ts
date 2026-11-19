@@ -223,7 +223,7 @@ export const createMapRegionLayer = (
         : showsRentLabel
           ? JSON.stringify(['rent', region.name, region.rentLabel, region.center, selected])
           : showsNameLabel
-            ? JSON.stringify(['name', region.name, region.center, selected])
+            ? JSON.stringify(['name', region.name, region.nameCaption, region.center, selected])
             : '';
       if (entry.labelKey !== labelKey) {
         entry.label?.setMap(null);
