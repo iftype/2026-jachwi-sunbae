@@ -18,7 +18,6 @@ import useNeighborhoodMapView from '../hooks/useNeighborhoodMapView';
 import type { NeighborhoodPreviewContext } from '../hooks/useNeighborhoodPreview';
 import useResultMapViewport from '../hooks/useResultMapViewport';
 import { rentLabel, RESELECT_COMMUTE_LABEL, transferLabel } from '../model/criteriaLabels';
-import { readCriteriaCollapsed, writeCriteriaCollapsed } from '../model/neighborhoodSearchSession';
 import { MOBILE_AREA_SHEET_PERCENT, mobileMapViewport } from '../model/resultMapView';
 import type { NeighborhoodFilterField } from '../NeighborhoodFilters';
 import { NeighborhoodFilterPicker } from '../NeighborhoodFilters';
@@ -55,12 +54,6 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
   // 지도 빈 곳을 찍으면 시트를 닫지 않고 제목만 보이게 내린다.
   const [peekSignal, setPeekSignal] = useState(0);
   const [isRentOpen, setIsRentOpen] = useState(false);
-  // 색 기준표만 접어 둘 수 있다. 접은 상태는 같은 세션 동안 남는다.
-  const [isLegendCollapsed, setIsLegendCollapsed] = useState(readCriteriaCollapsed);
-  const toggleLegend = () => {
-    writeCriteriaCollapsed(!isLegendCollapsed);
-    setIsLegendCollapsed(!isLegendCollapsed);
-  };
   const reselectCommute = () => {
     closeLayers();
     preview.selectRegion(null);
@@ -284,17 +277,7 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
               {isRentOpen && <RentSlider preview={preview} bare className={styles.headerSlider} />}
               <div className={styles.filterRow}>
                 <div className={styles.legendSlot}>
-                  {isLegendCollapsed ? (
-                    <button className={styles.criteriaToggle} type="button" onClick={toggleLegend}>
-                      색 기준표 보기
-                    </button>
-                  ) : (
-                    <CommuteLegend maxMinutes={preview.maxMinutes} className={styles.legend}>
-                      <button className={styles.regionToggle} type="button" onClick={toggleLegend}>
-                        표 닫기
-                      </button>
-                    </CommuteLegend>
-                  )}
+                  <CommuteLegend maxMinutes={preview.maxMinutes} className={styles.legend} showsNoRent={false} />
                 </div>
               </div>
             </header>
@@ -467,20 +450,6 @@ const styles = {
     }
   `,
 
-  regionToggle: css`
-    label: NeighborhoodPreviewMobilePage-regionToggle;
-    width: 6.5rem;
-    white-space: nowrap;
-    margin-top: 0.2rem;
-    padding: 0.25rem 0;
-    border: 0;
-    border-top: 1px solid var(--color-border);
-    background: transparent;
-    color: var(--color-brand-blue-ink);
-    font: inherit;
-    font-size: 0.68rem;
-    cursor: pointer;
-  `,
   filterRow: css`
     label: NeighborhoodPreviewMobilePage-filterRow;
     pointer-events: none;
@@ -488,31 +457,6 @@ const styles = {
     justify-content: flex-start;
     align-items: flex-start;
     gap: 0.45rem;
-  `,
-
-  criteriaToggle: css`
-    label: NeighborhoodPreviewMobilePage-criteriaToggle;
-    pointer-events: auto;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.2rem;
-    min-width: 1.9rem;
-    height: 1.9rem;
-    justify-content: center;
-    padding: 0 0.5rem;
-    border: 1px solid var(--color-border);
-    border-radius: 99px;
-    background: var(--color-surface);
-    box-shadow: 0 1px 6px rgb(0 0 0 / 8%);
-    color: var(--color-ink-soft);
-    font: inherit;
-    font-size: 0.7rem;
-    font-weight: 700;
-    cursor: pointer;
-    &:focus-visible {
-      outline: 2px solid var(--color-focus);
-      outline-offset: 2px;
-    }
   `,
 
   resetButton: css`
