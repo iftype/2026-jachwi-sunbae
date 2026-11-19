@@ -128,9 +128,7 @@ const styles = {
     background: #e9e5d8;
 
     &[data-detail-open] {
-      --map-panel-width: calc(
-        var(--list-detail-gap) + var(--list-detail-list-width) + var(--list-detail-detail-width)
-      );
+      --map-panel-width: calc(var(--list-detail-gap) + var(--list-detail-list-width) + var(--list-detail-detail-width));
     }
   `,
 
