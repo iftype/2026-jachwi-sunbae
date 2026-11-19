@@ -15,7 +15,7 @@ import {
   facilityMarkersVisible,
 } from '@/features/map/lib/mapFacilityVisibility';
 import { groupMemberIds, groupOverlappingMarkers, propertyGroupMarker } from '@/features/map/lib/propertyMarkerGroups';
-import type { MapCategory, MapMarker } from '@/features/map/model/Map';
+import type { MapBounds, MapCategory, MapMarker } from '@/features/map/model/Map';
 import type { MapCanvasProps, MapRegion } from '@/features/map/model/MapCanvas';
 import { usePropertyCommuteTimes } from '@/features/property/api/useProperties';
 import { isPreviewProperty } from '@/features/property/model/sampleProperties';
@@ -444,7 +444,10 @@ const useNeighborhoodMapView = (
           preview.rememberResultLevel(level);
           places.rememberLevel(level);
         },
-        onBoundsChange: places.rememberBounds,
+        onBoundsChange: (bounds: MapBounds) => {
+          preview.rememberMapBounds(bounds);
+          places.rememberBounds(bounds);
+        },
         selectedMarkerId: selectedProperty
           ? `${MY_PROPERTY_PREFIX}${selectedProperty.propertyId}`
           : places.selectedMarkerId,
@@ -470,6 +473,7 @@ const useNeighborhoodMapView = (
         // 확대·축소 버튼이 지금 보이는 자리에서 옮기도록 움직인 시점을 기억한다.
         onCenterChange: preview.rememberSelectionCenter,
         onLevelChange: preview.rememberSelectionLevel,
+        onBoundsChange: preview.rememberMapBounds,
         // 내 매물은 선택 전과 선택 중에도 그리고 누르면 결과 지도와 같은 패널을 연다. 지도 빈 곳만 출퇴근 장소 후보가 된다.
         markers: [...candidateMarkers, ...searchPinMarker, ...groupedMyMarkers],
         // 출퇴근 장소를 다시 고르는 동안에는 이전 결과의 동 영역을 지운다. 새로 찾아야 다시 그려지고, 이전 결과 보기로 돌아오면 그대로 복원된다.

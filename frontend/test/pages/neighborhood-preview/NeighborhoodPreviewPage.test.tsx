@@ -547,6 +547,28 @@ it('현재 위치 조회 실패 시 지도에서 직접 찍을 수 있다', asyn
   expect(screen.getByRole('button', { name: '통근 40분 이내' })).toBeInTheDocument();
   expect(screen.getByLabelText('지도 안내')).toBeEmptyDOMElement();
 });
+it('주소 검색 결과를 고르면 확대 단계는 그대로 두고 범위 밖이면 중심만 그 자리로 옮긴다', async () => {
+  const viewport = useDesktopViewport();
+  try {
+    show(false, undefined, true);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: '가까이 확대' }));
+    const view = () =>
+      JSON.parse(screen.getByLabelText('지도 시점').textContent ?? '{}') as {
+        center: { latitude: number };
+        level: number;
+      };
+    expect(view().level).toBe(4);
+    await user.type(screen.getByRole('textbox', { name: '출퇴근 장소' }), '서울시청');
+    await user.keyboard('{Enter}');
+    await user.click(await screen.findByRole('button', { name: /서울 중구 세종대로 110/ }));
+    // 보던 범위(37.495~37.506) 밖의 자리라 중심은 옮기지만, 확대 단계는 그대로다.
+    await waitFor(() => expect(view().center.latitude).not.toBeCloseTo(37.5, 1));
+    expect(view().level).toBe(4);
+  } finally {
+    viewport.mockRestore();
+  }
+});
 it('현재 위치 버튼 실패를 안내하고 재시도하면 목적지로 선택한다', async () => {
   vi.mocked(requestCurrentMapLocation)
     .mockRejectedValueOnce(new MapLocationError('denied', 'denied'))
