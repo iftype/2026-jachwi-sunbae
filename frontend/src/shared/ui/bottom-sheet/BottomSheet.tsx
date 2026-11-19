@@ -42,6 +42,11 @@ type BottomSheetProps = {
    * 접혀 있는 동안 `default`로 바뀌면(마커를 눌러 펼치는 경우) 시트도 펼친다.
    */
   initialMode?: SheetMode;
+  /**
+   * 끌어 올리거나 키보드로 펼칠 수 있는 가장 높은 단계. `default`면 처음 높이가 끝이라 위로 끌어도 그 높이에 머문다.
+   * 내리기와 닫기는 그대로다. 주지 않으면 `fullPage`에 따라 `full`이나 `expanded`까지 연다.
+   */
+  maxMode?: SheetMode;
   /** 높이 단계가 바뀌면(처음 열 때 포함) 알린다. */
   onModeChange?: (mode: SheetMode) => void;
   /**
@@ -75,6 +80,7 @@ const BottomSheet = ({
   subtitle,
   collapsible = false,
   initialMode = 'default',
+  maxMode,
   onModeChange,
   floating,
   className,
@@ -89,7 +95,11 @@ const BottomSheet = ({
   useEffect(() => {
     if (initialMode === 'default') setMode((current) => (current === 'peek' ? 'default' : current));
   }, [initialMode]);
-  const modes: SheetMode[] = fullPage ? ['peek', 'default', 'expanded', 'full'] : ['peek', 'default', 'expanded'];
+  const allModes: SheetMode[] = fullPage ? ['peek', 'default', 'expanded', 'full'] : ['peek', 'default', 'expanded'];
+  const maxIndex = maxMode === undefined ? -1 : allModes.indexOf(maxMode);
+  const modes = maxIndex < 0 ? allModes : allModes.slice(0, maxIndex + 1);
+  const canExpand = modes.includes('expanded');
+  const canOpenFull = modes.includes('full');
   const lastPeekSignal = useRef(peekSignal);
   useEffect(() => {
     if (peekSignal === lastPeekSignal.current) return;
@@ -168,8 +178,8 @@ const BottomSheet = ({
     else if (released < start.limit * 0.25) {
       if (collapsible) setMode('peek');
       else onClose();
-    } else if (fullPage && released > start.limit * 0.85) setMode('full');
-    else setMode(released > start.limit * 0.6 ? 'expanded' : 'default');
+    } else if (canOpenFull && released > start.limit * 0.85) setMode('full');
+    else setMode(canExpand && released > start.limit * 0.6 ? 'expanded' : 'default');
   };
   return (
     <>
@@ -223,7 +233,8 @@ const BottomSheet = ({
               const sheet = sheetRef.current;
               if (!start || !sheet || Math.abs(event.clientY - start.startY) < 6) return;
               dragged.current = true;
-              const max = start.limit * (fullPage ? 1 : 0.9);
+              // 펼칠 단계가 없으면 처음 높이 위로는 끌려 올라가지 않는다.
+              const max = canExpand || mode === 'peek' ? start.limit * (canOpenFull ? 1 : 0.9) : start.height;
               const target = Math.max(80, Math.min(max, start.height + start.startY - event.clientY));
               // 높이를 바꾸면 움직일 때마다 시트 안 전체를 다시 배치하고 그린다. 시작에 한 번만 최대 높이로 늘리고,
               // 그 뒤로는 보이는 높이만큼만 올라오게 아래로 밀어(transform) 합성만 일어나게 한다.
