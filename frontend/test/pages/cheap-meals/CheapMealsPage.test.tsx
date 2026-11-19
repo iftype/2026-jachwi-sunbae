@@ -34,6 +34,7 @@ vi.mock('@/features/map/ui/map-canvas/MapCanvas', () => ({
       label: string;
       tone?: string;
       image?: unknown;
+      variant?: string;
       selected?: boolean;
     }[];
     radiusCenter?: { latitude: number; longitude: number };
@@ -50,6 +51,7 @@ vi.mock('@/features/map/ui/map-canvas/MapCanvas', () => ({
             key={marker.id}
             aria-label="가게 마커"
             data-tone={marker.tone}
+            data-variant={marker.variant}
             data-has-image={marker.image !== undefined}
           >
             {marker.label}
@@ -420,6 +422,8 @@ it('가게 마커는 전용 그림 없이 공용 이름 말풍선 마커로 그�
   expect(markers.length).toBeGreaterThan(0);
   for (const marker of markers) {
     expect(marker).toHaveAttribute('data-tone', 'destination');
+    // 많이 겹치는 가게 마커는 검은 바탕 대신 흰 바탕의 가벼운 말풍선이다.
+    expect(marker).toHaveAttribute('data-variant', 'light');
     expect(marker).toHaveAttribute('data-has-image', 'false');
   }
   expect(markers.map((marker) => marker.textContent)).toContain('착한 세탁소');

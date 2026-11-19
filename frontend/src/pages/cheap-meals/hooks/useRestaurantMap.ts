@@ -177,6 +177,8 @@ const useRestaurantMap = (isActive: boolean) => {
         longitude: store.longitude,
         label: store.name,
         tone: 'destination' as const,
+        // 가게는 한 화면에 많이 겹치니 흰 바탕에 진한 글자의 가벼운 말풍선으로 그린다.
+        variant: 'light' as const,
         actionable: true,
       })),
       // 기준이 기록 매물이 아닐 때(현재 위치 등)만 기준 마커를 둔다. 기록 매물이 기준이면 그 매물 마커가 선택된 모양으로 대신한다.
