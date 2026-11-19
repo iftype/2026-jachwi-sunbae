@@ -53,7 +53,7 @@ describe('RecordNeighborhoodBanner', () => {
   it('동네 찾기 버튼을 누르면 동네 찾기로 넘어가고 다시 띄우지 않는다', async () => {
     const onSwitch = renderBanner();
     await userEvent.click(screen.getByRole('button', { name: /출퇴근 시간으로 동네 찾아보기/ }));
-    expect(onSwitch).toHaveBeenCalledOnce();
+    expect(onSwitch).toHaveBeenCalledExactlyOnceWith('first-prompt');
     expect(hasUsedFinder()).toBe(true);
   });
 

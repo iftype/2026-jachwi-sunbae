@@ -23,6 +23,6 @@ export const useFinderPrompt = (): (() => void) | null => {
   if (HIDE_FINDER_BANNER_AFTER_USE && (bookmarks.isLoading || hasUsedFinder() || hasBookmarks)) return null;
   return () => {
     markFinderUsed();
-    mode.onSwitch();
+    mode.onSwitch('first-prompt');
   };
 };

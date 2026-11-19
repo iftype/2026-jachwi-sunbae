@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { useRecordsMapController } from '@/pages/design-records/RecordsMapProvider';
@@ -17,6 +17,7 @@ import {
 import { groupMemberIds, groupOverlappingMarkers, propertyGroupMarker } from '@/features/map/lib/propertyMarkerGroups';
 import type { MapBounds, MapCategory, MapMarker } from '@/features/map/model/Map';
 import type { MapCanvasProps, MapRegion } from '@/features/map/model/MapCanvas';
+import { useMapCanvasHost } from '@/features/map/ui/map-canvas/SharedMapCanvas';
 import { usePropertyCommuteTimes } from '@/features/property/api/useProperties';
 import { isPreviewProperty } from '@/features/property/model/sampleProperties';
 import useDebouncedValue from '@/shared/lib/hooks/useDebouncedValue';
@@ -34,6 +35,7 @@ import {
   FINDER_PROPERTY_VIEW_PARAM,
   parseFinderPropertyId,
 } from '../model/finderPropertyUrl';
+import { isFirstPromptEntry } from '../model/firstPromptEntry';
 import { NEIGHBORHOOD_TAP_TIP_KEY } from '../model/mapTapTipKey';
 import type { MyPropertyRow } from '../model/myProperty';
 import useNeighborhoodPlaces, { MY_PROPERTY_PREFIX, type NeighborhoodPlace } from './useNeighborhoodPlaces';
@@ -369,6 +371,22 @@ const useNeighborhoodMapView = (
       !preview.query.trim() &&
       preview.addressResults.length === 0,
   });
+  // 내 기록의 첫 안내(배너, 칩)로 들어왔을 때만 한 번, 첫 안내 말풍선 자리로 지도를 옮기고 확대한다.
+  // 선택 모드 진입이나 다른 입구(모드 버튼, 마이 바로가기, 주소 직접 입력)는 이 길을 타지 않아 보던 지도를 그대로 둔다.
+  // 공용 지도는 모드를 바꿀 때 내 기록의 가운데를 붙잡아 두므로, 일부러 옮기는 이때만 놓아 준다.
+  const mapHost = useMapCanvasHost();
+  const fromFirstPrompt = isFirstPromptEntry(location.state);
+  // 들어온 순간 한 번만 옮긴다. 말풍선이나 지도 시점이 바뀌어도 다시 부르지 않도록 최신 값은 ref로 읽는다.
+  const focusFirstTip = useRef(() => undefined);
+  focusFirstTip.current = () => {
+    mapHost?.releaseHeldView();
+    preview.focusFirstTip(tip ?? preview.selectionCenter);
+  };
+  useEffect(() => {
+    if (!fromFirstPrompt) return;
+    focusFirstTip.current();
+    navigate(location.pathname + location.search, { replace: true, state: null });
+  }, [fromFirstPrompt, navigate, location.pathname, location.search]);
   // 구역 위 마우스 상태. 올리고 잠깐(HOVER_SHOW_DELAY_MS) 머물러야 카드가 뜨고, 나간 뒤 잠깐(HOVER_HIDE_DELAY_MS) 기다려 카드로 옮겨 가도 닫히지 않게 한다.
   const regionHover = useHoverIntent<string>();
   const hoveredCode = regionHover.target;

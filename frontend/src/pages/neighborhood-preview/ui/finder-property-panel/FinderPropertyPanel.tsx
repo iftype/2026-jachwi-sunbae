@@ -54,7 +54,7 @@ const FinderPropertyPanel = ({
               type="button"
               className={styles.listLink}
               aria-label="내 기록 전체 리스트 보기"
-              onClick={mode.onSwitch}
+              onClick={() => mode.onSwitch()}
             >
               전체 리스트 보기
               <Icon name="chevron-right" size={14} />

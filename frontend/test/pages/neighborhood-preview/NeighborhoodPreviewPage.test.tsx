@@ -56,6 +56,9 @@ vi.mock('@/features/map/ui/map-canvas/MapCanvas', async () => {
         </output>
         <output aria-label="지도 스타일">{props.customStyleId}</output>
         <output aria-label="지도 안내">{props.tip?.message ?? ''}</output>
+        <output aria-label="지도 안내 좌표">
+          {props.tip ? JSON.stringify({ latitude: props.tip.latitude, longitude: props.tip.longitude }) : ''}
+        </output>
         {props.tip && <button onClick={props.tip.onInteract}>지도 안내 닫기</button>}
         {props.coordinateAction && (
           <button onClick={props.coordinateAction.onClick} disabled={props.coordinateAction.disabled}>
@@ -1479,3 +1482,76 @@ it('데스크탑 동네 찾기 매물 패널도 `<` 버튼으로 접기만 하�
     viewport.mockRestore();
   }
 });
+
+/** 지도에 넘긴 시점(가운데와 확대 단계). */
+const mapView = () =>
+  JSON.parse(screen.getByLabelText('지도 시점').textContent ?? '{}') as {
+    center: { latitude: number; longitude: number };
+    level: number;
+  };
+it('휴대폰 결과 지도에서 출퇴근 장소를 다시 고르러 가고 돌아와도 보던 가운데와 확대 단계를 그대로 둔다', async () => {
+  show();
+  const user = await choosePoint();
+  await submitCurrentSearch(user);
+  await screen.findByRole('region', { name: '행정동 프리셋 지도' });
+  const { center } = mapView();
+  // 결과 지도에서 손가락으로 확대한 단계(4)는 다시 그리지 않고 기억만 한다.
+  await user.click(screen.getByRole('button', { name: '가까이 확대' }));
+  await user.click(screen.getByRole('button', { name: '출퇴근 장소 다시 선택' }));
+  expect(screen.getByRole('region', { name: '지도에서 목적지 선택' })).toBeInTheDocument();
+  expect(mapView()).toEqual({ center, level: 4 });
+  await user.click(screen.getByRole('button', { name: '지도에서 목적지 선택' }));
+  expect(mapView()).toEqual({ center, level: 4 });
+  await user.click(screen.getByRole('button', { name: '이전 결과 보기' }));
+  await screen.findByRole('region', { name: '행정동 프리셋 지도' });
+  expect(mapView()).toEqual({ center, level: 4 });
+});
+it('데스크탑 결과에서 바꾸기나 지도에서 선택을 눌러도 보던 가운데와 확대 단계를 그대로 둔다', async () => {
+  const viewport = useDesktopViewport();
+  try {
+    show(false, undefined, true);
+    const user = await choosePoint();
+    await user.click(screen.getByRole('button', { name: '이 조건으로 동네 찾기' }));
+    await screen.findByRole('complementary', { name: '동네 찾기 결과' });
+    const { center } = mapView();
+    await user.click(screen.getByRole('button', { name: '가까이 확대' }));
+    await user.click(screen.getByRole('button', { name: '바꾸기' }));
+    expect(screen.getByRole('region', { name: '지도에서 목적지 선택' })).toBeInTheDocument();
+    expect(mapView()).toEqual({ center, level: 4 });
+    await user.click(screen.getByRole('button', { name: '지도에서 선택' }));
+    expect(mapView()).toEqual({ center, level: 4 });
+    // 고른 자리가 보이는 범위 안이면 중심도 옮기지 않고, 찾은 뒤에도 같은 시점을 이어 쓴다.
+    await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
+    expect(mapView()).toEqual({ center, level: 4 });
+  } finally {
+    viewport.mockRestore();
+  }
+});
+it.each([false, true])(
+  '첫 안내(배너, 칩)로 들어오면 한 번만 첫 안내 말풍선 자리로 옮겨 확대하고, 다른 입구는 보던 지도를 그대로 둔다 (데스크탑: %s)',
+  async (isDesktop) => {
+    const viewport = isDesktop ? useDesktopViewport() : null;
+    try {
+      const plain = show();
+      // 다른 입구로 들어오면 첫 화면 단계(5) 그대로다.
+      const before = mapView();
+      expect(before.level).toBe(5);
+      const tipAnchor = JSON.parse(screen.getByLabelText('지도 안내 좌표').textContent ?? '{}') as {
+        latitude: number;
+        longitude: number;
+      };
+      plain.unmount();
+      show(false, [{ pathname: '/neighborhoods', state: { fromFirstPrompt: true } }]);
+      // 두 단계 가까이 다가가고, 말풍선이 붙은 자리가 지도 가운데가 된다.
+      await waitFor(() => expect(mapView().level).toBe(before.level - 2));
+      expect(mapView().center).toEqual(tipAnchor);
+      // 한 번만 옮긴다. 그 뒤 사용자가 지도를 움직이면(단계 7) 다시 그려도 끌어오지 않는다.
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('button', { name: '화면 범위 알림' }));
+      await user.click(screen.getByRole('button', { name: /^지도에서 (목적지 )?선택$/ }));
+      expect(mapView().level).toBe(7);
+    } finally {
+      viewport?.mockRestore();
+    }
+  },
+);

@@ -4,7 +4,7 @@ import { expect, it, vi } from 'vitest';
 
 import type { MapCanvasProps } from '@/features/map/model/MapCanvas';
 import MapCanvas from '@/features/map/ui/map-canvas/MapCanvas';
-import { MapCanvasMode, SharedMapCanvasProvider } from '@/features/map/ui/map-canvas/SharedMapCanvas';
+import { MapCanvasMode, SharedMapCanvasProvider, useMapCanvasHost } from '@/features/map/ui/map-canvas/SharedMapCanvas';
 
 const lifetime = vi.hoisted(() => ({ mounts: 0, unmounts: 0 }));
 vi.mock('@/features/map/ui/map-canvas/MapCanvasSurface', () => ({
@@ -137,4 +137,44 @@ it('매물 카드로 화면이 지도를 옮긴 자리(중심과 확대 단계)�
   fireEvent.click(screen.getByText('모드 전환'));
   expect(screen.getByLabelText('실제 지도')).toHaveTextContent('36.5');
   expect(screen.getByLabelText('실제 확대 단계')).toHaveTextContent('2');
+});
+
+it('붙잡아 둔 이전 모드의 가운데를 놓으면, 새 모드가 처음 요청한 자리와 같은 곳으로도 옮길 수 있다', () => {
+  const FinderMap = () => {
+    const host = useMapCanvasHost();
+    const [level, setLevel] = useState(9);
+    return (
+      <>
+        <button
+          onClick={() => {
+            host?.releaseHeldView();
+            setLevel(4);
+          }}
+        >
+          첫 안내 자리로 이동
+        </button>
+        <MapCanvas shared center={{ latitude: 38, longitude: 128 }} level={level} />
+      </>
+    );
+  };
+  const Harness = () => {
+    const [finding, setFinding] = useState(false);
+    return (
+      <SharedMapCanvasProvider preserveZoomOnModeChange>
+        <button onClick={() => setFinding(true)}>모드 전환</button>
+        <MapCanvasMode active={!finding}>
+          <MapCanvas shared center={{ latitude: 37, longitude: 127 }} level={2} />
+        </MapCanvasMode>
+        <MapCanvasMode active={finding}>
+          <FinderMap />
+        </MapCanvasMode>
+      </SharedMapCanvasProvider>
+    );
+  };
+  render(<Harness />);
+  fireEvent.click(screen.getByText('모드 전환'));
+  expect(screen.getByLabelText('실제 지도')).toHaveTextContent('37');
+  fireEvent.click(screen.getByText('첫 안내 자리로 이동'));
+  expect(screen.getByLabelText('실제 지도')).toHaveTextContent('38');
+  expect(screen.getByLabelText('실제 확대 단계')).toHaveTextContent('4');
 });
