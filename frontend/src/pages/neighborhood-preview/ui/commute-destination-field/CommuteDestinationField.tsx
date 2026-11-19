@@ -6,7 +6,6 @@ import useExclusiveDropdown from '@/shared/lib/hooks/useExclusiveDropdown';
 import SearchField from '@/shared/ui/search-field/SearchField';
 
 import type { NeighborhoodPreviewContext } from '../../hooks/useNeighborhoodPreview';
-import FinderSearchTip from '../finder-search-tip/FinderSearchTip';
 
 /** 입력을 멈추고 이만큼 지나면 검색한다. */
 const SEARCH_DEBOUNCE_MS = 300;
@@ -90,7 +89,6 @@ const CommuteDestinationField = ({ preview, disabled = false }: Props) => {
             }}
             onSubmit={() => void preview.searchDestination()}
           />
-          <FinderSearchTip hasInput={preview.query.trim().length > 0} enabled />
         </div>
       )}
       {!hasChosenMapPoint && dropdown.isOpen && (

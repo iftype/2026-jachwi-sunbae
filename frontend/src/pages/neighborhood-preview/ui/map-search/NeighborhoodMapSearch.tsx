@@ -106,8 +106,8 @@ const NeighborhoodMapSearch = ({ preview, hideHome = false }: NeighborhoodMapSea
 };
 
 const styles = {
+  /* position을 두지 않아 결과 드롭다운이 바깥 검색 줄(홈 버튼 포함) 전체 너비를 기준으로 깔린다. */
   search: css`
-    position: relative;
     flex: 1;
     min-width: 0;
     pointer-events: auto;
