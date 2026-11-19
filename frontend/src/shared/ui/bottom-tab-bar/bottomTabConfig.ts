@@ -5,8 +5,8 @@ import { MY_PATH, NEIGHBORHOODS_PATH, RECORDS_PATH } from '@/shared/lib/navigati
  */
 export const MOBILE_BOTTOM_TABS_ENABLED = true;
 
-/** 탭 바 높이(px). 아래 안전 영역은 `MOBILE_TAB_SPACE`에서 더한다. */
-export const MOBILE_BOTTOM_TAB_HEIGHT = 112;
+/** 탭 바 높이(px). 탭이 셋이라 일반적인 하단 탭 높이로 둔다. 아래 안전 영역은 `MOBILE_TAB_SPACE`에서 더한다. */
+export const MOBILE_BOTTOM_TAB_HEIGHT = 60;
 
 /**
  * 탭 바가 차지하는 아래 공간. 탭 바가 보이면 이 값, 숨기면 0px로 `<html>`의 `--mobile-tab-space`에 걸린다.
