@@ -17,6 +17,7 @@ import {
   VIDEO_SIZE,
   WHY_LEAD,
 } from '../model/landingContent';
+import { openVideoFullscreen } from '../model/openVideoFullscreen';
 import LandingGetStarted from '../ui/LandingGetStarted';
 import LandingTech from '../ui/LandingTech';
 import LandingWhy from '../ui/LandingWhy';
@@ -59,6 +60,8 @@ const LandingDesktopPage = ({ search, returnTo }: LandingDesktopPageProps) => (
             playsInline
             preload="metadata"
             aria-label={VIDEO_LABEL}
+            title="누르면 전체 화면으로 봐요"
+            onClick={(event) => openVideoFullscreen(event.currentTarget)}
           />
         </figure>
       </div>
@@ -240,6 +243,13 @@ const styles = {
       height: auto;
       aspect-ratio: ${VIDEO_SIZE.width} / ${VIDEO_SIZE.height};
       object-fit: cover;
+      cursor: zoom-in;
+
+      &:fullscreen {
+        object-fit: contain;
+        background: #fff;
+        cursor: auto;
+      }
     }
   `,
 

@@ -29,7 +29,7 @@ const StreetMemoForm = ({ isSubmitting, submitFailed, onSubmit, onCancel }: Prop
       }}
     >
       {/* 쓴 메모가 누구에게 보이는지 미리 알린다. */}
-      <p className={styles.visibility}>여러분이 남긴 평가는 자취선배를 쓰는 모두에게 보여요.</p>
+      <p className={styles.visibility}>남긴 평가는 나만 볼 수 있어요.</p>
       <fieldset className={styles.preferences}>
         <legend className="sr-only">이 장소를 평가해 주세요</legend>
         {PREFERENCES.map((value) => (
