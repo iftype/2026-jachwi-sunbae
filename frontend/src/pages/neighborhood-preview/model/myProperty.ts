@@ -11,4 +11,6 @@ export type MyPropertyRow = {
   longitude: number | null;
   commute: PropertyCommuteTime | null;
   representativePhoto: { photoId: number; contentUrl: string; thumbnailUrl: string } | null;
+  /** 첫 방을 기록하기 전에 보여 주는 미리보기 매물인지. 서버에 없는 매물이라 통근 시간과 동선을 부르지 않는다. */
+  isPreview?: boolean;
 };

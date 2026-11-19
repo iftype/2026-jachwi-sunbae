@@ -1237,3 +1237,47 @@ it('데스크탑 통합 지도는 왼쪽 조건 칸과 지도 위 찾은 동네 
     viewport.mockRestore();
   }
 });
+
+/** 기록한 매물 하나(신림역 원룸, id 10)와 그 매물의 통근 시간(25분)을 돌려준다. */
+const useOneRecordedProperty = () =>
+  server.use(
+    http.get('*/api/properties', () =>
+      HttpResponse.json(successEnvelope(propertyPageFixture([propertySummaryFixture]))),
+    ),
+    http.get('*/api/properties/commute-times', () =>
+      HttpResponse.json(
+        successEnvelope({
+          maxMinutes: 60,
+          maxTransfers: 2,
+          properties: [{ propertyId: 10, status: 'REACHABLE', commuteMinutes: 25 }],
+        }),
+      ),
+    ),
+  );
+
+it('동네 찾기 지도에도 내 기록과 같은 매물 마커를 올리고, 찜한 동네를 켜도 매물은 걷지 않는다', async () => {
+  useOneRecordedProperty();
+  writeBookmarkedAdminDongs(['11210690']);
+  server.use(...adminDongBookmarkHandlers);
+  try {
+    show(false, undefined, true);
+    const user = await choosePoint();
+    // 출퇴근 장소를 고르는 동안에도 매물이 보이지만 누를 수는 없다.
+    await waitFor(() => expect(markerList().map((marker) => marker.id)).toContain('my-property:10'));
+    expect(screen.queryByRole('button', { name: '마커 신림역 원룸' })).not.toBeInTheDocument();
+    await submitCurrentSearch(user);
+    await screen.findByRole('region', { name: '행정동 프리셋 지도' });
+    const property = markerList().find((marker) => marker.id === 'my-property:10');
+    // 내 기록 지도의 매물 마커와 같은 사진 카드에 월세를 적는다.
+    expect(property).toMatchObject({ label: '신림역 원룸', tone: 'property', summary: { amount: '55만' } });
+    // 결과 지도의 출퇴근 장소 핀은 말풍선 라벨이라 매물 카드보다 위에 온다.
+    expect(markerList().find((marker) => marker.id === 'destination')).toMatchObject({ tone: 'pinLabel' });
+    const bookmark = await screen.findByRole('button', { name: '찜한 동네 토글' });
+    if (bookmark.getAttribute('aria-pressed') !== 'true') await user.click(bookmark);
+    await waitFor(() => expect(bookmark).toHaveAttribute('aria-pressed', 'true'));
+    expect(markerList().map((marker) => marker.id)).toEqual(expect.arrayContaining(['destination', 'my-property:10']));
+  } finally {
+    writeBookmarkedAdminDongs([]);
+    localStorage.removeItem('jachwi:records-bookmark-layer-rail');
+  }
+});
