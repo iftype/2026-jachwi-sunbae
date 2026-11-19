@@ -56,18 +56,21 @@ const MapInfo = ({ subject, preview, my, onSelectProperty, phoneAction }: Props)
     return (
       <div className={styles.body}>
         <p className={styles.subtitle}>{area.fullName}</p>
-        <dl className={styles.facts}>
-          <dt>소요시간</dt>
-          <dd className={styles.commute}>
-            {/* 시간은 통근 색(15분 이하 파랑 등)의 뱃지로, 뒤에 가는 방법(출발 정류장)을 붙인다. */}
-            <b style={{ background: commuteColor(area.commuteMinutes).fillColor }}>{area.commuteMinutes}분</b>
-            {area.stations[0] && <span>{area.stations[0].stopName}에서 출발</span>}
-          </dd>
-          <dt>월세 시세</dt>
-          <dd>{area.rent ? formatRentPair(area.rent) : '거래가 적어 시세를 내지 않았어요'}</dd>
-        </dl>
+        <div className={styles.summary}>
+          <dl className={styles.facts}>
+            <dt>소요시간</dt>
+            <dd className={styles.commute}>
+              {/* 시간은 통근 색(15분 이하 파랑 등)의 뱃지로, 뒤에 가는 방법(출발 정류장)을 붙인다. */}
+              <b style={{ background: commuteColor(area.commuteMinutes).fillColor }}>{area.commuteMinutes}분</b>
+              {area.stations[0] && <span>{area.stations[0].stopName}에서 출발</span>}
+            </dd>
+            <dt>월세 시세</dt>
+            <dd>{area.rent ? formatRentPair(area.rent) : '거래가 적어 시세를 내지 않았어요'}</dd>
+          </dl>
+          {/* 다방 링크는 정보 글 오른쪽에 정사각형 타일로 고정한다. */}
+          <ListingLink areaName={area.name} center={area.center} onOpen={preview.openListing} />
+        </div>
         {overRent && <p className={styles.notice}>{overRent}</p>}
-        <ListingLink areaName={area.name} center={area.center} onOpen={preview.openListing} />
       </div>
     );
   }
@@ -121,8 +124,19 @@ const styles = {
     font-size: 0.8rem;
   `,
 
+  summary: css`
+    label: MapInfo-summary;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  `,
+
   facts: css`
     label: MapInfo-facts;
+    flex: 1;
+    min-width: 0;
+    align-content: center;
     display: grid;
     grid-template-columns: auto 1fr;
     gap: 0.35rem 0.75rem;
