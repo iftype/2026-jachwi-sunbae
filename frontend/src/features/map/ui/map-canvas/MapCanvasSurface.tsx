@@ -39,6 +39,7 @@ const MapCanvas = ({
   tip,
   markers = EMPTY_MARKERS,
   circles = EMPTY_CIRCLES,
+  routes,
   level = 5,
   customStyleId,
   interactive = false,
@@ -92,6 +93,7 @@ const MapCanvas = ({
     tip,
     markers: allMarkers,
     circles,
+    routes,
     radiusCenter,
     level,
     customStyleId,
@@ -265,6 +267,33 @@ const MapCanvas = ({
                 </span>
               </button>
             ))}
+          {routes !== undefined && routes.length > 0 && (
+            <svg
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+              aria-label="동선 시안"
+            >
+              {routes.map((route) => (
+                <polyline
+                  key={route.id}
+                  points={route.points
+                    .map(
+                      (point) =>
+                        `${50 + (point.longitude - boundedCenter.longitude) * 3100},${50 - (point.latitude - boundedCenter.latitude) * 4200}`,
+                    )
+                    .join(' ')}
+                  fill="none"
+                  stroke={route.color}
+                  strokeWidth={route.dashed ? 3 : 5}
+                  strokeDasharray={route.dashed ? '6 5' : undefined}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  vectorEffect="non-scaling-stroke"
+                />
+              ))}
+            </svg>
+          )}
           {circles.map((circle) => (
             <span
               key={circle.radiusMeters}
