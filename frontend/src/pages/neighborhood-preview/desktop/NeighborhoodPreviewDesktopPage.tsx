@@ -29,6 +29,7 @@ import ConditionPanel from '../ui/condition-panel/ConditionPanel';
 import FinderPropertyPanel from '../ui/finder-property-panel/FinderPropertyPanel';
 import LocationControls from '../ui/location-controls/LocationControls';
 import MapInfo, { type MapInfoSubject, mapInfoTitle } from '../ui/map-info/MapInfo';
+import MapSelectionHint from '../ui/map-selection-hint/MapSelectionHint';
 import RentSlider from '../ui/rent-slider/RentSlider';
 
 import * as shared from '../NeighborhoodPreviewPage.styles';
@@ -288,12 +289,7 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
               editor
             ))}
           {preview.isSelectingOnMap && preview.isMapSelectionEnabled && (
-            <div className={styles.selectHint} role="status">
-              <span>지도를 눌러 출퇴근 장소를 골라요</span>
-              <button type="button" onClick={preview.cancelMapSelection}>
-                취소
-              </button>
-            </div>
+            <MapSelectionHint onCancel={preview.cancelMapSelection} />
           )}
           {preview.isSelectingOnMap && (
             <>
@@ -628,36 +624,6 @@ const styles = {
 
   /* 왼쪽 패널에 조건 카드를 붙이는 회원용. 패널 바깥 여백을 두지 않고 안쪽 카드가 자기 여백만 갖는다. */
   /* 동네를 찾은 뒤 지도 왼쪽 위(뱃지 줄 아래)에 띄우는 월세 시세 슬라이더 카드. */
-  selectHint: css`
-    label: NeighborhoodPreviewDesktopPage-selectHint;
-    position: absolute;
-    top: 1rem;
-    left: 50%;
-    z-index: 33;
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    padding: 0.5rem 0.6rem 0.5rem 0.9rem;
-    border-radius: 999px;
-    background: var(--color-brand-blue-ink);
-    box-shadow: var(--shadow-floating);
-    color: #fff;
-    font-size: 0.85rem;
-    font-weight: 700;
-    transform: translateX(-50%);
-
-    & button {
-      padding: 0.2rem 0.7rem;
-      border: 0;
-      border-radius: 999px;
-      background: #fff;
-      color: var(--color-brand-blue-ink);
-      font: inherit;
-      font-size: 0.78rem;
-      font-weight: 800;
-      cursor: pointer;
-    }
-  `,
   /* 지도 왼쪽 아래에 색 기준(위)과 월세 슬라이더(아래)를 쌓는다. 오른쪽 정보 카드는 이 줄 옆으로 비킨다. */
   bottomStack: css`
     label: NeighborhoodPreviewDesktopPage-bottomStack;

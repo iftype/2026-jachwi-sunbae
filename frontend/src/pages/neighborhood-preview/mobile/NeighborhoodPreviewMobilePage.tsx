@@ -28,6 +28,7 @@ import CriteriaSummary from '../ui/criteria-summary/CriteriaSummary';
 import LocationControls from '../ui/location-controls/LocationControls';
 import MapInfo, { type MapInfoSubject, mapInfoTitle } from '../ui/map-info/MapInfo';
 import NeighborhoodMapSearch from '../ui/map-search/NeighborhoodMapSearch';
+import MapSelectionHint from '../ui/map-selection-hint/MapSelectionHint';
 import RentSlider from '../ui/rent-slider/RentSlider';
 
 import * as shared from '../NeighborhoodPreviewPage.styles';
@@ -211,6 +212,7 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
                 </>
               )}
             </header>
+            {preview.isMapSelectionEnabled && <MapSelectionHint top="5.5rem" onCancel={preview.cancelMapSelection} />}
             <LocationControls
               preview={preview}
               isResult={false}
