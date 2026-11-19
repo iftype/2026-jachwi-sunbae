@@ -32,7 +32,6 @@ const markerClassName = (marker: MapMarker, selectedMarkerId: string | null | un
   [
     styles.marker,
     isPinMarker(marker) ? styles.pinMarker : '',
-    marker.image ? styles.imageMarker : '',
     marker.photo !== undefined && (marker.tone === 'property' || marker.tone === 'propertyCluster')
       ? styles.photoMarker
       : '',
@@ -66,16 +65,7 @@ const MapMarkerView = ({ marker, selectedMarkerId = null, onSelectMarker }: MapM
           <small title={marker.summary.amount}>{marker.summary.amount}</small>
         </span>
       )}
-      {marker.image ? (
-        <img
-          className={styles.pinImage}
-          src={marker.image.src}
-          srcSet={marker.image.src2x ? `${marker.image.src} 1x, ${marker.image.src2x} 2x` : undefined}
-          alt=""
-          draggable={false}
-          decoding="async"
-        />
-      ) : marker.tone === 'rank' ? (
+      {marker.tone === 'rank' ? (
         <span className={styles.rankLabel}>
           <b>{marker.rank}</b>
           {marker.caption ?? marker.label}
@@ -389,16 +379,6 @@ const styles = {
 
     @media (prefers-reduced-motion: reduce) {
       animation: none;
-    }
-  `,
-
-  /* 그림 핀은 기호가 작아 보이지 않게 일반 핀보다 조금 크게 그린다. */
-  imageMarker: css`
-    label: MapMarkerView-imageMarker;
-
-    && {
-      width: 2.5rem;
-      height: 2.5rem;
     }
   `,
 
