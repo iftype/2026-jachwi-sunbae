@@ -106,3 +106,35 @@ it('모드 전환은 사용자가 옮긴 위치와 확대 단계를 유지하고
   expect(screen.getByLabelText('실제 확대 단계')).toHaveTextContent('6');
   expect(screen.getByLabelText('실제 지도')).toHaveTextContent('37.75');
 });
+
+it('매물 카드로 화면이 지도를 옮긴 자리(중심과 확대 단계)도 동네 찾기로 전환할 때 유지한다', () => {
+  const Harness = () => {
+    const [finding, setFinding] = useState(false);
+    const [records, setRecords] = useState({ center: { latitude: 37, longitude: 127 }, level: 5 });
+    const [finder, setFinder] = useState({ center: { latitude: 38, longitude: 128 }, level: 9 });
+    return (
+      <SharedMapCanvasProvider preserveZoomOnModeChange>
+        <button onClick={() => setFinding((current) => !current)}>모드 전환</button>
+        <button onClick={() => setRecords({ center: { latitude: 36.5, longitude: 126.5 }, level: 2 })}>
+          매물 카드 선택
+        </button>
+        <MapCanvasMode active={!finding}>
+          <MapCanvas shared {...records} />
+        </MapCanvasMode>
+        <MapCanvasMode active={finding}>
+          <MapCanvas
+            shared
+            {...finder}
+            onCenterChange={(latitude, longitude) => setFinder((c) => ({ ...c, center: { latitude, longitude } }))}
+            onLevelChange={(level) => setFinder((c) => ({ ...c, level }))}
+          />
+        </MapCanvasMode>
+      </SharedMapCanvasProvider>
+    );
+  };
+  render(<Harness />);
+  fireEvent.click(screen.getByText('매물 카드 선택'));
+  fireEvent.click(screen.getByText('모드 전환'));
+  expect(screen.getByLabelText('실제 지도')).toHaveTextContent('36.5');
+  expect(screen.getByLabelText('실제 확대 단계')).toHaveTextContent('2');
+});
