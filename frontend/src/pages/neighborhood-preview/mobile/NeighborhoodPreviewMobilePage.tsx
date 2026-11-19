@@ -108,6 +108,13 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
   };
   // `My` 목록에서 고른 매물이면 시트에 이전과 다음 이동, 목록으로 돌아가는 뒤로가기를 둔다.
   const myPager = useMyPropertyPager(infoSubject, mapView);
+  // 시트가 없으면 지도 아래 가운데에 두고, 시트가 있으면 시트 바로 위에 띄워(BottomSheet `floating`) 시트 높이와 하단 탭을 그대로 따라가게 한다.
+  const reselectButton = (className: string) => (
+    <Button className={className} onClick={reselectCommute} data-public={preview.isPublicExplore || undefined}>
+      <Icon name="replace" size={18} />
+      {RESELECT_COMMUTE_LABEL}
+    </Button>
+  );
   // 지도는 화면 전체를 쓰고, 위 결과 머리와 아래 시트가 가리는 만큼 비우고 시점을 맞춘다.
   const mapSectionRef = useResultMapViewport<HTMLElement>(preview, (section) => {
     const rect = section.getBoundingClientRect();
@@ -314,16 +321,7 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
             </header>
             {resultControls}
 
-            {!infoSubject && (
-              <Button
-                className={styles.reselect}
-                onClick={reselectCommute}
-                data-public={preview.isPublicExplore || undefined}
-              >
-                <Icon name="replace" size={18} />
-                {RESELECT_COMMUTE_LABEL}
-              </Button>
-            )}
+            {!infoSubject && reselectButton(styles.reselect)}
             {preview.isPublicExplore && recordArea && (
               <div className={shared.recordAction}>
                 <ExplorationRecordAction
@@ -364,6 +362,7 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
                   )
                 }
                 peekSignal={peekSignal}
+                floating={reselectButton(styles.reselectFloating)}
                 onClose={() => {
                   if (infoSubject.kind === 'place') closeLayers();
                   else if (infoSubject.kind === 'area') setDismissedAreaCode(infoSubject.area.adminDongCode);
@@ -397,6 +396,15 @@ const styles = {
     transform: translateX(-50%);
     box-shadow: var(--shadow-floating);
     white-space: nowrap;
+    /* 흰 지도와 시트 위에서도 눈에 띄게 진한 파랑 바탕에 굵은 테두리를 둔다. */
+    border: 2px solid var(--color-surface);
+    background: var(--color-brand-blue-ink);
+    color: var(--color-on-primary);
+    font-size: 0.875rem;
+
+    &:hover:not(:disabled) {
+      background: var(--color-brand-blue-ink);
+    }
 
     &[data-public='true'] {
       bottom: calc(env(safe-area-inset-bottom) + 4.5rem);
@@ -406,6 +414,16 @@ const styles = {
       display: flex;
       align-items: center;
       gap: 0.4rem;
+    }
+  `,
+  /* 시트 위 `floating` 칸 안에서는 위치를 시트가 정하므로 고정 배치만 푼다. */
+  reselectFloating: css`
+    label: NeighborhoodPreviewMobilePage-reselectFloating;
+    position: static;
+    transform: none;
+
+    &[data-public='true'] {
+      bottom: auto;
     }
   `,
   conditionCard: css`
