@@ -107,7 +107,7 @@ const RecordsDesktopPage = ({ records, layers }: Props) => {
               panel={{
                 propertyId: Number(selected.id),
                 onClose: () => setSelectedId(null),
-                headerEnd: neighbors && <RecordStepper neighbors={neighbors} onStep={records.showRecord} />,
+                headerEnd: neighbors && <RecordStepper neighbors={neighbors} onStep={records.showRecordOnMap} />,
               }}
             />
           )}

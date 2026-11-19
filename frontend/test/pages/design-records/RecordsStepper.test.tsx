@@ -120,8 +120,8 @@ it('휴대폰에서 매물 뱃지를 고르면 바텀시트로 보고, 이전 �
 
   await user.click(sheet.getByRole('button', { name: '다음 매물' }));
   expect(sheet.getByRole('link', { name: '둘째 방' })).toBeInTheDocument();
-  // 매물을 넘겨 봐도 지도는 옮기지 않는다.
-  expect(screen.getByLabelText('지도 중심')).not.toHaveTextContent('37.6,127');
+  // 이전, 다음으로 넘겨도 목록 카드를 눌렀을 때처럼 지도를 그 매물로 옮긴다.
+  expect(screen.getByLabelText('지도 중심')).toHaveTextContent('37.6,127');
   expect(map.getByRole('button', { name: '둘째 방' })).toHaveAttribute('aria-pressed', 'true');
   expect(map.getByRole('button', { name: '첫째 방' })).toHaveAttribute('aria-pressed', 'false');
 

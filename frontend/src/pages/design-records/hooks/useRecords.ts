@@ -159,7 +159,7 @@ const useRecords = (selection?: RecordsSelection) => {
       focus({ latitude: first.latitude, longitude: first.longitude }, level, opened);
   };
 
-  /** 매물을 열기만 한다. 마커와 이전, 다음으로 넘길 때 쓰며 지도는 옮기거나 확대하지 않는다. */
+  /** 매물을 열기만 한다. 마커를 눌러 열 때 쓰며 지도는 옮기거나 확대하지 않는다. */
   const showRecord = (recordId: string) => {
     setSelectedId(recordId);
   };
