@@ -10,6 +10,10 @@ export type MapTapAction = {
   label: string;
   /** 글자 앞에 둘 작은 그림 주소. 이모지 대신 쓴다. */
   icon?: string;
+  /** 있으면 버튼 대신 이 주소로 가는 링크로 그린다(전화걸기 `tel:`). */
+  href?: string;
+  /** 화면 낭독기가 읽는 이름. 없으면 `label`을 읽는다. */
+  ariaLabel?: string;
   onSelect: () => void;
 };
 
@@ -18,6 +22,10 @@ export type MapCoordinateMenu = {
   longitude: number;
   /** 화면 낭독기가 읽는 말풍선 이름. 화면에는 쓰지 않는다. */
   title?: string;
+  /** 동작 위에 화면에 보이는 굵은 한 줄(시설 마커 위 말풍선의 이름). */
+  heading?: string;
+  /** 좌표에서 마커 위쪽 가장자리까지의 높이(px). 말풍선 꼬리 끝이 마커 위쪽에 닿게 그만큼 올린다. 없으면 좌표를 바로 가리킨다. */
+  markerAbove?: number;
   /** 동작 위에 두는 회색 한 줄(휴대폰에서 찜한 동네 안을 눌렀을 때 그 동의 월세 시세). */
   note?: string;
   actions: MapTapAction[];

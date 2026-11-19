@@ -8,20 +8,45 @@ type Props = {
 
 const DEFAULT_TITLE = '이 위치에서';
 
+/** 마커 위에 놓는 말풍선은 꼬리 끝이 마커 위쪽 가장자리에 닿게 그 높이만큼 더 띄운다. */
+const anchorStyle = (menu: MapCoordinateMenuModel) =>
+  menu.markerAbove ? { paddingBottom: `calc(0.45rem + ${menu.markerAbove}px)` } : undefined;
+
 /**
  * 데모 지도에서 쓰는 말풍선. 실제 지도는 같은 모양을 createMapCoordinateMenuElement로 만들어 지도 좌표에 붙인다.
  * 제목과 닫기 버튼은 두지 않는다. 지도 빈 곳을 다시 찍으면 닫힌다.
  */
 const MapCoordinateMenu = ({ menu }: Props) => (
-  <div className={styles.anchor}>
+  <div className={styles.anchor} style={anchorStyle(menu)}>
     <div className={styles.menu} role="menu" aria-label={menu.title ?? DEFAULT_TITLE}>
+      {menu.heading && <p className={styles.heading}>{menu.heading}</p>}
       {menu.note && <p className={styles.note}>{menu.note}</p>}
-      {menu.actions.map((action) => (
-        <button key={action.id} type="button" role="menuitem" className={styles.action} onClick={action.onSelect}>
-          {action.icon && <img className={styles.icon} src={action.icon} alt="" draggable={false} />}
-          {action.label}
-        </button>
-      ))}
+      {menu.actions.map((action) =>
+        action.href !== undefined ? (
+          <a
+            key={action.id}
+            role="menuitem"
+            className={styles.action}
+            href={action.href}
+            aria-label={action.ariaLabel}
+            onClick={action.onSelect}
+          >
+            {action.label}
+          </a>
+        ) : (
+          <button
+            key={action.id}
+            type="button"
+            role="menuitem"
+            className={styles.action}
+            aria-label={action.ariaLabel}
+            onClick={action.onSelect}
+          >
+            {action.icon && <img className={styles.icon} src={action.icon} alt="" draggable={false} />}
+            {action.label}
+          </button>
+        ),
+      )}
     </div>
   </div>
 );
@@ -33,11 +58,19 @@ const MapCoordinateMenu = ({ menu }: Props) => (
 export const createMapCoordinateMenuElement = (menu: MapCoordinateMenuModel): HTMLElement => {
   const anchor = document.createElement('div');
   anchor.className = styles.anchor;
+  const anchorPadding = anchorStyle(menu);
+  if (anchorPadding) anchor.style.paddingBottom = anchorPadding.paddingBottom;
   const root = document.createElement('div');
   root.className = styles.menu;
   root.setAttribute('role', 'menu');
   root.setAttribute('aria-label', menu.title ?? DEFAULT_TITLE);
   anchor.append(root);
+  if (menu.heading) {
+    const heading = document.createElement('p');
+    heading.className = styles.heading;
+    heading.textContent = menu.heading;
+    root.append(heading);
+  }
   if (menu.note) {
     const note = document.createElement('p');
     note.className = styles.note;
@@ -45,8 +78,10 @@ export const createMapCoordinateMenuElement = (menu: MapCoordinateMenuModel): HT
     root.append(note);
   }
   menu.actions.forEach((action) => {
-    const button = document.createElement('button');
-    button.type = 'button';
+    const button = document.createElement(action.href !== undefined ? 'a' : 'button');
+    if (button instanceof HTMLButtonElement) button.type = 'button';
+    if (button instanceof HTMLAnchorElement && action.href !== undefined) button.href = action.href;
+    if (action.ariaLabel !== undefined) button.setAttribute('aria-label', action.ariaLabel);
     button.className = styles.action;
     button.setAttribute('role', 'menuitem');
     if (action.icon !== undefined) {
@@ -109,6 +144,15 @@ const styles = {
     }
   `,
 
+  heading: css`
+    label: MapCoordinateMenu-heading;
+    margin: 0;
+    padding: 0.35rem 0.7rem;
+    font-size: 0.875rem;
+    font-weight: 700;
+    white-space: nowrap;
+  `,
+
   note: css`
     label: MapCoordinateMenu-note;
     margin: 0;
@@ -140,6 +184,7 @@ const styles = {
     font-size: 0.875rem;
     font-weight: 650;
     text-align: left;
+    text-decoration: none;
     white-space: nowrap;
     cursor: pointer;
 
