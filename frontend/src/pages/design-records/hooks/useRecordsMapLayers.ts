@@ -21,6 +21,7 @@ import { useLogger } from '@/shared/lib/analytics/logging';
 
 import { readBookmarkLayerOn, writeBookmarkLayerOn } from '../model/bookmarkLayer';
 import { FIRST_PROPERTY_TIP_KEY, RECORDS_TAP_TIP_KEY, SHOW_FIRST_PROPERTY_TIP } from '../model/mapTapTipKey';
+import { nearestMarkerAt } from '../model/nearestMarker';
 import { SEARCHED_PIN_IMAGE } from '../model/searchedPin';
 import type { RecordsState } from './useRecords';
 
@@ -363,6 +364,19 @@ const useRecordsMapLayers = (
     enabled: SHOW_FIRST_PROPERTY_TIP && createdMarker !== undefined && realRecordCount === 1,
   });
   const allMarkers = useMemo(() => [...recordMarkers, ...markers], [recordMarkers, markers]);
+  /** 메모 마커와 겹친 매물 묶음이 아니면 기록한 방 하나의 마커다. */
+  const selectMapMarker = (marker: MapMarker) => {
+    // 검색한 곳의 라벨(×)을 누르면 그 표시를 지운다.
+    if (marker.id === SEARCHED_MARKER_ID) {
+      records.clearSearchedPoint();
+      return;
+    }
+    if (selectMarker(marker)) return;
+    memo.close();
+    setTapPoint(null);
+    setGroupIds([]);
+    records.showRecord(marker.id);
+  };
   /** 두 화면의 지도가 그대로 넘기는 MapCanvas 설정. 찍은 자리 말풍선(coordinateMenu)은 데스크탑만 더한다. */
   const canvasProps = {
     // 동네 뱃지, 현재 위치, 매물 넘기기로 지도를 옮길 때 부드럽게 이동한다.
@@ -372,26 +386,23 @@ const useRecordsMapLayers = (
     level: records.level,
     markers: allMarkers,
     selectedMarkerId: selectedRecordMarkerId ?? memo.selectedMarkerId,
-    // 메모 마커와 겹친 매물 묶음이 아니면 기록한 방 하나의 마커다.
-    onSelectMarker: (marker: MapMarker) => {
-      // 검색한 곳의 라벨(×)을 누르면 그 표시를 지운다.
-      if (marker.id === SEARCHED_MARKER_ID) {
-        records.clearSearchedPoint();
-        return;
-      }
-      if (selectMarker(marker)) return;
-      memo.close();
-      setTapPoint(null);
-      setGroupIds([]);
-      records.showRecord(marker.id);
-    },
+    onSelectMarker: selectMapMarker,
     onSelectLocation: tapLocation,
     onCenterChange: (latitude: number, longitude: number) => records.setCenter({ latitude, longitude }),
     onLevelChange: records.setLevel,
     onBoundsChange: rememberBounds,
     tip: firstPropertyTip ?? tip,
     regions: bookmarkRegions,
-    onSelectRegion: (id: string) => setOpenBookmarkCode((current) => (current === id ? null : id)),
+    // 찜한 동네 위의 기록과 메모를 눌러도 구역이 먼저 눌릴 수 있어, 누른 자리 아래 마커가 있으면 그 마커의 말풍선을 연다.
+    onSelectRegion: (id: string, point?: MapPoint) => {
+      const marker = point ? nearestMarkerAt(allMarkers, point, bounds) : null;
+      if (marker) {
+        setOpenBookmarkCode(null);
+        selectMapMarker(marker);
+        return;
+      }
+      setOpenBookmarkCode((current) => (current === id ? null : id));
+    },
     coordinateAction:
       openBookmarkRegion?.center === undefined
         ? undefined

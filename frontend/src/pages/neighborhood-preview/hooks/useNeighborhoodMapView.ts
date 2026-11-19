@@ -62,6 +62,8 @@ export const RESULT_RAIL_LABELS: Partial<Record<MapCategory, string>> = { AGENCY
 const REGION_LABEL_HALF_HEIGHT = 18;
 const SEARCH_PIN_ID = 'search-pin';
 const BOOKMARK_REGION_PREFIX = 'bookmark:';
+/** 출퇴근 장소 핀과 검색 핀. 찜한 동네만 보여 줄 때도 지우지 않는다. */
+const isCommutePin = (marker: MapMarker) => marker.id === 'destination' || marker.id.startsWith(SEARCH_PIN_ID);
 
 const useNeighborhoodMapView = (
   preview: NeighborhoodPreviewContext,
@@ -373,10 +375,13 @@ const useNeighborhoodMapView = (
     ? {
         ...mapProps,
         bookmarkControl: registration.canvasProps.bookmarkControl,
-        markers: [
-          ...(mapProps.markers ?? []),
-          ...(registration.canvasProps.markers ?? []).filter((marker) => marker.category === 'MEMO'),
-        ],
+        // 찜한 동네를 켜 두면 찜한 영역만 또렷하게 보이도록 시설, 매물, 메모 같은 주변 마커를 걷고 출퇴근 장소 핀만 남긴다.
+        markers: registration.canvasProps.bookmarkControl.isOn
+          ? (mapProps.markers ?? []).filter(isCommutePin)
+          : [
+              ...(mapProps.markers ?? []),
+              ...(registration.canvasProps.markers ?? []).filter((marker) => marker.category === 'MEMO'),
+            ],
         // 찜한 동네는 행정동 경계 안쪽을 칠해 두 지도에 같은 모양으로 보인다. 통근 결과 구역과 id가 겹치지 않게 접두어를 붙이고, 눌러도 고르지 않는다.
         regions: [
           ...(mapProps.regions ?? []),
@@ -390,7 +395,7 @@ const useNeighborhoodMapView = (
         onSelectRegion: (id, point) => {
           // 찜한 동네를 누르면 내 기록 지도와 같은 카드(동 이름과 별)를 띄워 거기서 찜을 해제한다.
           if (id.startsWith(BOOKMARK_REGION_PREFIX)) {
-            registration.canvasProps.onSelectRegion(id.slice(BOOKMARK_REGION_PREFIX.length));
+            registration.canvasProps.onSelectRegion(id.slice(BOOKMARK_REGION_PREFIX.length), point);
             return;
           }
           mapProps.onSelectRegion?.(id, point);
