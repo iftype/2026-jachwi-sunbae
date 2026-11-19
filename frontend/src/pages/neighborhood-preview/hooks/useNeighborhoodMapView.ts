@@ -38,6 +38,7 @@ import {
 import { isFirstPromptEntry } from '../model/firstPromptEntry';
 import { NEIGHBORHOOD_TAP_TIP_KEY } from '../model/mapTapTipKey';
 import type { MyPropertyRow } from '../model/myProperty';
+import { regionCardCode } from '../model/regionCardCode';
 import useNeighborhoodPlaces, { MY_PROPERTY_PREFIX, type NeighborhoodPlace } from './useNeighborhoodPlaces';
 import type { NeighborhoodPreviewContext } from './useNeighborhoodPreview';
 import usePropertyRoute from './usePropertyRoute';
@@ -395,18 +396,17 @@ const useNeighborhoodMapView = (
     if (isHovered) regionHover.enter(id);
     else regionHover.leave();
   };
-  // 누른 동네의 카드는 마우스를 치워도 그 동네 중심에 그대로 둔다. 다른 동네에 마우스를 올리면 그 카드가 함께 떠, 카드는 최대 둘(고정 하나, 호버 하나)이다.
-  // 마우스를 올린 동네가 누른 동네와 같으면 카드는 하나만 둔다.
+  // 누른 동네의 카드는 마우스를 치워도 그 동네 중심에 그대로 둔다. 눌러 고정한 동네가 있으면 다른 동네에 마우스를 올려도 카드를 띄우지 않고(영역 강조만 남는다),
+  // 고정한 동네가 없을 때만 마우스를 올린 동네의 카드가 뜬다. 그래서 카드는 늘 하나다.
   const selectedCode = preview.selected?.adminDongCode ?? null;
   const pinnedCode = showAreaAction && selectedCode !== dismissedCode ? selectedCode : null;
-  const hoverCardCode = hoveredCode !== pinnedCode ? hoveredCode : null;
+  const cardCode = regionCardCode(pinnedCode, hoveredCode);
   const areaOf = (code: string | null) =>
     code === null ? undefined : preview.resultAreas.find((area) => area.adminDongCode === code);
-  const pinnedArea = areaOf(pinnedCode);
-  const hoveredArea = areaOf(hoverCardCode);
+  const cardArea = areaOf(cardCode);
   /** 동네의 정보 카드. 동 라벨(알약)은 좌표가 가운데라 높이의 절반만큼 위에서 꼬리가 닿는다. */
   const areaCardAction = (
-    area: NonNullable<typeof pinnedArea>,
+    area: NonNullable<typeof cardArea>,
     onHoverChange?: (isHovered: boolean) => void,
   ): NonNullable<MapCanvasProps['coordinateAction']> => ({
     ...area.center,
@@ -488,10 +488,13 @@ const useNeighborhoodMapView = (
         onSelectRegion: selectRegion,
         // 데스크탑: 동 라벨이나 구역에 마우스를 올리면 동 이름, 소요시간, 월세 시세 카드가 그 자리에 뜬다. 모바일은 아래 시트가 같은 내용을 맡는다.
         onHoverRegion: showAreaAction ? hoverRegion : undefined,
-        coordinateAction: showAreaAction && pinnedArea && !hasOpenLayer ? areaCardAction(pinnedArea) : undefined,
-        hoverAction:
-          showAreaAction && hoveredArea && !hasOpenLayer
-            ? areaCardAction(hoveredArea, (isHovered) => (isHovered ? holdCard() : releaseCard()))
+        // 호버 카드에만 마우스 유지 처리를 붙인다. 눌러 고정한 카드는 마우스와 상관없이 남는다.
+        coordinateAction:
+          showAreaAction && cardArea && !hasOpenLayer
+            ? areaCardAction(
+                cardArea,
+                pinnedCode === null ? (isHovered) => (isHovered ? holdCard() : releaseCard()) : undefined,
+              )
             : undefined,
       }
     : {
@@ -554,7 +557,6 @@ const useNeighborhoodMapView = (
           : (mapProps.regions ?? []),
         selectedRegionId: showsBookmarkOnly ? null : mapProps.selectedRegionId,
         onHoverRegion: showsBookmarkOnly ? undefined : mapProps.onHoverRegion,
-        hoverAction: showsBookmarkOnly ? undefined : mapProps.hoverAction,
         // 동네 찾기에서는 지도를 눌러도 메모 남기기, 본 방 기록하기 메뉴를 띄우지 않는다.
         coordinateMenu: undefined,
         onSelectLocation: mapProps.onSelectLocation
@@ -655,8 +657,6 @@ const useNeighborhoodMapView = (
     railSelection,
     /** 기록한 매물을 지도에 띄우는 중인지(로그인한 회원). */
     showsMy,
-    /** 시설 칸을 켰지만 멀리 보고 있어 시설을 받지 않는 중인지. 화면은 `가까이 확대하면 보여요`를 띄운다. */
-    needsZoomForFacilities: isResultMap && !facilityMarkersVisible(preview.resultLevel, markerLevel),
     /** 켠 레일 칸을 끈다(My 목록을 닫았을 때). */
     clearRail: () => {
       if (railSelection !== null) selectRail(railSelection);
