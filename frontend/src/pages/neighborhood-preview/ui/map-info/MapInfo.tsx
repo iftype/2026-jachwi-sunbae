@@ -114,14 +114,14 @@ const styles = {
   body: css`
     label: MapInfo-body;
     display: grid;
-    gap: 0.6rem;
+    gap: 0.45rem;
   `,
 
   subtitle: css`
     label: MapInfo-subtitle;
     margin: 0;
     color: var(--color-ink-soft);
-    font-size: 0.8rem;
+    font-size: 0.875rem;
   `,
 
   summary: css`
@@ -139,9 +139,9 @@ const styles = {
     align-content: center;
     display: grid;
     grid-template-columns: auto 1fr;
-    gap: 0.35rem 0.75rem;
+    gap: 0.25rem 0.75rem;
     margin: 0;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
 
     & dt {
       color: var(--color-muted);

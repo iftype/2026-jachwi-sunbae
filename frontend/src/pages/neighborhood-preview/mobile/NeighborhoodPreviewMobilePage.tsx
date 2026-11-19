@@ -355,6 +355,20 @@ const styles = {
   areaSheet: css`
     label: NeighborhoodPreviewMobilePage-areaSheet;
 
+    /* 처음 높이는 퍼센트 대신 내용 높이를 따른다(시세 문구가 길어져도 잘리지 않는다). 끌어 올리면 기존 단계로 커진다. */
+    &&[data-mode='default'] {
+      height: auto;
+    }
+
+    & > button:first-of-type {
+      height: 1.25rem;
+    }
+
+    & > header {
+      padding-top: 0.1rem;
+      padding-bottom: 0.4rem;
+    }
+
     & > div:last-of-type {
       padding-bottom: 0.75rem;
     }
