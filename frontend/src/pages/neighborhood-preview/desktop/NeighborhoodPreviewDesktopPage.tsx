@@ -222,11 +222,13 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
       <ListDetailLayout
         list={panel ? panel.content : list}
         // 목록 옆 칸에는 동네 대중교통 상세만 연다. 장소, 동네, 내 매물 정보는 지도 안 왼쪽 아래 카드에 둔다.
-        detail={panel ? undefined : (propertyDetail ?? (hasDetail ? <Outlet context={preview} /> : undefined))}
-        // 매물 패널은 내 기록 상세처럼 접기만 하고 고른 매물(`?property=`)은 그대로 둔다. 대중교통 상세는 닫는다.
-        collapsible={propertyDetail !== undefined}
-        onCloseDetail={preview.closeAreaDetails}
-        closeLabel="대중교통 상세 닫기"
+        detail={
+          panel ? panel.detail?.content : (propertyDetail ?? (hasDetail ? <Outlet context={preview} /> : undefined))
+        }
+        // 매물 패널은 내 기록 상세처럼 접기만 하고 고른 매물(`?property=`)은 그대로 둔다. 대중교통 상세와 체크리스트 편집 칸은 닫는다.
+        collapsible={!panel && propertyDetail !== undefined}
+        onCloseDetail={panel ? panel.detail?.close : preview.closeAreaDetails}
+        closeLabel={panel ? panel.detail?.closeLabel : '대중교통 상세 닫기'}
       >
         <section
           ref={mapSectionRef}
