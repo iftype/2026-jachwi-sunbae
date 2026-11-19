@@ -1238,6 +1238,24 @@ it('데스크탑 통합 지도는 왼쪽 조건 칸과 지도 위 찾은 동네 
   }
 });
 
+it('데스크탑은 지도 위 칩으로도 출퇴근 장소 선택 모드를 켜고, 켜 둔 동안에는 칩을 숨긴다', async () => {
+  const viewport = useDesktopViewport();
+  try {
+    show(false, undefined, true);
+    const user = userEvent.setup();
+    // 선택 모드로 들어온 첫 화면에서는 안내 띠가 같은 일을 하므로 칩이 없다.
+    await user.click(await screen.findByRole('button', { name: '취소' }));
+    expect(screen.queryByText('지도에서 출퇴근 장소를 눌러 주세요')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '지도에서 출퇴근 장소 선택' }));
+    expect(screen.getByText('지도에서 출퇴근 장소를 눌러 주세요')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '지도에서 출퇴근 장소 선택' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '취소' }));
+    expect(screen.getByRole('button', { name: '지도에서 출퇴근 장소 선택' })).toBeInTheDocument();
+  } finally {
+    viewport.mockRestore();
+  }
+});
+
 /** 기록한 매물 하나(신림역 원룸, id 10)와 그 매물의 통근 시간(25분)을 돌려준다. */
 const useOneRecordedProperty = () =>
   server.use(
