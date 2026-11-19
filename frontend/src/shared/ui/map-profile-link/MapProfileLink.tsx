@@ -2,8 +2,8 @@ import { css } from '@emotion/css';
 import { Link } from 'react-router-dom';
 
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
-import { MY_PATH } from '@/shared/lib/navigation/appPaths';
 import { isRunningInNativeApp } from '@/shared/lib/native-app/nativeApp';
+import { MY_PATH } from '@/shared/lib/navigation/appPaths';
 import IdentityPlaceholder from '@/shared/ui/identity-placeholder/IdentityPlaceholder';
 
 type Props = { className?: string };

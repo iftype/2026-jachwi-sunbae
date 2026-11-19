@@ -2,16 +2,17 @@ import { useEffect, useLayoutEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
-import { MY_PATH, NEIGHBORHOODS_PATH, RECORDS_PATH } from '@/shared/lib/navigation/appPaths';
 import { isRunningInNativeApp } from '@/shared/lib/native-app/nativeApp';
+import { MY_PATH, NEIGHBORHOODS_PATH, RECORDS_PATH } from '@/shared/lib/navigation/appPaths';
 
 import type { IconName } from '../icon/Icon';
 import { NAV_RAIL_ITEMS } from '../nav-rail/navRailItems';
 import BottomTabBar from './BottomTabBar';
+import type {
+  MOBILE_BOTTOM_TAB_KEYS} from './bottomTabConfig';
 import {
   bottomTabKeys,
   isMobileBottomTabsPath,
-  MOBILE_BOTTOM_TAB_KEYS,
   MOBILE_BOTTOM_TABS_ENABLED,
   MOBILE_TAB_SPACE,
   MOBILE_TAB_SPACE_VAR,
