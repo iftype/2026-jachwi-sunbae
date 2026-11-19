@@ -393,14 +393,21 @@ const useRecordsMapLayers = (
     onBoundsChange: rememberBounds,
     tip: firstPropertyTip ?? tip,
     regions: bookmarkRegions,
+    // 찜한 동네의 칠한 영역을 누르면 지도 빈 곳을 누른 것과 같다(메모 남기기, 본 방 기록하기).
     // 찜한 동네 위의 기록과 메모를 눌러도 구역이 먼저 눌릴 수 있어, 누른 자리 아래 마커가 있으면 그 마커의 말풍선을 연다.
+    // 동 이름 라벨을 누를 때만 좌표 없이 불려, 그때 동 이름과 별 카드를 띄워 거기서 찜을 해제한다.
     onSelectRegion: (id: string, point?: MapPoint) => {
-      const marker = point ? nearestMarkerAt(allMarkers, point, bounds) : null;
-      if (marker) {
-        setOpenBookmarkCode(null);
-        selectMapMarker(marker);
+      if (point) {
+        const marker = nearestMarkerAt(allMarkers, point, bounds);
+        if (marker) {
+          setOpenBookmarkCode(null);
+          selectMapMarker(marker);
+          return;
+        }
+        tapLocation(point.latitude, point.longitude);
         return;
       }
+      setTapPoint(null);
       setOpenBookmarkCode((current) => (current === id ? null : id));
     },
     coordinateAction:
