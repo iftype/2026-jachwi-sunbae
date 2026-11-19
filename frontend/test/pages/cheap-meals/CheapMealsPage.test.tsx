@@ -708,7 +708,7 @@ it('기록이 없으면 내 기록 화면과 같은 미리보기 예시 매물�
   expect(within(rail).getByRole('button', { name: /\(미리보기\) 코엑스 근처/ })).toBeInTheDocument();
 });
 
-it('데스크탑 편의점과 배달 탭은 지도를 걷고 목록이 전체 폭을 쓰며, 식당 탭으로 돌아오면 지도를 다시 붙인다', async () => {
+it('데스크탑 편의점과 배달 탭도 지도를 그대로 두고 목록 칸 안에서 보이며, 식당 탭으로 돌아오면 가게 목록이 다시 나온다', async () => {
   const viewport = vi.spyOn(window, 'matchMedia').mockImplementation(
     (query) =>
       ({
@@ -722,10 +722,11 @@ it('데스크탑 편의점과 배달 탭은 지도를 걷고 목록이 전체 �
     const user = setup('/cheap-meals/restaurant');
     expect(await screen.findByRole('button', { name: '지도 이동 테스트' })).toBeInTheDocument();
     await user.click(tab('편의점'));
-    expect(screen.queryByRole('button', { name: '지도 이동 테스트' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: '주변 착한가격업소' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '지도 이동 테스트' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: '주변 착한가격업소' })).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: '가게 목록' })).not.toBeInTheDocument();
     await user.click(tab('배달'));
-    expect(screen.queryByRole('button', { name: '지도 이동 테스트' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '지도 이동 테스트' })).toBeInTheDocument();
     await user.click(tab('식당'));
     expect(await screen.findByRole('button', { name: '지도 이동 테스트' })).toBeInTheDocument();
     expect(screen.getByRole('list', { name: '가게 목록' })).toBeInTheDocument();
