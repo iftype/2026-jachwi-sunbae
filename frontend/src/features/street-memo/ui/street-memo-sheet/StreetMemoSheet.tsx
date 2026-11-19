@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 import BottomSheet from '@/shared/ui/bottom-sheet/BottomSheet';
 
 import type { StreetMemoLayer } from '../../hooks/useStreetMemoLayer';
@@ -7,10 +9,12 @@ import StreetMemoContent, { streetMemoTitle } from '../street-memo-content/Stree
 type Props = {
   layer: StreetMemoLayer;
   onCreated?: (memo: StreetMemo) => void;
+  /** 시트 바로 위 오른쪽에 띄울 것(현재 위치 버튼 등). 시트와 함께 오르내린다. */
+  floating?: ReactNode;
 };
 
 /** 휴대폰에서 메모를 쓰거나 보는 바텀시트. 쓸 때는 입력칸까지 보이게 보기보다 높게 연다. */
-const StreetMemoSheet = ({ layer, onCreated }: Props) => {
+const StreetMemoSheet = ({ layer, onCreated, floating }: Props) => {
   if (layer.mode === null) return null;
   return (
     <BottomSheet
@@ -24,6 +28,7 @@ const StreetMemoSheet = ({ layer, onCreated }: Props) => {
       resizable={false}
       closeLabel="메모 닫기"
       onClose={layer.close}
+      floating={floating}
     >
       <StreetMemoContent
         layer={layer}

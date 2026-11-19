@@ -13,13 +13,15 @@ type Props = {
   /** 매물 하나를 볼 때 머리 오른쪽에 둘 이전, 다음 화살표. */
   stepper?: ReactNode;
   onNotice: (message: string) => void;
+  /** 시트 바로 위 오른쪽에 띄울 것(현재 위치 버튼). */
+  floating?: ReactNode;
 };
 
 /**
  * 휴대폰 지도에서 고른 매물을 보는 바텀시트. 겹친 매물은 함께 늘어놓고, 카드를 누르면 상세 화면으로 간다.
  * 매물 하나를 볼 때는 머리의 이전, 다음 화살표로 앞뒤 매물로 넘긴다. 시트는 그대로 두고 내용만 바꾼다.
  */
-const RecordsSelectedSheet = ({ records, onClose, stepper, onNotice }: Props) => {
+const RecordsSelectedSheet = ({ records, onClose, stepper, onNotice, floating }: Props) => {
   if (records.length === 0) return null;
   return (
     <BottomSheet
@@ -31,6 +33,7 @@ const RecordsSelectedSheet = ({ records, onClose, stepper, onNotice }: Props) =>
       // 이전, 다음 이동은 시트가 작게 올라와 있을 때 쓴다. 크게 열면 숨긴다.
       headerEnd={stepper}
       hidesHeaderEndWhenExpanded
+      floating={floating}
     >
       <RecordGroupList records={records} onNotice={onNotice} className={styles.list} />
     </BottomSheet>

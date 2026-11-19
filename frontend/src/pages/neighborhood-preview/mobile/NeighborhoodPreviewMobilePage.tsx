@@ -1,4 +1,4 @@
-import { css } from '@emotion/css';
+import { css, cx } from '@emotion/css';
 import { useRef, useState } from 'react';
 import { Outlet, useMatch } from 'react-router-dom';
 
@@ -8,6 +8,7 @@ import ExplorationRecordAction from '@/features/onboarding/ui/exploration-record
 import { LogClick } from '@/shared/lib/analytics/logging';
 import { NEIGHBORHOOD_ADDRESS_SEARCH_PATH, ROUTE_PATTERNS } from '@/shared/lib/navigation/appPaths';
 import BottomSheet from '@/shared/ui/bottom-sheet/BottomSheet';
+import { hideWhenSheetExpanded } from '@/shared/ui/bottom-sheet/hideWhenSheetExpanded';
 import { Button } from '@/shared/ui/button/Button';
 import Icon from '@/shared/ui/icon/Icon';
 import { useMapPanel } from '@/shared/ui/map-list-header/MapPanelContext';
@@ -117,15 +118,9 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
     const header = section.querySelector('header');
     return mobileMapViewport(rect, header ? header.getBoundingClientRect().bottom - rect.top : 0);
   });
-  // 결과에 들어오자마자 오른쪽 위에 확대 축소, 분류 레일(중개사, 병원, 교통, 편의, My), 현재 위치 버튼을 한 줄로 세운다.
-  const resultControls = (
-    <LocationControls
-      preview={preview}
-      isResult
-      zoom={{ level: preview.resultLevel, onZoom: preview.zoomResultBy }}
-      className={styles.railControls}
-    />
-  );
+  // 휴대폰 지도에는 확대 축소 버튼을 두지 않는다(두 손가락으로 확대한다). 현재 위치 버튼만 오른쪽 아래에 두고,
+  // 시트가 있으면 시트 바로 위에 띄워(BottomSheet `floating`) 시트가 오르내릴 때 함께 움직이게 한다. 시트를 크게 열면 시트 뒤로 숨긴다.
+  const locateControls = (className: string) => <LocationControls preview={preview} isResult className={className} />;
   // 통근, 환승, 월세 조건 칸. 위치를 고르기 전후 모두 아래 시트에 둔다.
   // 칸마다 위에 항목, 아래에 값을 적고, 읽을 때는 `통근 40분 이내`처럼 한 문장으로 읽게 한다.
   const filterCells: { field: NeighborhoodFilterField; title: string; value: string; label: string }[] = [
@@ -213,13 +208,6 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
               )}
             </header>
             {preview.isMapSelectionEnabled && <MapSelectionHint top="5.5rem" onCancel={preview.cancelMapSelection} />}
-            <LocationControls
-              preview={preview}
-              isResult={false}
-              className={styles.railControls}
-              zoom={{ level: preview.selectionLevel, onZoom: preview.zoomSelectionBy }}
-              isFilterOpen={pickerField !== null}
-            />
             {/* 조건 칸과 찾기 버튼은 위치를 고르기 전부터 아래 시트에 두어, 위치를 골라도 자리가 바뀌지 않게 한다.
                 위치를 고르기 전에는 찾기 버튼을 막아 두고 장소를 고르라고 적는다. 지도 위 버튼은 말풍선 핀과 겹쳐 두지 않는다. */}
             {
@@ -227,6 +215,8 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
                 className={`${shared.searchCard} ${styles.conditionCard}`}
                 aria-label={preview.hasChosenMapPoint ? '고른 출퇴근 장소' : '출퇴근 조건'}
               >
+                {/* 조건 카드 위 오른쪽에 붙여, 조건 칸이 펼쳐져 카드가 높아져도 함께 올라간다. */}
+                <LocationControls preview={preview} isResult={false} className={styles.locateAboveCard} />
                 <p className={shared.searchCardTitle}>이 조건으로 추천받아요</p>
                 {/* 출퇴근 장소는 위쪽 지도 검색과 따로 이 칸에서 정한다. 아직 없으면 이 칸이 처음부터 열려 있다. */}
                 {usesSharedSearch && <CommuteDestinationField preview={preview} />}
@@ -285,7 +275,7 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
                 </div>
               </div>
             </header>
-            {resultControls}
+            {!infoSubject && locateControls(styles.locateCorner)}
 
             {!infoSubject && reselectButton(styles.reselect)}
             {preview.isPublicExplore && recordArea && (
@@ -331,7 +321,12 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
                   )
                 }
                 peekSignal={peekSignal}
-                floating={reselectButton(styles.reselectFloating)}
+                floating={
+                  <div className={styles.floatingRow}>
+                    {reselectButton(styles.reselectFloating)}
+                    {locateControls(styles.locateDocked)}
+                  </div>
+                }
                 onClose={() => {
                   if (infoSubject.kind === 'place') closeLayers();
                   else if (infoSubject.kind === 'area') setDismissedAreaCode(infoSubject.area.adminDongCode);
@@ -541,14 +536,38 @@ const styles = {
     }
   `,
 
-  /* 위쪽 결과 머리(조건 요약 줄, 월세와 색 기준 카드) 아래 오른쪽에 확대 축소, 분류 레일, 현재 위치 버튼을 세운다. */
-  railControls: css`
-    label: NeighborhoodPreviewMobilePage-railControls;
+  /* 시트가 없을 때: 하단 탭 위(`--map-sheet-bottom`) 오른쪽 아래. */
+  locateCorner: css`
+    label: NeighborhoodPreviewMobilePage-locateCorner;
 
     && {
-      top: calc(max(0.85rem, env(safe-area-inset-top)) + 8rem);
-      right: 0.95rem;
+      top: auto;
+      right: 1rem;
+      bottom: calc(var(--map-sheet-bottom, env(safe-area-inset-bottom, 0px)) + 0.75rem);
     }
+  `,
+  /* 출퇴근 장소를 고르는 조건 카드 위 오른쪽. 카드 안에 있어 카드 높이를 그대로 따른다. */
+  locateAboveCard: css`
+    label: NeighborhoodPreviewMobilePage-locateAboveCard;
+
+    && {
+      top: auto;
+      right: 0.85rem;
+      bottom: calc(100% + 0.75rem);
+    }
+  `,
+  /* 시트 위 `floating` 칸 안에서는 위치를 시트가 정한다. 시트를 크게 열면 숨긴다. */
+  locateDocked: cx(
+    css`
+      label: NeighborhoodPreviewMobilePage-locateDocked;
+    `,
+    hideWhenSheetExpanded,
+  ),
+  floatingRow: css`
+    label: NeighborhoodPreviewMobilePage-floatingRow;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   `,
 };
 
