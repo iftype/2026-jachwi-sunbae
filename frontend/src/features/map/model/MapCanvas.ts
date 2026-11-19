@@ -18,6 +18,8 @@ export type MapCoordinateMenu = {
   longitude: number;
   /** 화면 낭독기가 읽는 말풍선 이름. 화면에는 쓰지 않는다. */
   title?: string;
+  /** 동작 위에 두는 회색 한 줄(휴대폰에서 찜한 동네 안을 눌렀을 때 그 동의 월세 시세). */
+  note?: string;
   actions: MapTapAction[];
 };
 
@@ -132,6 +134,8 @@ export type MapRegion = {
   isRecommended?: boolean;
   /** 구역 가운데에 동 이름만 작게 둔다(찜한 동네). */
   showsName?: boolean;
+  /** 동 이름 옆에 붙이는 짧은 글(찜한 동네의 월세 시세). `showsName`일 때만 그린다. */
+  nameCaption?: string;
   /** 처음 그릴 때의 순서. 낮은 단계부터 한 프레임씩 나눠 지도에 등록한다. 없으면 0이다. */
   drawStage?: number;
   /** 구역 위 두 칸으로 표시할 요약. 화면이 아니라 지도 좌표에 고정한다. */

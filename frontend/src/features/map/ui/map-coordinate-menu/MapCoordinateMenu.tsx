@@ -15,6 +15,7 @@ const DEFAULT_TITLE = '이 위치에서';
 const MapCoordinateMenu = ({ menu }: Props) => (
   <div className={styles.anchor}>
     <div className={styles.menu} role="menu" aria-label={menu.title ?? DEFAULT_TITLE}>
+      {menu.note && <p className={styles.note}>{menu.note}</p>}
       {menu.actions.map((action) => (
         <button key={action.id} type="button" role="menuitem" className={styles.action} onClick={action.onSelect}>
           {action.icon && <img className={styles.icon} src={action.icon} alt="" draggable={false} />}
@@ -37,6 +38,12 @@ export const createMapCoordinateMenuElement = (menu: MapCoordinateMenuModel): HT
   root.setAttribute('role', 'menu');
   root.setAttribute('aria-label', menu.title ?? DEFAULT_TITLE);
   anchor.append(root);
+  if (menu.note) {
+    const note = document.createElement('p');
+    note.className = styles.note;
+    note.textContent = menu.note;
+    root.append(note);
+  }
   menu.actions.forEach((action) => {
     const button = document.createElement('button');
     button.type = 'button';
@@ -100,6 +107,16 @@ const styles = {
       content: '';
       transform: translateX(-50%) rotate(45deg);
     }
+  `,
+
+  note: css`
+    label: MapCoordinateMenu-note;
+    margin: 0;
+    padding: 0.25rem 0.7rem 0;
+    color: var(--color-muted, #868b94);
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
   `,
 
   icon: css`
