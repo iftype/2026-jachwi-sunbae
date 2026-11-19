@@ -1,25 +1,31 @@
-import { useLocation, useOutlet } from 'react-router-dom';
+import { css } from '@emotion/css';
 
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
-import SidePanelLayout from '@/shared/ui/side-panel-layout/SidePanelLayout';
 
 import ChecklistDefaultIntro from './ui/ChecklistDefaultIntro';
 import ChecklistManagement from './ui/ChecklistManagement';
 
-const ChecklistListPage = () => {
-  const isDesktop = useIsDesktop();
-  const editor = useOutlet();
-  const location = useLocation();
-  if (!isDesktop) return editor ?? <ChecklistManagement />;
-  // 데스크탑은 처음 열 때 오른쪽에 기본 체크리스트 안내(그림과 항목 카드 캐러셀)를 둔다. 왼쪽 목록에서 하나를 고르면 그 체크리스트가 열린다.
-  return (
-    <SidePanelLayout
-      list={<ChecklistManagement />}
-      panel={editor ?? <ChecklistDefaultIntro />}
-      panelLabel="체크리스트 편집 패널"
-      panelKey={`${location.pathname}${location.search}`}
-    />
+/**
+ * 체크리스트 관리 첫 화면. 데스크탑은 통합 지도의 왼쪽 칸 안에서 내 체크리스트 목록 아래에 기본 체크리스트 안내를 둔다.
+ * 만들기와 편집은 같은 칸 안에서 이 화면을 대신한다(`ChecklistsRoute`의 `Outlet`).
+ */
+const ChecklistListPage = () =>
+  useIsDesktop() ? (
+    <div className={styles.column}>
+      <ChecklistManagement />
+      <ChecklistDefaultIntro />
+    </div>
+  ) : (
+    <ChecklistManagement />
   );
+
+const styles = {
+  column: css`
+    label: ChecklistListPage-column;
+    display: grid;
+    gap: 0.5rem;
+    padding-bottom: 2rem;
+  `,
 };
 
 export default ChecklistListPage;
