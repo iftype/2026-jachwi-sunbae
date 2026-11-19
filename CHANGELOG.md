@@ -6,6 +6,34 @@
 
 아직 릴리스하지 않은 변경을 기록한다.
 
+## [4.4.0] - 2026-11-19
+
+### Added
+
+- 기록과 동네 찾기를 지도 하나로 합친 통합 지도를 홈 `/`로 둔다. 두 모드를 오가도 현재 위치, 검색, 지도 시점과 지난 동네 찾기 결과를 이어서 쓴다. 데스크탑은 왼쪽 네비 레일과 지도에 붙은 목록·상세 패널을, 휴대폰은 하단 탭과 모드 전환 타일을 둔다. `/properties`는 `/`로 보낸다.
+- 동네 찾기에서 행정동을 찜하고(`GET`, `POST /api/admin-dong-bookmarks`, `DELETE /api/admin-dong-bookmarks/{adminDongCode}`), 내 기록 지도에 찜한 동네 경계를 칠한다. 찜한 동네 이름표를 누르면 `찜 해제하기`로 해제하고, 칠한 영역을 누르면 지도를 누른 것처럼 메모나 방 기록을 고른다. 동네 찾기의 찜 버튼은 찜한 동네만 보기를 켜고 끈다.
+- 매물 캡처 이미지(PNG, JPEG 1~10장)를 올리면 Amazon Bedrock이 정보를 읽어 매물 기본 정보와 메모를 채워 저장하는 `이미지로 매물 정보 채우기`를 추가한다. 회원별로 1분 3회, 하루 10회, 한 달 50회까지 쓸 수 있다.
+- 동네 찾기 지도에 동마다 통근 시간과 평균 월세 라벨을 붙인다. 거래가 적은 동은 회색, 월세 정보가 없는 동은 점선과 `월세 정보 없음`으로 둔다. 데스크탑에서 누른 동네의 소요시간, 월세 시세 카드는 마우스를 치워도 띄워 둔다.
+- 동네 찾기에서 기록한 매물마다 출퇴근 장소까지의 통근 시간과 경로를 보여 준다.
+- 매물을 하나만 골라도 기록 PDF를 받을 수 있다(1~5개).
+- 사진을 올릴 때 목록과 지도용 썸네일(긴 변 480px)을 함께 만들고, 목록, 지도, 비교, 최근 본 방은 썸네일로 보여 준다. 썸네일 조회 API(`GET /api/properties/{propertyId}/photos/{photoId}/thumbnail`)와 기존 사진 썸네일을 만드는 관리자 API(`POST /api/admin/property-photos/thumbnails`)를 추가한다.
+
+### Changed
+
+- 홈과 마이페이지를 방 기록 중심으로 개편한다. 마이페이지에 체크리스트, 저렴한 한 끼, 이용 가이드를 모은다.
+- 거리 메모를 개인화해 내가 남긴 메모만 보인다.
+- 매물 상세 체크리스트 메모를 가로 전체로 넓히고, 휴대폰에서 부가 정보 시트를 화면에 고정한다. 모바일 체크리스트 만들기, 방 비교, 저렴한 한 끼 화면을 다듬는다.
+- 배달 할인 알림을 10시 배민 선착순과 22시 마감 2시간 전 두 번만 보낸다(11시, 18시 알림 제거).
+- 끝난 오프라인 이벤트 미션 현황판 `/event`와 홈 이벤트 배너를 걷어 낸다.
+- 사진을 S3에서 스트리밍으로 내려주고, S3를 기다리는 동안 DB 커넥션을 잡지 않는다. 매물 목록의 진행 현황 조회 N+1을 없앤다.
+- 첫 화면 번들 예산을 380KiB로 올린다.
+- Flyway 마이그레이션 `V19`(사진 썸네일 키), `V20`(행정동 찜)을 추가한다. 이미지 정보 채우기에는 운영 서버 역할의 Amazon Bedrock 호출 권한이 필요하다.
+- 백엔드, 프론트엔드 제품 버전을 `4.4.0`으로 맞춘다.
+
+### Fixed
+
+- 사진 한 장 용량 한도를 백엔드까지 10MB로 맞춰, 5MB를 넘는 사진이 올라가지 않던 문제를 고친다.
+
 ## [4.3.0] - 2026-11-13
 
 ### Added
@@ -316,7 +344,8 @@
 - WebView 지도 마커 위치 갱신을 `transform` 기반으로 최적화한다.
 - 매물 사진 Object URL을 재사용해 지도 확대·이동 중 불필요한 재생성을 줄인다.
 
-[Unreleased]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/compare/v4.3.0...HEAD
+[Unreleased]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/compare/v4.4.0...HEAD
+[4.4.0]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/releases/tag/v4.4.0
 [4.3.0]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/releases/tag/v4.3.0
 [4.2.0]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/releases/tag/v4.2.0
 [4.1.0]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/releases/tag/v4.1.0
