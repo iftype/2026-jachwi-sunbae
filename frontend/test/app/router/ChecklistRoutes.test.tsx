@@ -838,6 +838,37 @@ it('데스크탑은 목록과 지도를 유지한 채 상세 패널 안에서 �
   }
 });
 
+it('데스크탑 체크리스트는 왼쪽 칸과 지도를 쓰고, 만들기는 칸 안에서 바뀌며 닫으면 목록으로 돌아온다', async () => {
+  const originalMatchMedia = window.matchMedia;
+  const viewport = vi
+    .spyOn(window, 'matchMedia')
+    .mockImplementation((query) => ({ ...originalMatchMedia(query), matches: query === '(min-width: 1024px)' }));
+  resetMockStore();
+  server.use(
+    ...propertyHandlers,
+    http.get(`${config.apiBaseUrl}/api/checklists`, () =>
+      HttpResponse.json(successEnvelope(checklistPageFixture([onSiteChecklistSummary]))),
+    ),
+    http.get(`${config.apiBaseUrl}/api/check-items`, () => HttpResponse.json(successEnvelope([onSiteItemFixture]))),
+  );
+  try {
+    const user = userEvent.setup();
+    renderAuthenticated('/checklists');
+    expect(await screen.findByRole('heading', { name: '체크리스트', level: 1 })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: /전화 문의 기본 목록/ })).toBeInTheDocument();
+    const map = screen.getByLabelText('데모 지도');
+    await user.click(screen.getByRole('link', { name: /새 체크리스트/ }));
+    expect(await screen.findByRole('heading', { name: '체크리스트 만들기', level: 1 })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: '체크리스트', level: 1 })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('데모 지도')).toBe(map);
+    await user.click(screen.getByRole('button', { name: '체크리스트 관리로 돌아가기' }));
+    expect(await screen.findByRole('heading', { name: '체크리스트', level: 1 })).toBeInTheDocument();
+    expect(screen.getByLabelText('데모 지도')).toBe(map);
+  } finally {
+    viewport.mockRestore();
+  }
+});
+
 it('체크리스트 이름을 수정한 뒤 저장 API로 전달한다', async () => {
   const saved = vi.fn();
   server.use(
