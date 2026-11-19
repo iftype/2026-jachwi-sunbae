@@ -352,6 +352,17 @@ const useNeighborhoodMapView = (
   const cardCode = regionCardCode(pinnedCode, hoveredCode);
   const hoveredArea =
     cardCode === null ? undefined : preview.resultAreas.find((area) => area.adminDongCode === cardCode);
+  // 찜한 동네는 월세 라벨에 표시한다(별과 연한 파랑). 찜 목록을 아는 이 자리에서 한 번만 붙인다.
+  const bookmarkedCodes = bookmarks.codes;
+  const savedAwareRegions = useMemo(() => {
+    if (bookmarkedCodes.length === 0) return preview.regions;
+    const saved = new Set(bookmarkedCodes);
+    return preview.regions.map((region) =>
+      region.rentLabel && saved.has(region.id)
+        ? { ...region, rentLabel: { ...region.rentLabel, isBookmarked: true } }
+        : region,
+    );
+  }, [bookmarkedCodes, preview.regions]);
   // 위쪽 지도 검색에서 고른 위치는 핀을 누르면 출퇴근 장소로 설정된다.
   const searchPinMarker: MapMarker[] = preview.searchPin
     ? [
@@ -388,7 +399,7 @@ const useNeighborhoodMapView = (
           else selectMarker(marker);
         },
         onSelectLocation: tapMap,
-        regions: preview.regions,
+        regions: savedAwareRegions,
         selectedRegionId: preview.selected?.adminDongCode,
         onSelectRegion: selectRegion,
         // 데스크탑: 동 라벨이나 구역에 마우스를 올리면 동 이름, 소요시간, 월세 시세 카드가 그 자리에 뜬다. 모바일은 아래 시트가 같은 내용을 맡는다.

@@ -60,6 +60,8 @@ export const createRegionRentLabelElement = (region: MapRegion, selected: boolea
   button.className = styles.rentLabel;
   button.dataset.sparse = String(rent?.sparse ?? false);
   button.dataset.filteredOut = String(rent?.filteredOut ?? false);
+  const isSaved = rent?.isBookmarked === true;
+  if (isSaved) button.dataset.saved = 'true';
   // 월세 줄 없이 이름만 두는 라벨(찜한 동네)은 크게 그려 찜한 영역이 눈에 띄게 한다.
   const isBookmark = region.showsName === true && !rent;
   if (isBookmark) button.dataset.bookmark = 'true';
@@ -71,9 +73,19 @@ export const createRegionRentLabelElement = (region: MapRegion, selected: boolea
       ? '월세 정보 없음'
       : null;
   const caption = isBookmark ? region.nameCaption : undefined;
-  button.setAttribute('aria-label', [region.name, commuteText, priceText, caption].filter(Boolean).join(' '));
+  button.setAttribute(
+    'aria-label',
+    [isSaved ? '찜한 동네' : null, region.name, commuteText, priceText, caption].filter(Boolean).join(' '),
+  );
   const name = document.createElement('strong');
   name.textContent = region.name;
+  if (isSaved) {
+    const star = document.createElement('span');
+    star.textContent = '★';
+    star.className = styles.savedStar;
+    star.setAttribute('aria-hidden', 'true');
+    name.prepend(star);
+  }
   button.append(name);
   // 찜한 동네는 이름 옆에 월세 시세를 붙인다.
   if (caption) {

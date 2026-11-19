@@ -63,6 +63,23 @@ it('월세 라벨은 동 이름과 평균 월세만 보이고, 거래가 적은 
   expect(onSelect).toHaveBeenCalledOnce();
 });
 
+it('찜한 동네의 월세 라벨은 앞에 별을 붙이고 찜한 동네라고 읽어 주며, 찜하지 않은 동네는 그대로 둔다', () => {
+  const rent = { price: '85만', count: 12, sparse: false, filteredOut: false };
+  const saved = createRegionRentLabelElement(
+    { ...region, summary: undefined, rentLabel: { ...rent, isBookmarked: true } },
+    false,
+    vi.fn(),
+  );
+  expect(saved.dataset.saved).toBe('true');
+  expect(saved).toHaveTextContent('★샘플동월세 85만');
+  expect(saved).toHaveAttribute('aria-label', '찜한 동네 샘플동 월세 85만, 거래 12건');
+
+  const plain = createRegionRentLabelElement({ ...region, summary: undefined, rentLabel: rent }, false, vi.fn());
+  expect(plain.dataset.saved).toBeUndefined();
+  expect(plain).not.toHaveTextContent('★');
+  expect(plain).toHaveAttribute('aria-label', '샘플동 월세 85만, 거래 12건');
+});
+
 it('월세 시세가 없는 동도 라벨을 두고 `월세 정보 없음`을 적는다. 통근 시간은 글자로 적지 않고 읽어 주기만 한다', () => {
   const label = createRegionRentLabelElement(
     {

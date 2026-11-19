@@ -161,6 +161,8 @@ export type MapRegionRentLabel = {
   sparse: boolean;
   /** 월세 조건 밖이라 지도에서 회색으로 깐 동네. 라벨도 함께 흐리게 한다. */
   filteredOut: boolean;
+  /** 내가 찜한 동네. 라벨 앞에 채운 별을 붙이고 연한 파랑으로 칠해 구분한다. */
+  isBookmarked?: boolean;
   /** 출퇴근 장소까지 걸리는 시간 글자(예: `25분`). 월세 자료가 없는 동네도 이 글자로 라벨을 둔다. */
   commute?: string;
 };
