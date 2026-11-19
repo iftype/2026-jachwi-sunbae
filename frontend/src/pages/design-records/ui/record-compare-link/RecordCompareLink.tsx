@@ -8,10 +8,12 @@ type Props = {
   count?: number;
 };
 
-/** 내 기록 목록 위 줄. 왼쪽에 `기록한 방`, 오른쪽에 `비교하고 PDF로 받기` 링크를 두어 기록을 골라 비교하고 PDF로 받는 화면으로 보낸다. */
+/** 내 기록 목록 위 줄. 왼쪽에 `최근 기록한 방`, 오른쪽에 `비교하고 PDF로 받기` 링크를 두어 기록을 골라 비교하고 PDF로 받는 화면으로 보낸다. */
 const RecordCompareLink = ({ count }: Props) => (
   <div className={styles.row}>
-    <h3 className={styles.title}>기록한 방{count !== undefined && <span className={styles.count}>{count}</span>}</h3>
+    <h3 className={styles.title}>
+      최근 기록한 방{count !== undefined && <span className={styles.count}>{count}</span>}
+    </h3>
     <Link to={COMPARE_PATH} aria-label="기록 비교하고 PDF로 받기">
       비교하고 PDF로 받기
     </Link>
@@ -46,7 +48,7 @@ const styles = {
     margin: 0;
     color: var(--color-muted);
     font-size: 0.8rem;
-    font-weight: 800;
+    font-weight: 600;
   `,
   count: css`
     label: RecordCompareLink-count;
