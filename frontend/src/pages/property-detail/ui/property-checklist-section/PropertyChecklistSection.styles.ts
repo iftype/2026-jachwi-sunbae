@@ -7,9 +7,9 @@ export const retry = css`
   align-items: center;
   justify-content: center;
   margin: 0;
-  border: 1px dashed var(--color-border-strong);
-  border-radius: var(--radius-sm);
-  background: transparent;
+  border: 0;
+  border-radius: 1rem;
+  background: var(--color-card-surface);
   color: var(--color-muted);
   font: inherit;
   font-size: 0.72rem;
