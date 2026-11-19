@@ -53,16 +53,17 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
     showAreaAction: true,
   });
   const { isResultMap, showsPropertyPanel, mapProps, places, closeLayers } = mapView;
-  // 지도 칸은 목록, 상세 칸 오른쪽에 있다. 상세 칸이 아직 닫혀 있으면 고른 뒤 열릴 폭을 미리 빼고 시점을 맞춘다.
+  // 지도 칸은 목록과 상세 패널 아래까지 깔린다. 패널이 가리는 폭을 왼쪽 여백으로 빼고 시점을 맞춘다.
   const mapSectionRef = useResultMapViewport<HTMLElement>(preview, (section) => {
     const layout = section.parentElement?.parentElement;
-    if (!preview.isPublicExplore && layout) {
+    if (layout) {
       const rect = section.getBoundingClientRect();
       const info = section.querySelector('[data-map-info]')?.getBoundingClientRect();
       const editor = section.querySelector('[data-map-editor]')?.getBoundingClientRect();
       const panelWidth = getComputedStyle(layout).getPropertyValue('--map-panel-width');
       const panel = layout.firstElementChild?.getBoundingClientRect();
-      const detail = layout.dataset.detailOpen === 'true' ? layout.children[1]?.getBoundingClientRect() : null;
+      // 접어 둔 상세는 숨어 있어 폭이 0이다.
+      const detail = layout.querySelector('[data-list-detail-detail]:not([hidden])')?.getBoundingClientRect();
       if (panelWidth && panel)
         return {
           width: rect.width,
@@ -224,8 +225,10 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
         detail={
           panel ? panel.detail?.content : (propertyDetail ?? (hasDetail ? <Outlet context={preview} /> : undefined))
         }
-        onCloseDetail={panel ? panel.detail?.close : propertyDetail ? property.close : preview.closeAreaDetails}
-        closeLabel={panel ? panel.detail?.closeLabel : propertyDetail ? '매물 정보 닫기' : '대중교통 상세 닫기'}
+        // 매물 패널은 내 기록 상세처럼 접기만 하고 고른 매물(`?property=`)은 그대로 둔다. 대중교통 상세와 체크리스트 편집 칸은 닫는다.
+        collapsible={!panel && propertyDetail !== undefined}
+        onCloseDetail={panel ? panel.detail?.close : preview.closeAreaDetails}
+        closeLabel={panel ? panel.detail?.closeLabel : '대중교통 상세 닫기'}
       >
         <section
           ref={mapSectionRef}
@@ -591,7 +594,8 @@ const styles = {
     label: NeighborhoodPreviewDesktopPage-zoomHint;
     position: absolute;
     bottom: 5rem;
-    left: 50%;
+    /* 떠 있는 패널을 뺀 보이는 지도 칸의 가운데. */
+    left: calc(50% + var(--map-panel-width, 0px) / 2);
     z-index: 31;
     margin: 0;
     padding: 0.5rem 0.9rem;
@@ -807,7 +811,8 @@ const styles = {
   recordAction: css`
     label: NeighborhoodPreviewDesktopPage-recordAction;
     right: auto;
-    width: min(24rem, calc(100% - 2rem));
+    left: calc(var(--map-panel-width, 0px) + 1rem);
+    width: min(24rem, calc(100% - var(--map-panel-width, 0px) - 2rem));
   `,
 };
 

@@ -1,6 +1,7 @@
 import { css } from '@emotion/css';
 
 import RecordCardMenu from '@/pages/design-records/ui/record-list/RecordCardMenu';
+import PropertyNearbyPreview from '@/pages/property-detail/ui/property-nearby-preview/PropertyNearbyPreview';
 import PropertyCard from '@/features/property/ui/property-card/PropertyCard';
 import { NEIGHBORHOODS_PATH } from '@/shared/lib/navigation/appPaths';
 import Icon from '@/shared/ui/icon/Icon';
@@ -27,7 +28,7 @@ type Props = {
 };
 
 /**
- * 동네 찾기 결과 지도에서 누른 내 매물. 위에는 내 기록 리스트와 같은 매물 카드(요약), 아래에는 출퇴근 장소와 그 집에서 출퇴근 장소까지의 노선을 둔다.
+ * 동네 찾기 결과 지도에서 누른 내 매물. 위에는 내 기록 리스트와 같은 매물 카드(요약), 아래에는 출퇴근 장소와 그 집에서 출퇴근 장소까지의 노선, 그 밑에 주변 인프라(500m 시설 요약)를 둔다.
  * 위는 카드 높이만큼만 차지하고 아래가 나머지를 쓰며 길면 스크롤한다. `split`은 데스크탑 옆 칸, `stack`은 휴대폰 시트처럼 위아래로 쌓는다.
  * 예시 매물은 서버에 없어 노선을 부르지 않고 안내만 보인다. 출퇴근 장소를 정하기 전(선택 전, 선택 중)에도 노선을 부르지 않고 안내만 보인다.
  */
@@ -41,7 +42,7 @@ const FinderPropertyPanel = ({
   onDeleted,
   layout = 'stack',
 }: Props) => {
-  const { commute, isPreview } = property;
+  const { commute, isPreview, latitude, longitude } = property;
   const mode = useMapModeSwitch();
   return (
     <div className={styles.root} data-layout={layout}>
@@ -94,6 +95,23 @@ const FinderPropertyPanel = ({
               : `${commuteMaxMinutes}분 안에 닿는 노선이 없어요`}
           </p>
         )}
+        <div className={styles.infra} role="group" aria-label="주변 인프라">
+          <h3 className={styles.heading}>주변 인프라</h3>
+          {latitude === null || longitude === null ? (
+            <p className={styles.notice}>
+              {isPreview
+                ? '예시 매물이라 주변 정보를 계산하지 않아요'
+                : '매물 위치가 없어 주변 정보를 계산하지 못했어요'}
+            </p>
+          ) : (
+            <PropertyNearbyPreview
+              propertyId={property.propertyId}
+              latitude={latitude}
+              longitude={longitude}
+              showMap={false}
+            />
+          )}
+        </div>
       </section>
     </div>
   );
@@ -183,6 +201,14 @@ const styles = {
       color: var(--color-ink-soft);
       font-size: 0.78rem;
     }
+  `,
+
+  infra: css`
+    label: FinderPropertyPanel-infra;
+    display: grid;
+    gap: 0.35rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--color-border);
   `,
 
   notice: css`

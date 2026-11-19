@@ -160,7 +160,8 @@ export const sdkError = css`
   position: absolute;
   z-index: 20;
   top: 50%;
-  left: 50%;
+  /* 데스크탑은 떠 있는 패널을 뺀 보이는 지도 칸의 가운데에 둔다. */
+  left: calc(50% + var(--map-panel-width, 0px) / 2);
   width: min(16rem, calc(100% - 2rem));
   padding: 0.75rem;
   border-radius: 0.75rem;
@@ -178,7 +179,7 @@ export const mapLoading = css`
   position: absolute;
   z-index: 20;
   top: 50%;
-  left: 50%;
+  left: calc(50% + var(--map-panel-width, 0px) / 2);
   display: flex;
   align-items: center;
   /* 지도와 마커가 보이는 위에 덧그리는 작은 Overlay. 글자 없이 Progress Circle(24)만 둔다. */

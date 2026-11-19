@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import type { ReactNode } from 'react';
-import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { beforeEach, expect, it, vi } from 'vitest';
 
 import { commuteBoundaryFixtures } from '@/app/mocks/fixtures/commuteBoundaryFixtures';
@@ -118,7 +118,11 @@ vi.mock('@/features/map/ui/map-canvas/MapCanvas', async () => {
         {props.markers
           ?.filter((marker) => marker.actionable)
           .map((marker) => (
-            <button key={marker.id} onClick={() => props.onSelectMarker?.(marker)}>
+            <button
+              key={marker.id}
+              aria-pressed={props.selectedMarkerId === marker.id}
+              onClick={() => props.onSelectMarker?.(marker)}
+            >
               {`마커 ${marker.label}`}
             </button>
           ))}
@@ -189,6 +193,8 @@ const WithModeSwitch = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
   return <MapModeProvider value={{ target: 'records', onSwitch: () => navigate('/') }}>{children}</MapModeProvider>;
 };
+/** 패널을 접어도 고른 매물 쿼리가 남는지 보려고 지금 주소의 쿼리를 그린다. */
+const CurrentSearch = () => <span data-testid="current-search">{useLocation().search}</span>;
 type Entry = string | { pathname: string; state: unknown };
 const show = (isPublic = false, entries?: Entry[], withRecords = false) => {
   const page = (
@@ -212,6 +218,7 @@ const show = (isPublic = false, entries?: Entry[], withRecords = false) => {
     <PublicConfigProvider config={{ apiBaseUrl: 'http://localhost:8080', commuteDataSource: 'mock' }}>
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })}>
         <MemoryRouter initialEntries={entries ?? defaultEntries} initialIndex={entries ? entries.length - 1 : 0}>
+          <CurrentSearch />
           <Routes>
             <Route path="/" element={<h1>홈</h1>} />
             <Route path="/guide" element={<h1>사용 방법</h1>} />
@@ -1338,8 +1345,8 @@ it('선택 전에 매물 마커를 누르면 옆 패널이 열리고 출퇴근 �
     expect(within(panel).getByText(NO_DESTINATION_NOTICE)).toBeInTheDocument();
     expect(markerList().map((marker) => marker.id)).not.toContain('destination');
     expect(requests.paths).toEqual([]);
-    // 패널을 닫아도 출퇴근 장소는 그대로 비어 있다.
-    await user.click(screen.getByRole('button', { name: '매물 정보 닫기' }));
+    // 패널을 접어도 출퇴근 장소는 그대로 비어 있다.
+    await user.click(screen.getByRole('button', { name: '상세 접기' }));
     expect(screen.queryByRole('complementary', { name: '내 매물 정보' })).not.toBeInTheDocument();
     expect(markerList().map((marker) => marker.id)).not.toContain('destination');
   } finally {
@@ -1438,4 +1445,29 @@ it('동네 찾기 결과에서 매물 마커를 눌러도 출퇴근 장소는 �
   await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
   expect(markerList().find((marker) => marker.id === 'destination')).toEqual(destination);
   expect(screen.getByRole('region', { name: '행정동 프리셋 지도' })).toBeInTheDocument();
+});
+
+it('데스크탑 동네 찾기 매물 패널도 `<` 버튼으로 접기만 하고, 고른 매물과 마커 선택은 남긴 채 펼치면 그대로 보인다', async () => {
+  const viewport = useDesktopViewport();
+  useOneRecordedProperty();
+  try {
+    show(false, undefined, true);
+    const user = await choosePoint();
+    await user.click(screen.getByRole('button', { name: '이 조건으로 동네 찾기' }));
+    await screen.findByRole('complementary', { name: '동네 찾기 결과' });
+    await user.click(await screen.findByRole('button', { name: '마커 신림역 원룸' }));
+    expect(await screen.findByRole('complementary', { name: '내 매물 정보' })).toBeInTheDocument();
+    const search = screen.getByTestId('current-search').textContent ?? '';
+    expect(search).toContain('property=');
+
+    await user.click(screen.getByRole('button', { name: '상세 접기' }));
+    expect(screen.queryByRole('complementary', { name: '내 매물 정보' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('current-search')).toHaveTextContent(search);
+    expect(screen.getByRole('button', { name: '마커 신림역 원룸' })).toHaveAttribute('aria-pressed', 'true');
+
+    await user.click(screen.getByRole('button', { name: '상세 펼치기' }));
+    expect(screen.getByRole('complementary', { name: '내 매물 정보' })).toHaveTextContent('신림역 원룸');
+  } finally {
+    viewport.mockRestore();
+  }
 });
