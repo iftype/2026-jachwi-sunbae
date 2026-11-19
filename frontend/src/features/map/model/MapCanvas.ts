@@ -75,23 +75,28 @@ export type MapRailExtraItem = {
   isMuted?: boolean;
 };
 
+/** 지도 좌표에 붙는 버튼이나 정보 카드 하나. */
+export type MapCoordinateAction = {
+  latitude: number;
+  longitude: number;
+  label: string;
+  disabled?: boolean;
+  placement?: 'above';
+  onClick: () => void;
+  /** 있으면 버튼 대신 정보 카드(동 이름과 별, 값이 있는 줄)로 그린다. */
+  card?: MapRegionCard;
+  /** 카드 위로 마우스가 들어오고 나갈 때. 마우스가 동 라벨에서 카드로 옮겨 가도 닫히지 않게 한다. */
+  onHoverChange?: (hovered: boolean) => void;
+};
+
 export type MapCanvasProps = {
   animateView?: boolean;
   onRetry?: () => void;
   /** 지도가 처음 그려져 쓸 수 있게 되면 부른다. 데모 지도는 바로 부른다. 급하지 않은 요청을 이 뒤로 미룰 때 쓴다. */
   onReady?: () => void;
-  coordinateAction?: {
-    latitude: number;
-    longitude: number;
-    label: string;
-    disabled?: boolean;
-    placement?: 'above';
-    onClick: () => void;
-    /** 있으면 버튼 대신 정보 카드(동 이름과 별, 값이 있는 줄)로 그린다. */
-    card?: MapRegionCard;
-    /** 카드 위로 마우스가 들어오고 나갈 때. 마우스가 동 라벨에서 카드로 옮겨 가도 닫히지 않게 한다. */
-    onHoverChange?: (hovered: boolean) => void;
-  };
+  coordinateAction?: MapCoordinateAction;
+  /** 눌러 고정한 `coordinateAction` 카드와 함께 띄우는 호버 카드. 위에 그려지고, 고정 카드와 겹치면 반대쪽으로 간다. */
+  hoverAction?: MapCoordinateAction;
   bookmarkControl?: { count: number; isOn: boolean; isDisabled?: boolean; onToggle: () => void };
   /** 처음 한 번 보이는 안내 말풍선. 지도 좌표에 붙어 있다. */
   tip?: MapTip;

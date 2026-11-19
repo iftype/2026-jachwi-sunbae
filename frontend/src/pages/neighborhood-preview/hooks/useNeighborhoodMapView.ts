@@ -32,7 +32,6 @@ import {
   parseFinderPropertyId,
 } from '../model/finderPropertyUrl';
 import type { MyPropertyRow } from '../model/myProperty';
-import { regionCardCode } from '../model/regionCardCode';
 import useNeighborhoodPlaces, { MY_PROPERTY_PREFIX, type NeighborhoodPlace } from './useNeighborhoodPlaces';
 import type { NeighborhoodPreviewContext } from './useNeighborhoodPreview';
 import usePropertyRoute from './usePropertyRoute';
@@ -345,13 +344,44 @@ const useNeighborhoodMapView = (
     if (isHovered) regionHover.enter(id);
     else regionHover.leave();
   };
-  // 누른 동네의 카드는 마우스를 치워도, 다른 동네에 마우스를 올려도 그 동네 중심에 그대로 둔다.
-  // 누른 동네가 없을 때만 마우스를 올린 동네 카드를 잠깐 보여 준다.
+  // 누른 동네의 카드는 마우스를 치워도 그 동네 중심에 그대로 둔다. 다른 동네에 마우스를 올리면 그 카드가 함께 떠, 카드는 최대 둘(고정 하나, 호버 하나)이다.
+  // 마우스를 올린 동네가 누른 동네와 같으면 카드는 하나만 둔다.
   const selectedCode = preview.selected?.adminDongCode ?? null;
   const pinnedCode = showAreaAction && selectedCode !== dismissedCode ? selectedCode : null;
-  const cardCode = regionCardCode(pinnedCode, hoveredCode);
-  const hoveredArea =
-    cardCode === null ? undefined : preview.resultAreas.find((area) => area.adminDongCode === cardCode);
+  const hoverCardCode = hoveredCode !== pinnedCode ? hoveredCode : null;
+  const areaOf = (code: string | null) =>
+    code === null ? undefined : preview.resultAreas.find((area) => area.adminDongCode === code);
+  const pinnedArea = areaOf(pinnedCode);
+  const hoveredArea = areaOf(hoverCardCode);
+  /** 동네의 정보 카드. 동 라벨(알약)은 좌표가 가운데라 높이의 절반만큼 위에서 꼬리가 닿는다. */
+  const areaCardAction = (
+    area: NonNullable<typeof pinnedArea>,
+    onHoverChange?: (isHovered: boolean) => void,
+  ): NonNullable<MapCanvasProps['coordinateAction']> => ({
+    ...area.center,
+    placement: 'above' as const,
+    label: area.name,
+    onClick: () => undefined,
+    onHoverChange,
+    card: {
+      markerAbove: REGION_LABEL_HALF_HEIGHT,
+      markerBelow: REGION_LABEL_HALF_HEIGHT,
+      title: area.name,
+      // 북마크는 로그인한 회원만 쓴다. 공개 탐색은 별을 숨긴다.
+      bookmark: preview.isPublicExplore
+        ? undefined
+        : {
+            isOn: bookmarks.isBookmarked(area.adminDongCode),
+            onToggle: () => bookmarks.toggle(area.adminDongCode),
+          },
+      rows: [
+        { label: '소요시간', value: `${area.commuteMinutes}분`, tone: 'primary' as const },
+        area.rent
+          ? { label: '월세 시세', value: formatRentPair(area.rent) }
+          : { label: '월세 시세', value: '정보 없음', isEmpty: true },
+      ],
+    },
+  });
   // 찜한 동네는 월세 라벨에 표시한다(별과 연한 파랑). 찜 목록을 아는 이 자리에서 한 번만 붙인다.
   const bookmarkedCodes = bookmarks.codes;
   const savedAwareRegions = useMemo(() => {
@@ -404,34 +434,10 @@ const useNeighborhoodMapView = (
         onSelectRegion: selectRegion,
         // 데스크탑: 동 라벨이나 구역에 마우스를 올리면 동 이름, 소요시간, 월세 시세 카드가 그 자리에 뜬다. 모바일은 아래 시트가 같은 내용을 맡는다.
         onHoverRegion: showAreaAction ? hoverRegion : undefined,
-        coordinateAction:
+        coordinateAction: showAreaAction && pinnedArea && !hasOpenLayer ? areaCardAction(pinnedArea) : undefined,
+        hoverAction:
           showAreaAction && hoveredArea && !hasOpenLayer
-            ? {
-                ...hoveredArea.center,
-                placement: 'above' as const,
-                label: hoveredArea.name,
-                onClick: () => undefined,
-                onHoverChange: (isHovered: boolean) => (isHovered ? holdCard() : releaseCard()),
-                card: {
-                  // 동 라벨(알약)은 좌표가 가운데라 높이의 절반만큼 위에서 꼬리가 닿는다.
-                  markerAbove: REGION_LABEL_HALF_HEIGHT,
-                  markerBelow: REGION_LABEL_HALF_HEIGHT,
-                  title: hoveredArea.name,
-                  // 북마크는 로그인한 회원만 쓴다. 공개 탐색은 별을 숨긴다.
-                  bookmark: preview.isPublicExplore
-                    ? undefined
-                    : {
-                        isOn: bookmarks.isBookmarked(hoveredArea.adminDongCode),
-                        onToggle: () => bookmarks.toggle(hoveredArea.adminDongCode),
-                      },
-                  rows: [
-                    { label: '소요시간', value: `${hoveredArea.commuteMinutes}분`, tone: 'primary' as const },
-                    hoveredArea.rent
-                      ? { label: '월세 시세', value: formatRentPair(hoveredArea.rent) }
-                      : { label: '월세 시세', value: '정보 없음', isEmpty: true },
-                  ],
-                },
-              }
+            ? areaCardAction(hoveredArea, (isHovered) => (isHovered ? holdCard() : releaseCard()))
             : undefined,
       }
     : {
@@ -486,6 +492,7 @@ const useNeighborhoodMapView = (
           : (mapProps.regions ?? []),
         selectedRegionId: showsBookmarkOnly ? null : mapProps.selectedRegionId,
         onHoverRegion: showsBookmarkOnly ? undefined : mapProps.onHoverRegion,
+        hoverAction: showsBookmarkOnly ? undefined : mapProps.hoverAction,
         // 동네 찾기에서는 지도를 눌러도 메모 남기기, 본 방 기록하기 메뉴를 띄우지 않는다.
         coordinateMenu: undefined,
         onSelectLocation: mapProps.onSelectLocation
