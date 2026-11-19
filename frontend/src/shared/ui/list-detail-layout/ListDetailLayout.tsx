@@ -52,10 +52,16 @@ const styles = {
     /* 목록과 상세 칸은 고정 폭 대신 화면 폭에 따라 최소와 최대 사이에서 줄어든다. 뼈대도 이 배치를 그대로 써서 폭이 같다. */
     --list-detail-list-width: clamp(20rem, 28%, 24rem);
     --list-detail-detail-width: clamp(22rem, 28%, 26rem);
+    /* 목록과 상세 패널을 지도 위에 띄워 보이는 간격과 위쪽 모서리. 내 기록, 동네 찾기, 저렴한 한 끼, 체크리스트, 마이 패널이 모두 이 틀을 써서 같은 값을 따른다. 아래는 화면 맨 아래에 붙인다. */
+    --list-detail-gap: 0.625rem;
+    --list-detail-radius: 1rem;
     display: grid;
-    grid-template-columns: var(--list-detail-list-width) minmax(0, 1fr);
+    /* 목록 칸 왼쪽에 레일과 띄우는 간격만큼 더한다. 지도 칸의 폭과 위치는 그대로다. */
+    grid-template-columns: calc(var(--list-detail-list-width) + var(--list-detail-gap)) minmax(0, 1fr);
     height: 100%;
     min-height: 0;
+    /* 패널 사이사이 간격으로 비치는 바탕. 지도 바탕색과 맞춘다. */
+    background: #e9e5d8;
   `,
 
   list: css`
@@ -65,7 +71,10 @@ const styles = {
     flex-direction: column;
     min-height: 0;
     overflow: hidden;
-    border-right: 1px solid #eceef1;
+    margin: var(--list-detail-gap) 0 0 var(--list-detail-gap);
+    border: 1px solid #eceef1;
+    border-bottom: 0;
+    border-radius: var(--list-detail-radius) var(--list-detail-radius) 0 0;
     background: white;
 
     & > * {
@@ -78,15 +87,18 @@ const styles = {
     label: ListDetailLayout-detail;
     position: absolute;
     z-index: 40;
-    top: 0;
+    top: var(--list-detail-gap);
     bottom: 0;
-    left: 0;
+    /* 목록 패널과 간격을 두고 지도 위에 띄운다. */
+    left: var(--list-detail-gap);
     width: var(--list-detail-detail-width);
     display: flex;
     flex-direction: column;
     min-height: 0;
     overflow: hidden;
-    border-right: 1px solid #eceef1;
+    border: 1px solid #eceef1;
+    border-bottom: 0;
+    border-radius: var(--list-detail-radius) var(--list-detail-radius) 0 0;
     background: white;
 
     & > * {
@@ -109,7 +121,7 @@ const styles = {
     top: var(--list-detail-close-top, 1rem);
     /* 패널 오른쪽 가장자리에 붙여, 지도 위 다른 버튼과 떨어져 목록 패널의 일부처럼 보이게 한다. */
     /* 상세 칸 오른쪽 가장자리에 붙인다. */
-    left: var(--list-detail-detail-width);
+    left: calc(var(--list-detail-gap) + var(--list-detail-detail-width));
     z-index: 41;
     display: grid;
     width: 2.75rem;
