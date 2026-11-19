@@ -25,7 +25,6 @@ import {
   writeRestaurantListOpen,
 } from '../model/restaurantAreaSession';
 import { RESTAURANT_SEARCH_RADIUS, type RestaurantArea } from '../model/RestaurantMap';
-import storePin from '../ui/store-pin.svg';
 import useRestaurantOverlay from './useRestaurantOverlay';
 
 const DEFAULT_AREA: RestaurantArea = { ...DEFAULT_MAP_CENTER, label: '판교 주변' };
@@ -165,8 +164,8 @@ const useRestaurantMap = (isActive: boolean) => {
         id: String(store.id),
         latitude: store.latitude,
         longitude: store.longitude,
-        label: `${store.name} 상세 보기`,
-        image: { src: storePin },
+        label: store.name,
+        tone: 'destination' as const,
         actionable: true,
       })),
       // 기준 마커. 진한 파란 핀에 작은 `기준` 라벨. 가게와 매물 마커보다 위에 그려지지만 눌리지는 않는다.

@@ -27,7 +27,7 @@ vi.mock('@/features/map/ui/map-canvas/MapCanvas', () => ({
   }: {
     onCenterChange: (lat: number, lng: number) => void;
     onSelectMarker: (marker: { id: string }) => void;
-    markers?: { id: string; latitude: number; longitude: number; label: string }[];
+    markers?: { id: string; latitude: number; longitude: number; label: string; tone?: string; image?: unknown }[];
     radiusCenter?: { latitude: number; longitude: number };
   }) => (
     <>
@@ -35,6 +35,18 @@ vi.mock('@/features/map/ui/map-canvas/MapCanvas', () => ({
       <button onClick={() => onCenterChange(37.55, 126.99)}>지도 중간 이동 테스트</button>
       <button onClick={() => onCenterChange(37.3948, 127.1119)}>가게 자리 멈춤 테스트</button>
       <button onClick={() => onSelectMarker({ id: '10' })}>업소 마커 테스트</button>
+      {markers
+        .filter((marker) => /^\d+$/.test(marker.id))
+        .map((marker) => (
+          <output
+            key={marker.id}
+            aria-label="가게 마커"
+            data-tone={marker.tone}
+            data-has-image={marker.image !== undefined}
+          >
+            {marker.label}
+          </output>
+        ))}
       {/* 기준 마커와 기록 매물 마커. 가게 마커는 위 버튼으로 대신한다. */}
       {markers
         .filter((marker) => marker.id !== '10' && !/^\d+$/.test(marker.id))
@@ -345,6 +357,17 @@ it('업종 칩으로 식당 목록을 거르고 다시 누르면 전체 업종�
 
   await user.click(chips.getByRole('button', { name: '한식 1' }));
   expect(within(screen.getByRole('list', { name: '가게 목록' })).getAllByRole('listitem')).toHaveLength(3);
+});
+
+it('가게 마커는 전용 그림 없이 공용 이름 말풍선 마커로 그린다', async () => {
+  renderAt('/cheap-meals/restaurant');
+  const markers = await screen.findAllByLabelText('가게 마커');
+  expect(markers.length).toBeGreaterThan(0);
+  for (const marker of markers) {
+    expect(marker).toHaveAttribute('data-tone', 'destination');
+    expect(marker).toHaveAttribute('data-has-image', 'false');
+  }
+  expect(markers.map((marker) => marker.textContent)).toContain('착한 세탁소');
 });
 
 it('가게 상세를 연 채 새로고침하면 판교로 돌아가지 않고 고른 기준에서 같은 가게를 다시 연다', async () => {
