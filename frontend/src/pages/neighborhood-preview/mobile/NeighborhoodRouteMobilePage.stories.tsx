@@ -148,7 +148,6 @@ const preview: NeighborhoodPreviewContext = {
   matchedAreaCount: 1,
   selected: area,
   selectRegion: noop,
-  focusRoute: noop,
   zoomResultBy: noop,
   zoomToFacilities: noop,
   selectStation: noop,

@@ -1,17 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 
 import { getMapCategoryLabel } from '@/features/map/lib/mapPresentation';
 import { distanceMeters } from '@/features/map/lib/mapViewportQuery';
 import { transitStopIdForBusStop } from '@/features/map/lib/transitStop';
-import { formatRentSummary } from '@/features/property/lib/propertyFormat';
-import { propertyDetailPath } from '@/shared/lib/navigation/appPaths';
 
 import type { NeighborhoodPlace } from '../../hooks/useNeighborhoodPlaces';
 import type { NeighborhoodPreviewContext } from '../../hooks/useNeighborhoodPreview';
 import usePlaceRoute from '../../hooks/usePlaceRoute';
-import usePropertyRoute from '../../hooks/usePropertyRoute';
-import { distanceLabel, propertyCommuteLabel } from '../../model/propertyCommute';
+import { distanceLabel } from '../../model/propertyCommute';
 import RouteGuide from '../route-guide/RouteGuide';
 
 import * as styles from './NeighborhoodPlacePanel.styles';
@@ -21,8 +17,6 @@ type Props = {
   preview: Pick<NeighborhoodPreviewContext, 'destination' | 'maxMinutes' | 'maxTransfers'>;
   /** 휴대폰은 바로 전화를 걸고, 데스크탑은 전화 링크가 동작하지 않는 일이 많아 번호를 보여주고 복사하게 한다. */
   phoneAction: 'call' | 'copy';
-  /** `My` 매물의 통근 시간 상한(분). 서버가 정한 값이다. */
-  commuteMaxMinutes?: number;
 };
 
 const COPIED_NOTICE_MS = 2000;
@@ -34,7 +28,7 @@ const fromDestination = (
   destination: { latitude: number; longitude: number; name: string },
 ) => `${destination.name}에서 직선 ${distanceLabel(distanceMeters(destination, point))}`;
 
-const PlaceDetails = ({ place, preview, phoneAction, commuteMaxMinutes = 60 }: Props) => {
+const PlaceDetails = ({ place, preview, phoneAction }: Props) => {
   const stopId =
     place.kind === 'busStop'
       ? transitStopIdForBusStop(place.busStop.nodeId)
@@ -42,10 +36,6 @@ const PlaceDetails = ({ place, preview, phoneAction, commuteMaxMinutes = 60 }: P
         ? place.station.stopId
         : null;
   const busStopRoute = usePlaceRoute(preview, stopId);
-  // 통근 시간이 나온 내 매물만 동선을 부른다. 위치가 없거나 너무 먼 매물은 부르지 않는다.
-  const reachablePropertyId =
-    place.kind === 'property' && place.property.commute?.status === 'REACHABLE' ? place.property.propertyId : null;
-  const propertyRoute = usePropertyRoute(preview, reachablePropertyId);
   const stopLabel = place.kind === 'station' ? '출발 정류장' : '버스정류장';
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
   useEffect(() => {
@@ -65,43 +55,6 @@ const PlaceDetails = ({ place, preview, phoneAction, commuteMaxMinutes = 60 }: P
         </dl>
       </div>
     );
-  if (place.kind === 'property') {
-    const { property } = place;
-    return (
-      <div className={`${styles.details} ${styles.fill}`}>
-        <p className={styles.lead}>내 매물</p>
-        <dl className={styles.facts}>
-          <dt>보증금/월세</dt>
-          <dd>{formatRentSummary(property.depositAmount, property.monthlyRentAmount)}</dd>
-          <dt>주소</dt>
-          <dd>{property.address || '주소 정보가 없어요'}</dd>
-          <dt>통근</dt>
-          <dd>
-            {property.commute ? (
-              <>
-                {preview.destination.name}까지 <b>{propertyCommuteLabel(property.commute, commuteMaxMinutes)}</b>
-              </>
-            ) : (
-              '통근 시간을 불러오고 있어요'
-            )}
-          </dd>
-        </dl>
-        {reachablePropertyId !== null && (
-          <RouteGuide
-            route={propertyRoute.route}
-            isLoading={propertyRoute.isLoading}
-            error={propertyRoute.error}
-            onRetry={propertyRoute.retry}
-          />
-        )}
-        <div className={styles.actions}>
-          <Link className={styles.primary} to={propertyDetailPath(property.propertyId)}>
-            매물 상세 보기
-          </Link>
-        </div>
-      </div>
-    );
-  }
   if (place.kind !== 'agency')
     return (
       <div className={styles.details}>
