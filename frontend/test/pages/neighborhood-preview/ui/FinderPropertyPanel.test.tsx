@@ -176,6 +176,8 @@ it('위는 매물 요약, 아래는 출퇴근 장소와 노선이고, 요약을 
   const detail = within(screen.getByRole('region', { name: '동네 찾기 상세' }));
   expect(detail.getByText('회사')).toBeInTheDocument();
   expect(detail.getByText('서울 중구')).toBeInTheDocument();
+  expect(detail.getByRole('group', { name: '출퇴근 장소' })).toBeInTheDocument();
+  expect(detail.queryByRole('heading', { name: '출퇴근 장소' })).not.toBeInTheDocument();
   await user.click(screen.getByRole('link', { name: '역삼동 원룸' }));
   expect(onOpenDetail).toHaveBeenCalledTimes(1);
 });
