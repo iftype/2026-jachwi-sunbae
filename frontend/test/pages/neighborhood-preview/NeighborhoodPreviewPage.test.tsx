@@ -1281,3 +1281,13 @@ it('동네 찾기 지도에도 내 기록과 같은 매물 마커를 올리고, 
     localStorage.removeItem('jachwi:records-bookmark-layer-rail');
   }
 });
+
+it('동네 찾기 결과 지도의 매물 마커를 누르면 그 매물의 정보가 열린다', async () => {
+  useOneRecordedProperty();
+  show(false, undefined, true);
+  const user = await choosePoint();
+  await submitCurrentSearch(user);
+  await screen.findByRole('region', { name: '행정동 프리셋 지도' });
+  await user.click(await screen.findByRole('button', { name: '마커 신림역 원룸' }));
+  expect(await screen.findByText('서울 관악구 신림로 12')).toBeInTheDocument();
+});
