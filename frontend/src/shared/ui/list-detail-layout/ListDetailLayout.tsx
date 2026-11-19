@@ -77,6 +77,11 @@ const styles = {
     border-radius: var(--list-detail-radius) var(--list-detail-radius) 0 0;
     background: white;
 
+    /* 상세가 붙어 열리면 둘이 한 덩어리로 보이게 안쪽 모서리를 각지게 하고, 경계는 목록 오른쪽의 1px 선 하나로 둔다. */
+    [data-detail-open] > & {
+      border-top-right-radius: 0;
+    }
+
     & > * {
       flex: 1;
       min-height: 0;
@@ -89,16 +94,17 @@ const styles = {
     z-index: 40;
     top: var(--list-detail-gap);
     bottom: 0;
-    /* 목록 패널과 간격을 두고 지도 위에 띄운다. */
-    left: var(--list-detail-gap);
+    /* 목록 패널에 틈 없이 붙여 한 덩어리로 띄운다. 경계선은 목록 패널의 오른쪽 선이 맡는다. */
+    left: 0;
     width: var(--list-detail-detail-width);
     display: flex;
     flex-direction: column;
     min-height: 0;
     overflow: hidden;
     border: 1px solid #eceef1;
+    border-left: 0;
     border-bottom: 0;
-    border-radius: var(--list-detail-radius) var(--list-detail-radius) 0 0;
+    border-radius: 0 var(--list-detail-radius) 0 0;
     background: white;
 
     & > * {
@@ -121,7 +127,7 @@ const styles = {
     top: var(--list-detail-close-top, 1rem);
     /* 패널 오른쪽 가장자리에 붙여, 지도 위 다른 버튼과 떨어져 목록 패널의 일부처럼 보이게 한다. */
     /* 상세 칸 오른쪽 가장자리에 붙인다. */
-    left: calc(var(--list-detail-gap) + var(--list-detail-detail-width));
+    left: var(--list-detail-detail-width);
     z-index: 41;
     display: grid;
     width: 2.75rem;
