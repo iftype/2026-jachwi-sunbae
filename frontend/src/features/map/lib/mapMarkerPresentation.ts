@@ -1,5 +1,9 @@
 import type { MapMarker } from '../model/Map';
 const clamp = (value: number, min: number, max: number): number => Math.min(Math.max(value, min), max);
+/** `selectedMarkerId`로 골랐거나 마커 스스로 `selected`인 마커. */
+export const isMarkerSelected = (marker: MapMarker, selectedMarkerId: string | null | undefined): boolean =>
+  marker.selected === true || selectedMarkerId === marker.id;
+
 /** 이 값이 같으면 마커를 다시 그릴 필요가 없다. */
 export const markerSignature = (marker: MapMarker, selectedMarkerId: string | null): string =>
   [
@@ -16,7 +20,7 @@ export const markerSignature = (marker: MapMarker, selectedMarkerId: string | nu
     marker.summary?.amount ?? '',
     marker.photo ?? '',
     marker.actionable === true ? '1' : '0',
-    selectedMarkerId === marker.id ? '1' : '0',
+    isMarkerSelected(marker, selectedMarkerId) ? '1' : '0',
   ].join('|');
 
 /** 매물과 시설 마커는 아래 꼭짓점이 좌표를 가리키는 핀 이미지로 그린다. */
@@ -41,10 +45,8 @@ const MAX_RANK = 1_000;
 const toneZIndex = (marker: MapMarker, selectedMarkerId: string | null): number => {
   // 검색해서 고른 곳과 지도를 눌러 고른 곳의 라벨은 동 라벨, 지도 글자, 다른 마커보다 위에 둔다.
   if (marker.tone === 'pinLabel') return 12;
-  // 작은 매물 핀은 가게 같은 다른 마커 아래에 둔다.
-  if (marker.compact && selectedMarkerId !== marker.id) return 4;
   if (marker.tone === 'flash') return 11;
-  if (selectedMarkerId === marker.id) return 10;
+  if (isMarkerSelected(marker, selectedMarkerId)) return 10;
   if (marker.tone === 'selected') return 9;
   if (marker.tone === 'property' || marker.tone === 'propertyCluster') return 8;
   if (marker.tone === 'current') return 7;
@@ -65,7 +67,7 @@ const detailZIndex = (marker: MapMarker): number => {
  */
 export const markerZIndex = (marker: MapMarker, selectedMarkerId: string | null): number => {
   const tone = toneZIndex(marker, selectedMarkerId);
-  if (marker.tone === 'flash' || selectedMarkerId === marker.id) return tone * MARKER_Z_INDEX_TONE_SPAN;
+  if (marker.tone === 'flash' || isMarkerSelected(marker, selectedMarkerId)) return tone * MARKER_Z_INDEX_TONE_SPAN;
   return tone * MARKER_Z_INDEX_TONE_SPAN + detailZIndex(marker);
 };
 
