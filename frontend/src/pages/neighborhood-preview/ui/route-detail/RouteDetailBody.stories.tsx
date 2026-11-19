@@ -143,7 +143,7 @@ const preview: NeighborhoodPreviewContext = {
   maxTransfers: 1,
   changeMaxTransfers: noop,
   resultLevel: 7,
-  center: { ...area.center, level: 7 },
+  center: area.center,
   reset: noop,
   regions: [],
   matchedAreaCount: 1,
