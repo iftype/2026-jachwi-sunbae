@@ -69,7 +69,8 @@ export const editorSection = cx(
     & h2 {
       margin: 0;
       color: var(--color-ink);
-      font-size: 0.78rem;
+      font-size: 0.8125rem;
+      font-weight: 800;
     }
 
     .ChecklistEditor-checklistEditor & h2 {
@@ -114,19 +115,7 @@ export const itemPicker = cx(
 
 export const checkItemSearch = css`
   label: ChecklistEditor-checkItemSearch;
-
-  /* 체크 항목 검색은 공용 SearchField의 입력 스타일을 그대로 사용한다. */
-  .ChecklistEditor-checklistEditor & input {
-    min-height: 2.4rem;
-    padding: 0.55rem 0.5rem;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-  }
-
-  & {
-    margin-top: 0.45rem;
-  }
+  margin-top: 0.5rem;
 `;
 
 export const selectionCount = css`
