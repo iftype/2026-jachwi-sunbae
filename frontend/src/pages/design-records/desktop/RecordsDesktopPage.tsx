@@ -6,6 +6,7 @@ import MapHeaderWeather from '@/features/weather/ui/map-header-weather/MapHeader
 import AreaSkeleton from '@/shared/ui/area-skeleton/AreaSkeleton';
 import { DesktopHeaderSlotProvider } from '@/shared/ui/desktop-header/DesktopHeaderSlot';
 import DetailHeader from '@/shared/ui/detail-header/DetailHeader';
+import { setDetailCollapsed } from '@/shared/ui/list-detail-layout/detailCollapse';
 import ListDetailLayout from '@/shared/ui/list-detail-layout/ListDetailLayout';
 import MapListHeader from '@/shared/ui/map-list-header/MapListHeader';
 import { useMapPanel } from '@/shared/ui/map-list-header/MapPanelContext';
@@ -42,6 +43,12 @@ const RecordsDesktopPage = ({ records, layers }: Props) => {
   const isReplacingChecklist = params.stage !== undefined;
   const { selected, setSelectedId, setNotice } = records;
 
+  // 목록 카드를 누르면 접어 둔 상세 패널을 펼친다. 지도 중심은 펼친 패널 폭 기준으로 맞도록 펼침을 먼저 한다. 이전, 다음 버튼은 접힘을 그대로 둔다.
+  const openFromList = (recordId: string) => {
+    setDetailCollapsed(false);
+    records.showRecordOnMap(recordId);
+  };
+
   // 처음 여는 화면이라 남겨 둘 목록이 없다. 늦추지 않고 바로 뼈대를 보여, 화면 코드를 받는 동안의 뼈대(`RecordsPageSkeleton`)에서 이어지게 한다.
   const list = records.properties.isPending ? (
     <AreaSkeleton area="list" label={RECORDS_LOADING_LABEL} />
@@ -59,7 +66,7 @@ const RecordsDesktopPage = ({ records, layers }: Props) => {
         backLabel="전체 리스트로 돌아가기"
         onBack={layers.closeGroup}
       />
-      <RecordGroupList records={layers.groupRecords} onOpen={records.showRecordOnMap} onNotice={setNotice} />
+      <RecordGroupList records={layers.groupRecords} onOpen={openFromList} onNotice={setNotice} />
     </div>
   ) : records.district !== '전체' ? (
     // 동네 뱃지를 고르면 맨 왼쪽 리스트가 그 동네 목록으로 바뀌고, 뒤로가기로 전체 리스트로 돌아간다. 옆으로 나오는 칸은 상세만 쓴다.
@@ -72,7 +79,7 @@ const RecordsDesktopPage = ({ records, layers }: Props) => {
       <RecordList
         records={records.records}
         district={records.district}
-        onOpen={records.showRecordOnMap}
+        onOpen={openFromList}
         selectedId={records.selected?.id}
         onNotice={setNotice}
       />
@@ -82,7 +89,7 @@ const RecordsDesktopPage = ({ records, layers }: Props) => {
       className={styles.list}
       records={records.records}
       district={records.district}
-      onOpen={records.showRecordOnMap}
+      onOpen={openFromList}
       selectedId={records.selected?.id}
       onNotice={setNotice}
       showCompare
