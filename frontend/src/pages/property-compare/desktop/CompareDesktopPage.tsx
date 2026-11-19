@@ -30,7 +30,7 @@ const CompareDesktopPage = () => {
   const preview = visibleItems.find((item) => item.propertyId === previewId);
 
   return (
-    <main className={cx(shared.page, preview && styles.wideMain)}>
+    <main className={cx(shared.page, styles.wideMain)}>
       <h1 className="sr-only">비교할 매물 선택</h1>
       <CompareLoadState properties={properties}>
         {() => (
@@ -45,7 +45,7 @@ const CompareDesktopPage = () => {
               )}
             </div>
             {hasProperties ? (
-              <div className={cx(styles.body, preview && styles.withPreview)}>
+              <div className={cx(styles.body, styles.withPreviewSlot)}>
                 <CompareTable
                   properties={visibleItems}
                   selectedIds={selectedIds}
@@ -87,7 +87,8 @@ const styles = {
   `,
   /*
    * 공용 데스크탑 셸은 화면 내용을 48rem 가운데 열에 가둔다. 상세 카드가 열리면 표가 찌그러지므로
-   * 이 화면만 셸이 비워 둔 양옆 공간까지 넓힌다. 셸 규칙보다 우선하도록 선택자를 겹쳐 쓴다.
+   * 이 화면만 셸이 비워 둔 양옆 공간까지 넓히고, 상세가 닫혀 있을 때도 왼쪽에서 시작해 열릴 때 옆으로 밀리지 않게 한다.
+   * 셸 규칙보다 우선하도록 선택자를 겹쳐 쓴다.
    */
   wideMain: css`
     label: CompareDesktopPage-wideMain;
@@ -95,11 +96,16 @@ const styles = {
     @media (min-width: 67rem) {
       &&&&&&&& {
         width: min(100%, 90rem);
+        margin-right: auto;
+        margin-left: 0;
       }
     }
   `,
-  /* 표는 필요한 폭을 지키고 상세 카드는 고정 폭으로 따라다닌다. 좁은 창에서는 표만 가로로 민다. */
-  withPreview: css`
+  /*
+   * 표 폭은 상세 카드 유무와 무관하게 고정하려고 오른쪽 20rem을 닫혀 있을 때도 비워 둔다.
+   * 상세 카드는 그 자리에 고정 폭으로 따라다닌다. 좁은 창에서는 표만 가로로 민다.
+   */
+  withPreviewSlot: css`
     @media (min-width: 67rem) {
       grid-template-columns: minmax(0, 1fr) 20rem;
 
