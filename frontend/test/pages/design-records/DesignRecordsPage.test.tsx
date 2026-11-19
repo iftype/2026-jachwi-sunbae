@@ -2,7 +2,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 import { propertyPageFixture, propertySummaryFixture, successEnvelope } from '@/app/mocks/fixtures/propertyFixtures';
@@ -82,11 +82,15 @@ afterEach(() => {
   sessionStorage.clear();
 });
 
+/** 상세를 접어도 고른 매물 주소가 남는지 보려고 지금 주소를 그린다. */
+const CurrentPath = () => <span data-testid="current-path">{useLocation().pathname}</span>;
+
 const renderRecords = (initialEntry: string | { pathname: string; state: unknown } = '/') =>
   render(
     <QueryClientProvider client={queryClient}>
       <PublicConfigProvider config={{ apiBaseUrl: 'http://localhost:8080' }}>
         <MemoryRouter initialEntries={[initialEntry]}>
+          <CurrentPath />
           <Routes>
             {/* 앱처럼 한 화면 셸을 두 주소(홈과 매물 상세)가 함께 쓴다. */}
             <Route element={<DesignRecordsPage />}>
@@ -322,7 +326,7 @@ it('체크리스트 탭을 보다가 지도에서 매물을 새로 만들어도 
   }
 });
 
-it('데스크탑에서 지도나 리스트의 방을 누르면 리스트 옆 칸에 매물 상세를 열고, 지도 위 버튼으로 접는다', async () => {
+it('데스크탑에서 지도나 리스트의 방을 누르면 리스트 옆 칸에 매물 상세를 열고, 지도 위 `<` 버튼으로 접어도 선택은 남는다', async () => {
   const matchMedia = useDesktopViewport();
   const user = userEvent.setup();
   renderRecords();
@@ -336,16 +340,27 @@ it('데스크탑에서 지도나 리스트의 방을 누르면 리스트 옆 칸
   expect(screen.getByRole('heading', { name: '모든 기록' })).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: '매물 카드 닫기' })).not.toBeInTheDocument();
 
-  await user.click(screen.getByRole('button', { name: '매물 상세 칸 닫기' }));
+  const selectedPath = screen.getByTestId('current-path').textContent ?? '';
+  expect(selectedPath).toMatch(/^\/properties\/\d+$/);
+  const selectedCard = () => screen.getByRole('link', { name: /신림역 원룸/ }).closest('li');
+  expect(selectedCard()).toHaveAttribute('data-selected', 'true');
+
+  // `<` 버튼은 상세를 접기만 한다. 주소와 리스트 강조는 그대로다.
+  await user.click(screen.getByRole('button', { name: '상세 접기' }));
+  expect(screen.queryByRole('complementary', { name: '선택한 매물 상세' })).not.toBeInTheDocument();
+  expect(screen.getByTestId('current-path')).toHaveTextContent(selectedPath);
+  expect(selectedCard()).toHaveAttribute('data-selected', 'true');
+
+  // 접은 채로 다른 방을 고르면 선택만 바뀌고 상세는 접힌 채로 둔다.
+  await user.click(screen.getByRole('link', { name: /망원동 투룸/ }));
+  await waitFor(() =>
+    expect(screen.getByRole('link', { name: /망원동 투룸/ }).closest('li')).toHaveAttribute('data-selected', 'true'),
+  );
+  expect(screen.getByTestId('current-path')).not.toHaveTextContent(selectedPath);
   expect(screen.queryByRole('complementary', { name: '선택한 매물 상세' })).not.toBeInTheDocument();
 
-  // 상세를 연 채로 리스트에서 다른 방을 고르면 옆 칸이 그 방으로 바뀐다.
-  await user.click(within(screen.getByLabelText('예시 지도')).getByRole('button', { name: '신림역 원룸' }));
-  await within(screen.getByRole('complementary', { name: '선택한 매물 상세' })).findByRole('heading', {
-    level: 1,
-    name: '신림역 원룸',
-  });
-  await user.click(screen.getByRole('link', { name: /망원동 투룸/ }));
+  // 펼치면 지금 고른 방의 상세가 보인다.
+  await user.click(screen.getByRole('button', { name: '상세 펼치기' }));
   expect(
     await within(screen.getByRole('complementary', { name: '선택한 매물 상세' })).findByRole('heading', {
       level: 1,

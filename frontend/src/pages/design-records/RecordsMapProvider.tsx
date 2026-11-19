@@ -12,6 +12,7 @@ import {
   RECORDS_MAP_PATH,
   RECORDS_PATH,
 } from '@/shared/lib/navigation/appPaths';
+import { isDetailCollapsed } from '@/shared/ui/list-detail-layout/detailCollapse';
 
 import useQuickCreateProperty from './hooks/useQuickCreateProperty';
 import type { RecordsState } from './hooks/useRecords';
@@ -50,8 +51,11 @@ export const RecordsMapProvider = ({ children }: { children: ReactNode }) => {
       const list = layout?.firstElementChild?.getBoundingClientRect();
       if (!isDesktop || !rect?.width || !list) return point;
       // 이미 열린 상세는 그 폭을 재고, 이번에 열릴 상세는 `ListDetailLayout`의 상세 폭(clamp(22rem, 28%, 26rem))을 미리 뺀다.
+      // 상세를 접어 두었으면 열리지 않으므로 빼지 않는다.
       const openDetail = layout?.querySelector('[data-list-detail-detail]')?.getBoundingClientRect();
-      const detailWidth = openDetail?.width ?? (opensDetail ? Math.max(352, Math.min(416, rect.width * 0.28)) : 0);
+      const detailWidth = isDetailCollapsed()
+        ? 0
+        : (openDetail?.width ?? (opensDetail ? Math.max(352, Math.min(416, rect.width * 0.28)) : 0));
       return centerWithInsets(point, level, {
         left: list.right - rect.left + detailWidth + 24,
         right: 80,

@@ -1,16 +1,23 @@
 import { css } from '@emotion/css';
-import type { ReactNode } from 'react';
+import { type ReactNode, useEffect, useId, useRef } from 'react';
 
 import Icon from '@/shared/ui/icon/Icon';
+
+import { setDetailCollapsed, useDetailCollapsed } from './detailCollapse';
 
 type ListDetailLayoutProps = {
   /** 왼쪽 칸. 목록이나 입력 폼을 둔다. */
   list: ReactNode;
   /** 목록 옆에 붙여 여는 상세. 없으면 목록과 본문만 둔다. */
   detail?: ReactNode;
-  /** 상세 닫기. 버튼은 본문(지도) 왼쪽 위, 상세 칸 바로 옆에 띄운다. */
+  /** 상세 닫기. 버튼은 본문(지도) 왼쪽 위, 상세 칸 바로 옆에 띄운다. `collapsible`이면 쓰지 않는다. */
   onCloseDetail?: () => void;
   closeLabel?: string;
+  /**
+   * 상세를 닫지 않고 접는다. 상세 옆 `<` 버튼으로 접고, 목록 패널 옆 `>` 버튼으로 다시 편다.
+   * 접어도 상세는 그대로 두어 선택(URL과 강조)과 상세 안 상태가 남고, 접힌 상태는 다른 항목을 골라도, 새로고침해도 유지한다.
+   */
+  collapsible?: boolean;
   /** 오른쪽 본문. 보통 지도다. */
   children: ReactNode;
   className?: string;
@@ -26,27 +33,71 @@ const ListDetailLayout = ({
   detail,
   onCloseDetail,
   closeLabel = '상세 닫기',
+  collapsible = false,
   children,
   className,
 }: ListDetailLayoutProps) => {
   const hasDetail = detail !== undefined && detail !== null && detail !== false;
+  const collapsed = useDetailCollapsed();
+  const isCollapsed = collapsible && hasDetail && collapsed;
+  const showsDetail = hasDetail && !isCollapsed;
+  const detailId = useId();
+  const collapseRef = useRef<HTMLButtonElement>(null);
+  const expandRef = useRef<HTMLButtonElement>(null);
+  // 접거나 편 버튼은 사라지므로, 키보드 초점을 반대쪽 버튼으로 옮긴다.
+  const hasToggledRef = useRef(false);
+  useEffect(() => {
+    if (!hasToggledRef.current) return;
+    hasToggledRef.current = false;
+    (isCollapsed ? expandRef : collapseRef).current?.focus();
+  }, [isCollapsed]);
+  const toggle = (next: boolean) => {
+    hasToggledRef.current = true;
+    setDetailCollapsed(next);
+  };
   return (
     // 지도 시점을 맞추는 쪽(`RecordsMapProvider`, 동네 찾기)이 `data-floating`으로 이 틀을 찾아 패널이 가리는 폭을 잰다.
     <div
       className={`${styles.layout} ${className ?? ''}`.trim()}
-      data-detail-open={hasDetail || undefined}
+      data-detail-open={showsDetail || undefined}
       data-floating="true"
     >
       <div className={styles.list}>{list}</div>
       <div className={styles.main}>
         {children}
-        {/* 상세는 목록 패널 오른쪽에 붙여 지도 위에 얹는다. 지도 크기와 위치는 바뀌지 않는다. */}
+        {/* 상세는 목록 패널 오른쪽에 붙여 지도 위에 얹는다. 지도 크기와 위치는 바뀌지 않는다. 접어도 내용은 숨기기만 한다. */}
         {hasDetail && (
-          <div className={styles.detail} data-list-detail-detail>
+          <div id={detailId} className={styles.detail} data-list-detail-detail hidden={isCollapsed}>
             {detail}
           </div>
         )}
-        {hasDetail && onCloseDetail && (
+        {showsDetail && collapsible && (
+          <button
+            ref={collapseRef}
+            type="button"
+            className={styles.close}
+            aria-label="상세 접기"
+            aria-expanded
+            aria-controls={detailId}
+            onClick={() => toggle(true)}
+          >
+            <Icon name="chevron-left" size={24} />
+          </button>
+        )}
+        {isCollapsed && (
+          <button
+            ref={expandRef}
+            type="button"
+            className={styles.close}
+            aria-label="상세 펼치기"
+            aria-expanded={false}
+            aria-controls={detailId}
+            onClick={() => toggle(false)}
+          >
+            <Icon name="chevron-right" size={24} />
+          </button>
+        )}
+        {showsDetail && !collapsible && onCloseDetail && (
           <button type="button" className={styles.close} aria-label={closeLabel} onClick={onCloseDetail}>
             <Icon name="close" size={22} />
           </button>
@@ -132,6 +183,10 @@ const styles = {
     border-radius: 0 var(--list-detail-radius) 0 0;
     background: white;
 
+    &[hidden] {
+      display: none;
+    }
+
     & > * {
       flex: 1;
       min-height: 0;
@@ -153,7 +208,7 @@ const styles = {
     label: ListDetailLayout-close;
     position: absolute;
     top: var(--list-detail-close-top, 1rem);
-    /* 상세 칸 오른쪽 가장자리에 붙여, 지도 위 다른 버튼과 떨어져 패널의 일부처럼 보이게 한다. */
+    /* 상세 칸(접었으면 목록 패널) 오른쪽 가장자리에 붙여, 지도 위 다른 버튼과 떨어져 패널의 일부처럼 보이게 한다. 닫기, 접기, 펼치기가 같은 자리를 쓴다. */
     left: var(--map-panel-width);
     z-index: 41;
     display: grid;

@@ -69,3 +69,11 @@ export const WithDetail: Story = {
     closeLabel: '신림동 상세 닫기',
   },
 };
+
+/** 내 기록 상세, 동네 찾기 매물 패널처럼 닫지 않고 접는 상세. 접은 상태는 이 기기에 기억한다. */
+export const Collapsible: Story = {
+  args: {
+    detail: '신림역 원룸 상세',
+    collapsible: true,
+  },
+};
