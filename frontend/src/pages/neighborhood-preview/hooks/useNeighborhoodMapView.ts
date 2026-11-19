@@ -618,6 +618,8 @@ const useNeighborhoodMapView = (
     : mapProps;
   return {
     isResultMap,
+    /** 찜한 동네만 보는 중인지. 추천 동네를 지도에서 걷는 동안에는 화면도 찾은 동네 뱃지 줄을 숨긴다. */
+    showsBookmarkOnly,
     showsPropertyPanel,
     mapProps: composedProps,
     bookmark: (code: string) =>

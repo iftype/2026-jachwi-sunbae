@@ -1282,6 +1282,31 @@ it('데스크탑 통합 지도는 왼쪽 조건 칸과 지도 위 찾은 동네 
   }
 });
 
+it('데스크탑 동네 찾기는 찜한 동네만 보는 동안 지도 위 찾은 동네 뱃지 줄을 숨기고, 끄면 다시 보인다', async () => {
+  const viewport = useDesktopViewport();
+  writeBookmarkedAdminDongs(['11210690']);
+  localStorage.setItem('jachwi:records-bookmark-layer-rail', 'off');
+  server.use(...adminDongBookmarkHandlers);
+  try {
+    show(false, undefined, true);
+    const user = await choosePoint();
+    await user.click(screen.getByRole('button', { name: '이 조건으로 동네 찾기' }));
+    await screen.findByRole('navigation', { name: '찾은 동네' });
+    const toggle = await screen.findByRole('button', { name: '찜한 동네 토글' });
+    await user.click(toggle);
+    await waitFor(() => expect(toggle).toHaveAttribute('aria-pressed', 'true'));
+    expect(screen.queryByRole('navigation', { name: '찾은 동네' })).not.toBeInTheDocument();
+    // 지도 아래 가운데의 다시 선택 버튼은 뱃지 줄과 따로라 그대로 남는다.
+    expect(screen.getByRole('button', { name: '출퇴근 장소 다시 선택' })).toBeInTheDocument();
+    await user.click(toggle);
+    expect(await screen.findByRole('navigation', { name: '찾은 동네' })).toBeInTheDocument();
+  } finally {
+    writeBookmarkedAdminDongs([]);
+    localStorage.removeItem('jachwi:records-bookmark-layer-rail');
+    viewport.mockRestore();
+  }
+});
+
 it('데스크탑 결과 지도의 출퇴근 장소 다시 선택은 동네 뱃지 줄 밖 지도 아래 가운데에 있고, 선택 모드에서는 보이지 않는다', async () => {
   const viewport = useDesktopViewport();
   try {
