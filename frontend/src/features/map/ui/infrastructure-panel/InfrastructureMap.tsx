@@ -5,7 +5,12 @@ import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
 import Icon from '@/shared/ui/icon/Icon';
 
 import useInfrastructureLayer from '../../hooks/useInfrastructureLayer';
-import { MOBILE_MAP_CONTROLS_RIGHT, MOBILE_MAP_RAIL_TOP } from '../../lib/mapControlsLayout';
+import {
+  DESKTOP_MAP_CONTROLS_RIGHT,
+  DESKTOP_MAP_RAIL_TOP,
+  MOBILE_MAP_CONTROLS_RIGHT,
+  MOBILE_MAP_RAIL_TOP,
+} from '../../lib/mapControlsLayout';
 import {
   DESKTOP_FACILITY_MARKER_LEVEL,
   FACILITY_MARKER_LEVEL,
@@ -155,8 +160,8 @@ const styles = {
   rail: css`
     label: InfrastructureMap-rail;
     && {
-      top: calc(16.85rem + 3.1rem);
-      right: 1.15rem;
+      top: ${DESKTOP_MAP_RAIL_TOP};
+      right: ${DESKTOP_MAP_CONTROLS_RIGHT};
       z-index: 35;
     }
     [data-desktop='false'] && {

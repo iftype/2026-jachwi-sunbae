@@ -16,7 +16,6 @@ import InlineNotice from '@/shared/ui/inline-notice/InlineNotice';
 import ListDetailLayout from '@/shared/ui/list-detail-layout/ListDetailLayout';
 import MapBadgeRail from '@/shared/ui/map-badge-rail/MapBadgeRail';
 import ProgressCircle from '@/shared/ui/progress-circle/ProgressCircle';
-import Toast from '@/shared/ui/toast/Toast';
 
 import type { MealLayout } from '../hooks/useMealTabs';
 import useRestaurantMap from '../hooks/useRestaurantMap';
@@ -201,9 +200,6 @@ const RestaurantPanel = ({ isActive, layout, listHeader, listOverride }: Restaur
       </InlineNotice>
     </>
   );
-  const noticeToast = (
-    <Toast isOpen={map.notice !== null} title={map.notice ?? ''} duration={0} onClose={map.closeNotice} />
-  );
 
   // 데스크탑은 목록을 지도 왼쪽에 늘 펼쳐 두고, 고른 가게의 상세를 목록 옆 칸에 붙인다.
   if (layout === 'desktop') {
@@ -237,7 +233,6 @@ const RestaurantPanel = ({ isActive, layout, listHeader, listOverride }: Restaur
             {/* 내 기록, 동네 찾기와 같은 자리: 오른쪽 위에 줌, 그 아래에 내 위치 버튼. */}
             <MapZoomControl className={styles.zoomDesktop} level={map.level} onChange={map.changeLevel} />
             {locationControl}
-            {noticeToast}
           </div>
         </ListDetailLayout>
       </section>
@@ -278,7 +273,6 @@ const RestaurantPanel = ({ isActive, layout, listHeader, listOverride }: Restaur
             </div>
           </BottomSheet>
         )}
-        {noticeToast}
       </div>
     </section>
   );

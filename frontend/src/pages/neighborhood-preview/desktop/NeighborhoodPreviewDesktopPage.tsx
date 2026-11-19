@@ -294,6 +294,7 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
                 preview={preview}
                 isResult={false}
                 className={styles.railControls}
+                locateAtCorner
                 zoom={{ level: preview.selectionLevel, onZoom: preview.zoomSelectionBy }}
               />
             </>
@@ -348,6 +349,7 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
                 isResult
                 zoom={{ level: preview.resultLevel, onZoom: preview.zoomResultBy }}
                 className={styles.railControls}
+                locateAtCorner
               />
               {preview.isPublicExplore && recordArea && (
                 <div className={`${shared.recordAction} ${styles.recordAction}`}>
