@@ -21,8 +21,6 @@ type ChecklistEditorProps = {
   serverError?: string;
   onOpenItemPicker: () => void;
   onSubmit: (input: ChecklistDraftInput) => Promise<ChecklistDetail>;
-
-  isDesktop?: boolean;
 };
 
 /** 체크리스트 항목과 순서를 고치는 폼. 이름과 항목을 함께 저장한다. 항목 추가 화면은 `CheckItemPicker`가 맡는다. */
@@ -34,7 +32,6 @@ const ChecklistEditor = ({
   serverError,
   onOpenItemPicker,
   onSubmit,
-  isDesktop = false,
 }: ChecklistEditorProps) => {
   const activeCatalog = useActiveCheckItems(stage);
   const activeSourceIds = useMemo(
@@ -51,13 +48,7 @@ const ChecklistEditor = ({
           항목 추가
         </AddItemAction>
       </div>
-      <Button
-        type="submit"
-        variant={isDesktop ? 'primary' : 'soft'}
-        fullWidth
-        isLoading={isSubmitting}
-        loadingLabel="저장 중…"
-      >
+      <Button type="submit" variant="primary" fullWidth isLoading={isSubmitting} loadingLabel="저장 중…">
         {submitLabel}
       </Button>
     </BottomActionArea>

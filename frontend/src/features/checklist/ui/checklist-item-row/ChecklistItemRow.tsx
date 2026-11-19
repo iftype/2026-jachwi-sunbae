@@ -94,16 +94,16 @@ const styles = {
     gap: 0.6rem;
     min-height: 3.5rem;
     padding: 0.55rem 0.65rem;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    background: var(--color-surface);
+    border: 0;
+    border-radius: 1rem;
+    background: var(--color-card-surface);
 
     &[data-dragging='true'] {
       opacity: 0.55;
     }
 
     &[data-drag-over='true'] {
-      border-color: var(--color-primary);
+      outline: 2px solid var(--color-primary);
       background: var(--color-surface-brand);
     }
   `,

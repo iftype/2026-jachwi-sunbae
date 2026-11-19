@@ -106,7 +106,6 @@ const CreateChecklistPage = () => {
           serverError={create.isError ? getChecklistErrorMessage(create.error) : undefined}
           onOpenItemPicker={openPicker}
           onSubmit={save}
-          isDesktop={isDesktop}
         />
       )}
     </ChecklistEditorFrame>

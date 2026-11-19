@@ -21,7 +21,7 @@ const ChecklistPresetStatus = ({ preset }: ChecklistPresetStatusProps) => {
         <strong>프리셋을 불러오지 못했어요.</strong>
         <span>{getChecklistErrorMessage(preset.error)}</span>
       </div>
-      <Button variant="text" type="button" onClick={() => void preset.refetch()}>
+      <Button variant="neutral" type="button" onClick={() => void preset.refetch()}>
         다시 시도
       </Button>
     </div>

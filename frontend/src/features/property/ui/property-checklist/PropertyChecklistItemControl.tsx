@@ -88,7 +88,7 @@ const PropertyChecklistItemControl = ({ propertyId, propertyChecklistId, item }:
             </span>
           )}
           {memoMutation.isError && (
-            <Button variant="text" onClick={saveMemo}>
+            <Button variant="neutral" onClick={saveMemo}>
               메모 다시 저장
             </Button>
           )}
@@ -194,7 +194,7 @@ const styles = {
     label: PropertyChecklistItemControl-statusButton;
     min-height: 1.9rem;
     padding: 0.25rem 0.5rem;
-    border-radius: var(--radius-sm);
+    border-radius: 999px;
     color: var(--color-ink);
     font-size: 0.75rem;
     white-space: nowrap;
