@@ -10,8 +10,12 @@ import { getAdminBoundaryQueryOptions } from './adminBoundaryQueries';
 
 const EMPTY: MapRegion[] = [];
 
-// 경계를 실선으로 그려, 통근 결과나 지도 도로 위에서도 찜한 영역을 구분할 수 있게 한다.
-const BOOKMARK_APPEARANCE = { fillColor: '#3f6fc4', strokeColor: '#2f56a0', fillOpacity: 0.34 } as const;
+// 경계를 굵은 실선으로 또렷하게 긋고 안쪽은 옅게 칠한다. 안쪽을 진하게 칠하면 지도 글자와 길이 뿌옇게 가려져
+// 찜한 동네가 오히려 뒤로 물러나 보인다.
+const BOOKMARK_APPEARANCE = { fillColor: '#2f6fe0', strokeColor: '#2554b8', fillOpacity: 0.2 } as const;
+
+/** 찜한 동네 이름표(알약) 높이의 절반(px). 이름표를 누르면 뜨는 카드의 꼬리가 이름표 위쪽에 닿게 한다. */
+export const BOOKMARK_LABEL_HALF_HEIGHT = 17;
 
 /**
  * 북마크한 행정동 코드의 경계를 지도에 칠할 구역으로 바꾼다. 켜 둘 때만 경계 파일을 받는다.

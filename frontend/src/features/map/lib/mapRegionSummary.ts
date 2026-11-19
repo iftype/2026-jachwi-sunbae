@@ -60,6 +60,8 @@ export const createRegionRentLabelElement = (region: MapRegion, selected: boolea
   button.className = styles.rentLabel;
   button.dataset.sparse = String(rent?.sparse ?? false);
   button.dataset.filteredOut = String(rent?.filteredOut ?? false);
+  // 월세 줄 없이 이름만 두는 라벨(찜한 동네)은 크게 그려 찜한 영역이 눈에 띄게 한다.
+  if (region.showsName && !rent) button.dataset.bookmark = 'true';
   button.setAttribute('aria-pressed', String(selected));
   const commuteText = rent?.commute ? `통근 ${rent.commute}` : null;
   const priceText = rent?.price

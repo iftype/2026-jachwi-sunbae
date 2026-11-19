@@ -41,7 +41,7 @@ const regionStyle = (region: MapRegion, selected: boolean) => ({
     : selected
       ? '#787b80'
       : '#a4a7ab',
-  strokeWeight: region.appearance ? (selected ? 3.5 : region.showsName ? 2 : 1.25) : selected ? 2 : 1,
+  strokeWeight: region.appearance ? (selected ? 3.5 : region.showsName ? 3 : 1.25) : selected ? 2 : 1,
   strokeStyle: region.appearance?.dashed && !selected ? ('shortdash' as const) : ('solid' as const),
   fillColor: region.appearance?.fillColor ?? (region.isRecommended === false && !selected ? '#888888' : '#f5c344'),
   // 지도 글자와 길이 비쳐 보이게 옅게 깐다. 고른 동만 두 배로 진하게 한다.

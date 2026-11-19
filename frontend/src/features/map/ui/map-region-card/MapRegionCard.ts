@@ -89,6 +89,26 @@ const styles = {
     text-align: center;
     text-decoration: none;
   `,
+  action: css`
+    label: MapRegionCard-action;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--color-ink, #25282d);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 800;
+    white-space: nowrap;
+    cursor: pointer;
+
+    & svg {
+      flex: none;
+      color: var(--color-brand-blue-ink, #3f6fc4);
+    }
+  `,
   note: css`
     label: MapRegionCard-note;
     margin: 8px 0 0;
@@ -149,11 +169,25 @@ export const createMapRegionCardElement = (
   wrap.className = styles.wrap;
   const body = document.createElement('div');
   body.className = styles.card;
+  if (card.action) {
+    const { label, onClick } = card.action;
+    const action = document.createElement('button');
+    action.type = 'button';
+    action.className = styles.action;
+    action.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="${STAR_PATH}" fill="currentColor" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>`;
+    action.append(label);
+    action.addEventListener('click', (event) => {
+      event.stopPropagation();
+      onClick();
+    });
+    body.append(action);
+  }
   const head = document.createElement('div');
   head.className = styles.head;
   const title = document.createElement('strong');
   title.textContent = card.title;
   head.append(title);
+  if (card.action) head.style.display = 'none';
   if (card.bookmark) {
     const { isOn, onToggle } = card.bookmark;
     const star = document.createElement('button');

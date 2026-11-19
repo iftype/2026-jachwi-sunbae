@@ -156,6 +156,22 @@ export const rentLabel = css`
     opacity: 0.5;
   }
 
+  /* 찜한 동네 이름표. 동 이름만 두므로 크게 쓰고 찜 색 테두리로 찜한 영역임을 알린다. */
+  &[data-bookmark='true'] {
+    max-width: 140px;
+    padding: 5px 11px;
+    border: 1.5px solid #2554b8;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 2px 6px rgb(37 84 184 / 28%);
+    color: #2554b8;
+  }
+
+  &[data-bookmark='true'] > strong {
+    font-size: 14px;
+    font-weight: 800;
+  }
+
   &[aria-pressed='true'] {
     border-color: #3f6fc4;
     box-shadow: 0 0 0 1px #3f6fc4;
