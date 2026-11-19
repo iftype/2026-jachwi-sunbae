@@ -81,8 +81,6 @@ const useNeighborhoodPreview = () => {
   // 동네 선택도 방문 이력에 쌓이므로, 홈 아이콘은 이전 동네가 아닌 홈으로 바로 이동한다.
   const leave = () => void navigate(HOME_PATH);
   const [phase, setPhase] = useState<'map' | 'conditions' | 'analyzing'>(restoredSearch ? 'analyzing' : 'map');
-  // 출퇴근 장소는 결과를 보는 동안 지도를 눌러도 바뀌지 않는다. `바꾸기`로 고르는 상태(결과가 없거나 지워진 상태)에서만 지도를 눌러 정한다.
-  const canPickDestination = phase !== 'analyzing';
   const [destination, setDestination] = useState(restoredSearch?.destination ?? PREVIEW_DESTINATION);
   const [mapCandidate, setMapCandidate] = useState(restoredSearch?.destination ?? PREVIEW_DESTINATION);
   // 출퇴근 장소를 고른 적이 없으면 기록 지도의 첫 화면과 같은 미리보기 매물 자리에서 시작한다.
@@ -105,6 +103,8 @@ const useNeighborhoodPreview = () => {
   const [, setResultViewVersion] = useState(0);
   const [hasChosenMapPoint, setHasChosenMapPoint] = useState(Boolean(restoredSearch));
   const [isMapSelectionEnabled, setIsMapSelectionEnabled] = useState(false);
+  // 출퇴근 장소는 `지도에서 선택`으로 선택 모드를 켠 동안에만 지도를 눌러 정한다. 그 밖에는 지도를 눌러도 바뀌지 않는다.
+  const canPickDestination = isMapSelectionEnabled && phase !== 'analyzing';
   // 지도 검색(위쪽 검색창)으로 간 자리의 검색 핀. 출퇴근 장소(`mapCandidate`, `destination`)와는 따로 두며, 통근 분석에 쓰지 않는다.
   const [searchPin, setSearchPin] = useState<{ latitude: number; longitude: number; name: string } | null>(null);
   const [shouldFocusMapSearch, setShouldFocusMapSearch] = useState(false);
@@ -284,6 +284,7 @@ const useNeighborhoodPreview = () => {
       source: 'search' as const,
     };
     setAddressResults([]);
+    setIsMapSelectionEnabled(false);
     setMapCandidate(point);
     const currentLevel = selectionView.current?.level ?? selectionLevel;
     selectionView.current = null;
@@ -387,6 +388,7 @@ const useNeighborhoodPreview = () => {
     cancelEditing: () => {
       if (!submitted) return;
       locationIntent.current += 1;
+      setIsMapSelectionEnabled(false);
       setMapCandidate(submitted.destination);
       setMaxMinutes(submitted.maxMinutes);
       setMaxTransfers(submitted.maxTransfers);
@@ -483,6 +485,7 @@ const useNeighborhoodPreview = () => {
     shouldFocusMapSearch,
     openMapSearch: () => {
       setShouldFocusMapSearch(true);
+      setIsMapSelectionEnabled(false);
       setMapCandidate(destination);
       selectionView.current = null;
       setSelectionCenter(destination);

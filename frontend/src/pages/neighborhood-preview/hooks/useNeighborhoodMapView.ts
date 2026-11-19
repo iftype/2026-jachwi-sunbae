@@ -3,7 +3,6 @@ import { useMemo, useState } from 'react';
 import { useRecordsMapController } from '@/pages/design-records/RecordsMapProvider';
 import { useAdminDongBookmarks } from '@/features/map/api/useAdminDongBookmarks';
 import { BOOKMARK_LABEL_HALF_HEIGHT, useBookmarkedRegions } from '@/features/map/api/useBookmarkedRegions';
-import useMapTip from '@/features/map/hooks/useMapTip';
 import useViewportFacilityLayer from '@/features/map/hooks/useViewportFacilityLayer';
 import {
   DESKTOP_FACILITY_MARKER_LEVEL,
@@ -23,7 +22,6 @@ import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
 
 import { formatRentPair } from '../model/criteriaLabels';
 import { SHOW_RECORDED_PROPERTIES_ON_FINDER } from '../model/finderMapOptions';
-import { NEIGHBORHOOD_TAP_TIP_KEY } from '../model/mapTapTipKey';
 import type { MyPropertyRow } from '../model/myProperty';
 import { propertyCommuteLabel } from '../model/propertyCommute';
 import useNeighborhoodPlaces, { MY_PROPERTY_PREFIX } from './useNeighborhoodPlaces';
@@ -193,7 +191,7 @@ const useNeighborhoodMapView = (
     else setDismissedCode(preview.selected?.adminDongCode ?? null);
   };
   const tapMap = (latitude: number, longitude: number) => {
-    // 결과 지도에서는 열린 정보만 닫고 출퇴근 장소는 건드리지 않는다.
+    // 선택 모드가 아니면 열린 정보만 닫고 출퇴근 장소는 건드리지 않는다.
     if (!preview.canPickDestination) {
       tapEmpty();
       return;
@@ -280,19 +278,6 @@ const useNeighborhoodMapView = (
     ],
     [preview.mapCandidate, preview.hasChosenMapPoint, preview.hasSubmittedSearch, preview.destination],
   );
-  // 위치를 고르기 전, 지도 가운데 좌표에 붙는 첫 안내. 위치를 고르거나 검색을 시작하면 잠시 숨긴다.
-  const tip = useMapTip({
-    storageKey: NEIGHBORHOOD_TAP_TIP_KEY,
-    message: '지도를 눌러 출퇴근 장소를 골라요',
-    point: preview.selectionCenter,
-    offsetPx: isDesktop ? undefined : { x: 0, y: -64 },
-    level: preview.selectionLevel,
-    enabled:
-      preview.isSelectingOnMap &&
-      !preview.hasChosenMapPoint &&
-      !preview.query.trim() &&
-      preview.addressResults.length === 0,
-  });
   // 구역 위 마우스 상태. 올리고 잠깐(HOVER_SHOW_DELAY_MS) 머물러야 카드가 뜨고, 나간 뒤 잠깐(HOVER_HIDE_DELAY_MS) 기다려 카드로 옮겨 가도 닫히지 않게 한다.
   const regionHover = useHoverIntent<string>();
   const hoveredCode = regionHover.target;
@@ -387,7 +372,6 @@ const useNeighborhoodMapView = (
         markers: [...candidateMarkers, ...searchPinMarker],
         // 출퇴근 장소를 다시 고르는 동안에는 이전 결과의 동 영역을 지운다. 새로 찾아야 다시 그려지고, 이전 결과 보기로 돌아오면 그대로 복원된다.
         regions: NO_REGIONS,
-        tip,
         // 분석 중이거나 실패 화면이 지도를 덮고 있을 때는 위치 찍기를 끈다.
         onSelectLocation: preview.isSelectingOnMap ? tapMap : undefined,
         onSelectRegion: preview.isSelectingOnMap

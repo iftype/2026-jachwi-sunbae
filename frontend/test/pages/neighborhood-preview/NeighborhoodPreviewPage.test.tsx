@@ -139,8 +139,6 @@ vi.mock('@/features/map/ui/map-canvas/MapCanvas', async () => {
 });
 beforeEach(() => {
   mapMounts.count = 0;
-  // 첫 안내(말풍선)를 이미 봤다는 기록이 다음 테스트로 새지 않게 비운다.
-  localStorage.removeItem('jachwi:neighborhood-map-tip-seen');
   vi.mocked(trackPostHogEvent).mockClear();
   vi.mocked(readGeolocationPermission).mockResolvedValue('prompt');
   vi.mocked(requestCurrentMapLocation).mockReset();
@@ -306,10 +304,9 @@ it('공개 통근 탐색은 로그인 없이 결과를 보고 기록 CTA로 로�
   show(true);
   if (screen.queryByRole('button', { name: '지도에서 목적지 선택' }))
     await userEvent.click(screen.getByRole('button', { name: '지도에서 목적지 선택' }));
-  expect(screen.getByLabelText('지도 안내')).toHaveTextContent('지도를 눌러 출퇴근 장소를 골라요');
   const user = await choosePoint();
-  // 위치를 고른 뒤에는 단계별 안내 없이 바로 조건을 바꾸거나 찾을 수 있다.
-  expect(screen.getByLabelText('지도 안내')).toBeEmptyDOMElement();
+  // 위치를 고른 뒤에는 선택 안내 없이 바로 조건을 바꾸거나 찾을 수 있다.
+  expect(screen.queryByText('지도에서 출퇴근 장소를 눌러 주세요')).not.toBeInTheDocument();
   expect(screen.queryByText('원하는 조건을 정해주세요')).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: '통근 40분 이내' }));
   await submitCurrentSearch(user);
@@ -407,9 +404,10 @@ it('조건에 맞는 동네가 없으면 통근·환승 조건을 넓혀보라�
     matchMedia.mockRestore();
   }
 });
-it('지도를 한 번 누르면 출퇴근 장소로 쓴다', async () => {
+it('지도에서 선택을 켠 뒤 지도를 한 번 누르면 출퇴근 장소로 쓴다', async () => {
   show(true);
   const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: /^지도에서 (목적지 )?선택$/ }));
   await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
   expect(screen.queryByRole('button', { name: '출퇴근 장소로 설정' })).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: /에서 찾기$/ })).toBeEnabled();
@@ -467,7 +465,6 @@ it('첫 진입은 지도이며 위치 권한을 묻지 않고 직접 선택 입�
   expect(screen.queryByRole('spinbutton', { name: '최대 통근 시간' })).not.toBeInTheDocument();
   if (screen.queryByRole('button', { name: '지도에서 목적지 선택' }))
     await userEvent.click(screen.getByRole('button', { name: '지도에서 목적지 선택' }));
-  expect(screen.getByLabelText('지도 안내')).toHaveTextContent('지도를 눌러 출퇴근 장소를 골라요');
   expect(screen.queryByRole('button', { name: '현재 위치에서 찾기' })).not.toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: '통근 40분 이내' }));
   // 조건 칸을 누르면 시트를 띄우지 않고 카드 안 조건 칸 아래에 그 피커만 펼친다.
@@ -631,15 +628,16 @@ it('결과 지도에 확대·축소 버튼을 두고, 손가락이나 휠로 바
   await user.click(screen.getByRole('button', { name: '지도 축소' }));
   expect(level()).toBe(5);
 });
-it('출퇴근 장소 안내는 지도 좌표에 붙는 말풍선으로 띄우고, 지도를 누르거나 끌면 닫아 다시 띄우지 않는다', async () => {
+it('지도에서 선택을 켜면 안내 띠가 뜨고, 취소하면 사라지며 출퇴근 장소는 그대로다', async () => {
   show(true);
-  if (screen.queryByRole('button', { name: '지도에서 목적지 선택' }))
-    await userEvent.click(screen.getByRole('button', { name: '지도에서 목적지 선택' }));
-  expect(screen.getByLabelText('지도 안내')).toHaveTextContent('지도를 눌러 출퇴근 장소를 골라요');
-  await userEvent.click(screen.getByRole('button', { name: '지도 안내 닫기' }));
-  expect(screen.getByLabelText('지도 안내')).toBeEmptyDOMElement();
-  // 봤음이 저장돼 다시 열어도 뜨지 않는다.
-  expect(localStorage.getItem('jachwi:neighborhood-map-tip-seen')).toBe('true');
+  const user = userEvent.setup();
+  expect(screen.queryByText('지도에서 출퇴근 장소를 눌러 주세요')).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: /^지도에서 (목적지 )?선택$/ }));
+  expect(screen.getByText('지도에서 출퇴근 장소를 눌러 주세요')).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: '취소' }));
+  expect(screen.queryByText('지도에서 출퇴근 장소를 눌러 주세요')).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
+  expect(screen.queryByRole('button', { name: /에서 찾기$/ })).not.toBeInTheDocument();
 });
 it('장소를 고르는 지도에도 현재 위치 버튼 위에 확대, 축소 버튼을 두고 한 단계씩 옮긴다', async () => {
   show();
@@ -1201,6 +1199,7 @@ it('모바일 결과에서 월세는 상단 슬라이더로, 통근은 조건을
   await user.click(rent);
   expect(screen.queryByRole('slider', { name: '최대 월세 시세' })).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: '출퇴근 장소 다시 선택' }));
+  await user.click(screen.getByRole('button', { name: /^지도에서 (목적지 )?선택$/ }));
   await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
   const form = within(screen.getByRole('region', { name: '고른 출퇴근 장소' }));
   await user.click(form.getByRole('button', { name: '통근 40분 이내' }));
