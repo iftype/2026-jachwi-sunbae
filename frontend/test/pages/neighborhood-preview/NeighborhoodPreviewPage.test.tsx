@@ -1345,8 +1345,8 @@ it('선택 전에 매물 마커를 누르면 옆 패널이 열리고 출퇴근 �
     expect(within(panel).getByText(NO_DESTINATION_NOTICE)).toBeInTheDocument();
     expect(markerList().map((marker) => marker.id)).not.toContain('destination');
     expect(requests.paths).toEqual([]);
-    // 패널을 닫아도 출퇴근 장소는 그대로 비어 있다.
-    await user.click(screen.getByRole('button', { name: '매물 정보 닫기' }));
+    // 패널을 접어도 출퇴근 장소는 그대로 비어 있다.
+    await user.click(screen.getByRole('button', { name: '상세 접기' }));
     expect(screen.queryByRole('complementary', { name: '내 매물 정보' })).not.toBeInTheDocument();
     expect(markerList().map((marker) => marker.id)).not.toContain('destination');
   } finally {
