@@ -12,7 +12,6 @@ public record CommuteRouteResponse(int totalMinutes, int transferCount, List<Leg
                 route.legs().stream().map(Leg::from).toList());
     }
 
-    // type은 BUS, SUBWAY, WALK이고, 도보 구간은 routeName이 null이다.
     public record Leg(String type, String routeName, int minutes, int waitMinutes, List<Point> points) {
 
         static Leg from(final RouteLeg leg) {
@@ -21,7 +20,6 @@ public record CommuteRouteResponse(int totalMinutes, int transferCount, List<Leg
         }
     }
 
-    // 목적지는 stopId가 null이다.
     public record Point(String stopId, String name, double latitude, double longitude) {
 
         static Point from(final RoutePoint point) {

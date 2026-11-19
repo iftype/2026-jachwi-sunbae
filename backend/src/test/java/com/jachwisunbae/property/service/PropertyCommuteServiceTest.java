@@ -7,21 +7,27 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
 import com.jachwisunbae.common.exception.client.BusinessRuleViolationException;
+import com.jachwisunbae.common.exception.client.ResourceNotFoundException;
 import com.jachwisunbae.common.exception.errorcode.ErrorCode;
+import com.jachwisunbae.property.entity.Property;
 import com.jachwisunbae.property.repository.PropertyRepository;
 import com.jachwisunbae.property.repository.query.PropertyLocationQuery;
 import com.jachwisunbae.property.service.dto.result.PropertyCommuteStatus;
 import com.jachwisunbae.property.service.dto.result.PropertyCommuteTime;
 import com.jachwisunbae.property.service.dto.result.PropertyCommuteTimes;
+import com.jachwisunbae.transit.domain.CommuteRoute;
 import com.jachwisunbae.transit.domain.GtfsEdge;
 import com.jachwisunbae.transit.domain.GtfsRoute;
 import com.jachwisunbae.transit.domain.GtfsStop;
+import com.jachwisunbae.transit.domain.RouteLeg;
+import com.jachwisunbae.transit.domain.RoutePoint;
 import com.jachwisunbae.transit.domain.network.TransitNetwork;
 import com.jachwisunbae.transit.domain.vo.Coordinate;
 import com.jachwisunbae.transit.domain.vo.Seconds;
 import com.jachwisunbae.transit.service.TransitNetworkCache;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -76,6 +82,47 @@ class PropertyCommuteServiceTest {
         assertThatThrownBy(() -> service.findCommuteTimes(MEMBER_ID, new Coordinate(35.0000, 129.0000)))
                 .isInstanceOfSatisfying(BusinessRuleViolationException.class, exception ->
                         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.COMMUTE_DESTINATION_UNREACHABLE));
+    }
+
+    @Test
+    @DisplayName("매물 동선은 매물에서 첫 정류장까지 걷는 구간부터 담고, 시간은 매물별 통근 시간과 같다")
+    void findsCommuteRoute() {
+        givenProperty(3L, 37.5500, 127.0012);
+        given(propertyRepository.findLocationsByMemberId(MEMBER_ID)).willReturn(List.of(
+                property(3L, "B 옆 집", 37.5500, 127.0012)));
+
+        CommuteRoute route = service.findCommuteRoute(MEMBER_ID, 3L, DESTINATION);
+
+        assertThat(route.legs()).extracting(RouteLeg::type)
+                .containsExactly(RouteLeg.Type.WALK, RouteLeg.Type.BUS, RouteLeg.Type.WALK);
+        assertThat(route.legs().getFirst().points()).extracting(RoutePoint::stopId).containsExactly(null, "B");
+        assertThat(route.totalMinutes())
+                .isEqualTo(service.findCommuteTimes(MEMBER_ID, DESTINATION).properties().getFirst().commuteMinutes());
+    }
+
+    @Test
+    @DisplayName("없는 매물, 위치 없는 매물, 60분 안에 닿지 못하는 매물은 각자의 오류를 낸다")
+    void rejectsPropertyWithoutRoute() {
+        given(propertyRepository.findByIdAndMemberId(9L, MEMBER_ID)).willReturn(Optional.empty());
+        givenProperty(2L, null, null);
+        givenProperty(1L, 37.6000, 127.0012);
+
+        assertThatThrownBy(() -> service.findCommuteRoute(MEMBER_ID, 9L, DESTINATION))
+                .isInstanceOfSatisfying(ResourceNotFoundException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.PROPERTY_NOT_FOUND));
+        assertThatThrownBy(() -> service.findCommuteRoute(MEMBER_ID, 2L, DESTINATION))
+                .isInstanceOfSatisfying(BusinessRuleViolationException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.PROPERTY_LOCATION_REQUIRED));
+        assertThatThrownBy(() -> service.findCommuteRoute(MEMBER_ID, 1L, DESTINATION))
+                .isInstanceOfSatisfying(ResourceNotFoundException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.COMMUTE_ROUTE_NOT_FOUND));
+    }
+
+    private void givenProperty(final long id, final Double latitude, final Double longitude) {
+        Property property = mock(Property.class);
+        given(property.getLatitude()).willReturn(latitude == null ? null : BigDecimal.valueOf(latitude));
+        given(property.getLongitude()).willReturn(longitude == null ? null : BigDecimal.valueOf(longitude));
+        given(propertyRepository.findByIdAndMemberId(id, MEMBER_ID)).willReturn(Optional.of(property));
     }
 
     private static PropertyLocationQuery property(final long id, final String name, final Double latitude,

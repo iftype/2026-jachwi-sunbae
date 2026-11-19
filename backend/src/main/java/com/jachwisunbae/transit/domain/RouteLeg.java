@@ -4,7 +4,7 @@ import com.jachwisunbae.transit.domain.vo.Seconds;
 import java.util.List;
 
 // 경로에서 한 노선을 타고 가거나 걸어가는 한 구간이다.
-// points는 지나는 정류장을 차례로 담고, 마지막 도보 구간은 목적지로 끝난다.
+// points는 지나는 정류장을 차례로 담고, 마지막 도보 구간은 목적지로 끝난다. 출발지에서 시작하면 첫 도보 구간은 출발지에서 시작한다.
 // 대기 시간은 노선에 탈 때 기다리는 시간이며, 도보 구간은 0이다.
 public record RouteLeg(Type type, String routeName, List<RoutePoint> points, Seconds rideTime, Seconds waitTime) {
 

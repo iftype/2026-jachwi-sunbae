@@ -18,6 +18,7 @@ import com.jachwisunbae.property.service.PropertyAiImportService;
 import com.jachwisunbae.property.service.PropertyCommuteService;
 import com.jachwisunbae.property.service.PropertyDeletionService;
 import com.jachwisunbae.property.service.PropertyService;
+import com.jachwisunbae.transit.controller.dto.response.CommuteRouteResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -91,6 +92,18 @@ public class PropertyController {
             @Valid @ModelAttribute final PropertyCommuteTimeRequest request) {
         return ApiResponse.of("매물별 통근 시간을 조회했습니다.", PropertyCommuteTimesResponse.from(
                 propertyCommuteService.findCommuteTimes(memberId, request.destination())));
+    }
+
+    @GetMapping("/{propertyId}/commute-route")
+    @Operation(summary = "매물 통근 동선 조회", description = "매물에서 목적지까지 대중교통 동선을 최대 60분, 환승 2회 기준으로 "
+            + "조회합니다. 매물에서 첫 정류장까지 걷는 구간부터 목적지까지 걷는 구간까지 차례로 담고, 시간은 매물별 통근 시간과 같습니다. "
+            + "위치가 없는 매물은 PROPERTY_LOCATION_REQUIRED(400), 60분 안에 닿지 못하면 COMMUTE_ROUTE_NOT_FOUND(404)입니다.")
+    public ApiResponse<CommuteRouteResponse> findCommuteRoute(
+            @AuthenticatedMemberId final Long memberId,
+            @PathVariable final Long propertyId,
+            @Valid @ModelAttribute final PropertyCommuteTimeRequest request) {
+        return ApiResponse.of("매물 통근 동선을 조회했습니다.", CommuteRouteResponse.from(
+                propertyCommuteService.findCommuteRoute(memberId, propertyId, request.destination())));
     }
 
     @GetMapping("/{propertyId}")

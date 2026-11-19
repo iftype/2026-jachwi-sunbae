@@ -10,6 +10,7 @@ import { propertyDetailPath } from '@/shared/lib/navigation/appPaths';
 import type { NeighborhoodPlace } from '../../hooks/useNeighborhoodPlaces';
 import type { NeighborhoodPreviewContext } from '../../hooks/useNeighborhoodPreview';
 import usePlaceRoute from '../../hooks/usePlaceRoute';
+import usePropertyRoute from '../../hooks/usePropertyRoute';
 import { distanceLabel, propertyCommuteLabel } from '../../model/propertyCommute';
 import RouteGuide from '../route-guide/RouteGuide';
 
@@ -41,6 +42,10 @@ const PlaceDetails = ({ place, preview, phoneAction, commuteMaxMinutes = 60 }: P
         ? place.station.stopId
         : null;
   const busStopRoute = usePlaceRoute(preview, stopId);
+  // 통근 시간이 나온 내 매물만 동선을 부른다. 위치가 없거나 너무 먼 매물은 부르지 않는다.
+  const reachablePropertyId =
+    place.kind === 'property' && place.property.commute?.status === 'REACHABLE' ? place.property.propertyId : null;
+  const propertyRoute = usePropertyRoute(preview, reachablePropertyId);
   const stopLabel = place.kind === 'station' ? '출발 정류장' : '버스정류장';
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
   useEffect(() => {
@@ -81,6 +86,14 @@ const PlaceDetails = ({ place, preview, phoneAction, commuteMaxMinutes = 60 }: P
             )}
           </dd>
         </dl>
+        {reachablePropertyId !== null && (
+          <RouteGuide
+            route={propertyRoute.route}
+            isLoading={propertyRoute.isLoading}
+            error={propertyRoute.error}
+            onRetry={propertyRoute.retry}
+          />
+        )}
         <div className={styles.actions}>
           <Link className={styles.primary} to={propertyDetailPath(property.propertyId)}>
             매물 상세 보기

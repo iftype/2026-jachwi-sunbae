@@ -89,6 +89,25 @@ class TransitNetworkTest {
     }
 
     @Test
+    @DisplayName("격자 경계 건너편 도착 정류장도 도보 600초까지 포함하고 601초부터 제외한다")
+    void limitsArrivalWalkAcrossGridBoundary() {
+        TransitNetwork isolated = new TransitNetwork(List.of(B), List.of(), List.of(), List.of());
+        Coordinate withinLimit = new Coordinate(37.5100, 126.99484);
+        Coordinate overLimit = new Coordinate(37.5100, 126.99483);
+
+        assertThat(walkSeconds(withinLimit, B)).isEqualTo(600);
+        assertThat(walkSeconds(overLimit, B)).isEqualTo(601);
+        assertThat(isolated.hasArrivalStop(withinLimit)).isTrue();
+        assertThat(isolated.hasArrivalStop(overLimit)).isFalse();
+        assertThat(travelSeconds(isolated.reachableStops(withinLimit, new Seconds(3600), 2)))
+                .containsOnlyKeys("B").containsEntry("B", 600);
+        assertThat(isolated.reachableStops(overLimit, new Seconds(3600), 2)).isEmpty();
+        assertThat(isolated.route("B", withinLimit, new Seconds(3600), 2).orElseThrow().totalTime())
+                .isEqualTo(new Seconds(600));
+        assertThat(isolated.route("B", overLimit, new Seconds(3600), 2)).isEmpty();
+    }
+
+    @Test
     @DisplayName("노선망에 없는 정류장을 잇는 구간이 있으면 만들지 않는다")
     void rejectsUnknownStop() {
         assertThatThrownBy(() -> new TransitNetwork(List.of(A), List.of(route("R1", 3, 300)),
@@ -179,6 +198,22 @@ class TransitNetworkTest {
     }
 
     @Test
+    @DisplayName("격자 경계 건너편 출발 정류장도 도보 600초까지 포함하고 시간과 동선 조회에 같은 한도를 쓴다")
+    void limitsOriginWalkAcrossGridBoundary() {
+        Coordinate withinLimit = new Coordinate(37.5100, 126.99484);
+        Coordinate overLimit = new Coordinate(37.5100, 126.99483);
+        Seconds expectedTime = new Seconds(600 + 221 + 120 + 300);
+
+        assertThat(walkSeconds(withinLimit, B)).isEqualTo(600);
+        assertThat(walkSeconds(overLimit, B)).isEqualTo(601);
+        assertThat(network.travelTimes(DESTINATION, List.of(withinLimit, overLimit), new Seconds(3600), 2))
+                .containsExactly(Optional.of(expectedTime), Optional.empty());
+        assertThat(network.routeFrom(withinLimit, DESTINATION, new Seconds(3600), 2).orElseThrow().totalTime())
+                .isEqualTo(expectedTime);
+        assertThat(network.routeFrom(overLimit, DESTINATION, new Seconds(3600), 2)).isEmpty();
+    }
+
+    @Test
     @DisplayName("목적지까지 걸어서 10분 안이면 정류장을 거치는 것보다 빠를 때 걷는 시간을 쓴다")
     void walksDirectlyToDestination() {
         Coordinate nearDestination = new Coordinate(37.5000, 127.0010);
@@ -188,6 +223,19 @@ class TransitNetworkTest {
 
         assertThat(times).containsExactly(Optional.of(new Seconds(
                 (int) Math.ceil(nearDestination.metersTo(DESTINATION) / TransitNetwork.WALKING_METERS_PER_SECOND))));
+    }
+
+    @Test
+    @DisplayName("목적지까지 바로 걷는 경로도 10분을 넘으면 시간과 동선 조회에서 제외한다")
+    void limitsDirectWalkToTenMinutes() {
+        Coordinate withinLimit = new Coordinate(37.5000, 126.99184);
+        Coordinate overLimit = new Coordinate(37.5000, 126.99183);
+
+        assertThat(network.travelTimes(DESTINATION, List.of(withinLimit, overLimit), new Seconds(3600), 2))
+                .containsExactly(Optional.of(new Seconds(600)), Optional.empty());
+        assertThat(network.routeFrom(withinLimit, DESTINATION, new Seconds(3600), 2).orElseThrow().totalTime())
+                .isEqualTo(new Seconds(600));
+        assertThat(network.routeFrom(overLimit, DESTINATION, new Seconds(3600), 2)).isEmpty();
     }
 
     @Test
@@ -201,6 +249,50 @@ class TransitNetworkTest {
                 .containsExactly(Optional.empty(), Optional.of(new Seconds(nearBSeconds)));
         assertThat(network.travelTimes(DESTINATION, List.of(nearB), new Seconds(nearBSeconds - 1), 2))
                 .containsExactly(Optional.empty());
+    }
+
+    @Test
+    @DisplayName("출발지에서 가장 빠른 첫 정류장까지 걷는 구간을 앞에 붙이고, 통근 시간은 travelTimes와 같다")
+    void findsRouteFromOrigin() {
+        Coordinate nearB = new Coordinate(37.5100, 127.0040);
+
+        CommuteRoute route = network.routeFrom(nearB, DESTINATION, new Seconds(3600), 2).orElseThrow();
+
+        assertThat(route.legs()).extracting(RouteLeg::type)
+                .containsExactly(RouteLeg.Type.WALK, RouteLeg.Type.BUS, RouteLeg.Type.WALK);
+        RouteLeg originWalk = route.legs().getFirst();
+        assertThat(originWalk.points()).extracting(RoutePoint::name).containsExactly("출발지", "B 정류장");
+        assertThat(originWalk.points().getFirst().stopId()).isNull();
+        assertThat(originWalk.rideTime().value()).isEqualTo(walkSeconds(nearB, B));
+        assertThat(route.legs().get(1).points()).extracting(RoutePoint::stopId).containsExactly("B", "A");
+        assertThat(Optional.of(route.totalTime()))
+                .isEqualTo(network.travelTimes(DESTINATION, List.of(nearB), new Seconds(3600), 2).getFirst());
+    }
+
+    @Test
+    @DisplayName("출발지에서 목적지까지 바로 걷는 쪽이 빠르면 출발지에서 목적지까지 걷는 구간 하나다")
+    void walksFromOriginToDestination() {
+        Coordinate nearDestination = new Coordinate(37.5000, 127.0010);
+
+        CommuteRoute route = network.routeFrom(nearDestination, DESTINATION, new Seconds(3600), 2).orElseThrow();
+
+        assertThat(route.legs()).hasSize(1);
+        assertThat(route.legs().getFirst().type()).isEqualTo(RouteLeg.Type.WALK);
+        assertThat(route.legs().getFirst().points()).extracting(RoutePoint::name).containsExactly("출발지", "목적지");
+        assertThat(route.transferCount()).isZero();
+        assertThat(Optional.of(route.totalTime())).isEqualTo(
+                network.travelTimes(DESTINATION, List.of(nearDestination), new Seconds(3600), 2).getFirst());
+    }
+
+    @Test
+    @DisplayName("출발지에서 제한 시간 안에 닿지 못하면 동선이 없다")
+    void returnsEmptyRouteFromUnreachableOrigin() {
+        Coordinate nearB = new Coordinate(37.5100, 127.0040);
+        int nearBSeconds = walkSeconds(nearB, B) + 221 + 120 + 300;
+
+        assertThat(network.routeFrom(new Coordinate(37.6000, 127.0010), DESTINATION, new Seconds(3600), 2)).isEmpty();
+        assertThat(network.routeFrom(nearB, DESTINATION, new Seconds(nearBSeconds - 1), 2)).isEmpty();
+        assertThat(network.routeFrom(nearB, DESTINATION, new Seconds(nearBSeconds), 2)).isPresent();
     }
 
     @Test
