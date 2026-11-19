@@ -296,27 +296,6 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
                     </CommuteLegend>
                   )}
                 </div>
-                <div className={styles.resultActions}>
-                  {preview.topAreas.length > 0 && (
-                    <div className={styles.areaBadges} aria-label="추천 동네">
-                      {preview.topAreas.map((area) => (
-                        <button
-                          key={area.adminDongCode}
-                          type="button"
-                          aria-label={`추천 동네 ${area.name}`}
-                          aria-pressed={selectedAreaCode === area.adminDongCode}
-                          onClick={() => {
-                            closeLayers();
-                            setDismissedAreaCode(null);
-                            preview.selectRegion(area.adminDongCode, { focus: 'none', openDetails: false });
-                          }}
-                        >
-                          {area.name}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
               </div>
             </header>
             {resultControls}
@@ -449,38 +428,6 @@ const styles = {
   `,
   legend: css`
     box-sizing: border-box;
-  `,
-  resultActions: css`
-    display: grid;
-    justify-items: start;
-    gap: 0.35rem;
-    min-width: 0;
-  `,
-  areaBadges: css`
-    pointer-events: auto;
-    display: flex;
-    width: 100%;
-    gap: 0.25rem;
-    overflow-x: auto;
-    scrollbar-width: none;
-
-    & button {
-      flex: none;
-      min-height: 2rem;
-      padding-inline: 0.65rem;
-      border: 1px solid var(--color-border);
-      border-radius: 999px;
-      background: var(--color-surface);
-      color: var(--color-ink);
-      font: inherit;
-      font-size: 0.82rem;
-      font-weight: 700;
-    }
-    & button[aria-pressed='true'] {
-      border-color: var(--color-brand-blue-ink);
-      background: var(--color-brand-blue-ink);
-      color: var(--color-on-primary);
-    }
   `,
   bookmark: css`
     padding: 0;
