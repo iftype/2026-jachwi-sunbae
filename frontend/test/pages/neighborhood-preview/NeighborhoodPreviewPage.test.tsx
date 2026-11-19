@@ -8,9 +8,11 @@ import { beforeEach, expect, it, vi } from 'vitest';
 
 import { commuteBoundaryFixtures } from '@/app/mocks/fixtures/commuteBoundaryFixtures';
 import { propertyPageFixture, propertySummaryFixture, successEnvelope } from '@/app/mocks/fixtures/propertyFixtures';
+import { adminDongBookmarkHandlers } from '@/app/mocks/handlers/adminDongBookmarkHandlers';
 import { createCommuteAreaHandlers } from '@/app/mocks/handlers/commuteAreaHandlers';
 import { mapHandlers } from '@/app/mocks/handlers/mapHandlers';
 import { createStreetMemoHandlers } from '@/app/mocks/handlers/streetMemoHandlers';
+import { writeBookmarkedAdminDongs } from '@/app/mocks/mockStore';
 import { RecordsMapProvider } from '@/pages/design-records/RecordsMapProvider';
 import NeighborhoodPreviewPage from '@/pages/neighborhood-preview/NeighborhoodPreviewPage';
 import NeighborhoodRoutePage from '@/pages/neighborhood-preview/NeighborhoodRoutePage';
@@ -120,6 +122,11 @@ vi.mock('@/features/map/ui/map-canvas/MapCanvas', async () => {
               {`마커 ${marker.label}`}
             </button>
           ))}
+        {props.bookmarkControl && (
+          <button onClick={props.bookmarkControl.onToggle} aria-pressed={props.bookmarkControl.isOn}>
+            찜한 동네 토글
+          </button>
+        )}
         {props.regions?.map((region) => (
           <button key={region.id} onClick={() => props.onSelectRegion?.(region.id)}>
             {region.name}
@@ -1134,6 +1141,26 @@ it('동네 찾기 지도에서는 행정동 안을 눌러도 메모 남기기나
   await user.click(screen.getByRole('button', { name: '고른 동네 안 찍기' }));
   expect(screen.queryByRole('button', { name: '말풍선 메모 남기기' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: '말풍선 여기에 본 방 기록하기' })).not.toBeInTheDocument();
+});
+
+it('모바일 지역 상세에서 찜한 동네 토글을 켜면 찜한 행정동 영역이 뒤 지도에 더해진다', async () => {
+  writeBookmarkedAdminDongs(['11210690']);
+  localStorage.setItem('jachwi:records-bookmark-layer-rail', 'off');
+  server.use(...adminDongBookmarkHandlers);
+  try {
+    show(false, undefined, true);
+    const user = await choosePoint();
+    await submitCurrentSearch(user);
+    await screen.findByRole('region', { name: '행정동 프리셋 지도' });
+    await user.click(screen.getByRole('button', { name: '역삼1동' }));
+    await screen.findByRole('region', { name: /역삼1동/ });
+    const before = screen.getAllByRole('button', { name: '신림동' }).length;
+    await user.click(await screen.findByRole('button', { name: '찜한 동네 토글' }));
+    await waitFor(() => expect(screen.getAllByRole('button', { name: '신림동' })).toHaveLength(before + 1));
+  } finally {
+    writeBookmarkedAdminDongs([]);
+    localStorage.removeItem('jachwi:records-bookmark-layer-rail');
+  }
 });
 
 it('모바일 결과에서 월세는 상단 슬라이더로, 통근은 조건을 다시 선택해 바꾼다', async () => {
