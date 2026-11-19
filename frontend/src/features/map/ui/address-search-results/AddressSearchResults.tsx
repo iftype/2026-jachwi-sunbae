@@ -31,7 +31,7 @@ type AddressSearchResultsProps = {
   status: AddressSearchStatus;
   onSelect: (address: MapAddress) => void;
   dropdown?: boolean;
-  /** 좁은 입력창 아래에서 주소가 잘리지 않게 목록을 가까운 위치 기준 칸 전체 너비로 두고 줄바꿈을 허용한다. */
+  /** 드롭다운에서 주소가 잘리지 않게 줄바꿈을 허용한다. 너비는 가장 가까운 `position: relative` 조상이 정한다. 한 줄로 줄이려면 false. */
   wide?: boolean;
   errorMessage?: string;
   /** 검색어가 비어 있을 때 목록 자리에 기기에 저장된 최근 검색을 보인다. 드롭다운에서만 쓴다. */
@@ -43,7 +43,7 @@ const AddressSearchResults = ({
   status,
   onSelect,
   dropdown = false,
-  wide = false,
+  wide = true,
   errorMessage = '주소를 찾지 못했어요. 다시 시도해 주세요.',
   recent = false,
 }: AddressSearchResultsProps) => {
