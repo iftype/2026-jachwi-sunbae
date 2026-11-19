@@ -41,8 +41,10 @@ const MapBookmarkToggle = ({
 };
 
 const styles = {
+  /* 지도 칸(공유 지도의 포털 대상, absolute inset 0) 안쪽 기준이다. 뷰포트 기준(fixed)이면 칸이 화면 오른쪽에 딱 붙지 않을 때 확대 축소 열 밖으로 튀어나간다. */
   button: css`
-    position: fixed;
+    label: MapBookmarkToggle-button;
+    position: absolute;
     z-index: 32;
     top: 13.7rem;
     right: 1.15rem;
