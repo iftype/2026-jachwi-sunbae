@@ -3,6 +3,8 @@ import { css } from '@emotion/css';
 import RecordCardMenu from '@/pages/design-records/ui/record-list/RecordCardMenu';
 import PropertyCard from '@/features/property/ui/property-card/PropertyCard';
 import { NEIGHBORHOODS_PATH } from '@/shared/lib/navigation/appPaths';
+import Icon from '@/shared/ui/icon/Icon';
+import { useMapModeSwitch } from '@/shared/ui/map-mode-tile/MapModeContext';
 
 import type { NeighborhoodPreviewContext } from '../../hooks/useNeighborhoodPreview';
 import type usePropertyRoute from '../../hooks/usePropertyRoute';
@@ -37,9 +39,24 @@ const FinderPropertyPanel = ({
   layout = 'stack',
 }: Props) => {
   const { commute, isPreview } = property;
+  const mode = useMapModeSwitch();
   return (
     <div className={styles.root} data-layout={layout}>
       <section className={styles.summary} aria-label="매물 요약">
+        {/* 통합 지도 안에서만 둔다. 내 기록 모드로 돌아가는 기존 전환 핸들러를 그대로 쓴다. */}
+        {mode?.target === 'records' && (
+          <div className={styles.head}>
+            <button
+              type="button"
+              className={styles.listLink}
+              aria-label="내 기록 전체 리스트 보기"
+              onClick={mode.onSwitch}
+            >
+              전체 리스트 보기
+              <Icon name="chevron-right" size={14} />
+            </button>
+          </div>
+        )}
         <PropertyCard
           property={property.summary}
           returnTo={NEIGHBORHOODS_PATH}
@@ -99,6 +116,28 @@ const styles = {
       padding: 0.5rem 1rem;
       border-bottom: 1px solid var(--color-border);
     }
+  `,
+
+  head: css`
+    label: FinderPropertyPanel-head;
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 0.25rem;
+  `,
+
+  listLink: css`
+    label: FinderPropertyPanel-listLink;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.15rem 0;
+    border: 0;
+    background: none;
+    color: var(--color-brand-blue-ink);
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
   `,
 
   body: css`
