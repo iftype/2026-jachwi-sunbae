@@ -67,7 +67,7 @@ const LandingDesktopPage = ({ search, returnTo }: LandingDesktopPageProps) => (
     {STORIES.map((story, index) => (
       <section
         key={story.id}
-        className={`${styles.screen} ${index % 2 === 1 ? styles.tinted : ''}`}
+        className={`${styles.screen} ${styles.compact} ${index % 2 === 1 ? styles.tinted : ''}`}
         aria-labelledby={`landing-${story.id}-title`}
       >
         <div className={`${styles.story} ${index % 2 === 1 ? styles.reversed : ''}`}>
@@ -102,7 +102,7 @@ const LandingDesktopPage = ({ search, returnTo }: LandingDesktopPageProps) => (
       </section>
     ))}
 
-    <section className={`${styles.screen} ${styles.tinted}`} aria-labelledby="landing-why-title">
+    <section className={`${styles.screen} ${styles.compact} ${styles.tinted}`} aria-labelledby="landing-why-title">
       <div className={styles.tech}>
         <h2
           id="landing-why-title"
@@ -116,7 +116,7 @@ const LandingDesktopPage = ({ search, returnTo }: LandingDesktopPageProps) => (
       </div>
     </section>
 
-    <section className={styles.screen} aria-labelledby="landing-tech-title">
+    <section className={`${styles.screen} ${styles.compact}`} aria-labelledby="landing-tech-title">
       <div className={styles.tech}>
         <h2
           id="landing-tech-title"
@@ -130,7 +130,10 @@ const LandingDesktopPage = ({ search, returnTo }: LandingDesktopPageProps) => (
       </div>
     </section>
 
-    <section className={`${styles.screen} ${styles.tinted} ${styles.closing}`} aria-labelledby="landing-closing-title">
+    <section
+      className={`${styles.screen} ${styles.compact} ${styles.tinted} ${styles.closing}`}
+      aria-labelledby="landing-closing-title"
+    >
       <h2 id="landing-closing-title">
         {CLOSING_TITLE[0]} {CLOSING_TITLE[1]}
       </h2>
@@ -164,6 +167,13 @@ const styles = {
     justify-content: center;
     min-height: 100vh;
     padding: 5rem 4rem;
+  `,
+
+  /* 첫 화면 아래 섹션은 화면 높이를 다 채우지 않아 섹션 사이 빈 공간이 줄어든다. */
+  compact: css`
+    label: LandingDesktopPage-compact;
+    min-height: auto;
+    padding-block: 3.5rem;
   `,
 
   tinted: css`
