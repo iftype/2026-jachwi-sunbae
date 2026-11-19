@@ -194,30 +194,36 @@ const RestaurantPanel = ({ isActive, layout, listHeader, listOverride }: Restaur
     <Toast isOpen={map.notice !== null} title={map.notice ?? ''} duration={0} onClose={map.closeNotice} />
   );
 
+  // 데스크탑 편의점과 배달 탭은 지도가 필요 없다. 지도를 걷고 목록이 머리(제목과 탭)부터 화면 전체 폭을 쓴다.
+  // 식당 탭의 기준, 반경, 지도 시점은 이 컴포넌트의 상태라 그대로 남고, 식당 탭으로 돌아오면 같은 시점으로 지도를 다시 붙인다.
+  if (layout === 'desktop' && !isActive && listOverride !== undefined) {
+    return (
+      <section className={styles.panel} aria-label="저렴한 한 끼 목록">
+        <div className={cx(styles.desktopList, styles.fullList)}>
+          {listHeader}
+          <div className={styles.desktopStores}>{listOverride}</div>
+        </div>
+      </section>
+    );
+  }
   // 데스크탑은 목록을 지도 왼쪽에 늘 펼쳐 두고, 고른 가게의 상세를 목록 옆 칸에 붙인다.
   if (layout === 'desktop') {
     return (
       <section className={styles.panel} aria-label="주변 착한가격업소">
         <ListDetailLayout
-          className={cx(styles.desktopLayout, !isActive && styles.wideLayout)}
+          className={styles.desktopLayout}
           list={
             <div className={styles.desktopList}>
               {listHeader}
-              {listOverride !== undefined && !isActive ? (
-                <div className={styles.desktopStores}>{listOverride}</div>
-              ) : (
-                <>
-                  <div className={styles.desktopControls}>
-                    {baseCaption}
-                    {propertyRail}
-                    {chips}
-                  </div>
-                  <div className={styles.desktopStores}>
-                    <h2 className={styles.desktopTitle}>착한가격 가게 {map.stores.length}곳</h2>
-                    {storeList}
-                  </div>
-                </>
-              )}
+              <div className={styles.desktopControls}>
+                {baseCaption}
+                {propertyRail}
+                {chips}
+              </div>
+              <div className={styles.desktopStores}>
+                <h2 className={styles.desktopTitle}>착한가격 가게 {map.stores.length}곳</h2>
+                {storeList}
+              </div>
             </div>
           }
         >
@@ -387,8 +393,10 @@ const styles = {
     flex: 1;
     min-height: 0;
   `,
-  wideLayout: css`
-    --list-detail-list-width: 66%;
+  /* 지도를 걷은 목록은 오른쪽 경계선 없이 전체 폭을 쓴다. */
+  fullList: css`
+    label: RestaurantPanel-fullList;
+    border-right: 0;
   `,
   desktopList: css`
     label: RestaurantPanel-desktopList;

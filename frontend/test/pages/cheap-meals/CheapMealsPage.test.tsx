@@ -685,6 +685,40 @@ it('기록이 없으면 내 기록 화면과 같은 미리보기 예시 매물�
   expect(within(rail).getByRole('button', { name: /\(미리보기\) 코엑스 근처/ })).toBeInTheDocument();
 });
 
+it('데스크탑 편의점과 배달 탭은 지도를 걷고 목록이 전체 폭을 쓰며, 식당 탭으로 돌아오면 지도를 다시 붙인다', async () => {
+  const viewport = vi.spyOn(window, 'matchMedia').mockImplementation(
+    (query) =>
+      ({
+        matches: query === '(min-width: 1024px)',
+        media: query,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+      }) as unknown as MediaQueryList,
+  );
+  try {
+    const user = setup('/cheap-meals/restaurant');
+    expect(await screen.findByRole('button', { name: '지도 이동 테스트' })).toBeInTheDocument();
+    await user.click(tab('편의점'));
+    expect(screen.queryByRole('button', { name: '지도 이동 테스트' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: '주변 착한가격업소' })).not.toBeInTheDocument();
+    await user.click(tab('배달'));
+    expect(screen.queryByRole('button', { name: '지도 이동 테스트' })).not.toBeInTheDocument();
+    await user.click(tab('식당'));
+    expect(await screen.findByRole('button', { name: '지도 이동 테스트' })).toBeInTheDocument();
+    expect(screen.getByRole('list', { name: '가게 목록' })).toBeInTheDocument();
+  } finally {
+    viewport.mockRestore();
+  }
+});
+
+it('휴대폰 편의점과 배달 탭에는 지도가 없다', async () => {
+  const user = setup('/cheap-meals/restaurant');
+  expect(await screen.findByRole('button', { name: '지도 이동 테스트' })).toBeInTheDocument();
+  await user.click(tab('편의점'));
+  const panel = screen.getByRole('tabpanel', { name: '편의점' });
+  expect(within(panel).queryByRole('button', { name: '지도 이동 테스트' })).not.toBeInTheDocument();
+});
+
 it('휴대폰 식당 탭은 기준을 바꾸는 검색창 없이 공용 현재 위치 버튼을 지도 위에 띄우고 위치 오류를 버튼 옆에 알린다', async () => {
   const locate = vi.spyOn(mapLocation, 'requestCurrentMapLocation').mockRejectedValueOnce(new Error('denied'));
   try {
