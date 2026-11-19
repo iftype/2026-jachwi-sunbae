@@ -88,7 +88,6 @@ const styles = {
     overflow: hidden;
     border-right: 1px solid #eceef1;
     background: white;
-    box-shadow: 0 0 1.5rem rgb(0 0 0 / 14%);
 
     & > * {
       flex: 1;
