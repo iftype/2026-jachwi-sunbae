@@ -3,10 +3,12 @@ import { css } from '@emotion/css';
 import type { NeighborhoodPlace } from '../../hooks/useNeighborhoodPlaces';
 import { placeTitle } from '../../hooks/useNeighborhoodPlaces';
 import type { NeighborhoodPreviewContext } from '../../hooks/useNeighborhoodPreview';
+import type usePropertyRoute from '../../hooks/usePropertyRoute';
 import { commuteColor } from '../../model/commuteColors';
 import { formatRentPair, overRentNotice } from '../../model/criteriaLabels';
 import type { MyPropertyRow } from '../../model/myProperty';
 import { propertyCommuteLabel, propertyCommuteOrder } from '../../model/propertyCommute';
+import FinderPropertyPanel from '../finder-property-panel/FinderPropertyPanel';
 import ListingLink from '../listing-link/ListingLink';
 import PlaceDetails from '../place-panel/PlaceDetails';
 
@@ -32,6 +34,8 @@ type Props = {
   >;
   my: My;
   onSelectProperty: (row: MyPropertyRow) => void;
+  /** 고른 내 매물의 노선과 매물 지운 뒤 처리. 휴대폰 시트는 매물 요약과 노선을 함께 보인다. */
+  property: { route: ReturnType<typeof usePropertyRoute>; commuteMaxMinutes: number; close: () => void };
   /** 휴대폰은 바로 전화를 걸고, 데스크탑은 번호를 보여 주고 복사하게 한다. */
   phoneAction: 'call' | 'copy';
 };
@@ -40,16 +44,19 @@ type Props = {
  * 결과 지도의 정보 한 단계. 휴대폰 시트와 데스크탑 지도 아래 카드가 함께 쓴다.
  * 누른 마커 하나의 정보, 고른 동네 정보, `My` 매물 목록 가운데 하나만 보인다. 목록에서 다른 단계로 넘어가지 않는다.
  */
-const MapInfo = ({ subject, preview, my, onSelectProperty, phoneAction }: Props) => {
-  if (subject.kind === 'place')
+const MapInfo = ({ subject, preview, my, onSelectProperty, property, phoneAction }: Props) => {
+  if (subject.kind === 'place' && subject.place.kind === 'property')
     return (
-      <PlaceDetails
-        place={subject.place}
-        preview={preview}
-        phoneAction={phoneAction}
-        commuteMaxMinutes={my.maxMinutes}
+      <FinderPropertyPanel
+        property={subject.place.property}
+        destination={preview.destination}
+        route={property.route}
+        commuteMaxMinutes={property.commuteMaxMinutes}
+        onDeleted={property.close}
       />
     );
+  if (subject.kind === 'place')
+    return <PlaceDetails place={subject.place} preview={preview} phoneAction={phoneAction} />;
   if (subject.kind === 'area') {
     const { area } = subject;
     const overRent = overRentNotice(area.rent, preview.maxRent);

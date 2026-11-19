@@ -1,21 +1,19 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { MemoryRouter } from 'react-router-dom';
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 
+import { propertySummaryFixture } from '@/app/mocks/fixtures/propertyFixtures';
+import usePropertyRoute from '@/pages/neighborhood-preview/hooks/usePropertyRoute';
 import type { MyPropertyRow } from '@/pages/neighborhood-preview/model/myProperty';
-import PlaceDetails from '@/pages/neighborhood-preview/ui/place-panel/PlaceDetails';
+import FinderPropertyPanel from '@/pages/neighborhood-preview/ui/finder-property-panel/FinderPropertyPanel';
 import { PublicConfigProvider } from '@/shared/config/PublicConfigContext';
 
 import { server } from '../../../server';
 
-const preview = {
-  destination: { latitude: 37.55, longitude: 127.0, name: '회사', address: '서울 중구' },
-  maxMinutes: 40,
-  maxTransfers: 1,
-};
+const destination = { latitude: 37.55, longitude: 127.0, name: '회사', address: '서울 중구' };
 
 const property = (commute: MyPropertyRow['commute']): MyPropertyRow => ({
   propertyId: 7,
@@ -27,14 +25,36 @@ const property = (commute: MyPropertyRow['commute']): MyPropertyRow => ({
   longitude: 127.0,
   commute,
   representativePhoto: null,
+  summary: {
+    ...propertySummaryFixture,
+    propertyId: 7,
+    name: '역삼동 원룸',
+    discoverySource: { type: 'URL', value: 'https://example.com/listings/7' },
+  },
 });
 
-const renderDetails = (row: MyPropertyRow) =>
+/** 시트가 쓰는 대로, 통근 시간이 나온 내 매물만 노선을 부른다. */
+const Panel = ({ row, onOpenDetail }: { row: MyPropertyRow; onOpenDetail?: () => void }) => {
+  const reachable = row.isPreview !== true && row.commute?.status === 'REACHABLE';
+  const route = usePropertyRoute({ destination }, reachable ? row.propertyId : null);
+  return (
+    <FinderPropertyPanel
+      property={row}
+      destination={destination}
+      route={route}
+      commuteMaxMinutes={60}
+      onOpenDetail={onOpenDetail}
+      onDeleted={() => undefined}
+    />
+  );
+};
+
+const renderDetails = (row: MyPropertyRow, onOpenDetail?: () => void) =>
   render(
     <PublicConfigProvider config={{ apiBaseUrl: 'http://localhost:8080', commuteDataSource: 'mock' }}>
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })}>
         <MemoryRouter>
-          <PlaceDetails place={{ kind: 'property', property: row }} preview={preview} phoneAction="copy" />
+          <Panel row={row} onOpenDetail={onOpenDetail} />
         </MemoryRouter>
       </QueryClientProvider>
     </PublicConfigProvider>,
@@ -97,7 +117,7 @@ it('위치가 없거나 너무 먼 매물은 동선을 부르지 않는다', asy
   renderDetails(property({ propertyId: 7, propertyName: '역삼동 원룸', status: 'UNREACHABLE', commuteMinutes: null }));
   renderDetails(property({ propertyId: 7, propertyName: '역삼동 원룸', status: 'NO_LOCATION', commuteMinutes: null }));
 
-  expect(screen.getAllByRole('link', { name: '매물 상세 보기' })).toHaveLength(2);
+  expect(screen.getAllByRole('region', { name: '매물 요약' })).toHaveLength(2);
   expect(screen.queryByRole('heading', { name: /예상 \d+분/ })).not.toBeInTheDocument();
   expect(calls).toBe(0);
 });
@@ -135,10 +155,45 @@ it.each([
   renderDetails(property({ propertyId: 7, propertyName: '역삼동 원룸', status: 'REACHABLE', commuteMinutes: 20 }));
 
   expect(await screen.findByRole('alert')).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: '매물 상세 보기' })).toBeInTheDocument();
+  expect(screen.getByRole('region', { name: '매물 요약' })).toBeInTheDocument();
 
   await user.click(screen.getByRole('button', { name: '경로 다시 불러오기' }));
 
   expect(await screen.findByRole('heading', { name: '예상 20분 · 환승 0회' })).toBeInTheDocument();
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});
+
+it('위는 매물 요약, 아래는 출퇴근 장소와 노선이고, 요약을 누르면 상세 열기를 부른다', async () => {
+  const user = userEvent.setup();
+  const onOpenDetail = vi.fn();
+
+  renderDetails(
+    property({ propertyId: 7, propertyName: '역삼동 원룸', status: 'UNREACHABLE', commuteMinutes: null }),
+    onOpenDetail,
+  );
+
+  expect(within(screen.getByRole('region', { name: '매물 요약' })).getByText('역삼동 원룸')).toBeInTheDocument();
+  const detail = within(screen.getByRole('region', { name: '동네 찾기 상세' }));
+  expect(detail.getByText('회사')).toBeInTheDocument();
+  expect(detail.getByText('서울 중구')).toBeInTheDocument();
+  await user.click(screen.getByRole('link', { name: '역삼동 원룸' }));
+  expect(onOpenDetail).toHaveBeenCalledTimes(1);
+});
+
+it('예시 매물은 요약만 보이고 노선을 부르지 않으며 안내를 띄운다', () => {
+  let calls = 0;
+  server.use(
+    http.get('*/api/properties/:propertyId/commute-route', () => {
+      calls += 1;
+      return HttpResponse.json({}, { status: 500 });
+    }),
+  );
+
+  renderDetails({
+    ...property({ propertyId: 7, propertyName: '역삼동 원룸', status: 'REACHABLE', commuteMinutes: 20 }),
+    isPreview: true,
+  });
+
+  expect(screen.getByText('예시 매물이라 통근 시간을 계산하지 않아요')).toBeInTheDocument();
+  expect(calls).toBe(0);
 });
