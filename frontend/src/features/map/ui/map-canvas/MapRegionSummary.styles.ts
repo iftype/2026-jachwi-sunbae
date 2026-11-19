@@ -158,7 +158,10 @@ export const rentLabel = css`
 
   /* 찜한 동네 이름표. 동 이름만 두므로 크게 쓰고 찜 색 테두리로 찜한 영역임을 알린다. */
   &[data-bookmark='true'] {
-    max-width: 140px;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 5px;
+    max-width: 220px;
     padding: 5px 11px;
     border: 1.5px solid #2554b8;
     border-radius: 999px;
@@ -172,8 +175,29 @@ export const rentLabel = css`
     font-weight: 800;
   }
 
+  &[data-bookmark='true'] > small {
+    color: #3f6fc4;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  /* 찜한 동네의 월세 라벨. 연한 파랑 바탕과 파랑 테두리로 구분하고 이름 앞에 채운 별을 둔다. */
+  &[data-saved='true'] {
+    border: 1.5px solid #2554b8;
+    background: #e3ecfb;
+  }
+
   &[aria-pressed='true'] {
     border-color: #3f6fc4;
     box-shadow: 0 0 0 1px #3f6fc4;
   }
+`;
+
+export const savedStar = css`
+  label: MapRegionSummary-savedStar;
+  margin-right: 2px;
+  color: #2554b8;
+  font-size: 10px;
+  font-style: normal;
 `;

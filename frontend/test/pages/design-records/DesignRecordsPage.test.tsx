@@ -2,7 +2,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 import { propertyPageFixture, propertySummaryFixture, successEnvelope } from '@/app/mocks/fixtures/propertyFixtures';
@@ -17,6 +17,7 @@ import { rememberMovedProperty, resetMovedPropertyForTests } from '@/features/pr
 import { SAMPLE_PROPERTIES } from '@/features/property/model/sampleProperties';
 import { queryClient } from '@/shared/api/queryClient';
 import { PublicConfigProvider } from '@/shared/config/PublicConfigContext';
+import { setDetailCollapsed } from '@/shared/ui/list-detail-layout/detailCollapse';
 
 import { server } from '../../server';
 
@@ -82,11 +83,15 @@ afterEach(() => {
   sessionStorage.clear();
 });
 
+/** 상세를 접어도 고른 매물 주소가 남는지 보려고 지금 주소를 그린다. */
+const CurrentPath = () => <span data-testid="current-path">{useLocation().pathname}</span>;
+
 const renderRecords = (initialEntry: string | { pathname: string; state: unknown } = '/') =>
   render(
     <QueryClientProvider client={queryClient}>
       <PublicConfigProvider config={{ apiBaseUrl: 'http://localhost:8080' }}>
         <MemoryRouter initialEntries={[initialEntry]}>
+          <CurrentPath />
           <Routes>
             {/* 앱처럼 한 화면 셸을 두 주소(홈과 매물 상세)가 함께 쓴다. */}
             <Route element={<DesignRecordsPage />}>
@@ -106,7 +111,8 @@ it('내 매물로 지도·리스트와 주소 필터를 구성하고 홈으로 �
   expect(
     within(screen.getByRole('navigation', { name: '기록 보기 방식' })).getByRole('button', { name: /지도/ }),
   ).toHaveAttribute('aria-pressed', 'true');
-  expect(screen.getByRole('link', { name: '마이페이지' })).toHaveAttribute('href', '/me');
+  // 휴대폰 폭에서는 하단 탭에 마이가 있어 머리에는 마이페이지 링크를 두지 않는다.
+  expect(screen.queryByRole('link', { name: '마이페이지' })).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: /리스트/ }));
   expect(screen.getByRole('heading', { name: '모든 기록' })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /망원동 투룸/ })).toHaveAttribute(
@@ -321,7 +327,7 @@ it('체크리스트 탭을 보다가 지도에서 매물을 새로 만들어도 
   }
 });
 
-it('데스크탑에서 지도나 리스트의 방을 누르면 리스트 옆 칸에 매물 상세를 열고, 지도 위 버튼으로 접는다', async () => {
+it('데스크탑에서 지도나 리스트의 방을 누르면 리스트 옆 칸에 매물 상세를 열고, 지도 위 `<` 버튼으로 접어도 선택은 남는다', async () => {
   const matchMedia = useDesktopViewport();
   const user = userEvent.setup();
   renderRecords();
@@ -335,16 +341,27 @@ it('데스크탑에서 지도나 리스트의 방을 누르면 리스트 옆 칸
   expect(screen.getByRole('heading', { name: '모든 기록' })).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: '매물 카드 닫기' })).not.toBeInTheDocument();
 
-  await user.click(screen.getByRole('button', { name: '매물 상세 칸 닫기' }));
+  const selectedPath = screen.getByTestId('current-path').textContent ?? '';
+  expect(selectedPath).toMatch(/^\/properties\/\d+$/);
+  const selectedCard = () => screen.getByRole('link', { name: /신림역 원룸/ }).closest('li');
+  expect(selectedCard()).toHaveAttribute('data-selected', 'true');
+
+  // `<` 버튼은 상세를 접기만 한다. 주소와 리스트 강조는 그대로다.
+  await user.click(screen.getByRole('button', { name: '상세 접기' }));
+  expect(screen.queryByRole('complementary', { name: '선택한 매물 상세' })).not.toBeInTheDocument();
+  expect(screen.getByTestId('current-path')).toHaveTextContent(selectedPath);
+  expect(selectedCard()).toHaveAttribute('data-selected', 'true');
+
+  // 접은 채로 다른 방을 고르면 선택만 바뀌고 상세는 접힌 채로 둔다.
+  await user.click(screen.getByRole('link', { name: /망원동 투룸/ }));
+  await waitFor(() =>
+    expect(screen.getByRole('link', { name: /망원동 투룸/ }).closest('li')).toHaveAttribute('data-selected', 'true'),
+  );
+  expect(screen.getByTestId('current-path')).not.toHaveTextContent(selectedPath);
   expect(screen.queryByRole('complementary', { name: '선택한 매물 상세' })).not.toBeInTheDocument();
 
-  // 상세를 연 채로 리스트에서 다른 방을 고르면 옆 칸이 그 방으로 바뀐다.
-  await user.click(within(screen.getByLabelText('예시 지도')).getByRole('button', { name: '신림역 원룸' }));
-  await within(screen.getByRole('complementary', { name: '선택한 매물 상세' })).findByRole('heading', {
-    level: 1,
-    name: '신림역 원룸',
-  });
-  await user.click(screen.getByRole('link', { name: /망원동 투룸/ }));
+  // 펼치면 지금 고른 방의 상세가 보인다.
+  await user.click(screen.getByRole('button', { name: '상세 펼치기' }));
   expect(
     await within(screen.getByRole('complementary', { name: '선택한 매물 상세' })).findByRole('heading', {
       level: 1,
@@ -381,6 +398,35 @@ it('데스크탑 리스트에서 방을 누르면 옆 칸에 상세를 열고 �
   }
 });
 
+it('데스크탑에서 지도의 방 마커를 누르면 접어 둔 상세를 펼치고, 확대 단계는 그대로 둔 채 지도 중심만 그 방 자리로 옮긴다', async () => {
+  const matchMedia = useDesktopViewport();
+  const user = userEvent.setup();
+  try {
+    renderRecords();
+    await screen.findByRole('heading', { name: '모든 기록' });
+    const map = within(screen.getByLabelText('예시 지도'));
+    const target = getMockProperties().find((property) => property.name === '신림역 원룸');
+    const level = map.getByLabelText('지도 배율').textContent;
+    await user.click(screen.getByRole('link', { name: /망원동 투룸/ }));
+    await user.click(await screen.findByRole('button', { name: '상세 접기' }));
+    expect(screen.queryByRole('complementary', { name: '선택한 매물 상세' })).not.toBeInTheDocument();
+
+    await user.click(map.getByRole('button', { name: '신림역 원룸' }));
+
+    expect(
+      await within(screen.getByRole('complementary', { name: '선택한 매물 상세' })).findByRole('heading', {
+        level: 1,
+        name: '신림역 원룸',
+      }),
+    ).toBeInTheDocument();
+    expect(map.getByLabelText('지도 중심')).toHaveTextContent(`${target?.latitude},${target?.longitude}`);
+    expect(map.getByLabelText('지도 배율')).toHaveTextContent(level ?? '');
+  } finally {
+    setDetailCollapsed(false);
+    matchMedia.mockRestore();
+  }
+});
+
 const viewSwitch = () => within(screen.getByRole('navigation', { name: '기록 보기 방식' }));
 
 it('주소에 리스트 보기가 있으면 리스트로 연다', async () => {
@@ -406,10 +452,9 @@ it('휴대폰은 버튼 없이 늘 화면 안 거리 메모를 지도에 올리�
   await screen.findByText('신림역 원룸');
   // 분류 레일과 메모 버튼은 두지 않고 거리 메모는 늘 켜 둔다.
   expect(screen.queryByRole('complementary', { name: '지도 시설 카테고리' })).not.toBeInTheDocument();
-  // 멀리 보면 메모를 동네 묶음으로 보이므로, 동네를 고르고 확대한 뒤 화면 범위를 알린다. 동네를 골라도 확대 단계는 그대로다.
+  // 휴대폰에는 확대 축소 버튼이 없다(손가락으로 확대한다). 멀리 보면 메모를 동네 묶음으로 보이므로, 동네를 골라 다가가고 화면 범위를 알린다.
+  expect(screen.queryByRole('button', { name: '지도 확대' })).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: /^마포구/ }));
-  await user.click(screen.getByRole('button', { name: '지도 확대' }));
-  await user.click(screen.getByRole('button', { name: '지도 확대' }));
   await user.click(screen.getByRole('button', { name: '화면 범위 알림' }));
   await user.click(await screen.findByRole('button', { name: '늦게까지 여는 세탁소가 있어요.' }));
   const memo = within(await screen.findByRole('region', { name: '거리 메모' }));
@@ -749,7 +794,7 @@ it('데스크탑은 리스트에 매물이 모두 보여, 겹친 매물 묶음�
   }
 });
 
-it('본 방 기록 지도에는 분류 레일 없이 확대 축소와 현재 위치만 두고, 통근 시간 버튼도 두지 않는다', async () => {
+it('휴대폰 본 방 기록 지도에는 분류 레일과 확대 축소 없이 현재 위치만 두고, 통근 시간 버튼도 두지 않는다', async () => {
   localStorage.setItem(
     'jachwi-sunbae:commute-destination',
     JSON.stringify({ latitude: 37.5665, longitude: 126.978, name: '서울시청' }),
@@ -760,7 +805,7 @@ it('본 방 기록 지도에는 분류 레일 없이 확대 축소와 현재 위
     await screen.findByText('신림역 원룸');
     // 시설 분류(병원, 교통, 학교, 편의)는 동네 찾기 결과 지도로 옮겼다.
     expect(screen.queryByRole('complementary', { name: '지도 시설 카테고리' })).not.toBeInTheDocument();
-    expect(screen.getByRole('group', { name: '지도 확대·축소' })).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: '지도 확대·축소' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '현재 위치로 이동' })).toBeInTheDocument();
     // 리스트에는 통근 시간 버튼도, 통근거리 줄과 바꾸기도 두지 않는다.
     await user.click(screen.getByRole('button', { name: /리스트/ }));
@@ -872,6 +917,7 @@ it('모바일 헤더에는 동네 찾기 타일 대신 로고를 두고 떠 있�
   expect(screen.queryByRole('link', { name: '주소 검색' })).not.toBeInTheDocument();
   expect(screen.getByLabelText('생활 날씨 안내')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: '기록 비교하고 PDF로 받기' })).toHaveAttribute('href', '/compare');
+  expect(screen.getByRole('heading', { name: /^최근 기록한 방/ })).toBeInTheDocument();
 });
 
 it('예시 매물에도 삭제 메뉴를 두고 서버 요청 없이 숨기며 다시 열어도 유지한다', async () => {

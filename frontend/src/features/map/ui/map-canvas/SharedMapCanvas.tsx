@@ -5,7 +5,11 @@ import type { MapCanvasProps } from '../../model/MapCanvas';
 import InfrastructureMap from '../infrastructure-panel/InfrastructureMap';
 import MapCanvasSurface from './MapCanvasSurface';
 
-type MapHost = { attach: (element: HTMLDivElement, props: MapCanvasProps, modeKey: string) => void };
+type MapHost = {
+  attach: (element: HTMLDivElement, props: MapCanvasProps, modeKey: string) => void;
+  /** 모드를 바꿀 때 붙잡아 둔 이전 모드의 가운데를 놓는다. 새 모드가 일부러 시점을 옮길 때만 부른다. */
+  releaseHeldView: () => void;
+};
 const HostContext = createContext<MapHost | null>(null);
 const ActiveContext = createContext({ active: true, modeKey: 'default' });
 
@@ -64,6 +68,9 @@ export const SharedMapCanvasProvider = ({
             nextProps.onLevelChange?.(value);
           },
         });
+      },
+      releaseHeldView: () => {
+        heldCenter.current = null;
       },
     }),
     [target, preserveZoomOnModeChange],

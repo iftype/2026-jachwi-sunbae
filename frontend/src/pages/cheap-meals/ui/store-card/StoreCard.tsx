@@ -1,6 +1,6 @@
 import { css } from '@emotion/css';
 
-import { formatStoreDistance, type GoodPriceStore } from '@/features/good-price/model/GoodPriceStore';
+import type { GoodPriceStore } from '@/features/good-price/model/GoodPriceStore';
 
 type StoreCardProps = {
   store: GoodPriceStore;
@@ -16,17 +16,22 @@ const priceValue = (price: string | null): number | null => {
   return digits === '' ? null : Number(digits);
 };
 
-/** 값이 있는 메뉴 중 가장 싼 하나. 가격을 읽을 수 있는 메뉴가 없으면 null이다. */
-const cheapestMenu = (menus: GoodPriceStore['menus']) =>
-  menus.reduce<{ name: string; price: string; value: number } | null>((best, menu) => {
-    const value = priceValue(menu.price);
-    if (menu.price === null || value === null) return best;
-    return best === null || value < best.value ? { name: menu.name, price: menu.price, value } : best;
-  }, null);
+/** 카드에 보여 줄 메뉴 수. 가격을 읽을 수 있는 메뉴 중 싼 순서로 둔다. */
+const MAX_MENUS = 2;
 
-/** 목록의 가게 한 칸. 이름, 업종과 거리, 가장 싼 메뉴 한 줄만 두고, 전체 메뉴는 상세(지도 위 정보 카드)에서 본다. */
+/** 가격을 읽을 수 있는 메뉴 중 싼 것부터 최대 MAX_MENUS개. 없으면 빈 배열이다. */
+const cheapestMenus = (menus: GoodPriceStore['menus']) =>
+  menus
+    .flatMap((menu) => {
+      const value = priceValue(menu.price);
+      return menu.price === null || value === null ? [] : [{ name: menu.name, price: menu.price, value }];
+    })
+    .sort((a, b) => a.value - b.value)
+    .slice(0, MAX_MENUS);
+
+/** 목록의 가게 한 칸. 왼쪽에 이름과 업종 뱃지, 오른쪽에 싼 메뉴와 가격을 둔다. 전체 메뉴는 상세(지도 위 정보 카드)에서 본다. */
 const StoreCard = ({ store, onSelect, isSelected = false }: StoreCardProps) => {
-  const menu = cheapestMenu(store.menus);
+  const menus = cheapestMenus(store.menus);
   return (
     <button
       type="button"
@@ -36,11 +41,22 @@ const StoreCard = ({ store, onSelect, isSelected = false }: StoreCardProps) => {
       onClick={() => onSelect(store.id)}
       aria-label={`${store.name} 상세 보기`}
     >
-      <strong className={styles.name}>{store.name}</strong>
-      <span className={styles.meta}>
-        {store.businessType}, 직선 {formatStoreDistance(store.distanceMeters)}
+      <span className={styles.info}>
+        <strong className={styles.name}>{store.name}</strong>
+        <span className={styles.badge}>{store.businessType}</span>
       </span>
-      <span className={styles.menu}>{menu ? `${menu.name} ${menu.price}` : '등록된 메뉴 가격이 없어요'}</span>
+      {menus.length > 0 ? (
+        <span className={styles.menus}>
+          {menus.map((menu) => (
+            <span key={menu.name} className={styles.menu}>
+              <span className={styles.menuName}>{menu.name}</span>
+              <strong className={styles.price}>{menu.price}</strong>
+            </span>
+          ))}
+        </span>
+      ) : (
+        <span className={styles.empty}>등록된 메뉴 가격이 없어요</span>
+      )}
     </button>
   );
 };
@@ -51,9 +67,11 @@ const styles = {
   card: css`
     label: StoreCard-card;
 
-    display: grid;
+    display: flex;
     width: 100%;
-    gap: 0.2rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
     padding: 0.75rem;
     border: 1px solid transparent;
     border-bottom: 1px solid var(--color-border);
@@ -72,6 +90,15 @@ const styles = {
       outline-offset: -2px;
     }
   `,
+  info: css`
+    label: StoreCard-info;
+
+    display: grid;
+    min-width: 0;
+    flex: 1;
+    gap: 0.3rem;
+    justify-items: start;
+  `,
   name: css`
     label: StoreCard-name;
 
@@ -80,22 +107,65 @@ const styles = {
     letter-spacing: -0.03em;
     overflow-wrap: anywhere;
   `,
-  meta: css`
-    label: StoreCard-meta;
+  badge: css`
+    label: StoreCard-badge;
 
+    max-width: 100%;
     overflow: hidden;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    background: var(--color-surface-neutral);
     color: var(--color-muted);
-    font-size: 0.75rem;
+    font-size: 0.7rem;
+    font-weight: 700;
     text-overflow: ellipsis;
     white-space: nowrap;
+  `,
+  menus: css`
+    label: StoreCard-menus;
+
+    display: grid;
+    min-width: 0;
+    max-width: 55%;
+    flex: none;
+    gap: 0.15rem;
+    text-align: right;
   `,
   menu: css`
     label: StoreCard-menu;
 
+    display: flex;
+    min-width: 0;
+    align-items: baseline;
+    justify-content: flex-end;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+  `,
+  menuName: css`
+    label: StoreCard-menuName;
+
+    min-width: 0;
     overflow: hidden;
-    font-size: 0.82rem;
-    font-variant-numeric: tabular-nums;
+    font-weight: 400;
     text-overflow: ellipsis;
     white-space: nowrap;
+  `,
+  price: css`
+    label: StoreCard-price;
+
+    flex: none;
+    color: var(--color-ink);
+    font-size: 0.9rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  `,
+  empty: css`
+    label: StoreCard-empty;
+
+    flex: none;
+    max-width: 45%;
+    color: var(--color-muted);
+    font-size: 0.75rem;
+    text-align: right;
   `,
 };

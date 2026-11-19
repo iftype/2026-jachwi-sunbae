@@ -13,7 +13,7 @@ import { writeCommuteDestination } from '@/features/map/lib/commuteDestinationSt
 import { requestCurrentMapLocation } from '@/features/map/lib/mapLocation';
 import { MapLocationError } from '@/features/map/lib/mapLocation';
 import { distanceMeters } from '@/features/map/lib/mapViewportQuery';
-import type { MapAddress } from '@/features/map/model/Map';
+import type { MapAddress, MapBounds } from '@/features/map/model/Map';
 import { MAX_MAP_LEVEL, MIN_MAP_LEVEL } from '@/features/map/ui/map-zoom-control/MapZoomControl';
 import { completeExploration, startExploration } from '@/features/onboarding/lib/explorationJourney';
 import { INTRO_MAP_LEVEL, SAMPLE_PROPERTIES_VIEW } from '@/features/property/model/sampleProperties';
@@ -42,6 +42,9 @@ import {
 import { PREVIEW_DESTINATION } from '../model/preview';
 import { type MapViewport, routeFocusView } from '../model/resultMapView';
 import useNeighborhoodAnalytics from './useNeighborhoodAnalytics';
+
+/** 첫 안내(배너, 칩)로 동네 찾기에 들어올 때 다가가는 확대 단계. 첫 화면 단계보다 두 단계 가깝다. */
+const FIRST_TIP_FOCUS_LEVEL = Math.max(MIN_MAP_LEVEL, INTRO_MAP_LEVEL - 2);
 
 const describeError = (error: unknown) => {
   if (error instanceof ApiError) {
@@ -81,28 +84,25 @@ const useNeighborhoodPreview = () => {
   // 동네 선택도 방문 이력에 쌓이므로, 홈 아이콘은 이전 동네가 아닌 홈으로 바로 이동한다.
   const leave = () => void navigate(HOME_PATH);
   const [phase, setPhase] = useState<'map' | 'conditions' | 'analyzing'>(restoredSearch ? 'analyzing' : 'map');
-  // 출퇴근 장소는 결과를 보는 동안 지도를 눌러도 바뀌지 않는다. `바꾸기`로 고르는 상태(결과가 없거나 지워진 상태)에서만 지도를 눌러 정한다.
-  const canPickDestination = phase !== 'analyzing';
   const [destination, setDestination] = useState(restoredSearch?.destination ?? PREVIEW_DESTINATION);
   const [mapCandidate, setMapCandidate] = useState(restoredSearch?.destination ?? PREVIEW_DESTINATION);
+  // 지도 시점(가운데와 확대 단계)은 하나다. 위치를 고르는 지도와 결과 지도가 같은 지도를 쓰므로, 두 단계를 오가도 보던 시점이 그대로 이어진다.
+  // 손가락이나 휠로 옮긴 시점은 다시 그리지 않고 기억만 했다가, 확대, 축소 버튼이나 이동이 이 자리에서 옮긴다.
   // 출퇴근 장소를 고른 적이 없으면 기록 지도의 첫 화면과 같은 미리보기 매물 자리에서 시작한다.
-  const [selectionCenter, setSelectionCenter] = useState(
-    restoredSearch?.destination ?? {
-      ...PREVIEW_DESTINATION,
-      latitude: SAMPLE_PROPERTIES_VIEW.latitude,
-      longitude: SAMPLE_PROPERTIES_VIEW.longitude,
-    },
-  );
-  const [selectionLevel, setSelectionLevel] = useState(INTRO_MAP_LEVEL);
-  // 장소를 고르는 지도에서 손가락이나 휠로 옮긴 시점. 다시 그리지 않고 기억만 했다가 확대·축소 버튼을 누르면 이 자리에서 옮긴다.
-  const selectionView = useRef<{ latitude: number; longitude: number; level: number } | null>(null);
-  const pendingSearchCamera = useRef(false);
-  const resultView = useRef<{ latitude: number; longitude: number; level: number } | null>(null);
+  const mapView = useRef<{ latitude: number; longitude: number; level: number }>({
+    latitude: restoredSearch?.destination.latitude ?? SAMPLE_PROPERTIES_VIEW.latitude,
+    longitude: restoredSearch?.destination.longitude ?? SAMPLE_PROPERTIES_VIEW.longitude,
+    level: INTRO_MAP_LEVEL,
+  });
   // 화면(휴대폰, 데스크탑)이 알려 주는 결과 지도 칸 크기와 가리는 여백. 동네나 출발 정류장을 고를 때 시점을 그 칸에 맞춘다.
   const mapViewportReader = useRef<(() => MapViewport | null) | null>(null);
   const readMapViewport = () => mapViewportReader.current?.() ?? undefined;
-  // 결과 지도 시점은 ref에 두므로, 목록에서 정류장을 고를 때처럼 시점만 바꾸면 다시 그리도록 이 값을 올린다.
-  const [, setResultViewVersion] = useState(0);
+  // 지도 시점은 ref에 두므로, 목록에서 정류장을 고를 때처럼 시점만 바꾸면 다시 그리도록 이 값을 올린다.
+  const [, setMapViewVersion] = useState(0);
+  const moveMapView = (view: { latitude: number; longitude: number; level: number }) => {
+    mapView.current = { latitude: view.latitude, longitude: view.longitude, level: view.level };
+    setMapViewVersion((version) => version + 1);
+  };
   const [hasChosenMapPoint, setHasChosenMapPoint] = useState(Boolean(restoredSearch));
   const [isMapSelectionEnabled, setIsMapSelectionEnabled] = useState(false);
   // 지도 검색(위쪽 검색창)으로 간 자리의 검색 핀. 출퇴근 장소(`mapCandidate`, `destination`)와는 따로 두며, 통근 분석에 쓰지 않는다.
@@ -124,6 +124,9 @@ const useNeighborhoodPreview = () => {
         }
       : null,
   );
+  // 결과(행정동 영역)가 그려지기 전에는 출퇴근 장소가 이미 있어도 지도 빈 곳을 누를 때마다 그 위치로 바꾼다.
+  // 결과를 보는 동안(분석 이후)에는 지도를 눌러도 바뀌지 않고, `바꾸기`나 `지도에서 선택`으로 선택 모드에 들어와야 다시 정한다.
+  const canPickDestination = phase !== 'analyzing';
   const appliedMaxRent = submitted?.maxRent ?? maxRent;
   const hasSearchChanges =
     submitted === null ||
@@ -247,19 +250,6 @@ const useNeighborhoodPreview = () => {
             },
     );
   }, [allAreas, areas]);
-  const resultLevel = resultView.current?.level ?? selectionLevel;
-  const resultCenter = resultView.current ?? destination;
-  useEffect(() => {
-    if (!pendingSearchCamera.current || phase !== 'analyzing' || commute.isFetching || !commute.isSuccess) return;
-    pendingSearchCamera.current = false;
-    resultView.current = routeFocusView(
-      [destination, ...sortedAreas.slice(0, 3).map((area) => area.center)],
-      [],
-      readMapViewport(),
-      7,
-    );
-    setResultViewVersion((version) => version + 1);
-  }, [commute.isFetching, commute.isSuccess, destination, sortedAreas, phase, submitted]);
   const analyzePoint = (point: typeof mapCandidate) => {
     analytics.startSearch({ maxMinutes, maxTransfers, maxRent });
     // 본 방 기록에서 매물마다 이 장소까지 통근 시간을 보여 주려고 기억한다.
@@ -269,11 +259,53 @@ const useNeighborhoodPreview = () => {
     setSubmitted({ destination: point, maxMinutes, maxTransfers, maxRent });
     writeCommuteDestination(point);
     if (routeAreaId) navigate(mapPath, { replace: true });
-    pendingSearchCamera.current = true;
+    // 결과가 나와도 보던 지도 시점은 그대로 둔다(두 지도가 시점 하나를 같이 쓴다).
     setSelectedId(null);
     setSelectedStopId(null);
     if (isPublicExplore) startExploration('commute', isMockData);
     setPhase('analyzing');
+  };
+  const mapCenter: { latitude: number; longitude: number } = {
+    latitude: mapView.current.latitude,
+    longitude: mapView.current.longitude,
+  };
+  const rememberMapCenter = (latitude: number, longitude: number) => {
+    mapView.current = { latitude, longitude, level: mapView.current.level };
+  };
+  const rememberMapLevel = (level: number) => {
+    mapView.current = { ...mapView.current, level };
+  };
+  const zoomMapBy = (delta: -1 | 1) => {
+    const level = Math.max(MIN_MAP_LEVEL, Math.min(MAX_MAP_LEVEL, mapView.current.level + delta));
+    moveMapView({ ...mapView.current, level });
+  };
+  /**
+   * 내 기록의 동네 찾기 첫 안내(배너, 칩)로 들어올 때만 쓰는 예외. 그 밖에서는 지도 확대 단계를 바꾸지 않는다.
+   * 첫 안내 말풍선 자리로 옮기고 `FIRST_TIP_FOCUS_LEVEL`까지 확대한다. 이미 더 가까이 보고 있으면 단계는 그대로 둔다.
+   */
+  const focusFirstTip = (point: { latitude: number; longitude: number }) =>
+    moveMapView({
+      latitude: point.latitude,
+      longitude: point.longitude,
+      level: Math.min(mapView.current.level, FIRST_TIP_FOCUS_LEVEL),
+    });
+  /** 지금 보이는 지도 범위. 두 지도(위치를 고르는 지도, 결과 지도)가 멈출 때마다 알려 준다. */
+  const mapBounds = useRef<MapBounds | null>(null);
+  /**
+   * 지도에서 고른 곳, 검색해서 고른 곳으로 지도를 옮기는 유일한 자리. 확대 단계는 건드리지 않고, 그 자리가 지금 범위 밖일 때만 중심을 옮긴다.
+   * 범위를 아직 모르면(지도가 멈추기 전) 중심을 옮긴다.
+   */
+  const centerOnPoint = (point: { latitude: number; longitude: number }) => {
+    const bounds = mapBounds.current;
+    if (
+      bounds !== null &&
+      point.latitude >= bounds.south &&
+      point.latitude <= bounds.north &&
+      point.longitude >= bounds.west &&
+      point.longitude <= bounds.east
+    )
+      return;
+    moveMapView({ latitude: point.latitude, longitude: point.longitude, level: mapView.current.level });
   };
   const selectAddressAsCommute = (address: MapAddress, options?: { analyze?: boolean }) => {
     locationIntent.current += 1;
@@ -284,32 +316,15 @@ const useNeighborhoodPreview = () => {
       source: 'search' as const,
     };
     setAddressResults([]);
+    setIsMapSelectionEnabled(false);
     setMapCandidate(point);
-    const currentLevel = selectionView.current?.level ?? selectionLevel;
-    selectionView.current = null;
-    setSelectionCenter(point);
-    setSelectionLevel(currentLevel);
+    centerOnPoint(point);
     setHasChosenMapPoint(true);
     setShouldFocusMapSearch(false);
     setQuery(point.name);
     setPhase('conditions');
     prefetchBoundaries();
     if (options?.analyze && isValidCommuteTime) analyzePoint(point);
-  };
-
-  const moveMapToPoint = (point: { latitude: number; longitude: number }) => {
-    selectionView.current = {
-      latitude: point.latitude,
-      longitude: point.longitude,
-      level: selectionView.current?.level ?? selectionLevel,
-    };
-    setSelectionCenter((previous) => ({ ...previous, latitude: point.latitude, longitude: point.longitude }));
-    resultView.current = {
-      latitude: point.latitude,
-      longitude: point.longitude,
-      level: resultView.current?.level ?? resultLevel,
-    };
-    setResultViewVersion((version) => version + 1);
   };
 
   return {
@@ -329,14 +344,11 @@ const useNeighborhoodPreview = () => {
         const coordinate = await request;
         if (intent !== locationIntent.current) return;
         if (phase === 'analyzing') {
-          resultView.current = { ...coordinate, level: 6 };
+          moveMapView({ ...coordinate, level: 6 });
         } else {
           const current = { ...coordinate, name: '현재 위치', address: '현재 위치 기준' };
           // 지도를 현재 위치로 옮기기만 하고 보고 있던 확대 단계는 그대로 둔다.
-          const currentLevel = selectionView.current?.level ?? selectionLevel;
-          selectionView.current = null;
-          setSelectionCenter(current);
-          setSelectionLevel(currentLevel);
+          moveMapView({ ...coordinate, level: mapView.current.level });
           // 현재 위치 버튼은 지도에서 고른 위치("선택한 위치")를 현재 위치로 바꾼다.
           setSearchPin(null);
           setIsMapSelectionEnabled(false);
@@ -387,6 +399,7 @@ const useNeighborhoodPreview = () => {
     cancelEditing: () => {
       if (!submitted) return;
       locationIntent.current += 1;
+      setIsMapSelectionEnabled(false);
       setMapCandidate(submitted.destination);
       setMaxMinutes(submitted.maxMinutes);
       setMaxTransfers(submitted.maxTransfers);
@@ -402,6 +415,7 @@ const useNeighborhoodPreview = () => {
     isChoosingConditions: phase === 'conditions',
     editLocation: () => {
       locationIntent.current += 1;
+      // 보던 결과 지도의 가운데와 확대 단계를 그대로 이어 위치를 고른다.
       setHasChosenMapPoint(false);
       setShouldFocusMapSearch(true);
       setPhase('map');
@@ -410,46 +424,21 @@ const useNeighborhoodPreview = () => {
       if ((phase !== 'conditions' && phase !== 'analyzing') || !hasChosenMapPoint || !isValidCommuteTime) return;
       analyzePoint(mapCandidate);
     },
-    selectionCenter: selectionView.current ?? selectionCenter,
-    selectionLevel: selectionView.current?.level ?? selectionLevel,
-    rememberSelectionCenter: (latitude: number, longitude: number) => {
-      selectionView.current = { latitude, longitude, level: selectionView.current?.level ?? selectionLevel };
+    selectionCenter: mapCenter,
+    selectionLevel: mapView.current.level,
+    /** 지도가 멈출 때 지금 보이는 범위를 기억한다. 고른 자리가 범위 안이면 지도를 옮기지 않는다. */
+    rememberMapBounds: (bounds: MapBounds) => {
+      mapBounds.current = bounds;
     },
-    rememberSelectionLevel: (level: number) => {
-      selectionView.current = { ...(selectionView.current ?? selectionCenter), level };
-    },
+    rememberSelectionCenter: rememberMapCenter,
+    rememberSelectionLevel: rememberMapLevel,
     /** 장소를 고르는 지도의 확대(-1), 축소(+1) 버튼. 지금 보이는 자리를 가운데 둔 채 한 단계 옮긴다. */
-    zoomSelectionBy: (delta: -1 | 1) => {
-      const current = selectionView.current ?? { ...selectionCenter, level: selectionLevel };
-      const level = Math.max(MIN_MAP_LEVEL, Math.min(MAX_MAP_LEVEL, current.level + delta));
-      selectionView.current = { latitude: current.latitude, longitude: current.longitude, level };
-      setSelectionCenter((previous) => ({ ...previous, latitude: current.latitude, longitude: current.longitude }));
-      setSelectionLevel(level);
-    },
-    rememberResultCenter: (latitude: number, longitude: number) => {
-      resultView.current = { latitude, longitude, level: resultView.current?.level ?? resultLevel };
-    },
+    zoomSelectionBy: zoomMapBy,
+    rememberResultCenter: rememberMapCenter,
     /** 결과 지도 확대(-1)·축소(+1) 버튼. 휠이나 손가락으로 바꾼 단계는 다시 그리지 않고 기억만 하므로 기억한 값에서 옮긴다. */
-    zoomResultBy: (delta: -1 | 1) => {
-      const current = resultView.current ?? { ...resultCenter, level: resultLevel };
-      const level = Math.max(MIN_MAP_LEVEL, Math.min(MAX_MAP_LEVEL, current.level + delta));
-      resultView.current = { latitude: current.latitude, longitude: current.longitude, level };
-      setResultViewVersion((version) => version + 1);
-    },
-    zoomToFacilities: (level: number) => {
-      if (phase === 'analyzing') {
-        resultView.current = { ...(resultView.current ?? resultCenter), level };
-        setResultViewVersion((version) => version + 1);
-      } else {
-        const center = selectionView.current ?? selectionCenter;
-        selectionView.current = { ...center, level };
-        setSelectionCenter((previous) => ({ ...previous, latitude: center.latitude, longitude: center.longitude }));
-        setSelectionLevel(level);
-      }
-    },
-    rememberResultLevel: (level: number) => {
-      resultView.current = { ...(resultView.current ?? resultCenter), level };
-    },
+    zoomResultBy: zoomMapBy,
+    zoomToFacilities: (level: number) => moveMapView({ ...mapView.current, level }),
+    rememberResultLevel: rememberMapLevel,
     query,
     addressResults,
     isSearching,
@@ -483,9 +472,9 @@ const useNeighborhoodPreview = () => {
     shouldFocusMapSearch,
     openMapSearch: () => {
       setShouldFocusMapSearch(true);
+      setIsMapSelectionEnabled(false);
       setMapCandidate(destination);
-      selectionView.current = null;
-      setSelectionCenter(destination);
+      // 보던 지도를 그대로 두고 고른다(출퇴근 장소로 옮기거나 확대 단계를 되돌리지 않는다).
       setHasChosenMapPoint(false);
       setPhase('map');
     },
@@ -499,12 +488,8 @@ const useNeighborhoodPreview = () => {
     openMapSelection: () => {
       setIsMapSelectionEnabled(true);
       setShouldFocusMapSearch(false);
-      // 지난 검색이 있으면 그 출퇴근 장소에서 다시 고른다. 처음이면 보고 있던 지도를 그대로 두고 고른다(기본 목적지로 옮기지 않는다).
-      if (submitted) {
-        setMapCandidate(destination);
-        selectionView.current = null;
-        setSelectionCenter(destination);
-      }
+      // 지난 검색이 있어도 보고 있던 지도를 그대로 두고 고른다(출퇴근 장소로 되돌리거나 확대하지 않는다).
+      if (submitted) setMapCandidate(destination);
       setHasChosenMapPoint(false);
       setPhase('map');
     },
@@ -562,18 +547,13 @@ const useNeighborhoodPreview = () => {
     changeMaxMinutes: setMaxMinutes,
     maxTransfers,
     changeMaxTransfers: setMaxTransfers,
-    resultLevel,
-    center: resultCenter,
+    resultLevel: mapView.current.level,
+    center: mapCenter,
     reset: () => {
       analytics.cancelSearch();
       if (location.pathname.includes('/areas/')) navigate(mapPath, { replace: true });
       void client.cancelQueries({ queryKey: ['commute-areas'] });
       locationIntent.current += 1;
-      if (resultView.current) {
-        const view = resultView.current;
-        setSelectionCenter((previous) => ({ ...previous, latitude: view.latitude, longitude: view.longitude }));
-        setSelectionLevel(view.level);
-      }
       setHasChosenMapPoint(false);
       setShouldFocusMapSearch(true);
       setPhase('map');
@@ -596,14 +576,8 @@ const useNeighborhoodPreview = () => {
       else if (routeAreaId) navigate(mapPath, { replace: true });
     },
     /** 지도에서 마커를 누르면 확대 단계는 그대로 두고 그 마커 자리를 가운데로 옮긴다. */
-    focusPoint: (point: { latitude: number; longitude: number }) => {
-      resultView.current = {
-        latitude: point.latitude,
-        longitude: point.longitude,
-        level: resultView.current?.level ?? resultLevel,
-      };
-      setResultViewVersion((version) => version + 1);
-    },
+    focusPoint: (point: { latitude: number; longitude: number }) =>
+      moveMapView({ latitude: point.latitude, longitude: point.longitude, level: mapView.current.level }),
     /** 지도 검색(위쪽 검색창)으로 고른 장소. 지도를 그곳으로 옮기고 검색 핀을 찍을 뿐, 출퇴근 장소와 통근 분석은 바꾸지 않는다. */
     searchPin,
     searchTo: (address: MapAddress) => {
@@ -612,7 +586,7 @@ const useNeighborhoodPreview = () => {
         longitude: address.longitude,
         name: address.roadAddress ?? address.jibunAddress ?? address.address ?? '검색한 곳',
       });
-      moveMapToPoint(address);
+      centerOnPoint(address);
     },
     clearSearchPin: () => setSearchPin(null),
     /** 검색 핀의 `출퇴근 장소로 설정`. 이때만 지도 검색의 값이 출퇴근 장소로 복사된다. 분석은 따로 `이 조건으로 동네 찾기`로 한다. */
@@ -628,17 +602,12 @@ const useNeighborhoodPreview = () => {
       });
     },
     /** 주소 검색 결과처럼 고른 자리로 지도를 옮긴다. 조건을 고르는 중이든 결과를 보는 중이든 같은 자리로 가고, 확대 단계는 그대로 둔다. */
-    moveMapTo: moveMapToPoint,
+    moveMapTo: centerOnPoint,
+    focusFirstTip,
     /** 점들이 가려지지 않은 지도 칸에 모두 들어오게 옮긴다(`My`를 켰을 때 내 매물 전체). 한 점이면 동네를 볼 때의 가까운 단계로 둔다. */
     fitPoints: (points: { latitude: number; longitude: number }[]) => {
       if (!points.length) return;
-      resultView.current = routeFocusView(points, [], readMapViewport());
-      setResultViewVersion((version) => version + 1);
-    },
-    /** 출발 정류장(경로)을 고르면 그 정류장부터 출퇴근 장소까지 경로 전체가 한 화면에 들어오게 옮긴다. */
-    focusRoute: (station: { latitude: number; longitude: number }) => {
-      resultView.current = routeFocusView([station, destination], [], readMapViewport());
-      setResultViewVersion((version) => version + 1);
+      moveMapView(routeFocusView(points, [], readMapViewport()));
     },
     selectStation: (id: string) => {
       if (!selected?.stations.some((station) => station.stopId === id) || id === selectedStopId) return;

@@ -31,7 +31,19 @@ type BottomSheetProps = {
   /** 제목 아래 작은 한 줄(주소 등). */
   subtitle?: string;
   /**
-   * 시트 바로 위 오른쪽에 띄울 것(지도 확대 축소, 현재 위치 버튼 등). 시트와 함께 오르내려 시트에 가리지 않는다.
+   * 참이면 아래로 끌어 내리거나 머리의 접기 버튼을 눌러 제목만 남기고 접을 수 있다(닫지 않으므로 보던 것은 그대로다).
+   * 접힌 시트는 손잡이나 펼치기 버튼을 누르거나 위로 끌면 다시 열린다. 닫기는 닫기 버튼과 Escape로만 한다.
+   */
+  collapsible?: boolean;
+  /**
+   * 처음 열 때 높이 단계. 접어 둔 선호를 이어 갈 때 `peek`을 준다.
+   * 접혀 있는 동안 `default`로 바뀌면(마커를 눌러 펼치는 경우) 시트도 펼친다.
+   */
+  initialMode?: SheetMode;
+  /** 높이 단계가 바뀌면(처음 열 때 포함) 알린다. */
+  onModeChange?: (mode: SheetMode) => void;
+  /**
+   * 시트 바로 위 오른쪽에 띄울 것(지도 현재 위치 버튼 등). 시트와 함께 오르내려 시트에 가리지 않는다.
    * 페이지로 열면 숨긴다.
    */
   floating?: ReactNode;
@@ -40,7 +52,7 @@ type BottomSheetProps = {
 };
 
 /** 시트 높이 단계. 낮은 것부터 제목만(peek), 처음 높이(default), 크게(expanded), 화면 전체(full). */
-type SheetMode = 'peek' | 'default' | 'expanded' | 'full';
+export type SheetMode = 'peek' | 'default' | 'expanded' | 'full';
 
 const BottomSheet = ({
   title,
@@ -59,10 +71,22 @@ const BottomSheet = ({
   headerEnd,
   hidesHeaderEndWhenExpanded = false,
   subtitle,
+  collapsible = false,
+  initialMode = 'default',
+  onModeChange,
   floating,
   className,
 }: BottomSheetProps) => {
-  const [mode, setMode] = useState<SheetMode>('default');
+  const [mode, setMode] = useState<SheetMode>(initialMode);
+  const onModeChangeRef = useRef(onModeChange);
+  onModeChangeRef.current = onModeChange;
+  useEffect(() => {
+    onModeChangeRef.current?.(mode);
+  }, [mode]);
+  // 접어 둔 선호가 밖에서 풀리면 접힌 시트를 펼친다. 시트를 직접 끌어 올린 경우는 이미 peek이 아니라 건드리지 않는다.
+  useEffect(() => {
+    if (initialMode === 'default') setMode((current) => (current === 'peek' ? 'default' : current));
+  }, [initialMode]);
   const modes: SheetMode[] = fullPage ? ['peek', 'default', 'expanded', 'full'] : ['peek', 'default', 'expanded'];
   const lastPeekSignal = useRef(peekSignal);
   useEffect(() => {
@@ -116,8 +140,11 @@ const BottomSheet = ({
     clearDrag();
     if (!start || !dragged.current) return;
     const released = start.height + start.startY - event.clientY;
-    if (released < start.limit * 0.25) onClose();
-    else if (fullPage && released > start.limit * 0.85) setMode('full');
+    if (collapsible && mode === 'peek' && released > start.height + 24) setMode('default');
+    else if (released < start.limit * 0.25) {
+      if (collapsible) setMode('peek');
+      else onClose();
+    } else if (fullPage && released > start.limit * 0.85) setMode('full');
     else setMode(released > start.limit * 0.6 ? 'expanded' : 'default');
   };
   return (
@@ -187,7 +214,9 @@ const BottomSheet = ({
           }}
           // 누르기만 해서는 높이를 바꾸지 않는다. 끌어서 바꾸고, 키보드는 위·아래 화살표로 한 단계씩 바꾼다.
           onClick={() => {
+            const wasDragged = dragged.current;
             dragged.current = false;
+            if (collapsible && mode === 'peek' && !wasDragged) setMode('default');
           }}
           onKeyDown={(event) => {
             if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
@@ -210,6 +239,16 @@ const BottomSheet = ({
           {subtitle && <p>{subtitle}</p>}
         </div>
         {hidesHeaderEndWhenExpanded && (mode === 'expanded' || mode === 'full') ? null : headerEnd}
+        {collapsible && !isFullPage && (
+          <button
+            type="button"
+            aria-label={mode === 'peek' ? '시트 펼치기' : '시트 접기'}
+            aria-expanded={mode !== 'peek'}
+            onClick={() => setMode(mode === 'peek' ? 'default' : 'peek')}
+          >
+            <Icon name={mode === 'peek' ? 'chevron-up' : 'chevron-down'} size={20} />
+          </button>
+        )}
         {(showCloseButton || isFullPage) && (
           <button
             ref={closeButtonRef}

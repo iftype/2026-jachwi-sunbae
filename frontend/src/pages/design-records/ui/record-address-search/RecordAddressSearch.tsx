@@ -16,6 +16,8 @@ type Props = {
   /** 검색창 이름과 안내 문구. 기본은 지도를 옮기는 주소 검색이다. */
   label?: string;
   placeholder?: string;
+  /** 검색어가 비었을 때 드롭다운에 최근 검색을 보여 줄지. 화면 본문에 최근 검색을 따로 그리면 끈다. */
+  showRecent?: boolean;
   className?: string;
 };
 
@@ -31,6 +33,7 @@ const RecordAddressSearch = ({
   onBack,
   label = '주소 검색',
   placeholder = '주소로 지도 이동',
+  showRecent = true,
   className,
 }: Props) => {
   const search = useAddressSearch();
@@ -82,6 +85,7 @@ const RecordAddressSearch = ({
           <AddressSearchResults
             results={search.results}
             dropdown
+            recent={showRecent && search.query.trim() === ''}
             status={search.status === 'idle' && search.results.length > 0 ? 'success' : search.status}
             onSelect={(result) => {
               pickedRef.current = formatAddress(result);

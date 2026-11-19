@@ -411,7 +411,7 @@ describe('익명 자동 인증 흐름', () => {
     const user = userEvent.setup();
     renderRoutes('/');
 
-    await user.click(await screen.findByRole('link', { name: '마이페이지' }));
+    await user.click(await screen.findByRole('button', { name: '마이' }));
 
     expect(await screen.findByRole('heading', { name: '마이페이지' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '목록으로 돌아가기' })).not.toBeInTheDocument();
@@ -485,7 +485,7 @@ it('데스크톱의 홈은 통합 지도로 이어지고 모드 URL을 바꿔도
 it('모바일은 내 기록 지도 안내에서 동네 찾기를 열고 로고로 기록 지도에 복귀한다', async () => {
   neighborhoodResponses();
   renderRoutes('/');
-  await userEvent.click(await screen.findByRole('button', { name: /출퇴근 시간으로 동네 찾아보기/ }));
+  await userEvent.click(await screen.findByRole('button', { name: /출퇴근 시간으로 동네 찾기/ }));
   // 처음에는 출퇴근 장소 검색 화면을 거치지 않고 동네 찾기 지도로 바로 가고, 지도 위 검색 칸에서 장소를 고른다.
   await pickDestination(0);
   const back = screen.getByRole('link', { name: '자취선배 홈' });

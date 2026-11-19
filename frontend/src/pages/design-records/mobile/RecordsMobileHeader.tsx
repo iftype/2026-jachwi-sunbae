@@ -8,6 +8,7 @@ import { MapModeSwitchTile, useHasMapModeSwitch } from '@/shared/ui/map-mode-til
 import MobileMapHeader, { MapHomeLink } from '@/shared/ui/mobile-map-header/MobileMapHeader';
 
 import type { RecordsView } from '../model/recordsView';
+import RecordFinderChip from '../ui/record-finder-chip/RecordFinderChip';
 
 type Props = {
   view: RecordsView;
@@ -15,7 +16,7 @@ type Props = {
   searchTo?: string;
 };
 /**
- * 휴대폰 기록 헤더. 지도 보기에서는 왼쪽에 동네 찾기와 내 기록을 오가는 타일을, 리스트 보기와 통합 지도 밖에서는 로고를 둔다.
+ * 휴대폰 기록 헤더. 지도 보기에서는 왼쪽에 동네 찾기와 내 기록을 오가는 타일을, 리스트 보기와 통합 지도 밖에서는 로고를 두고, 로고 옆 빈 곳에 동네 찾기 칩을 둔다.
  */
 const RecordsMobileHeader = ({ view, searchTo, onRecord }: Props) => {
   const showsModeTile = useHasMapModeSwitch() && view === 'map' && !MOBILE_BOTTOM_TABS_ENABLED;
@@ -36,7 +37,7 @@ const RecordsMobileHeader = ({ view, searchTo, onRecord }: Props) => {
             </Button>
           )
         }
-        center={view === 'list' ? <MapHeaderWeather /> : undefined}
+        center={view === 'list' ? <MapHeaderWeather /> : showsModeTile ? undefined : <RecordFinderChip />}
         leading={showsModeTile ? <MapModeSwitchTile /> : <MapHomeLink />}
       />
     </div>

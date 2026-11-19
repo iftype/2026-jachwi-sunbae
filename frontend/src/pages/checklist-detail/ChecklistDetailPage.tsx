@@ -105,7 +105,7 @@ const ChecklistDetailView = ({ checklist }: { checklist: ChecklistDetail }) => {
         endSlot={
           <Button
             ref={deleteRef}
-            variant="text"
+            variant="neutral"
             aria-label="체크리스트 삭제"
             onClick={() => {
               remove.reset();
@@ -140,7 +140,6 @@ const ChecklistDetailView = ({ checklist }: { checklist: ChecklistDetail }) => {
         serverError={update.isError ? getChecklistErrorMessage(update.error) : undefined}
         onOpenItemPicker={openPicker}
         onSubmit={save}
-        isDesktop={isDesktop}
       />
     </ChecklistEditorFrame>
   );

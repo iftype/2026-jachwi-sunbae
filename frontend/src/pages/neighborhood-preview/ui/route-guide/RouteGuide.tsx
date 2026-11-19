@@ -114,10 +114,10 @@ const styles = {
       font-size: 1.1rem;
     }
 
-    /* 이동 수단 색. 요약 막대와 구간 선이 같은 색을 쓴다. */
+    /* 이동 수단 색. 요약 막대와 구간 선이 같은 색을 쓴다. 버스는 옅은 파랑(진한 글씨), 지하철은 진한 파랑(흰 글씨)으로 구분한다. */
     & {
-      --leg-bus: var(--color-brand-yellow);
-      --leg-subway: var(--color-brand-blue, #6b9ae6);
+      --leg-bus: #9db9ec;
+      --leg-subway: var(--color-brand-blue-ink, #3f6fc4);
       --leg-walk: #c3c8cf;
     }
   `,

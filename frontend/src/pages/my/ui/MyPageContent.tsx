@@ -1,17 +1,13 @@
 import { css } from '@emotion/css';
-import { Link } from 'react-router-dom';
 
 import { useMember } from '@/features/auth/api/useCurrentMember';
 import WeatherSummaryCard from '@/features/weather/ui/weather-summary-card/WeatherSummaryCard';
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
-import { GUIDE_PATH } from '@/shared/lib/navigation/appPaths';
-import Icon from '@/shared/ui/icon/Icon';
 
 import AccountLinkCard from './account-link-card/AccountLinkCard';
 import AccountWithdrawCard from './account-withdraw-card/AccountWithdrawCard';
+import MyShortcutLinks from './my-shortcut-links/MyShortcutLinks';
 import PrivacyLinkCard from './privacy-link-card/PrivacyLinkCard';
-
-import * as rowStyles from './my-row-card/MyRowCard.styles';
 
 const MyPageContent = () => {
   const member = useMember();
@@ -28,16 +24,9 @@ const MyPageContent = () => {
         </h2>
         <WeatherSummaryCard />
       </section>
+      {/* 지도 밖 도구 화면(체크리스트, 방 비교, 저렴한 한 끼, 사용방법)으로 가는 곳은 마이페이지 한 곳이다. */}
+      <MyShortcutLinks />
       <div className={styles.settingsRows}>
-        {/* 데스크탑은 왼쪽 레일에 사용방법이 있어 모바일에만 둔다. */}
-        {!isDesktop && (
-          <Link to={GUIDE_PATH} className={rowStyles.notice}>
-            <span>
-              <strong>사용방법</strong>
-            </span>
-            <Icon name="chevron-right" size={16} />
-          </Link>
-        )}
         <PrivacyLinkCard />
         <AccountWithdrawCard />
       </div>

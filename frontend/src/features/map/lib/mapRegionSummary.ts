@@ -60,8 +60,11 @@ export const createRegionRentLabelElement = (region: MapRegion, selected: boolea
   button.className = styles.rentLabel;
   button.dataset.sparse = String(rent?.sparse ?? false);
   button.dataset.filteredOut = String(rent?.filteredOut ?? false);
+  const isSaved = rent?.isBookmarked === true;
+  if (isSaved) button.dataset.saved = 'true';
   // 월세 줄 없이 이름만 두는 라벨(찜한 동네)은 크게 그려 찜한 영역이 눈에 띄게 한다.
-  if (region.showsName && !rent) button.dataset.bookmark = 'true';
+  const isBookmark = region.showsName === true && !rent;
+  if (isBookmark) button.dataset.bookmark = 'true';
   button.setAttribute('aria-pressed', String(selected));
   const commuteText = rent?.commute ? `통근 ${rent.commute}` : null;
   const priceText = rent?.price
@@ -69,10 +72,27 @@ export const createRegionRentLabelElement = (region: MapRegion, selected: boolea
     : rent
       ? '월세 정보 없음'
       : null;
-  button.setAttribute('aria-label', [region.name, commuteText, priceText].filter(Boolean).join(' '));
+  const caption = isBookmark ? region.nameCaption : undefined;
+  button.setAttribute(
+    'aria-label',
+    [isSaved ? '찜한 동네' : null, region.name, commuteText, priceText, caption].filter(Boolean).join(' '),
+  );
   const name = document.createElement('strong');
   name.textContent = region.name;
+  if (isSaved) {
+    const star = document.createElement('span');
+    star.textContent = '★';
+    star.className = styles.savedStar;
+    star.setAttribute('aria-hidden', 'true');
+    name.prepend(star);
+  }
   button.append(name);
+  // 찜한 동네는 이름 옆에 월세 시세를 붙인다.
+  if (caption) {
+    const note = document.createElement('small');
+    note.textContent = caption;
+    button.append(note);
+  }
   // 통근 시간은 동 색(15분 이하, 16~30분...)으로 이미 알리므로 이름표 글자에는 쓰지 않는다. 화면 낭독기에는 위 aria-label로 읽어 준다.
   if (rent) {
     const line = document.createElement('span');

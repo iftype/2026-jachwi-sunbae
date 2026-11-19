@@ -35,7 +35,7 @@ export const list = css`
   label: RecordsDesktopPage-list;
   min-height: 0;
   overflow-y: auto;
-  padding: 1rem 1.5rem 1.5rem;
+  padding: 0.5rem 1.5rem 1.5rem;
   background: white;
 `;
 

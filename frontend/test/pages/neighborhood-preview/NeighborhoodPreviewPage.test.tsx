@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import type { ReactNode } from 'react';
-import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { beforeEach, expect, it, vi } from 'vitest';
 
 import { commuteBoundaryFixtures } from '@/app/mocks/fixtures/commuteBoundaryFixtures';
@@ -56,6 +56,9 @@ vi.mock('@/features/map/ui/map-canvas/MapCanvas', async () => {
         </output>
         <output aria-label="지도 스타일">{props.customStyleId}</output>
         <output aria-label="지도 안내">{props.tip?.message ?? ''}</output>
+        <output aria-label="지도 안내 좌표">
+          {props.tip ? JSON.stringify({ latitude: props.tip.latitude, longitude: props.tip.longitude }) : ''}
+        </output>
         {props.tip && <button onClick={props.tip.onInteract}>지도 안내 닫기</button>}
         {props.coordinateAction && (
           <button onClick={props.coordinateAction.onClick} disabled={props.coordinateAction.disabled}>
@@ -118,7 +121,11 @@ vi.mock('@/features/map/ui/map-canvas/MapCanvas', async () => {
         {props.markers
           ?.filter((marker) => marker.actionable)
           .map((marker) => (
-            <button key={marker.id} onClick={() => props.onSelectMarker?.(marker)}>
+            <button
+              key={marker.id}
+              aria-pressed={props.selectedMarkerId === marker.id}
+              onClick={() => props.onSelectMarker?.(marker)}
+            >
               {`마커 ${marker.label}`}
             </button>
           ))}
@@ -189,6 +196,8 @@ const WithModeSwitch = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
   return <MapModeProvider value={{ target: 'records', onSwitch: () => navigate('/') }}>{children}</MapModeProvider>;
 };
+/** 패널을 접어도 고른 매물 쿼리가 남는지 보려고 지금 주소의 쿼리를 그린다. */
+const CurrentSearch = () => <span data-testid="current-search">{useLocation().search}</span>;
 type Entry = string | { pathname: string; state: unknown };
 const show = (isPublic = false, entries?: Entry[], withRecords = false) => {
   const page = (
@@ -212,6 +221,7 @@ const show = (isPublic = false, entries?: Entry[], withRecords = false) => {
     <PublicConfigProvider config={{ apiBaseUrl: 'http://localhost:8080', commuteDataSource: 'mock' }}>
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })}>
         <MemoryRouter initialEntries={entries ?? defaultEntries} initialIndex={entries ? entries.length - 1 : 0}>
+          <CurrentSearch />
           <Routes>
             <Route path="/" element={<h1>홈</h1>} />
             <Route path="/guide" element={<h1>사용 방법</h1>} />
@@ -306,10 +316,9 @@ it('공개 통근 탐색은 로그인 없이 결과를 보고 기록 CTA로 로�
   show(true);
   if (screen.queryByRole('button', { name: '지도에서 목적지 선택' }))
     await userEvent.click(screen.getByRole('button', { name: '지도에서 목적지 선택' }));
-  expect(screen.getByLabelText('지도 안내')).toHaveTextContent('지도를 눌러 출퇴근 장소를 골라요');
   const user = await choosePoint();
-  // 위치를 고른 뒤에는 단계별 안내 없이 바로 조건을 바꾸거나 찾을 수 있다.
-  expect(screen.getByLabelText('지도 안내')).toBeEmptyDOMElement();
+  // 위치를 고른 뒤에는 선택 안내 없이 바로 조건을 바꾸거나 찾을 수 있다.
+  expect(screen.queryByText('지도에서 출퇴근 장소를 눌러 주세요')).not.toBeInTheDocument();
   expect(screen.queryByText('원하는 조건을 정해주세요')).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: '통근 40분 이내' }));
   await submitCurrentSearch(user);
@@ -407,9 +416,26 @@ it('조건에 맞는 동네가 없으면 통근·환승 조건을 넓혀보라�
     matchMedia.mockRestore();
   }
 });
-it('지도를 한 번 누르면 출퇴근 장소로 쓴다', async () => {
+it('결과가 나오기 전에는 선택 모드를 켜지 않아도 지도 빈 곳을 한 번 누르면 출퇴근 장소로 쓴다', async () => {
   show(true);
   const user = userEvent.setup();
+  expect(screen.queryByText('지도에서 출퇴근 장소를 눌러 주세요')).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
+  expect(screen.getByLabelText('목적지 좌표')).toHaveTextContent('37.4');
+  expect(screen.getByRole('button', { name: /에서 찾기$/ })).toBeEnabled();
+});
+it('결과가 나오기 전에는 출퇴근 장소가 이미 있어도 지도 빈 곳을 누를 때마다 그 위치로 바뀐다', async () => {
+  show(true);
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
+  expect(screen.getByLabelText('목적지 좌표')).toHaveTextContent('37.4');
+  await user.click(screen.getByRole('button', { name: '다른 위치 찍기' }));
+  expect(screen.getByLabelText('목적지 좌표')).toHaveTextContent('37.45');
+});
+it('지도에서 선택을 켠 뒤 지도를 한 번 누르면 출퇴근 장소로 쓴다', async () => {
+  show(true);
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: /^지도에서 (목적지 )?선택$/ }));
   await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
   expect(screen.queryByRole('button', { name: '출퇴근 장소로 설정' })).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: /에서 찾기$/ })).toBeEnabled();
@@ -467,7 +493,6 @@ it('첫 진입은 지도이며 위치 권한을 묻지 않고 직접 선택 입�
   expect(screen.queryByRole('spinbutton', { name: '최대 통근 시간' })).not.toBeInTheDocument();
   if (screen.queryByRole('button', { name: '지도에서 목적지 선택' }))
     await userEvent.click(screen.getByRole('button', { name: '지도에서 목적지 선택' }));
-  expect(screen.getByLabelText('지도 안내')).toHaveTextContent('지도를 눌러 출퇴근 장소를 골라요');
   expect(screen.queryByRole('button', { name: '현재 위치에서 찾기' })).not.toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: '통근 40분 이내' }));
   // 조건 칸을 누르면 시트를 띄우지 않고 카드 안 조건 칸 아래에 그 피커만 펼친다.
@@ -526,6 +551,28 @@ it('현재 위치 조회 실패 시 지도에서 직접 찍을 수 있다', asyn
   await choosePoint();
   expect(screen.getByRole('button', { name: '통근 40분 이내' })).toBeInTheDocument();
   expect(screen.getByLabelText('지도 안내')).toBeEmptyDOMElement();
+});
+it('주소 검색 결과를 고르면 확대 단계는 그대로 두고 범위 밖이면 중심만 그 자리로 옮긴다', async () => {
+  const viewport = useDesktopViewport();
+  try {
+    show(false, undefined, true);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: '가까이 확대' }));
+    const view = () =>
+      JSON.parse(screen.getByLabelText('지도 시점').textContent ?? '{}') as {
+        center: { latitude: number };
+        level: number;
+      };
+    expect(view().level).toBe(4);
+    await user.type(screen.getByRole('textbox', { name: '출퇴근 장소' }), '서울시청');
+    await user.keyboard('{Enter}');
+    await user.click(await screen.findByRole('button', { name: /서울 중구 세종대로 110/ }));
+    // 보던 범위(37.495~37.506) 밖의 자리라 중심은 옮기지만, 확대 단계는 그대로다.
+    await waitFor(() => expect(view().center.latitude).not.toBeCloseTo(37.5, 1));
+    expect(view().level).toBe(4);
+  } finally {
+    viewport.mockRestore();
+  }
 });
 it('현재 위치 버튼 실패를 안내하고 재시도하면 목적지로 선택한다', async () => {
   vi.mocked(requestCurrentMapLocation)
@@ -614,45 +661,41 @@ it('통근 필터·조회·동네 선택 및 닫기에도 결과와 시점을 �
   expect(screen.queryByRole('button', { name: '동네 정보 닫기' })).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: '역삼1동' })).toBeInTheDocument();
 });
-it('결과 지도에 확대·축소 버튼을 두고, 손가락이나 휠로 바꾼 단계에서 한 단계씩 옮긴다', async () => {
+it('휴대폰 지도는 확대, 축소 버튼 없이 결과가 나와도 고르던 지도의 단계를 그대로 둔다', async () => {
   server.use(...mapHandlers, ...createStreetMemoHandlers([]));
   show();
   const user = await choosePoint();
-  // 장소를 고르는 지도에도 버튼을 두고, 결과 지도로 넘어가도 그대로 둔다.
-  expect(screen.getByRole('group', { name: '지도 확대·축소' })).toBeInTheDocument();
+  expect(screen.queryByRole('group', { name: '지도 확대·축소' })).not.toBeInTheDocument();
   await submitCurrentSearch(user);
-  const level = () => JSON.parse(screen.getByLabelText('지도 시점').textContent ?? '{}').level as number;
-  // 결과 첫 시점은 출퇴근 장소와 가까운 동네가 보이되 7단계보다 멀어지지 않는다.
-  await waitFor(() => expect(level()).toBe(7));
-  await user.click(await screen.findByRole('button', { name: '지도 확대' }));
-  expect(level()).toBe(6);
-  // 지도가 휠로 4단계에 멈췄다고 알리면, 축소 버튼은 그 단계에서 한 단계 멀어진다.
-  await user.click(screen.getByRole('button', { name: '가까이 확대' }));
-  await user.click(screen.getByRole('button', { name: '지도 축소' }));
-  expect(level()).toBe(5);
+  await screen.findByRole('region', { name: '행정동 프리셋 지도' });
+  expect(screen.queryByRole('group', { name: '지도 확대·축소' })).not.toBeInTheDocument();
+  expect(JSON.parse(screen.getByLabelText('지도 시점').textContent ?? '{}').level).toBe(5);
+});
+it('지도에서 선택을 켜면 안내 띠가 뜨고, 취소하면 사라지며 출퇴근 장소는 그대로다', async () => {
+  show(true);
+  const user = userEvent.setup();
+  expect(screen.queryByText('지도에서 출퇴근 장소를 눌러 주세요')).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: /^지도에서 (목적지 )?선택$/ }));
+  expect(screen.getByText('지도에서 출퇴근 장소를 눌러 주세요')).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: '취소' }));
+  expect(screen.queryByText('지도에서 출퇴근 장소를 눌러 주세요')).not.toBeInTheDocument();
 });
 it('출퇴근 장소 안내는 지도 좌표에 붙는 말풍선으로 띄우고, 지도를 누르거나 끌면 닫아 다시 띄우지 않는다', async () => {
   show(true);
-  if (screen.queryByRole('button', { name: '지도에서 목적지 선택' }))
-    await userEvent.click(screen.getByRole('button', { name: '지도에서 목적지 선택' }));
   expect(screen.getByLabelText('지도 안내')).toHaveTextContent('지도를 눌러 출퇴근 장소를 골라요');
   await userEvent.click(screen.getByRole('button', { name: '지도 안내 닫기' }));
   expect(screen.getByLabelText('지도 안내')).toBeEmptyDOMElement();
   // 봤음이 저장돼 다시 열어도 뜨지 않는다.
   expect(localStorage.getItem('jachwi:neighborhood-map-tip-seen')).toBe('true');
 });
-it('장소를 고르는 지도에도 현재 위치 버튼 위에 확대, 축소 버튼을 두고 한 단계씩 옮긴다', async () => {
-  show();
-  const level = () => (JSON.parse(screen.getByLabelText('지도 시점').textContent ?? '{}') as { level: number }).level;
+it('선택 모드에서는 말풍선 대신 안내 띠만 두고, 지도를 누르면 출퇴근 장소로 쓴다', async () => {
+  show(true);
   const user = userEvent.setup();
-  const zoom = within(await screen.findByRole('group', { name: '지도 확대·축소' }));
-  // 첫 시점은 미리보기 매물 시점보다 3단계 가까운 단계(INTRO_MAP_LEVEL)다.
-  expect(level()).toBe(5);
-  await user.click(zoom.getByRole('button', { name: '지도 확대' }));
-  expect(level()).toBe(4);
-  await user.click(zoom.getByRole('button', { name: '지도 축소' }));
-  await user.click(zoom.getByRole('button', { name: '지도 축소' }));
-  expect(level()).toBe(6);
+  await user.click(screen.getByRole('button', { name: /^지도에서 (목적지 )?선택$/ }));
+  expect(screen.getByLabelText('지도 안내')).toBeEmptyDOMElement();
+  await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
+  expect(screen.getByLabelText('목적지 좌표')).toHaveTextContent('37.4');
+  expect(screen.queryByText('지도에서 출퇴근 장소를 눌러 주세요')).not.toBeInTheDocument();
 });
 it('데스크탑도 장소를 고르는 지도에 확대, 축소 버튼을 둔다', async () => {
   const matchMedia = useDesktopViewport();
@@ -1201,6 +1244,7 @@ it('모바일 결과에서 월세는 상단 슬라이더로, 통근은 조건을
   await user.click(rent);
   expect(screen.queryByRole('slider', { name: '최대 월세 시세' })).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: '출퇴근 장소 다시 선택' }));
+  await user.click(screen.getByRole('button', { name: /^지도에서 (목적지 )?선택$/ }));
   await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
   const form = within(screen.getByRole('region', { name: '고른 출퇴근 장소' }));
   await user.click(form.getByRole('button', { name: '통근 40분 이내' }));
@@ -1237,3 +1281,348 @@ it('데스크탑 통합 지도는 왼쪽 조건 칸과 지도 위 찾은 동네 
     viewport.mockRestore();
   }
 });
+
+it('데스크탑 동네 찾기는 찜한 동네만 보는 동안 지도 위 찾은 동네 뱃지 줄을 숨기고, 끄면 다시 보인다', async () => {
+  const viewport = useDesktopViewport();
+  writeBookmarkedAdminDongs(['11210690']);
+  localStorage.setItem('jachwi:records-bookmark-layer-rail', 'off');
+  server.use(...adminDongBookmarkHandlers);
+  try {
+    show(false, undefined, true);
+    const user = await choosePoint();
+    await user.click(screen.getByRole('button', { name: '이 조건으로 동네 찾기' }));
+    await screen.findByRole('navigation', { name: '찾은 동네' });
+    const toggle = await screen.findByRole('button', { name: '찜한 동네 토글' });
+    await user.click(toggle);
+    await waitFor(() => expect(toggle).toHaveAttribute('aria-pressed', 'true'));
+    expect(screen.queryByRole('navigation', { name: '찾은 동네' })).not.toBeInTheDocument();
+    // 지도 아래 가운데의 다시 선택 버튼은 뱃지 줄과 따로라 그대로 남는다.
+    expect(screen.getByRole('button', { name: '출퇴근 장소 다시 선택' })).toBeInTheDocument();
+    await user.click(toggle);
+    expect(await screen.findByRole('navigation', { name: '찾은 동네' })).toBeInTheDocument();
+  } finally {
+    writeBookmarkedAdminDongs([]);
+    localStorage.removeItem('jachwi:records-bookmark-layer-rail');
+    viewport.mockRestore();
+  }
+});
+
+it('데스크탑 결과 지도의 출퇴근 장소 다시 선택은 동네 뱃지 줄 밖 지도 아래 가운데에 있고, 선택 모드에서는 보이지 않는다', async () => {
+  const viewport = useDesktopViewport();
+  try {
+    show(false, undefined, true);
+    const user = await choosePoint();
+    await user.click(screen.getByRole('button', { name: '이 조건으로 동네 찾기' }));
+    await screen.findByRole('region', { name: '행정동 프리셋 지도' });
+    const reselect = screen.getByRole('button', { name: '출퇴근 장소 다시 선택' });
+    expect(
+      within(screen.getByRole('navigation', { name: '찾은 동네' })).queryByText('출퇴근 장소 다시 선택'),
+    ).toBeNull();
+    expect(reselect.closest('nav')).toBeNull();
+    await user.click(reselect);
+    expect(screen.queryByRole('button', { name: '출퇴근 장소 다시 선택' })).not.toBeInTheDocument();
+  } finally {
+    viewport.mockRestore();
+  }
+});
+it('데스크탑 동네 찾기는 선택 전, 선택 중, 주소 검색 중에도 내 매물을 늘 그린다', async () => {
+  const viewport = useDesktopViewport();
+  useOneRecordedProperty();
+  try {
+    show(false, undefined, true);
+    const user = userEvent.setup();
+    const shown = () => markerList().map((marker) => marker.id);
+    // 선택 모드로 들어온 직후에도 내 매물을 그린다.
+    await screen.findByText('지도에서 출퇴근 장소를 눌러 주세요');
+    await waitFor(() => expect(shown()).toContain('my-property:10'));
+    // 선택 모드를 끈 처음 진입(조건 입력) 상태에서도 그린다.
+    await user.click(screen.getByRole('button', { name: '취소' }));
+    expect(shown()).toContain('my-property:10');
+    // 주소를 입력하며 검색하는 동안에도 그린다.
+    await user.type(screen.getByRole('textbox', { name: '출퇴근 장소' }), '서울시청');
+    expect(shown()).toContain('my-property:10');
+  } finally {
+    viewport.mockRestore();
+  }
+});
+const routeRequests = () => {
+  const paths: string[] = [];
+  const track = ({ request }: { request: Request }) => {
+    const path = new URL(request.url).pathname;
+    if (path.endsWith('/commute-route')) paths.push(path);
+  };
+  server.events.on('request:start', track);
+  return { paths, stop: () => server.events.removeListener('request:start', track) };
+};
+it('선택 전에 매물 마커를 누르면 패널이 열리고 지도는 줌 변경 없이 그 매물 쪽으로만 옮기며 출퇴근 장소는 잡히지 않는다', async () => {
+  const viewport = useDesktopViewport();
+  useOneRecordedProperty();
+  const requests = routeRequests();
+  try {
+    show(false, undefined, true);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: '취소' }));
+    const before = mapView();
+    await user.click(await screen.findByRole('button', { name: '마커 신림역 원룸' }));
+    const panel = await screen.findByRole('complementary', { name: '내 매물 정보' });
+    expect(panel).toHaveTextContent('신림역 원룸');
+    // 출퇴근 장소가 없으면 노선 대신 안내만 보이고 노선은 부르지 않는다.
+    expect(panel).toHaveTextContent('출퇴근 장소를 정하면 이 집에서 가는 노선을 알려 드려요');
+    expect(markerList().map((marker) => marker.id)).not.toContain('destination');
+    expect(requests.paths).toEqual([]);
+    expect(screen.getByRole('button', { name: '마커 신림역 원룸' })).toHaveAttribute('aria-pressed', 'true');
+    const after = mapView();
+    expect(after.center).toMatchObject({
+      latitude: propertySummaryFixture.location.latitude,
+      longitude: propertySummaryFixture.location.longitude,
+    });
+    expect(after.level).toBe(before.level);
+  } finally {
+    requests.stop();
+    viewport.mockRestore();
+  }
+});
+it('선택 모드에서도 매물 마커를 누르면 패널이 열리고 선택 모드는 그대로며, 지도 빈 곳은 후보를 정하고 패널을 닫는다', async () => {
+  const viewport = useDesktopViewport();
+  useOneRecordedProperty();
+  try {
+    show(false, undefined, true);
+    const user = userEvent.setup();
+    await screen.findByText('지도에서 출퇴근 장소를 눌러 주세요');
+    await user.click(await screen.findByRole('button', { name: '마커 신림역 원룸' }));
+    expect(await screen.findByRole('complementary', { name: '내 매물 정보' })).toHaveTextContent('신림역 원룸');
+    expect(markerList().map((marker) => marker.id)).not.toContain('destination');
+    expect(screen.getByText('지도에서 출퇴근 장소를 눌러 주세요')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
+    expect(markerList().find((marker) => marker.id === 'destination')).toMatchObject({ latitude: 37.4 });
+    expect(screen.queryByRole('complementary', { name: '내 매물 정보' })).not.toBeInTheDocument();
+  } finally {
+    viewport.mockRestore();
+  }
+});
+it('선택 전에 지도 빈 곳을 누르면 출퇴근 장소가 잡히고, 그 뒤 매물 마커를 눌러도 출퇴근 장소는 그대로다', async () => {
+  const viewport = useDesktopViewport();
+  useOneRecordedProperty();
+  try {
+    show(false, undefined, true);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: '취소' }));
+    await user.click(await screen.findByRole('button', { name: '지도에서 위치 찍기' }));
+    const destination = markerList().find((marker) => marker.id === 'destination');
+    expect(destination).toMatchObject({ latitude: 37.4 });
+    await user.click(await screen.findByRole('button', { name: '마커 신림역 원룸' }));
+    await screen.findByRole('complementary', { name: '내 매물 정보' });
+    expect(markerList().find((marker) => marker.id === 'destination')).toEqual(destination);
+  } finally {
+    viewport.mockRestore();
+  }
+});
+it('모바일도 선택 전에 매물 마커를 누르면 하단 시트가 열리고 출퇴근 장소는 잡히지 않는다', async () => {
+  useOneRecordedProperty();
+  const requests = routeRequests();
+  try {
+    show(false, undefined, true);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: '취소' }));
+    const before = mapView();
+    await user.click(await screen.findByRole('button', { name: '마커 신림역 원룸' }));
+    expect(await screen.findByText('출퇴근 장소를 정하면 이 집에서 가는 노선을 알려 드려요')).toBeInTheDocument();
+    expect(markerList().map((marker) => marker.id)).not.toContain('destination');
+    expect(requests.paths).toEqual([]);
+    expect(mapView().level).toBe(before.level);
+  } finally {
+    requests.stop();
+  }
+});
+it('결과 후 매물 마커를 누르면 접어 둔 패널이 펼쳐지고 지도는 그 매물 쪽으로만 옮긴다(확대 단계는 그대로)', async () => {
+  const viewport = useDesktopViewport();
+  useOneRecordedProperty();
+  try {
+    show(false, undefined, true);
+    const user = await choosePoint();
+    await user.click(screen.getByRole('button', { name: '이 조건으로 동네 찾기' }));
+    await screen.findByRole('complementary', { name: '동네 찾기 결과' });
+    await user.click(await screen.findByRole('button', { name: '마커 신림역 원룸' }));
+    await screen.findByRole('complementary', { name: '내 매물 정보' });
+    await user.click(screen.getByRole('button', { name: '상세 접기' }));
+    expect(screen.queryByRole('complementary', { name: '내 매물 정보' })).not.toBeInTheDocument();
+    const before = JSON.parse(screen.getByLabelText('지도 시점').textContent ?? '{}');
+    await user.click(screen.getByRole('button', { name: '마커 신림역 원룸' }));
+    expect(await screen.findByRole('complementary', { name: '내 매물 정보' })).toHaveTextContent('신림역 원룸');
+    // 지도는 그 매물 쪽으로 옮기되 확대 단계는 그대로 둔다(패널 틀이 없는 테스트 환경에서는 매물 자리가 곧 가운데다).
+    const after = JSON.parse(screen.getByLabelText('지도 시점').textContent ?? '{}');
+    expect(after.center).toMatchObject({
+      latitude: propertySummaryFixture.location.latitude,
+      longitude: propertySummaryFixture.location.longitude,
+    });
+    expect(after.level).toBe(before.level);
+  } finally {
+    viewport.mockRestore();
+  }
+});
+
+/** 기록한 매물 하나(신림역 원룸, id 10)와 그 매물의 통근 시간(25분)을 돌려준다. */
+const useOneRecordedProperty = () =>
+  server.use(
+    http.get('*/api/properties', () =>
+      HttpResponse.json(successEnvelope(propertyPageFixture([propertySummaryFixture]))),
+    ),
+    http.get('*/api/properties/commute-times', () =>
+      HttpResponse.json(
+        successEnvelope({
+          maxMinutes: 60,
+          maxTransfers: 2,
+          properties: [{ propertyId: 10, status: 'REACHABLE', commuteMinutes: 25 }],
+        }),
+      ),
+    ),
+  );
+
+it('동네 찾기 지도에도 내 기록과 같은 매물 마커를 올리고, 찜한 동네를 켜도 매물은 걷지 않는다', async () => {
+  useOneRecordedProperty();
+  writeBookmarkedAdminDongs(['11210690']);
+  server.use(...adminDongBookmarkHandlers);
+  try {
+    show(false, undefined, true);
+    const user = await choosePoint();
+    // 장소를 고른 뒤 조건을 입력하는 화면에서도 내 매물을 그린다.
+    await waitFor(() => expect(markerList().map((marker) => marker.id)).toContain('my-property:10'));
+    await submitCurrentSearch(user);
+    await screen.findByRole('region', { name: '행정동 프리셋 지도' });
+    const property = markerList().find((marker) => marker.id === 'my-property:10');
+    // 내 기록 지도의 매물 마커와 같은 사진 카드에 월세를 적는다.
+    expect(property).toMatchObject({ label: '신림역 원룸', tone: 'property', summary: { amount: '55만' } });
+    // 결과 지도의 출퇴근 장소 핀은 말풍선 라벨이라 매물 카드보다 위에 온다.
+    expect(markerList().find((marker) => marker.id === 'destination')).toMatchObject({ tone: 'pinLabel' });
+    const bookmark = await screen.findByRole('button', { name: '찜한 동네 토글' });
+    if (bookmark.getAttribute('aria-pressed') !== 'true') await user.click(bookmark);
+    await waitFor(() => expect(bookmark).toHaveAttribute('aria-pressed', 'true'));
+    expect(markerList().map((marker) => marker.id)).toEqual(expect.arrayContaining(['destination', 'my-property:10']));
+  } finally {
+    writeBookmarkedAdminDongs([]);
+    localStorage.removeItem('jachwi:records-bookmark-layer-rail');
+  }
+});
+
+it('동네 찾기 결과 지도의 매물 마커를 누르면 그 매물의 정보가 열린다', async () => {
+  useOneRecordedProperty();
+  show(false, undefined, true);
+  const user = await choosePoint();
+  await submitCurrentSearch(user);
+  await screen.findByRole('region', { name: '행정동 프리셋 지도' });
+  await user.click(await screen.findByRole('button', { name: '마커 신림역 원룸' }));
+  expect(await screen.findByText('서울 관악구 신림로 12')).toBeInTheDocument();
+});
+it('동네 찾기 결과에서 매물 마커를 눌러도 출퇴근 장소는 바뀌지 않는다', async () => {
+  useOneRecordedProperty();
+  show(false, undefined, true);
+  const user = await choosePoint();
+  await submitCurrentSearch(user);
+  await screen.findByRole('region', { name: '행정동 프리셋 지도' });
+  const destination = markerList().find((marker) => marker.id === 'destination');
+  await user.click(await screen.findByRole('button', { name: '마커 신림역 원룸' }));
+  await screen.findByText('서울 관악구 신림로 12');
+  expect(markerList().find((marker) => marker.id === 'destination')).toEqual(destination);
+  // 마커를 누른 뒤 지도 빈 곳을 눌러도 결과 단계에서는 출퇴근 장소가 바뀌지 않는다.
+  await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
+  expect(markerList().find((marker) => marker.id === 'destination')).toEqual(destination);
+  expect(screen.getByRole('region', { name: '행정동 프리셋 지도' })).toBeInTheDocument();
+});
+
+it('데스크탑 동네 찾기 매물 패널도 `<` 버튼으로 접기만 하고, 고른 매물과 마커 선택은 남긴 채 펼치면 그대로 보인다', async () => {
+  const viewport = useDesktopViewport();
+  useOneRecordedProperty();
+  try {
+    show(false, undefined, true);
+    const user = await choosePoint();
+    await user.click(screen.getByRole('button', { name: '이 조건으로 동네 찾기' }));
+    await screen.findByRole('complementary', { name: '동네 찾기 결과' });
+    await user.click(await screen.findByRole('button', { name: '마커 신림역 원룸' }));
+    expect(await screen.findByRole('complementary', { name: '내 매물 정보' })).toBeInTheDocument();
+    const search = screen.getByTestId('current-search').textContent ?? '';
+    expect(search).toContain('property=');
+
+    await user.click(screen.getByRole('button', { name: '상세 접기' }));
+    expect(screen.queryByRole('complementary', { name: '내 매물 정보' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('current-search')).toHaveTextContent(search);
+    expect(screen.getByRole('button', { name: '마커 신림역 원룸' })).toHaveAttribute('aria-pressed', 'true');
+
+    await user.click(screen.getByRole('button', { name: '상세 펼치기' }));
+    expect(screen.getByRole('complementary', { name: '내 매물 정보' })).toHaveTextContent('신림역 원룸');
+  } finally {
+    viewport.mockRestore();
+  }
+});
+
+/** 지도에 넘긴 시점(가운데와 확대 단계). */
+const mapView = () =>
+  JSON.parse(screen.getByLabelText('지도 시점').textContent ?? '{}') as {
+    center: { latitude: number; longitude: number };
+    level: number;
+  };
+it('휴대폰 결과 지도에서 출퇴근 장소를 다시 고르러 가고 돌아와도 보던 가운데와 확대 단계를 그대로 둔다', async () => {
+  show();
+  const user = await choosePoint();
+  await submitCurrentSearch(user);
+  await screen.findByRole('region', { name: '행정동 프리셋 지도' });
+  const { center } = mapView();
+  // 결과 지도에서 손가락으로 확대한 단계(4)는 다시 그리지 않고 기억만 한다.
+  await user.click(screen.getByRole('button', { name: '가까이 확대' }));
+  await user.click(screen.getByRole('button', { name: '출퇴근 장소 다시 선택' }));
+  expect(screen.getByRole('region', { name: '지도에서 목적지 선택' })).toBeInTheDocument();
+  expect(mapView()).toEqual({ center, level: 4 });
+  await user.click(screen.getByRole('button', { name: '지도에서 목적지 선택' }));
+  expect(mapView()).toEqual({ center, level: 4 });
+  await user.click(screen.getByRole('button', { name: '이전 결과 보기' }));
+  await screen.findByRole('region', { name: '행정동 프리셋 지도' });
+  expect(mapView()).toEqual({ center, level: 4 });
+});
+it('데스크탑 결과에서 바꾸기나 지도에서 선택을 눌러도 보던 가운데와 확대 단계를 그대로 둔다', async () => {
+  const viewport = useDesktopViewport();
+  try {
+    show(false, undefined, true);
+    const user = await choosePoint();
+    await user.click(screen.getByRole('button', { name: '이 조건으로 동네 찾기' }));
+    await screen.findByRole('complementary', { name: '동네 찾기 결과' });
+    const { center } = mapView();
+    await user.click(screen.getByRole('button', { name: '가까이 확대' }));
+    await user.click(screen.getByRole('button', { name: '바꾸기' }));
+    expect(screen.getByRole('region', { name: '지도에서 목적지 선택' })).toBeInTheDocument();
+    expect(mapView()).toEqual({ center, level: 4 });
+    await user.click(screen.getByRole('button', { name: '지도에서 선택' }));
+    expect(mapView()).toEqual({ center, level: 4 });
+    // 고른 자리가 보이는 범위 안이면 중심도 옮기지 않고, 찾은 뒤에도 같은 시점을 이어 쓴다.
+    await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
+    expect(mapView()).toEqual({ center, level: 4 });
+  } finally {
+    viewport.mockRestore();
+  }
+});
+it.each([false, true])(
+  '첫 안내(배너, 칩)로 들어오면 한 번만 첫 안내 말풍선 자리로 옮겨 확대하고, 다른 입구는 보던 지도를 그대로 둔다 (데스크탑: %s)',
+  async (isDesktop) => {
+    const viewport = isDesktop ? useDesktopViewport() : null;
+    try {
+      const plain = show();
+      // 다른 입구로 들어오면 첫 화면 단계(5) 그대로다.
+      const before = mapView();
+      expect(before.level).toBe(5);
+      const tipAnchor = JSON.parse(screen.getByLabelText('지도 안내 좌표').textContent ?? '{}') as {
+        latitude: number;
+        longitude: number;
+      };
+      plain.unmount();
+      show(false, [{ pathname: '/neighborhoods', state: { fromFirstPrompt: true } }]);
+      // 두 단계 가까이 다가가고, 말풍선이 붙은 자리가 지도 가운데가 된다.
+      await waitFor(() => expect(mapView().level).toBe(before.level - 2));
+      expect(mapView().center).toEqual(tipAnchor);
+      // 한 번만 옮긴다. 그 뒤 사용자가 지도를 움직이면(단계 7) 다시 그려도 끌어오지 않는다.
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('button', { name: '화면 범위 알림' }));
+      await user.click(screen.getByRole('button', { name: /^지도에서 (목적지 )?선택$/ }));
+      expect(mapView().level).toBe(7);
+    } finally {
+      viewport?.mockRestore();
+    }
+  },
+);

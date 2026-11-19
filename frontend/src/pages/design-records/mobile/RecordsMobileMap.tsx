@@ -1,15 +1,15 @@
-import { css } from '@emotion/css';
+import { css, cx } from '@emotion/css';
 
 import MapCanvas from '@/features/map/ui/map-canvas/MapCanvas';
-import MapZoomControl from '@/features/map/ui/map-zoom-control/MapZoomControl';
 import StreetMemoImpressionLog from '@/features/street-memo/ui/street-memo-impression-log/StreetMemoImpressionLog';
 import StreetMemoSheet from '@/features/street-memo/ui/street-memo-sheet/StreetMemoSheet';
+import { hideWhenSheetExpanded } from '@/shared/ui/bottom-sheet/hideWhenSheetExpanded';
+import { setSheetCollapsed, useSheetCollapsed } from '@/shared/ui/bottom-sheet/sheetCollapse';
 import Icon from '@/shared/ui/icon/Icon';
 
 import type { RecordsState } from '../hooks/useRecords';
 import type { RecordsMapLayers } from '../hooks/useRecordsMapLayers';
 import { recordNeighbors } from '../model/recordNavigation';
-import RecordNeighborhoodBanner from '../ui/record-neighborhood-banner/RecordNeighborhoodBanner';
 import RecordRegisterSuggestion from '../ui/record-register-suggestion/RecordRegisterSuggestion';
 import RecordStepper from '../ui/record-stepper/RecordStepper';
 import RecordsSelectedSheet from './RecordsSelectedSheet';
@@ -20,37 +20,47 @@ type Props = {
 };
 
 /**
- * 휴대폰, 태블릿 본 방 기록 지도. 위에 뜬 헤더 아래로 확대 축소와 현재 위치 버튼을 두고 거리 메모는 늘 띄운다. 시설 분류는 동네 찾기로 옮겼다.
+ * 휴대폰, 태블릿 본 방 기록 지도. 현재 위치 버튼은 오른쪽 아래에 두고(시트가 열리면 시트 위로 따라 오른다) 거리 메모는 늘 띄운다. 확대 축소 버튼은 없다. 시설 분류는 동네 찾기로 옮겼다.
  * 데스크탑처럼 빈 곳을 찍으면 그 자리 말풍선에서 메모를 남기거나 매물을 등록한다. 열린 것이 있으면 먼저 닫기만 한다.
  * 고른 매물은 아래 바텀시트에서 보고, 겹쳐 묶인 매물은 시트에 함께 늘어놓는다.
  * 매물 하나를 볼 때는 시트 머리의 이전, 다음으로 목록 순서대로 넘기고, 지도와 마커 선택도 그 매물로 따라간다.
  */
 const RecordsMobileMap = ({ records, layers }: Props) => {
   const { selected } = records;
+  // 매물 시트를 접어 둔 선호. 접힌 채로 다른 마커를 눌러도, 선택을 풀었다 다시 골라도 이어진다(세션 상태, 동네 찾기 지도와 공유).
+  const isSheetCollapsed = useSheetCollapsed();
   const sheetRecords = layers.groupRecords.length > 0 ? layers.groupRecords : selected ? [selected] : [];
   // 겹친 매물 묶음을 볼 때는 넘길 기준이 하나가 아니라 화살표를 두지 않는다.
   const neighbors = layers.groupRecords.length === 0 && selected ? recordNeighbors(records.records, selected.id) : null;
+  // 확대 축소 버튼은 두지 않는다(두 손가락으로 확대한다). 시트가 열려 있으면 시트 바로 위에 띄워 함께 오르내리고,
+  // 시트를 크게 열면 시트 뒤로 숨긴다. 시트가 없으면 하단 탭 위 오른쪽 아래에 둔다.
+  const hasSheet = sheetRecords.length > 0 || layers.memo.mode !== null;
+  const locateButton = (className: string) => (
+    <button
+      className={className}
+      type="button"
+      aria-label="현재 위치로 이동"
+      onClick={() => records.moveToCurrentLocation(layers.suggestRegisterAt)}
+    >
+      <Icon name="target" size={22} />
+    </button>
+  );
+  const sheetLocate = locateButton(styles.recenterDocked);
   return (
     <section className={styles.map} aria-label="본 방 기록 지도">
       <MapCanvas shared {...layers.canvasProps} coordinateMenu={layers.coordinateMenu} />
       <StreetMemoImpressionLog memos={layers.memo.visibleMemos} />
-      <button
-        className={styles.recenter}
-        type="button"
-        aria-label="현재 위치로 이동"
-        onClick={() => records.moveToCurrentLocation(layers.suggestRegisterAt)}
-      >
-        <Icon name="target" size={22} />
-      </button>
-      <MapZoomControl className={styles.zoom} level={records.level} onChange={records.setLevel} />
-      {sheetRecords.length === 0 && layers.memo.mode === null && <RecordNeighborhoodBanner className={styles.banner} />}
+      {!hasSheet && locateButton(styles.recenterCorner)}
       <RecordsSelectedSheet
         records={sheetRecords}
         onClose={layers.closeAll}
-        stepper={neighbors && <RecordStepper neighbors={neighbors} onStep={records.showRecord} />}
+        stepper={neighbors && <RecordStepper neighbors={neighbors} onStep={records.showRecordOnMap} />}
         onNotice={records.setNotice}
+        collapsed={isSheetCollapsed}
+        onCollapsedChange={setSheetCollapsed}
+        floating={layers.memo.mode === null ? sheetLocate : undefined}
       />
-      <StreetMemoSheet layer={layers.memo} />
+      <StreetMemoSheet layer={layers.memo} floating={sheetLocate} />
       <RecordRegisterSuggestion
         isOpen={layers.isSuggestingRegister}
         onAccept={layers.acceptRegisterSuggestion}
@@ -60,8 +70,27 @@ const RecordsMobileMap = ({ records, layers }: Props) => {
   );
 };
 
+const recenter = css`
+  label: RecordsMobileMap-recenter;
+  display: grid;
+  place-items: center;
+  width: 2.65rem;
+  height: 2.65rem;
+  border: 0;
+  border-radius: 50%;
+  color: #41444b;
+  background: #fff;
+  box-shadow: 0 2px 10px #00000016;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid #25282d;
+    outline-offset: 3px;
+  }
+`;
+
 const styles = {
-  /* 휴대폰, 태블릿 본 방 기록 지도. 위에 뜬 헤더와 동네 뱃지 아래로 확대 축소와 현재 위치 버튼을 두고, 아래쪽에 지도 안내를 띄운다. */
+  /* 휴대폰, 태블릿 본 방 기록 지도. */
   map: css`
     label: RecordsMobileMap-map;
     position: relative;
@@ -69,43 +98,20 @@ const styles = {
     min-height: 0;
   `,
 
-  /* 아래 가운데 보기 방식 스위치(fixed, 약 3rem) 위에 둔다. */
-  banner: css`
-    label: RecordsMobileMap-banner;
-    bottom: calc(var(--map-sheet-bottom, env(safe-area-inset-bottom)) + 4.75rem);
-  `,
+  /* 시트가 없을 때: 하단 탭 위(`--map-sheet-bottom`) 오른쪽 아래. */
+  recenterCorner: cx(
+    recenter,
+    css`
+      label: RecordsMobileMap-recenterCorner;
+      position: absolute;
+      right: 1rem;
+      bottom: calc(var(--map-sheet-bottom, env(safe-area-inset-bottom, 0px)) + 0.75rem);
+      z-index: 12;
+    `,
+  ),
 
-  /* 세로 확대 축소 버튼 바로 아래에 둔다. */
-  recenter: css`
-    label: RecordsMobileMap-recenter;
-    position: absolute;
-    /* 확대 축소 바로 아래(zoom 8rem + 높이 약 5.3rem + 간격 0.5rem)에 붙인다. */
-    top: calc(max(0.85rem, env(safe-area-inset-top)) + 13.8rem);
-    right: 0.95rem;
-    z-index: 12;
-    display: grid;
-    place-items: center;
-    width: 2.65rem;
-    height: 2.65rem;
-    border: 0;
-    border-radius: 50%;
-    color: #41444b;
-    background: #fff;
-    box-shadow: 0 2px 10px #00000016;
-    cursor: pointer;
-
-    &:focus-visible {
-      outline: 2px solid #25282d;
-      outline-offset: 3px;
-    }
-  `,
-
-  /* 헤더와 동네 뱃지 아래 오른쪽 위에 두고, 현재 위치 버튼은 그 아래에 둔다. */
-  zoom: css`
-    label: RecordsMobileMap-zoom;
-    top: calc(max(0.85rem, env(safe-area-inset-top)) + 8rem);
-    right: 0.95rem;
-  `,
+  /* 시트 위 `floating` 칸 안에서는 위치를 시트가 정한다. 시트를 크게 열면 숨긴다. */
+  recenterDocked: cx(recenter, hideWhenSheetExpanded),
 };
 
 export default RecordsMobileMap;

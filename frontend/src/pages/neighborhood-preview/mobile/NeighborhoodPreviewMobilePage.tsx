@@ -1,4 +1,4 @@
-import { css } from '@emotion/css';
+import { css, cx } from '@emotion/css';
 import { useRef, useState } from 'react';
 import { Outlet, useMatch } from 'react-router-dom';
 
@@ -8,6 +8,8 @@ import ExplorationRecordAction from '@/features/onboarding/ui/exploration-record
 import { LogClick } from '@/shared/lib/analytics/logging';
 import { NEIGHBORHOOD_ADDRESS_SEARCH_PATH, ROUTE_PATTERNS } from '@/shared/lib/navigation/appPaths';
 import BottomSheet from '@/shared/ui/bottom-sheet/BottomSheet';
+import { hideWhenSheetExpanded } from '@/shared/ui/bottom-sheet/hideWhenSheetExpanded';
+import { setSheetCollapsed, useSheetCollapsed } from '@/shared/ui/bottom-sheet/sheetCollapse';
 import { Button } from '@/shared/ui/button/Button';
 import Icon from '@/shared/ui/icon/Icon';
 import { useMapPanel } from '@/shared/ui/map-list-header/MapPanelContext';
@@ -28,6 +30,7 @@ import CriteriaSummary from '../ui/criteria-summary/CriteriaSummary';
 import LocationControls from '../ui/location-controls/LocationControls';
 import MapInfo, { type MapInfoSubject, mapInfoTitle } from '../ui/map-info/MapInfo';
 import NeighborhoodMapSearch from '../ui/map-search/NeighborhoodMapSearch';
+import MapSelectionHint from '../ui/map-selection-hint/MapSelectionHint';
 import RentSlider from '../ui/rent-slider/RentSlider';
 
 import * as shared from '../NeighborhoodPreviewPage.styles';
@@ -86,11 +89,16 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
     <CriteriaSummary preview={preview} isRentOpen={isRentOpen} onToggleRent={() => setIsRentOpen((open) => !open)} />
   );
   const selectedArea = isRoutePage && !isAreaSheetDismissed ? preview.selected : undefined;
+  // 위치를 고르는 지도(선택 전, 선택 중)에서는 눌러 연 내 매물 하나만 시트에 둔다.
   const infoSubject: MapInfoSubject | null = places.selectedPlace
     ? { kind: 'place', place: places.selectedPlace }
-    : selectedArea
+    : selectedArea && isResultMap
       ? { kind: 'area', area: selectedArea }
       : null;
+  // 내 매물 시트는 위에 매물 요약, 아래에 노선을 두어 한 단계 더 높게 열고 끌어 올릴 수 있다.
+  const isPropertySheet = infoSubject?.kind === 'place' && infoSubject.place.kind === 'property';
+  // 선택한 매물 시트를 접어 둔 선호(내 기록 모바일과 같은 세션 상태). 접어도 고른 매물과 지도 마커는 그대로고, 마커를 누르면 펼친다.
+  const isSheetCollapsed = useSheetCollapsed();
   const bookmark = infoSubject?.kind === 'area' ? mapView.bookmark(infoSubject.area.adminDongCode) : undefined;
   // 고른 동네가 있으면(시트를 닫아 두었어도) 빈 곳을 찍어 선택을 푼다. 마커나 `My` 시트만 열려 있으면 제목만 보이게 내린다.
   emptyTapRef.current = () => {
@@ -114,14 +122,64 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
     const header = section.querySelector('header');
     return mobileMapViewport(rect, header ? header.getBoundingClientRect().bottom - rect.top : 0);
   });
-  // 결과에 들어오자마자 오른쪽 위에 확대 축소, 분류 레일(중개사, 병원, 교통, 편의, My), 현재 위치 버튼을 한 줄로 세운다.
-  const resultControls = (
-    <LocationControls
-      preview={preview}
-      isResult
-      zoom={{ level: preview.resultLevel, onZoom: preview.zoomResultBy }}
-      className={styles.railControls}
-    />
+  // 휴대폰 지도에는 확대 축소 버튼을 두지 않는다(두 손가락으로 확대한다). 현재 위치 버튼만 오른쪽 아래에 두고,
+  // 시트가 있으면 시트 바로 위에 띄워(BottomSheet `floating`) 시트가 오르내릴 때 함께 움직이게 한다. 시트를 크게 열면 시트 뒤로 숨긴다.
+  const locateControls = (className: string, docked = false) => (
+    <LocationControls preview={preview} isResult docked={docked} className={className} />
+  );
+  // 정보 시트. 결과 지도와 위치를 고르는 지도가 같은 시트를 쓴다.
+  const infoSheet = infoSubject && (
+    <BottomSheet
+      key={infoSubject.kind === 'area' ? `area:${infoSubject.area.adminDongCode}` : infoSubject.kind}
+      title={mapInfoTitle(infoSubject)}
+      initialHeightPercent={infoSubject.kind === 'area' ? MOBILE_AREA_SHEET_PERCENT : isPropertySheet ? 55 : 40}
+      resizable={infoSubject.kind === 'area' || isPropertySheet}
+      fullPage={false}
+      className={infoSubject.kind === 'area' ? styles.areaSheet : undefined}
+      closeLabel="정보 닫기"
+      collapsible={isPropertySheet}
+      initialMode={isPropertySheet && isSheetCollapsed ? 'peek' : 'default'}
+      onModeChange={isPropertySheet ? (mode) => setSheetCollapsed(mode === 'peek') : undefined}
+      onBack={myPager?.backToList}
+      headerEnd={
+        bookmark ? (
+          <button
+            type="button"
+            className={styles.bookmark}
+            aria-label={bookmark.isOn ? '찜한 동네에서 삭제' : '찜한 동네에 추가'}
+            aria-pressed={bookmark.isOn}
+            onClick={bookmark.onToggle}
+          >
+            {bookmark.isOn ? '★' : '☆'}
+          </button>
+        ) : (
+          myPager?.controls
+        )
+      }
+      peekSignal={peekSignal}
+      floating={
+        isResultMap ? (
+          <div className={styles.floatingRow}>
+            {reselectButton(styles.reselectFloating)}
+            {locateControls(styles.locateDocked, true)}
+          </div>
+        ) : undefined
+      }
+      onClose={() => {
+        if (infoSubject.kind === 'place') closeLayers();
+        else if (infoSubject.kind === 'area') setDismissedAreaCode(infoSubject.area.adminDongCode);
+        else mapView.clearRail();
+      }}
+    >
+      <MapInfo
+        subject={infoSubject}
+        preview={preview}
+        my={mapView.my}
+        onSelectProperty={mapView.selectMyProperty}
+        property={mapView.property}
+        phoneAction="call"
+      />
+    </BottomSheet>
   );
   // 통근, 환승, 월세 조건 칸. 위치를 고르기 전후 모두 아래 시트에 둔다.
   // 칸마다 위에 항목, 아래에 값을 적고, 읽을 때는 `통근 40분 이내`처럼 한 문장으로 읽게 한다.
@@ -209,13 +267,8 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
                 </>
               )}
             </header>
-            <LocationControls
-              preview={preview}
-              isResult={false}
-              className={styles.railControls}
-              zoom={{ level: preview.selectionLevel, onZoom: preview.zoomSelectionBy }}
-              isFilterOpen={pickerField !== null}
-            />
+            {preview.isMapSelectionEnabled && <MapSelectionHint top="5.5rem" onCancel={preview.cancelMapSelection} />}
+            {infoSheet}
             {/* 조건 칸과 찾기 버튼은 위치를 고르기 전부터 아래 시트에 두어, 위치를 골라도 자리가 바뀌지 않게 한다.
                 위치를 고르기 전에는 찾기 버튼을 막아 두고 장소를 고르라고 적는다. 지도 위 버튼은 말풍선 핀과 겹쳐 두지 않는다. */}
             {
@@ -223,6 +276,8 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
                 className={`${shared.searchCard} ${styles.conditionCard}`}
                 aria-label={preview.hasChosenMapPoint ? '고른 출퇴근 장소' : '출퇴근 조건'}
               >
+                {/* 조건 카드 위 오른쪽에 붙여, 조건 칸이 펼쳐져 카드가 높아져도 함께 올라간다. */}
+                <LocationControls preview={preview} isResult={false} className={styles.locateAboveCard} />
                 <p className={shared.searchCardTitle}>이 조건으로 추천받아요</p>
                 {/* 출퇴근 장소는 위쪽 지도 검색과 따로 이 칸에서 정한다. 아직 없으면 이 칸이 처음부터 열려 있다. */}
                 {usesSharedSearch && <CommuteDestinationField preview={preview} />}
@@ -281,7 +336,7 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
                 </div>
               </div>
             </header>
-            {resultControls}
+            {!infoSubject && locateControls(styles.locateCorner)}
 
             {!infoSubject && reselectButton(styles.reselect)}
             {preview.isPublicExplore && recordArea && (
@@ -299,47 +354,7 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
             {mapView.needsZoomForFacilities && <p className={styles.zoomHint}>확대하면 주변 시설이 보여요</p>}
             {/* 정보는 시트 하나에만 둔다. 마커와 `My`는 한 단계 높이로 두고, 닫으면 그 정보를 닫는다.
                 동네는 지도와 고른 동이 같이 보이게 낮게 열고 끌어 올리면 더 크게 본다. 닫아도 동네 선택은 그대로 둔다. */}
-            {infoSubject && (
-              <BottomSheet
-                key={infoSubject.kind === 'area' ? `area:${infoSubject.area.adminDongCode}` : infoSubject.kind}
-                title={mapInfoTitle(infoSubject)}
-                initialHeightPercent={infoSubject.kind === 'area' ? MOBILE_AREA_SHEET_PERCENT : 40}
-                resizable={infoSubject.kind === 'area'}
-                fullPage={false}
-                closeLabel="정보 닫기"
-                onBack={myPager?.backToList}
-                headerEnd={
-                  bookmark ? (
-                    <button
-                      type="button"
-                      className={styles.bookmark}
-                      aria-label={bookmark.isOn ? '찜한 동네에서 삭제' : '찜한 동네에 추가'}
-                      aria-pressed={bookmark.isOn}
-                      onClick={bookmark.onToggle}
-                    >
-                      {bookmark.isOn ? '★' : '☆'}
-                    </button>
-                  ) : (
-                    myPager?.controls
-                  )
-                }
-                peekSignal={peekSignal}
-                floating={reselectButton(styles.reselectFloating)}
-                onClose={() => {
-                  if (infoSubject.kind === 'place') closeLayers();
-                  else if (infoSubject.kind === 'area') setDismissedAreaCode(infoSubject.area.adminDongCode);
-                  else mapView.clearRail();
-                }}
-              >
-                <MapInfo
-                  subject={infoSubject}
-                  preview={preview}
-                  my={mapView.my}
-                  onSelectProperty={mapView.selectMyProperty}
-                  phoneAction="call"
-                />
-              </BottomSheet>
-            )}
+            {infoSheet}
             {isRoutePage && <Outlet context={preview} />}
           </>
         )}
@@ -350,6 +365,29 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
 
 /* 월세 슬라이더가 위에서 부드럽게 내려온다. */
 const styles = {
+  /* 동네 시트는 내용이 짧아 아래 여백을 줄인다. 하단 탭 위로 올라오므로 안전 영역은 시트 위치가 이미 비운다. */
+  areaSheet: css`
+    label: NeighborhoodPreviewMobilePage-areaSheet;
+
+    /* 처음 높이는 퍼센트 대신 내용 높이를 따른다(시세 문구가 길어져도 잘리지 않는다). 끌어 올리면 기존 단계로 커진다. */
+    &&[data-mode='default'] {
+      height: auto;
+    }
+
+    & > button:first-of-type {
+      height: 1.25rem;
+    }
+
+    & > header {
+      padding-top: 0.1rem;
+      padding-bottom: 0.4rem;
+    }
+
+    & > div:last-of-type {
+      padding-bottom: 0.75rem;
+    }
+  `,
+
   reselect: css`
     position: fixed;
     z-index: 20;
@@ -510,14 +548,38 @@ const styles = {
     }
   `,
 
-  /* 위쪽 결과 머리(조건 요약 줄, 월세와 색 기준 카드) 아래 오른쪽에 확대 축소, 분류 레일, 현재 위치 버튼을 세운다. */
-  railControls: css`
-    label: NeighborhoodPreviewMobilePage-railControls;
+  /* 시트가 없을 때: 하단 탭 위(`--map-sheet-bottom`) 오른쪽 아래. */
+  locateCorner: css`
+    label: NeighborhoodPreviewMobilePage-locateCorner;
 
     && {
-      top: calc(max(0.85rem, env(safe-area-inset-top)) + 8rem);
-      right: 0.95rem;
+      top: auto;
+      right: 1rem;
+      bottom: calc(var(--map-sheet-bottom, env(safe-area-inset-bottom, 0px)) + 0.75rem);
     }
+  `,
+  /* 출퇴근 장소를 고르는 조건 카드 위 오른쪽. 카드 안에 있어 카드 높이를 그대로 따른다. */
+  locateAboveCard: css`
+    label: NeighborhoodPreviewMobilePage-locateAboveCard;
+
+    && {
+      top: auto;
+      right: 0.85rem;
+      bottom: calc(100% + 0.75rem);
+    }
+  `,
+  /* 시트 위 `floating` 칸 안에서는 위치를 시트가 정한다. 시트를 크게 열면 숨긴다. */
+  locateDocked: cx(
+    css`
+      label: NeighborhoodPreviewMobilePage-locateDocked;
+    `,
+    hideWhenSheetExpanded,
+  ),
+  floatingRow: css`
+    label: NeighborhoodPreviewMobilePage-floatingRow;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   `,
 };
 

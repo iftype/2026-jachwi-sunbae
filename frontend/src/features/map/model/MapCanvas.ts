@@ -10,6 +10,10 @@ export type MapTapAction = {
   label: string;
   /** 글자 앞에 둘 작은 그림 주소. 이모지 대신 쓴다. */
   icon?: string;
+  /** 있으면 버튼 대신 이 주소로 가는 링크로 그린다(전화걸기 `tel:`). */
+  href?: string;
+  /** 화면 낭독기가 읽는 이름. 없으면 `label`을 읽는다. */
+  ariaLabel?: string;
   onSelect: () => void;
 };
 
@@ -18,6 +22,12 @@ export type MapCoordinateMenu = {
   longitude: number;
   /** 화면 낭독기가 읽는 말풍선 이름. 화면에는 쓰지 않는다. */
   title?: string;
+  /** 동작 위에 화면에 보이는 굵은 한 줄(시설 마커 위 말풍선의 이름). */
+  heading?: string;
+  /** 좌표에서 마커 위쪽 가장자리까지의 높이(px). 말풍선 꼬리 끝이 마커 위쪽에 닿게 그만큼 올린다. 없으면 좌표를 바로 가리킨다. */
+  markerAbove?: number;
+  /** 동작 위에 두는 회색 한 줄(휴대폰에서 찜한 동네 안을 눌렀을 때 그 동의 월세 시세). */
+  note?: string;
   actions: MapTapAction[];
 };
 
@@ -73,23 +83,28 @@ export type MapRailExtraItem = {
   isMuted?: boolean;
 };
 
+/** 지도 좌표에 붙는 버튼이나 정보 카드 하나. */
+export type MapCoordinateAction = {
+  latitude: number;
+  longitude: number;
+  label: string;
+  disabled?: boolean;
+  placement?: 'above';
+  onClick: () => void;
+  /** 있으면 버튼 대신 정보 카드(동 이름과 별, 값이 있는 줄)로 그린다. */
+  card?: MapRegionCard;
+  /** 카드 위로 마우스가 들어오고 나갈 때. 마우스가 동 라벨에서 카드로 옮겨 가도 닫히지 않게 한다. */
+  onHoverChange?: (hovered: boolean) => void;
+};
+
 export type MapCanvasProps = {
   animateView?: boolean;
   onRetry?: () => void;
   /** 지도가 처음 그려져 쓸 수 있게 되면 부른다. 데모 지도는 바로 부른다. 급하지 않은 요청을 이 뒤로 미룰 때 쓴다. */
   onReady?: () => void;
-  coordinateAction?: {
-    latitude: number;
-    longitude: number;
-    label: string;
-    disabled?: boolean;
-    placement?: 'above';
-    onClick: () => void;
-    /** 있으면 버튼 대신 정보 카드(동 이름과 별, 값이 있는 줄)로 그린다. */
-    card?: MapRegionCard;
-    /** 카드 위로 마우스가 들어오고 나갈 때. 마우스가 동 라벨에서 카드로 옮겨 가도 닫히지 않게 한다. */
-    onHoverChange?: (hovered: boolean) => void;
-  };
+  coordinateAction?: MapCoordinateAction;
+  /** 눌러 고정한 `coordinateAction` 카드와 함께 띄우는 호버 카드. 위에 그려지고, 고정 카드와 겹치면 반대쪽으로 간다. */
+  hoverAction?: MapCoordinateAction;
   bookmarkControl?: { count: number; isOn: boolean; isDisabled?: boolean; onToggle: () => void };
   /** 처음 한 번 보이는 안내 말풍선. 지도 좌표에 붙어 있다. */
   tip?: MapTip;
@@ -132,6 +147,8 @@ export type MapRegion = {
   isRecommended?: boolean;
   /** 구역 가운데에 동 이름만 작게 둔다(찜한 동네). */
   showsName?: boolean;
+  /** 동 이름 옆에 붙이는 짧은 글(찜한 동네의 월세 시세). `showsName`일 때만 그린다. */
+  nameCaption?: string;
   /** 처음 그릴 때의 순서. 낮은 단계부터 한 프레임씩 나눠 지도에 등록한다. 없으면 0이다. */
   drawStage?: number;
   /** 구역 위 두 칸으로 표시할 요약. 화면이 아니라 지도 좌표에 고정한다. */
@@ -157,6 +174,8 @@ export type MapRegionRentLabel = {
   sparse: boolean;
   /** 월세 조건 밖이라 지도에서 회색으로 깐 동네. 라벨도 함께 흐리게 한다. */
   filteredOut: boolean;
+  /** 내가 찜한 동네. 라벨 앞에 채운 별을 붙이고 연한 파랑으로 칠해 구분한다. */
+  isBookmarked?: boolean;
   /** 출퇴근 장소까지 걸리는 시간 글자(예: `25분`). 월세 자료가 없는 동네도 이 글자로 라벨을 둔다. */
   commute?: string;
 };

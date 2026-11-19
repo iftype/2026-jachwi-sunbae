@@ -52,7 +52,7 @@ const PropertyChecklist = ({
             {detail.stage === USER_CHECKLIST_STAGE &&
               (isPreviewProperty(propertyId) ? (
                 <Button
-                  variant="text"
+                  variant="neutral"
                   className={styles.replaceAction}
                   disabled
                   aria-label="미리보기 체크리스트는 교체할 수 없어요"
@@ -61,7 +61,7 @@ const PropertyChecklist = ({
                 </Button>
               ) : (
                 <ButtonLink
-                  variant="text"
+                  variant="neutral"
                   className={styles.replaceAction}
                   to={`${propertyActiveChecklistPath(propertyId, detail.stage)}?mode=replace`}
                   replace={replaceNavigation}
@@ -164,11 +164,10 @@ const styles = {
   `,
   replaceAction: css`
     label: PropertyChecklist-replaceAction;
-    min-height: 2.75rem;
-    padding: 0 0.25rem;
-    color: var(--color-muted);
+    min-height: 2.25rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 999px;
     font-size: 0.75rem;
-    font-weight: 600;
     & > span {
       display: inline-flex;
       align-items: center;

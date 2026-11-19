@@ -1,5 +1,5 @@
 import { css } from '@emotion/css';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { describeChecklistLoadError, getChecklistErrorMessage } from '@/features/checklist/api/checklistErrorMessages';
@@ -16,6 +16,7 @@ import { Button } from '@/shared/ui/button/Button';
 import ContentState from '@/shared/ui/content-state/ContentState';
 import QueryState from '@/shared/ui/query-state/QueryState';
 
+import CreateChecklistPanel from '../create-checklist/ui/create-checklist-panel/CreateChecklistPanel';
 import useAutoOpenAppliedChecklist from './hooks/useAutoOpenAppliedChecklist';
 import useChecklistSelection, { SYSTEM_DEFAULT_ID } from './hooks/useChecklistSelection';
 import PropertyActiveChecklistSkeleton from './PropertyActiveChecklistSkeleton';
@@ -49,7 +50,10 @@ const ResolvedPropertyActiveChecklist = ({
   const overview = usePropertyChecklistOverview(propertyId);
   const list = useChecklistList(stage);
   const assign = useAssignActiveChecklist(propertyId, stage);
-  const newlyCreatedId = readNewChecklistId(location.state);
+  // 데스크탑 패널은 만들기를 주소 이동 없이 이 화면 안에서 연다. 저장하면 여기로 돌아와 새 체크리스트를 고른 상태로 둔다.
+  const [isCreating, setIsCreating] = useState(false);
+  const [createdId, setCreatedId] = useState<number | null>(null);
+  const newlyCreatedId = createdId ?? readNewChecklistId(location.state);
   const fromPropertyDetail = isFromPropertyDetail(location.state) || searchParams.get('from') === 'property-detail';
   const navigate = useNavigate();
   const backToDetail = () => navigate(propertyChecklistTabPath(propertyId), { replace: true });
@@ -92,6 +96,11 @@ const ResolvedPropertyActiveChecklist = ({
     },
   };
   const { selectedId, isSelectionChanged } = selection;
+  const finishCreate = (checklistId: number) => {
+    setCreatedId(checklistId);
+    selection.toggleSelection(checklistId);
+    setIsCreating(false);
+  };
 
   return (
     <QueryState
@@ -101,69 +110,77 @@ const ResolvedPropertyActiveChecklist = ({
       describeError={describeError}
       errorAction={backToList}
     >
-      {(propertyDetail) => (
-        <ChecklistPageLayout
-          embedded={embedded}
-          title="체크리스트 교체"
-          onBack={backToDetail}
-          backLabel="매물 상세로 돌아가기"
-          className="property-page checklist-page active-checklist-page"
-          containerClassName="page-container checklist-page__narrow"
-        >
-          <h1 className="sr-only">{propertyDetail.name} 체크리스트 교체</h1>
-          <p className={styles.description}>이 매물에 적용할 체크리스트를 선택해요.</p>
-          <ActiveChecklistOptions
-            items={items}
-            propertyId={propertyId}
-            selectedId={selectedId}
-            currentId={current?.checklistId ?? null}
-            newlyCreatedId={newlyCreatedId}
-            isDisabled={assign.isPending}
-            onSelect={selection.toggleSelection}
-          />
-          {list.hasNextPage && (
-            <div className={styles.loadMore}>
-              {list.isFetchNextPageError && (
-                <p role="alert">추가 목록을 불러오지 못했어요. 지금 선택지는 그대로 있어요.</p>
-              )}
-              <Button
-                variant="secondary"
-                fullWidth
-                type="button"
-                disabled={list.isFetchingNextPage}
-                onClick={() => void list.fetchNextPage()}
-              >
-                {list.isFetchingNextPage
-                  ? '불러오는 중…'
-                  : list.isFetchNextPageError
-                    ? '다시 불러오기'
-                    : '체크리스트 더 보기'}
-              </Button>
-            </div>
-          )}
-          {isSelectionChanged && current !== null && (
-            <p className="form-notice">확인하면 현재 체크리스트가 선택한 체크리스트로 바뀝니다.</p>
-          )}
-          {assign.isError && (
-            <p className="form-error" role="alert">
-              {getChecklistErrorMessage(assign.error)} 기존 연결은 유지됩니다.
-            </p>
-          )}
-          <BottomActionArea placement="screen" className={embedded ? styles.embeddedBottomAction : styles.bottomAction}>
-            <Button
-              variant="soft"
-              fullWidth
-              isLoading={assign.isPending}
-              loadingLabel="변경 중…"
-              type="button"
-              disabled={assign.isPending || selectedId === null}
-              onClick={() => void selection.saveSelection()}
+      {(propertyDetail) =>
+        isCreating ? (
+          <CreateChecklistPanel onClose={() => setIsCreating(false)} onCreated={finishCreate} />
+        ) : (
+          <ChecklistPageLayout
+            embedded={embedded}
+            title="체크리스트 교체"
+            onBack={backToDetail}
+            backLabel="매물 상세로 돌아가기"
+            className="property-page checklist-page active-checklist-page"
+            containerClassName="page-container checklist-page__narrow"
+          >
+            <h1 className="sr-only">{propertyDetail.name} 체크리스트 교체</h1>
+            <p className={styles.description}>이 매물에 적용할 체크리스트를 선택해요.</p>
+            <ActiveChecklistOptions
+              items={items}
+              propertyId={propertyId}
+              selectedId={selectedId}
+              currentId={current?.checklistId ?? null}
+              newlyCreatedId={newlyCreatedId}
+              isDisabled={assign.isPending}
+              onSelect={selection.toggleSelection}
+              onCreate={embedded ? () => setIsCreating(true) : undefined}
+            />
+            {list.hasNextPage && (
+              <div className={styles.loadMore}>
+                {list.isFetchNextPageError && (
+                  <p role="alert">추가 목록을 불러오지 못했어요. 지금 선택지는 그대로 있어요.</p>
+                )}
+                <Button
+                  variant="neutral"
+                  fullWidth
+                  type="button"
+                  disabled={list.isFetchingNextPage}
+                  onClick={() => void list.fetchNextPage()}
+                >
+                  {list.isFetchingNextPage
+                    ? '불러오는 중…'
+                    : list.isFetchNextPageError
+                      ? '다시 불러오기'
+                      : '체크리스트 더 보기'}
+                </Button>
+              </div>
+            )}
+            {isSelectionChanged && current !== null && (
+              <p className="form-notice">확인하면 현재 체크리스트가 선택한 체크리스트로 바뀝니다.</p>
+            )}
+            {assign.isError && (
+              <p className="form-error" role="alert">
+                {getChecklistErrorMessage(assign.error)} 기존 연결은 유지됩니다.
+              </p>
+            )}
+            <BottomActionArea
+              placement="screen"
+              className={embedded ? styles.embeddedBottomAction : styles.bottomAction}
             >
-              {current === null ? '체크리스트 적용' : '선택한 체크리스트로 교체'}
-            </Button>
-          </BottomActionArea>
-        </ChecklistPageLayout>
-      )}
+              <Button
+                variant="primary"
+                fullWidth
+                isLoading={assign.isPending}
+                loadingLabel="변경 중…"
+                type="button"
+                disabled={assign.isPending || selectedId === null || !isSelectionChanged}
+                onClick={() => void selection.saveSelection()}
+              >
+                {current === null ? '체크리스트 적용' : '선택한 체크리스트로 교체'}
+              </Button>
+            </BottomActionArea>
+          </ChecklistPageLayout>
+        )
+      }
     </QueryState>
   );
 };

@@ -66,6 +66,7 @@ const AddressSearchPage = () => {
           onSelect={pick}
           label={isDestinationSearch ? '출퇴근하는 장소 검색' : '주소 검색'}
           placeholder="주소로 지도 이동"
+          showRecent={false}
         />
       </div>
       {isDestinationSearch && (

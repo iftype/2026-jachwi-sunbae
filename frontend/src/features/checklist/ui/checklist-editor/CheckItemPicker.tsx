@@ -89,7 +89,7 @@ const CheckItemPicker = ({ stage, existingSourceIds, disabled, onCancel, onAdd }
 
         <BottomActionArea placement="screen" className={`${styles.fixedActions} ${styles.pickerActions}`}>
           <p aria-live="polite">{additionCount}개 선택</p>
-          <Button variant="secondary" type="button" disabled={disabled} onClick={onCancel}>
+          <Button variant="neutral" type="button" disabled={disabled} onClick={onCancel}>
             취소
           </Button>
           <Button type="button" disabled={disabled || additionCount === 0} onClick={addSelected}>
@@ -109,7 +109,7 @@ const CheckItemPicker = ({ stage, existingSourceIds, disabled, onCancel, onAdd }
             <Button
               className={styles.pickerRetry}
               type="button"
-              variant="text"
+              variant="neutral"
               disabled={disabled}
               onClick={() => void result.refetch()}
             >
@@ -188,7 +188,7 @@ const CheckItemPicker = ({ stage, existingSourceIds, disabled, onCancel, onAdd }
 
         {result.hasNextPage && (
           <Button
-            variant="secondary"
+            variant="neutral"
             fullWidth
             className={styles.compactButton}
             type="button"

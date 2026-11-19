@@ -345,6 +345,20 @@ describe('경계 레이어', () => {
     expect(overlays.every((overlay) => overlay.setMap.mock.calls.some(([value]) => value === null))).toBe(true);
   });
 
+  it('찜한 동네 이름표는 월세 시세가 도착하면 이름표만 새로 만들고, 휴대폰에서는 시세가 있어도 그리지 않는다', () => {
+    const { layer, polygons, overlays } = setup();
+    const bookmark = region('name', { center: { latitude: 37.5, longitude: 127 }, showsName: true });
+    layer.sync([bookmark], null);
+    expect(overlays).toHaveLength(1);
+    expect(overlays[0].content.querySelector('small')).toBeNull();
+    layer.sync([{ ...bookmark, nameCaption: '월세 70만' }], null);
+    expect(polygons).toHaveLength(1);
+    expect(overlays).toHaveLength(2);
+    expect(overlays[1].content.querySelector('small')).toHaveTextContent('월세 70만');
+    layer.sync([{ ...bookmark, nameCaption: '월세 70만' }], null, true);
+    expect(overlays).toHaveLength(2);
+  });
+
   it('점선으로 표시하는 색(월세 정보 없음)은 테두리를 점선으로 그리고, 고르면 실선으로 강조한다', () => {
     const { layer, polygons } = setup();
     const appearance = { fillColor: '#868B94', strokeColor: '#868B94', dashed: true };
