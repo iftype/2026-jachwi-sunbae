@@ -414,11 +414,28 @@ export const pickerActions = css`
   label: ChecklistEditor-pickerActions;
   grid-auto-flow: row;
   grid-template-columns: minmax(5rem, 0.42fr) minmax(0, 1fr);
+  gap: 0.5rem 0.75rem;
+
+  /* 위쪽은 흰색으로 부드럽게 사라지는 그라데이션, 구분선과 그림자는 두지 않는다. */
+  && {
+    padding-top: 1.75rem;
+    border-top: 0;
+    background: linear-gradient(to bottom, rgb(255 255 255 / 0%), var(--color-canvas) 1.5rem);
+    box-shadow: none;
+  }
+
   & > p {
     grid-column: 1 / -1;
     margin: 0;
     color: var(--color-muted);
-    font-size: 0.8rem;
+    font-size: 0.8125rem;
+  }
+
+  & button {
+    min-height: 3rem;
+    border-radius: 0.875rem;
+    font-size: 0.9375rem;
+    font-weight: 800;
   }
 `;
 
