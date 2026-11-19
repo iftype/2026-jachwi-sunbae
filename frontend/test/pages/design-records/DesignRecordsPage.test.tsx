@@ -873,6 +873,7 @@ it('모바일 헤더에는 동네 찾기 타일 대신 로고를 두고 떠 있�
   expect(screen.queryByRole('link', { name: '주소 검색' })).not.toBeInTheDocument();
   expect(screen.getByLabelText('생활 날씨 안내')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: '기록 비교하고 PDF로 받기' })).toHaveAttribute('href', '/compare');
+  expect(screen.getByRole('heading', { name: /^기록한 방/ })).toBeInTheDocument();
 });
 
 it('예시 매물에도 삭제 메뉴를 두고 서버 요청 없이 숨기며 다시 열어도 유지한다', async () => {

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 import PropertyCard from '@/features/property/ui/property-card/PropertyCard';
+import { isPreviewProperty } from '@/features/property/model/sampleProperties';
 import { RECORDS_PATH } from '@/shared/lib/navigation/appPaths';
 import EmptyState from '@/shared/ui/empty-state/EmptyState';
 
@@ -36,6 +37,8 @@ const RecordList = ({
     // scrollIntoView가 없는 환경(jsdom 등)에서도 터지지 않게 있을 때만 부른다.
     selectedRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
   }, [selectedId]);
+  // 예시 매물만 보일 때는 개수를 세지 않는다.
+  const realCount = records.filter((record) => !isPreviewProperty(record.id)).length;
   return (
     <section className={className} aria-labelledby="record-list-heading">
       <h2 id="record-list-heading" className="sr-only">
@@ -49,7 +52,7 @@ const RecordList = ({
           description="집을 보러 가면 사진과 체크한 내용을 남겨 두세요. 여기에 모여요."
         />
       )}
-      {showCompare && records.length > 0 && <RecordCompareLink />}
+      {showCompare && records.length > 0 && <RecordCompareLink count={realCount > 0 ? realCount : undefined} />}
       <ul className={styles.items}>
         {records.map((record) => (
           <li
