@@ -8,9 +8,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.IntConsumer;
 
-// 목적지 근처 정류장을 21만 정류장 전체가 아니라 주변 격자 칸에서만 찾는다.
+// 출발지·목적지 근처 정류장을 21만 정류장 전체가 아니라 주변 격자 칸에서만 찾는다.
 // 0.01도 칸은 위도 방향 약 1.1km, 국내(북위 33~39도) 경도 방향 약 0.87km 이상이라,
-// 목적지 칸과 이웃 8칸이면 도보 10분(약 720m) 안의 정류장을 모두 담는다.
+// 현재 칸과 이웃 8칸이면 도보 10분(약 720m) 안의 정류장을 모두 담는다. 실제 도보 한도는 호출한 쪽에서 거른다.
 public final class StopGrid {
 
     private static final double CELL_DEGREES = 0.01;

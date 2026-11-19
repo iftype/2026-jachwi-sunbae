@@ -128,6 +128,51 @@ public final class TransitNetwork {
         return Optional.of(new Seconds(best[0]));
     }
 
+    // 정류장이 아닌 출발지(매물 위치)에서 목적지까지의 경로다. travelTimes와 같은 방법으로 가장 빠른 첫 정류장을 고른 뒤,
+    // 그 정류장에서 경로 안내를 하고 앞에 출발지에서 정류장까지 걷는 구간을 붙인다. 목적지까지 바로 걷는 쪽이 빠르면 걷는 구간 하나다.
+    public Optional<CommuteRoute> routeFrom(final Coordinate origin, final Coordinate destination, final Seconds limit,
+                                            final int maxTransfers) {
+        int[] bestSeconds = bestSeconds(destination, limit, maxTransfers);
+        int directWalkSeconds = walkSeconds(origin, destination);
+        int[] best = {directWalkSeconds <= MAX_ARRIVAL_WALK_TIME.value() ? directWalkSeconds : Integer.MAX_VALUE,
+                SearchStates.NONE, 0};
+        stopGrid.forEachNear(origin, stop -> {
+            int walkSeconds = walkSeconds(origin, stops.get(stop).coordinate());
+            if (walkSeconds <= MAX_ARRIVAL_WALK_TIME.value() && bestSeconds[stop] != Integer.MAX_VALUE
+                    && walkSeconds + bestSeconds[stop] < best[0]) {
+                best[0] = walkSeconds + bestSeconds[stop];
+                best[1] = stop;
+                best[2] = walkSeconds;
+            }
+        });
+        if (best[0] > limit.value()) {
+            return Optional.empty();
+        }
+        if (best[1] == SearchStates.NONE) {
+            return Optional.of(new CommuteRoute(new Seconds(directWalkSeconds), 0,
+                    List.of(new RouteLeg(RouteLeg.Type.WALK, null,
+                            List.of(RoutePoint.origin(origin), RoutePoint.destination(destination)),
+                            new Seconds(directWalkSeconds), new Seconds(0)))));
+        }
+        int firstStop = best[1];
+        int originWalkSeconds = best[2];
+        return route(stops.get(firstStop).stopId(), destination, new Seconds(limit.value() - originWalkSeconds),
+                maxTransfers).map(route -> withOriginWalk(route, origin, firstStop, originWalkSeconds));
+    }
+
+    private CommuteRoute withOriginWalk(final CommuteRoute route, final Coordinate origin, final int firstStop,
+                                        final int originWalkSeconds) {
+        if (originWalkSeconds == 0) {
+            return route;
+        }
+        List<RouteLeg> legs = new ArrayList<>();
+        legs.add(new RouteLeg(RouteLeg.Type.WALK, null, List.of(RoutePoint.origin(origin), point(firstStop)),
+                new Seconds(originWalkSeconds), new Seconds(0)));
+        legs.addAll(route.legs());
+        return new CommuteRoute(new Seconds(originWalkSeconds + route.totalTime().value()), route.transferCount(),
+                legs);
+    }
+
     private int[] bestSeconds(final Coordinate destination, final Seconds limit, final int maxTransfers) {
         validateTransfers(maxTransfers);
         SearchStates states = new SearchStates();

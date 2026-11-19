@@ -52,6 +52,7 @@ public enum ErrorCode {
     PROPERTY_INPUT_INVALID("매물 정보를 확인해 주세요."),
     PROPERTY_LOCATION_INVALID("매물 위치를 확인해 주세요."),
     PROPERTY_NOT_FOUND("매물을 찾을 수 없습니다."),
+    PROPERTY_LOCATION_REQUIRED("매물 위치를 먼저 정해 주세요."),
     PROPERTY_LIMIT_EXCEEDED("등록할 수 있는 매물 개수를 초과했습니다."),
     PROPERTY_MEMO_INVALID("메모를 확인해 주세요."),
     PROPERTY_CHECKLIST_STAGE_MISMATCH("매물 체크리스트의 단계가 맞지 않습니다."),

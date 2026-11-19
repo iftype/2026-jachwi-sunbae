@@ -97,6 +97,60 @@ export const propertyHandlers = [
         }),
     });
   }),
+  // 매물 동선. 서버처럼 매물에서 첫 정류장까지 걷고, 버스 한 번을 탄 뒤 목적지까지 걷는 동선을 통근 시간 어림에 맞춰 만든다.
+  http.get('*/api/properties/:propertyId/commute-route', ({ request, params }) => {
+    const search = new URL(request.url).searchParams;
+    const latitude = Number(search.get('latitude'));
+    const longitude = Number(search.get('longitude'));
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return failure('INVALID_REQUEST', 400);
+    const property = getMockProperties().find((item) => String(item.id) === params.propertyId);
+    if (!property) return failure('PROPERTY_NOT_FOUND', 404);
+    if (property.latitude === null || property.longitude === null) return failure('PROPERTY_LOCATION_REQUIRED', 400);
+    const origin = { latitude: property.latitude, longitude: property.longitude };
+    const destination = { latitude, longitude };
+    const total = Math.round(distanceMeters(destination, origin) / 400) + 5;
+    if (total > COMMUTE_MAX_MINUTES) return failure('COMMUTE_ROUTE_NOT_FOUND', 404);
+    const boarding = {
+      stopId: 'MOCK-BOARD',
+      name: '매물 앞 정류장',
+      latitude: origin.latitude + (destination.latitude - origin.latitude) * 0.05,
+      longitude: origin.longitude + (destination.longitude - origin.longitude) * 0.05,
+    };
+    const alighting = {
+      stopId: 'MOCK-ALIGHT',
+      name: '목적지 앞 정류장',
+      latitude: origin.latitude + (destination.latitude - origin.latitude) * 0.95,
+      longitude: origin.longitude + (destination.longitude - origin.longitude) * 0.95,
+    };
+    const walk = 2;
+    return success({
+      totalMinutes: total,
+      transferCount: 0,
+      legs: [
+        {
+          type: 'WALK',
+          routeName: null,
+          minutes: walk,
+          waitMinutes: 0,
+          points: [{ stopId: null, name: '출발지', ...origin }, boarding],
+        },
+        {
+          type: 'BUS',
+          routeName: '146',
+          minutes: Math.max(1, total - walk * 2 - 1),
+          waitMinutes: 1,
+          points: [boarding, alighting],
+        },
+        {
+          type: 'WALK',
+          routeName: null,
+          minutes: walk,
+          waitMinutes: 0,
+          points: [alighting, { stopId: null, name: '목적지', ...destination }],
+        },
+      ],
+    });
+  }),
   http.get('*/api/properties', () =>
     success({
       totalCount: getMockProperties().length,
