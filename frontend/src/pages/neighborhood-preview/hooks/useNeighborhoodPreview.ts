@@ -81,6 +81,8 @@ const useNeighborhoodPreview = () => {
   // 동네 선택도 방문 이력에 쌓이므로, 홈 아이콘은 이전 동네가 아닌 홈으로 바로 이동한다.
   const leave = () => void navigate(HOME_PATH);
   const [phase, setPhase] = useState<'map' | 'conditions' | 'analyzing'>(restoredSearch ? 'analyzing' : 'map');
+  // 출퇴근 장소는 결과를 보는 동안 지도를 눌러도 바뀌지 않는다. `바꾸기`로 고르는 상태(결과가 없거나 지워진 상태)에서만 지도를 눌러 정한다.
+  const canPickDestination = phase !== 'analyzing';
   const [destination, setDestination] = useState(restoredSearch?.destination ?? PREVIEW_DESTINATION);
   const [mapCandidate, setMapCandidate] = useState(restoredSearch?.destination ?? PREVIEW_DESTINATION);
   // 출퇴근 장소를 고른 적이 없으면 기록 지도의 첫 화면과 같은 미리보기 매물 자리에서 시작한다.
@@ -491,6 +493,7 @@ const useNeighborhoodPreview = () => {
     mapCandidate,
     hasChosenMapPoint,
     isSelectingOnMap: phase === 'map' || phase === 'conditions',
+    canPickDestination,
     isMapSelectionEnabled,
     cancelMapSelection: () => setIsMapSelectionEnabled(false),
     openMapSelection: () => {
@@ -506,10 +509,7 @@ const useNeighborhoodPreview = () => {
       setPhase('map');
     },
     chooseMapPoint: (latitude: number, longitude: number) => {
-      if (phase === 'analyzing') {
-        if (!commute.isSuccess || commute.isFetching) return;
-        selectionView.current = { ...resultCenter, level: resultLevel };
-      }
+      if (!canPickDestination) return;
       setIsMapSelectionEnabled(false);
       locationIntent.current += 1;
       setShouldFocusMapSearch(false);

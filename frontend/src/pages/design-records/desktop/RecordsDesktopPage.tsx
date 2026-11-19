@@ -19,7 +19,6 @@ import RecordDistricts from '../ui/record-districts/RecordDistricts';
 import RecordGroupList from '../ui/record-group/RecordGroupList';
 import RecordList from '../ui/record-list/RecordList';
 import RecordLoadError from '../ui/record-load-error/RecordLoadError';
-import RecordNeighborhoodBanner from '../ui/record-neighborhood-banner/RecordNeighborhoodBanner';
 import RecordNotice from '../ui/record-notice/RecordNotice';
 import RecordStepper from '../ui/record-stepper/RecordStepper';
 import RecordsDesktopMap from './RecordsDesktopMap';
@@ -135,7 +134,6 @@ const RecordsDesktopPage = ({ records, layers }: Props) => {
                   </MapListHeader>
                 )}
                 {panel?.content ?? list}
-                {!panel && <RecordNeighborhoodBanner />}
               </>
             }
             detail={panel ? undefined : detail}
