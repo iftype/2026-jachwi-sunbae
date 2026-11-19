@@ -1,4 +1,5 @@
 import type { MapCategory, NearbyPlace } from '../model/Map';
+import { FACILITY_CATEGORIES, type FacilityCategory } from './mapPresentation';
 
 /**
  * `/api/maps/nearby`는 카테고리마다 가까운 순으로 최대 45곳(카카오 3쪽 x 15)까지만 준다.
@@ -7,7 +8,7 @@ import type { MapCategory, NearbyPlace } from '../model/Map';
 export const NEARBY_CATEGORY_CAP = 45;
 
 export type NearbyCategorySummary = {
-  category: MapCategory;
+  category: FacilityCategory;
   count: number;
   /** 서버가 자른 개수라 실제는 이보다 많을 수 있다. */
   capped: boolean;
@@ -15,14 +16,12 @@ export type NearbyCategorySummary = {
   nearestMeters: number | null;
 };
 
-/** 고리와 범례에 시설을 놓는 순서. */
-export const SUMMARY_CATEGORIES: MapCategory[] = ['TRANSPORT', 'CONVENIENCE', 'HOSPITAL', 'SCHOOL', 'AGENCY'];
-
+/** 고리와 범례에는 지도 분류 막대와 같은 시설 분류를 같은 순서로 놓는다. */
 export const summarizeNearby = (
   places: NearbyPlace[],
   counts: Partial<Record<MapCategory, number>>,
 ): NearbyCategorySummary[] =>
-  SUMMARY_CATEGORIES.map((category) => {
+  FACILITY_CATEGORIES.map((category) => {
     const distances = places.filter((place) => place.category === category).map((place) => place.distanceMeters);
     const count = counts[category] ?? distances.length;
     return {

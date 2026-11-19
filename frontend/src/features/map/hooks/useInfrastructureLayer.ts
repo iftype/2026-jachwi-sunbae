@@ -5,11 +5,12 @@ import useDebouncedValue from '@/shared/lib/hooks/useDebouncedValue';
 
 import { useViewportPlaces } from '../api/useViewportPlaces';
 import { facilityMarkersVisible } from '../lib/mapFacilityVisibility';
+import type { FacilityCategory } from '../lib/mapPresentation';
 import type { MapBounds, MapCategory, MapMarker } from '../model/Map';
+import useFacilityFocus from './useFacilityFocus';
 import useViewportFacilityLayer from './useViewportFacilityLayer';
 
-export const INFRASTRUCTURE_CATEGORIES = ['AGENCY', 'HOSPITAL', 'TRANSPORT', 'CONVENIENCE'] as const;
-type Category = (typeof INFRASTRUCTURE_CATEGORIES)[number];
+type Category = FacilityCategory;
 export type InfrastructurePlace = {
   id: string;
   name: string;
@@ -22,7 +23,7 @@ export type InfrastructurePlace = {
 
 const useInfrastructureLayer = (enabled: boolean, bounds: MapBounds | null, level: number, markerLevel: number) => {
   const client = useQueryClient();
-  const [category, setCategory] = useState<Category | null>(null);
+  const [category, setCategory] = useFacilityFocus();
   const [selected, setSelected] = useState<InfrastructurePlace | null>(null);
   const isClose = facilityMarkersVisible(level, markerLevel);
   const settledBounds = useDebouncedValue(enabled && isClose && category ? bounds : null, 300);

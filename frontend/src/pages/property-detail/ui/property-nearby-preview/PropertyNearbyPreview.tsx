@@ -2,15 +2,17 @@ import { css } from '@emotion/css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { useNearbyFacilities } from '@/features/map/api/useNearbyFacilities';
+import useFacilityFocus from '@/features/map/hooks/useFacilityFocus';
 import { coordinatesAreClose, type MapCoordinate, requestCurrentMapLocation } from '@/features/map/lib/mapLocation';
-import { summarizeNearby, SUMMARY_CATEGORIES } from '@/features/map/lib/nearbySummary';
-import type { MapAddress, MapCategory, MapMarker } from '@/features/map/model/Map';
+import { FACILITY_CATEGORY_COLOR, isFacilityCategory } from '@/features/map/lib/mapPresentation';
+import { summarizeNearby } from '@/features/map/lib/nearbySummary';
+import type { MapAddress, MapMarker } from '@/features/map/model/Map';
 import type { MapRadiusCircle } from '@/features/map/model/MapCanvas';
 import MapCanvas from '@/features/map/ui/map-canvas/MapCanvas';
 import MapCurrentLocationButton from '@/features/map/ui/map-current-location-button/MapCurrentLocationButton';
 import MapZoomControl from '@/features/map/ui/map-zoom-control/MapZoomControl';
 
-import { NEARBY_CATEGORY_COLOR, PROPERTY_PIN_IMAGE } from './nearbyColors';
+import { PROPERTY_PIN_IMAGE } from './nearbyColors';
 import NearbyRing from './NearbyRing';
 import useLocationPick, { pickedAddressText } from './useLocationPick';
 
@@ -30,7 +32,6 @@ type PropertyNearbyPreviewProps = {
 const RADIUS = 500;
 /** 작은 지도 칸에서 500m 원이 다 보이는 확대 단계. */
 const PREVIEW_LEVEL = 7;
-const PREVIEW_CATEGORIES: MapCategory[] = SUMMARY_CATEGORIES.filter((category) => category !== 'SCHOOL');
 
 /** 매물 상세 기본 정보 아래에 두는 작은 주변 지도와 고리 요약. 500m 안 시설을 색 점으로 모두 띄운다. */
 const PropertyNearbyPreview = ({
@@ -64,7 +65,7 @@ const PropertyNearbyPreview = ({
     }
   };
   /** 범례에서 고른 시설. 고르면 지도에 그 시설 점만 남긴다. */
-  const [focused, setFocused] = useState<MapCategory | null>(null);
+  const [focused, setFocused] = useFacilityFocus();
   const location = useLocationPick(isEditingLocation, onSaveLocation, onEndEditLocation);
   const nearby = useNearbyFacilities(center, RADIUS, [], true, { loadAllCategories: true });
 
@@ -76,15 +77,18 @@ const PropertyNearbyPreview = ({
   const places = nearby.data?.places;
   const markers = useMemo<MapMarker[]>(() => {
     const dots: MapMarker[] = (places ?? [])
-      .filter((place) => PREVIEW_CATEGORIES.includes(place.category))
+      .filter((place) => isFacilityCategory(place.category))
       .filter((place) => focused === null || place.category === focused)
-      .map((place) => ({
+      .flatMap((place) =>
+        isFacilityCategory(place.category) ? [{ place, color: FACILITY_CATEGORY_COLOR[place.category] }] : [],
+      )
+      .map(({ place, color }) => ({
         id: `nearby-${place.category}-${place.providerPlaceId}`,
         latitude: place.latitude,
         longitude: place.longitude,
         label: place.name,
         tone: 'dot',
-        color: NEARBY_CATEGORY_COLOR[place.category],
+        color,
       }));
     // 위치를 바꾸는 동안에는 지금 매물 핀을 지우고, 새로 고른 자리에만 핀을 둔다.
     const pin = isEditingLocation
@@ -103,10 +107,7 @@ const PropertyNearbyPreview = ({
   }, [places, focused, isEditingLocation, location.picked, center, propertyId, myLocation]);
   const circles = useMemo<MapRadiusCircle[]>(() => [{ radiusMeters: RADIUS, label: '500m' }], []);
   const summary = useMemo(
-    () =>
-      nearby.isSuccess
-        ? summarizeNearby(nearby.data.places, nearby.data.counts).filter((item) => item.category !== 'SCHOOL')
-        : [],
+    () => (nearby.isSuccess ? summarizeNearby(nearby.data.places, nearby.data.counts) : []),
     [nearby.isSuccess, nearby.data],
   );
   const hasAny = summary.some((item) => item.count > 0);
@@ -197,7 +198,7 @@ const PropertyNearbyPreview = ({
             <NearbyRing
               summary={summary}
               focused={focused}
-              onFocus={(category) => setFocused((current) => (current === category ? null : category))}
+              onFocus={(category) => setFocused(focused === category ? null : category)}
             />
           )}
         </div>

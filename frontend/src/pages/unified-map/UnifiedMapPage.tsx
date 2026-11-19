@@ -6,6 +6,7 @@ import DesignRecordsPage from '@/pages/design-records/DesignRecordsPage';
 import useRecordsView from '@/pages/design-records/hooks/useRecordsView';
 import { RecordsMapProvider } from '@/pages/design-records/RecordsMapProvider';
 import NeighborhoodPreviewPage from '@/pages/neighborhood-preview/NeighborhoodPreviewPage';
+import { FacilityFocusProvider } from '@/features/map/hooks/useFacilityFocus';
 import { MapCanvasMode, SharedMapCanvasProvider } from '@/features/map/ui/map-canvas/SharedMapCanvas';
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
 import { CHEAP_MEALS_PATH, MY_PATH, NEIGHBORHOODS_PATH, RECORDS_PATH } from '@/shared/lib/navigation/appPaths';
@@ -86,67 +87,69 @@ const UnifiedMapPage = () => {
   const toRecords: MapModeSwitch = { target: 'records', onSwitch: () => navigate(recordsUrl) };
   const panel = isMy ? { content: <MyMapPanel onClose={closeMy} />, close: closeMy } : null;
   return (
-    <RecordsMapProvider>
-      <SharedMapCanvasProvider
-        preserveZoomOnModeChange
-        infrastructure={{
-          open: !isFinding && !isMeals && (isDesktop || recordsView === 'map'),
-          onClose: () => undefined,
-        }}
-      >
-        <div className={styles.page} data-desktop={isDesktop}>
-          {isDesktop && (
-            <UnifiedNavRail
-              pathname={pathname}
-              isMeals={isMeals}
-              isMy={isMy}
-              isFinding={isFinding}
-              onRecords={toRecords.onSwitch}
-              onFinding={toFinding.onSwitch}
-              onMy={() => navigate(MY_PATH)}
-              onTool={(path) => navigate(path)}
-            />
-          )}
-          <div className={styles.content}>
-            <div
-              hidden={isFinding || isMobileDetail || isMeals}
-              className={styles.screen}
-              data-mobile={!isDesktop || undefined}
-            >
-              <MapCanvasMode active={!isFinding && !isMobileDetail && !isMeals}>
-                <MapPanelProvider value={isMy && !isFinding ? panel : null}>
-                  <MapModeProvider value={toFinding}>
-                    <DesignRecordsPage />
-                  </MapModeProvider>
-                </MapPanelProvider>
-              </MapCanvasMode>
-            </div>
-            <div hidden={!isFinding || isMeals} className={styles.screen} data-mobile={!isDesktop || undefined}>
-              <MapCanvasMode active={isFinding}>
-                <MapPanelProvider value={isMy && isFinding ? panel : null}>
-                  <MapModeProvider value={toRecords}>
-                    <NeighborhoodPreviewPage />
-                  </MapModeProvider>
-                </MapPanelProvider>
-              </MapCanvasMode>
-            </div>
-            {isMeals && (
-              <div className={styles.screen} data-mobile={!isDesktop || undefined}>
-                <MapCanvasMode active>
-                  <Outlet />
+    <FacilityFocusProvider>
+      <RecordsMapProvider>
+        <SharedMapCanvasProvider
+          preserveZoomOnModeChange
+          infrastructure={{
+            open: !isFinding && !isMeals && (isDesktop || recordsView === 'map'),
+            onClose: () => undefined,
+          }}
+        >
+          <div className={styles.page} data-desktop={isDesktop}>
+            {isDesktop && (
+              <UnifiedNavRail
+                pathname={pathname}
+                isMeals={isMeals}
+                isMy={isMy}
+                isFinding={isFinding}
+                onRecords={toRecords.onSwitch}
+                onFinding={toFinding.onSwitch}
+                onMy={() => navigate(MY_PATH)}
+                onTool={(path) => navigate(path)}
+              />
+            )}
+            <div className={styles.content}>
+              <div
+                hidden={isFinding || isMobileDetail || isMeals}
+                className={styles.screen}
+                data-mobile={!isDesktop || undefined}
+              >
+                <MapCanvasMode active={!isFinding && !isMobileDetail && !isMeals}>
+                  <MapPanelProvider value={isMy && !isFinding ? panel : null}>
+                    <MapModeProvider value={toFinding}>
+                      <DesignRecordsPage />
+                    </MapModeProvider>
+                  </MapPanelProvider>
                 </MapCanvasMode>
               </div>
-            )}
-            {isMobileDetail && (
-              <div className={styles.detail}>
-                <Outlet />
+              <div hidden={!isFinding || isMeals} className={styles.screen} data-mobile={!isDesktop || undefined}>
+                <MapCanvasMode active={isFinding}>
+                  <MapPanelProvider value={isMy && isFinding ? panel : null}>
+                    <MapModeProvider value={toRecords}>
+                      <NeighborhoodPreviewPage />
+                    </MapModeProvider>
+                  </MapPanelProvider>
+                </MapCanvasMode>
               </div>
-            )}
+              {isMeals && (
+                <div className={styles.screen} data-mobile={!isDesktop || undefined}>
+                  <MapCanvasMode active>
+                    <Outlet />
+                  </MapCanvasMode>
+                </div>
+              )}
+              {isMobileDetail && (
+                <div className={styles.detail}>
+                  <Outlet />
+                </div>
+              )}
+            </div>
+            {!isDesktop && <MobileBottomTabs recordsTo={recordsUrl} neighborhoodsTo={findingUrl} />}
           </div>
-          {!isDesktop && <MobileBottomTabs recordsTo={recordsUrl} neighborhoodsTo={findingUrl} />}
-        </div>
-      </SharedMapCanvasProvider>
-    </RecordsMapProvider>
+        </SharedMapCanvasProvider>
+      </RecordsMapProvider>
+    </FacilityFocusProvider>
   );
 };
 const styles = {

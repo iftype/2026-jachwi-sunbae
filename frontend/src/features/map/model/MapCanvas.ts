@@ -56,7 +56,7 @@ export type MapRegionCard = {
   markerBelow?: number;
 };
 
-/** 오른쪽 위 레이어 칸(중개사, 병원, 교통, 편의)에 이어 붙이는 켜고 끄는 항목. 찜한 동네 등. */
+/** 오른쪽 위 레이어 칸(교통, 편의점, 병원, 중개사)에 이어 붙이는 켜고 끄는 항목. 찜한 동네 등. */
 export type MapRailExtraItem = {
   key: string;
   label: string;

@@ -21,17 +21,17 @@ describe('매물 주변 시설 요약', () => {
       TRANSPORT: 1,
     });
 
-    expect(summary.map((item) => item.category)).toEqual(['TRANSPORT', 'CONVENIENCE', 'HOSPITAL', 'SCHOOL', 'AGENCY']);
+    expect(summary.map((item) => item.category)).toEqual(['TRANSPORT', 'CONVENIENCE', 'HOSPITAL', 'AGENCY']);
     expect(summary[0]).toEqual({ category: 'TRANSPORT', count: 1, capped: false, nearestMeters: 140 });
     expect(summary[1]).toEqual({ category: 'CONVENIENCE', count: 2, capped: false, nearestMeters: 80 });
     expect(summary[2]).toEqual({ category: 'HOSPITAL', count: 0, capped: false, nearestMeters: null });
   });
 
   it('서버가 준 개수를 먼저 쓰고, 없으면 받은 장소 수로 센다', () => {
-    const summary = summarizeNearby([place('HOSPITAL', 200), place('SCHOOL', 400)], { HOSPITAL: 7 });
+    const summary = summarizeNearby([place('HOSPITAL', 200), place('AGENCY', 400)], { HOSPITAL: 7 });
 
     expect(summary.find((item) => item.category === 'HOSPITAL')?.count).toBe(7);
-    expect(summary.find((item) => item.category === 'SCHOOL')?.count).toBe(1);
+    expect(summary.find((item) => item.category === 'AGENCY')?.count).toBe(1);
   });
 
   it('잘린 개수에 이른 시설은 더 있을 수 있다고 표시하되, 정류장은 자르지 않는다', () => {

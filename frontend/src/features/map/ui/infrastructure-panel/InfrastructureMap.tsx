@@ -4,12 +4,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
 import Icon from '@/shared/ui/icon/Icon';
 
-import useInfrastructureLayer, { INFRASTRUCTURE_CATEGORIES } from '../../hooks/useInfrastructureLayer';
+import useInfrastructureLayer from '../../hooks/useInfrastructureLayer';
 import {
   DESKTOP_FACILITY_MARKER_LEVEL,
   FACILITY_MARKER_LEVEL,
   facilityMarkersVisible,
 } from '../../lib/mapFacilityVisibility';
+import { FACILITY_CATEGORY_COLOR, isFacilityCategory } from '../../lib/mapPresentation';
 import type { MapBounds, MapMarker } from '../../model/Map';
 import type { MapCanvasProps, MapRadiusCircle } from '../../model/MapCanvas';
 import MapBookmarkToggle from '../map-bookmark-toggle/MapBookmarkToggle';
@@ -38,14 +39,6 @@ const distanceMeters = (a: { latitude: number; longitude: number }, b: { latitud
   const northSouth = (a.latitude - b.latitude) * METERS_PER_LATITUDE_DEGREE;
   const eastWest = (a.longitude - b.longitude) * METERS_PER_LATITUDE_DEGREE * Math.cos((b.latitude * Math.PI) / 180);
   return Math.hypot(northSouth, eastWest);
-};
-
-/** 멀리서 점으로 줄일 때 쓰는 시설별 색. 매물 상세 주변 지도의 색과 같다. */
-const DOT_COLOR: Partial<Record<NonNullable<MapMarker['category']>, string>> = {
-  TRANSPORT: '#3b82f6',
-  CONVENIENCE: '#22c55e',
-  HOSPITAL: '#ef4444',
-  AGENCY: '#f59e0b',
 };
 
 const isPropertyMarker = (marker: MapMarker) => marker.tone === 'property' || marker.tone === 'propertyCluster';
@@ -90,7 +83,10 @@ const InfrastructureMap = ({ mapProps, open }: Props) => {
       ? inside.map((marker) => ({
           ...marker,
           tone: 'dot' as const,
-          color: marker.category ? DOT_COLOR[marker.category] : undefined,
+          color:
+            marker.category && isFacilityCategory(marker.category)
+              ? FACILITY_CATEGORY_COLOR[marker.category]
+              : undefined,
         }))
       : [];
   }, [layer.markers, anchorPoint, isNear, isDesktop]);
@@ -123,17 +119,9 @@ const InfrastructureMap = ({ mapProps, open }: Props) => {
             className={styles.rail}
             showIcons={false}
             selectedCategories={layer.category ? [layer.category] : []}
-            order={[...INFRASTRUCTURE_CATEGORIES]}
-            labels={{ AGENCY: '중개사' }}
+            hiddenCategories={['SCHOOL']}
             onToggle={(category) => {
-              if (
-                category === 'AGENCY' ||
-                category === 'HOSPITAL' ||
-                category === 'TRANSPORT' ||
-                category === 'CONVENIENCE'
-              ) {
-                layer.selectCategory(category);
-              }
+              if (isFacilityCategory(category)) layer.selectCategory(category);
             }}
           />
           {layer.isError && (
