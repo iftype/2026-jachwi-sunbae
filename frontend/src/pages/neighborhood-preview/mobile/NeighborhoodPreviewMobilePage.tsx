@@ -351,7 +351,6 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
                 />
               </div>
             )}
-            {mapView.needsZoomForFacilities && <p className={styles.zoomHint}>확대하면 주변 시설이 보여요</p>}
             {/* 정보는 시트 하나에만 둔다. 마커와 `My`는 한 단계 높이로 두고, 닫으면 그 정보를 닫는다.
                 동네는 지도와 고른 동이 같이 보이게 낮게 열고 끌어 올리면 더 크게 본다. 닫아도 동네 선택은 그대로 둔다. */}
             {infoSheet}
@@ -458,24 +457,6 @@ const styles = {
     font-size: 1.3rem;
     cursor: pointer;
   `,
-  /* 시설 칸을 켰지만 멀리 보고 있을 때 지도 아래 가운데에 띄우는 한 줄 안내. 지도 조작을 막지 않는다. */
-  zoomHint: css`
-    label: NeighborhoodPreviewMobilePage-zoomHint;
-    position: absolute;
-    left: 50%;
-    bottom: calc(env(safe-area-inset-bottom) + 1.5rem);
-    z-index: 2;
-    margin: 0;
-    padding: 0.5rem 0.9rem;
-    border-radius: 99px;
-    background: var(--color-surface);
-    box-shadow: 0 1px 6px rgb(0 0 0 / 8%);
-    color: var(--color-ink-soft);
-    font-size: 0.8rem;
-    transform: translateX(-50%);
-    pointer-events: none;
-  `,
-
   /* 결과 머리. 첫 줄(집, 조건 요약, 다시 선택)과 둘째 줄(월세 슬라이더와 색 기준 카드)을 위아래로 쌓는다. */
   resultHeader: css`
     label: NeighborhoodPreviewMobilePage-resultHeader;

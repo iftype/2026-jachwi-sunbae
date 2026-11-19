@@ -655,8 +655,6 @@ const useNeighborhoodMapView = (
     railSelection,
     /** 기록한 매물을 지도에 띄우는 중인지(로그인한 회원). */
     showsMy,
-    /** 시설 칸을 켰지만 멀리 보고 있어 시설을 받지 않는 중인지. 화면은 `가까이 확대하면 보여요`를 띄운다. */
-    needsZoomForFacilities: isResultMap && !facilityMarkersVisible(preview.resultLevel, markerLevel),
     /** 켠 레일 칸을 끈다(My 목록을 닫았을 때). */
     clearRail: () => {
       if (railSelection !== null) selectRail(railSelection);
