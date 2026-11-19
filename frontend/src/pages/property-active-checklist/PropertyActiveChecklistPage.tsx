@@ -140,7 +140,7 @@ const ResolvedPropertyActiveChecklist = ({
                   <p role="alert">추가 목록을 불러오지 못했어요. 지금 선택지는 그대로 있어요.</p>
                 )}
                 <Button
-                  variant="secondary"
+                  variant="neutral"
                   fullWidth
                   type="button"
                   disabled={list.isFetchingNextPage}

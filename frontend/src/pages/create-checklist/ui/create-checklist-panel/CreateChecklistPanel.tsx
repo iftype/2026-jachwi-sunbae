@@ -86,7 +86,6 @@ const CreateChecklistPanel = ({ onClose, onCreated }: CreateChecklistPanelProps)
           serverError={create.isError ? getChecklistErrorMessage(create.error) : undefined}
           onOpenItemPicker={() => setIsPickerOpen(true)}
           onSubmit={save}
-          isDesktop
         />
       )}
     </ChecklistPageLayout>
