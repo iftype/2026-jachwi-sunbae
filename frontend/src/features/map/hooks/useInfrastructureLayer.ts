@@ -5,11 +5,11 @@ import useDebouncedValue from '@/shared/lib/hooks/useDebouncedValue';
 
 import { useViewportPlaces } from '../api/useViewportPlaces';
 import { facilityMarkersVisible } from '../lib/mapFacilityVisibility';
+import type { FacilityCategory } from '../lib/mapPresentation';
 import type { MapBounds, MapCategory, MapMarker } from '../model/Map';
 import useViewportFacilityLayer from './useViewportFacilityLayer';
 
-export const INFRASTRUCTURE_CATEGORIES = ['AGENCY', 'HOSPITAL', 'TRANSPORT', 'CONVENIENCE'] as const;
-type Category = (typeof INFRASTRUCTURE_CATEGORIES)[number];
+type Category = FacilityCategory;
 export type InfrastructurePlace = {
   id: string;
   name: string;
