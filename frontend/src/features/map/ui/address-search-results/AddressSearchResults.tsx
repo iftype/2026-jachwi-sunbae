@@ -1,8 +1,11 @@
 import { css, cx } from '@emotion/css';
 import type { KeyboardEvent } from 'react';
 
+import useRecentAddresses from '../../hooks/useRecentAddresses';
+import { addRecentAddress, clearRecentAddresses, removeRecentAddress } from '../../lib/recentAddressStore';
 import type { AddressSearchStatus } from '../../model/AddressSearch';
 import type { MapAddress } from '../../model/Map';
+import RecentAddressList from '../recent-address-list/RecentAddressList';
 
 /**
  * 검색창 묶음(입력창과 결과 목록을 함께 감싼 요소)의 키 처리. 입력창에서 아래 방향키를 누르면 첫 결과로, Esc는 목록을 닫고 입력창에 둔다.
@@ -13,7 +16,9 @@ export const handleSearchKeys = (event: KeyboardEvent<HTMLElement>, close: () =>
     close();
     event.currentTarget.querySelector('input')?.focus();
   } else if (event.key === 'ArrowDown' && event.target instanceof HTMLInputElement && !event.nativeEvent.isComposing) {
-    const first = event.currentTarget.querySelector<HTMLButtonElement>('ul[aria-label="주소 검색 결과"] button');
+    const first = event.currentTarget.querySelector<HTMLButtonElement>(
+      'ul[aria-label="주소 검색 결과"] button, ul[aria-label="최근 검색 목록"] button',
+    );
     if (first) {
       event.preventDefault();
       first.focus();
@@ -29,6 +34,8 @@ type AddressSearchResultsProps = {
   /** 좁은 입력창 아래에서 주소가 잘리지 않게 목록을 가까운 위치 기준 칸 전체 너비로 두고 줄바꿈을 허용한다. */
   wide?: boolean;
   errorMessage?: string;
+  /** 검색어가 비어 있을 때 목록 자리에 기기에 저장된 최근 검색을 보인다. 드롭다운에서만 쓴다. */
+  recent?: boolean;
 };
 /** API와 라우터 없이 검색 결과·로딩·오류를 표현한다. 지도와 위치 선택에서 함께 쓴다. */
 const AddressSearchResults = ({
@@ -38,8 +45,16 @@ const AddressSearchResults = ({
   dropdown = false,
   wide = false,
   errorMessage = '주소를 찾지 못했어요. 다시 시도해 주세요.',
+  recent = false,
 }: AddressSearchResultsProps) => {
-  if (dropdown && status === 'idle') return null;
+  const recents = useRecentAddresses();
+  const showRecent = dropdown && recent && status === 'idle' && recents.length > 0;
+  if (dropdown && status === 'idle' && !showRecent) return null;
+  // 드롭다운에서 고른 주소는 기기에 최근 검색으로 남긴다.
+  const select = (address: MapAddress) => {
+    if (dropdown) addRecentAddress(address);
+    onSelect(address);
+  };
   /** 결과 사이를 위아래 방향키로 옮긴다. 맨 위에서 위로 가면 입력창으로 돌아간다. Esc와 입력창에서의 아래 방향키는 검색창 쪽(`handleSearchKeys`)이 맡는다. */
   const moveFocus = (event: KeyboardEvent<HTMLUListElement>) => {
     const items = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('button'));
@@ -55,6 +70,14 @@ const AddressSearchResults = ({
   };
   const content = (
     <>
+      {showRecent && (
+        <RecentAddressList
+          addresses={recents}
+          onSelect={select}
+          onRemove={removeRecentAddress}
+          onClear={clearRecentAddresses}
+        />
+      )}
       {status === 'loading' && (
         <p className={styles.state} role="status">
           주소를 찾는 중이에요…
@@ -74,7 +97,7 @@ const AddressSearchResults = ({
 
             return (
               <li key={`${result.latitude}-${result.longitude}`}>
-                <button type="button" className={styles.item} onClick={() => onSelect(result)}>
+                <button type="button" className={styles.item} onClick={() => select(result)}>
                   <span className={styles.text}>
                     <strong>{primary}</strong>
                     {secondary !== null && <small>{secondary}</small>}
