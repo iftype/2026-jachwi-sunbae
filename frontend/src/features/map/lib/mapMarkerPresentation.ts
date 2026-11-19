@@ -90,7 +90,12 @@ export const mapZoomScale = (level: number): number => {
   if (level > 1) return 1.35;
   return 1.6;
 };
+/** 내가 기록한 방 사진 카드 마커는 확대했을 때 화면을 덜 가리도록 배율을 이 비율만큼 줄인다(약 12%). */
+export const PHOTO_MARKER_SCALE_RATIO = 0.88;
+const isPhotoPropertyMarker = (marker: MapMarker): boolean =>
+  marker.photo !== undefined && (marker.tone === 'property' || marker.tone === 'propertyCluster');
 export const markerScale = (marker: MapMarker, level: number): number => {
+  if (isPhotoPropertyMarker(marker)) return Number((mapZoomScale(level) * PHOTO_MARKER_SCALE_RATIO).toFixed(3));
   if (marker.category === 'MEMO') return Number(clamp(1 - (level - 4) * 0.1, 0.6, 1).toFixed(2));
   if (marker.tone === 'current' || marker.tone === 'flash') return 1;
   return mapZoomScale(level);
