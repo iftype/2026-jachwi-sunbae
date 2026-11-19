@@ -1360,7 +1360,7 @@ it('선택 모드에서 매물 마커를 눌러도 아무 일도 없고, 지도 
     viewport.mockRestore();
   }
 });
-it('결과 후 매물 마커를 누르면 접어 둔 패널이 펼쳐지고 지도 시점은 움직이지 않는다', async () => {
+it('결과 후 매물 마커를 누르면 접어 둔 패널이 펼쳐지고 지도는 그 매물 쪽으로만 옮긴다(확대 단계는 그대로)', async () => {
   const viewport = useDesktopViewport();
   useOneRecordedProperty();
   try {
@@ -1372,10 +1372,16 @@ it('결과 후 매물 마커를 누르면 접어 둔 패널이 펼쳐지고 지�
     await screen.findByRole('complementary', { name: '내 매물 정보' });
     await user.click(screen.getByRole('button', { name: '상세 접기' }));
     expect(screen.queryByRole('complementary', { name: '내 매물 정보' })).not.toBeInTheDocument();
-    const view = screen.getByLabelText('지도 시점').textContent;
+    const before = JSON.parse(screen.getByLabelText('지도 시점').textContent ?? '{}');
     await user.click(screen.getByRole('button', { name: '마커 신림역 원룸' }));
     expect(await screen.findByRole('complementary', { name: '내 매물 정보' })).toHaveTextContent('신림역 원룸');
-    expect(screen.getByLabelText('지도 시점').textContent).toBe(view);
+    // 지도는 그 매물 쪽으로 옮기되 확대 단계는 그대로 둔다(패널 틀이 없는 테스트 환경에서는 매물 자리가 곧 가운데다).
+    const after = JSON.parse(screen.getByLabelText('지도 시점').textContent ?? '{}');
+    expect(after.center).toMatchObject({
+      latitude: propertySummaryFixture.location.latitude,
+      longitude: propertySummaryFixture.location.longitude,
+    });
+    expect(after.level).toBe(before.level);
   } finally {
     viewport.mockRestore();
   }

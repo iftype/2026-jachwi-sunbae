@@ -276,8 +276,10 @@ const useNeighborhoodMapView = (
       const row = myRows.find((item) => `${MY_PROPERTY_PREFIX}${item.propertyId}` === marker.id);
       if (row) {
         openProperty(row.propertyId);
-        // 접어 둔 매물 패널을 펼친다. 지도 시점은 옮기지 않는다.
+        // 접어 둔 매물 패널을 펼치고, 패널에 가린 폭을 뺀 남은 지도 영역의 가운데로 그 매물을 옮긴다. 확대 단계는 그대로 둔다.
         setDetailCollapsed(false);
+        const center = recordsController?.centerBesidePanels(marker, preview.resultLevel, true) ?? marker;
+        preview.focusPoint(center);
       }
       return;
     }
@@ -495,7 +497,8 @@ const useNeighborhoodMapView = (
         onSelectMarker: (marker: MapMarker) => {
           if (marker.id.startsWith(SEARCH_PIN_ID)) selectSearchPin(marker);
         },
-        selectedMarkerId: selectedProperty ? `${MY_PROPERTY_PREFIX}${selectedProperty.propertyId}` : null,
+        // 시작 전과 선택 중에는 고른 매물이 없다. 시설 분류 카드도 결과 지도에서 매물을 골랐을 때만 선다.
+        selectedMarkerId: null,
       };
   const baseSelectMarker = mapProps.onSelectMarker;
   const baseBoundsChange = mapProps.onBoundsChange;
