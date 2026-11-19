@@ -225,8 +225,12 @@ describe('내 체크리스트 편집', () => {
     expect(core).toBeEnabled();
     expect(screen.queryByText('이미 추가됨')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '체크리스트 저장' })).not.toBeInTheDocument();
+    expect(screen.getByText('0개 선택')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '선택한 0개 항목 추가' })).toBeDisabled();
     await user.click(core);
     await user.click(optional);
+    expect(screen.getByText('2개 선택')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '선택한 2개 항목 추가' })).toBeEnabled();
     await user.click(screen.getByRole('button', { name: '선택한 2개 항목 추가' }));
     expect(screen.getByRole('heading', { name: '추가된 체크리스트' })).toBeInTheDocument();
     expect(screen.getByText(onlineItemFixture.question)).toBeInTheDocument();

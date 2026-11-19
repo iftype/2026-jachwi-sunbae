@@ -81,3 +81,11 @@ it('돋보기와 x는 오른쪽 끝 한 자리를 번갈아 쓴다: 비면 돋�
   expect(clear).toHaveBeenCalledOnce();
   expect(screen.getByRole('button', { name: '검색' })).toBe(search.lastElementChild);
 });
+
+it('filled variant도 검색창 역할과 검색, 지우기 버튼을 그대로 둔다', async () => {
+  const submit = vi.fn();
+  render(<SearchField label="항목 검색" variant="filled" value="" onValueChange={vi.fn()} onSubmit={submit} />);
+  expect(screen.getByRole('search')).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: '검색' }));
+  expect(submit).toHaveBeenCalledOnce();
+});
