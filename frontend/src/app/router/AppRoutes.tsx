@@ -5,6 +5,7 @@ import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-do
 import PublicExploreLayout from '@/app/layouts/public-explore-layout/PublicExploreLayout';
 import RecordsPageSkeleton from '@/pages/design-records/RecordsPageSkeleton';
 import NeighborhoodPageSkeleton from '@/pages/neighborhood-preview/NeighborhoodPageSkeleton';
+import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
 import {
   ABOUT_PATH,
   ADDRESS_SEARCH_PATH,
@@ -95,6 +96,10 @@ const LegacyNeighborhoodRoute = ({ base }: { base: NeighborhoodBasePath }) => {
     />
   );
 };
+/** 체크리스트 화면의 셸. 데스크탑은 통합 지도(왼쪽 칸 + 지도)를, 휴대폰은 앱 셸을 쓰고, 안쪽 화면은 둘 다 `Outlet`으로 받는다. */
+const ChecklistsRoute = () =>
+  useIsDesktop() ? lazyPage(<UnifiedMapPage />, <RecordsPageSkeleton />) : lazyPage(<PropertyAppLayout />);
+
 const AppRoutes = () => (
   <Routes>
     <Route path={`${ADMIN_PATH}/*`} element={lazyPage(<AdminPage />)} />
@@ -148,16 +153,18 @@ const AppRoutes = () => (
           <Route path={ROUTE_PATTERNS.areaDetails} element={lazyPage(<NeighborhoodRoutePage />)} />
         </Route>
       </Route>
+      {/* 체크리스트 관리는 데스크탑에서 통합 지도의 왼쪽 칸에 들어가 지도와 함께 보이고, 휴대폰은 앱 셸의 전체 화면이다. */}
+      <Route path={CHECKLISTS_PATH} element={<ChecklistsRoute />}>
+        <Route index element={lazyPage(<ChecklistListPage />)} />
+        <Route path={CHECKLIST_CREATE_PATH} element={lazyPage(<CreateChecklistPage />)} />
+        <Route path={ROUTE_PATTERNS.checklistDetail} element={lazyPage(<ChecklistDetailPage />)} />
+      </Route>
       <Route element={lazyPage(<PropertyAppLayout />)}>
         <Route path={ROUTE_PATTERNS.propertyEdit} element={lazyPage(<EditPropertyPage />)} />
         <Route path={ROUTE_PATTERNS.propertyPhotos} element={lazyPage(<PropertyPhotosPage />)} />
         <Route path={ROUTE_PATTERNS.propertyMemo} element={lazyPage(<PropertyMemoPage />)} />
         <Route path={ROUTE_PATTERNS.propertyNearby} element={lazyPage(<NearbyAnalysisPage />)} />
         <Route path={ROUTE_PATTERNS.propertyChecklist} element={lazyPage(<PropertyChecklistPage />)} />
-        <Route path={CHECKLISTS_PATH} element={lazyPage(<ChecklistListPage />)}>
-          <Route path={CHECKLIST_CREATE_PATH} element={lazyPage(<CreateChecklistPage />)} />
-          <Route path={ROUTE_PATTERNS.checklistDetail} element={lazyPage(<ChecklistDetailPage />)} />
-        </Route>
         {/* 이전 단계별 주소는 관리 화면으로 보낸다. */}
         <Route path={ROUTE_PATTERNS.legacyChecklists} element={<Navigate to={CHECKLISTS_PATH} replace />} />
         <Route path={ROUTE_PATTERNS.legacyMap} element={<LegacyMapRoute />} />

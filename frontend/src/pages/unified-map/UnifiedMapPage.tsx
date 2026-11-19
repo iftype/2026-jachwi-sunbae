@@ -9,7 +9,13 @@ import NeighborhoodPreviewPage from '@/pages/neighborhood-preview/NeighborhoodPr
 import { FacilityFocusProvider } from '@/features/map/hooks/useFacilityFocus';
 import { MapCanvasMode, SharedMapCanvasProvider } from '@/features/map/ui/map-canvas/SharedMapCanvas';
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
-import { CHEAP_MEALS_PATH, MY_PATH, NEIGHBORHOODS_PATH, RECORDS_PATH } from '@/shared/lib/navigation/appPaths';
+import {
+  CHEAP_MEALS_PATH,
+  CHECKLISTS_PATH,
+  MY_PATH,
+  NEIGHBORHOODS_PATH,
+  RECORDS_PATH,
+} from '@/shared/lib/navigation/appPaths';
 import MobileBottomTabs from '@/shared/ui/bottom-tab-bar/MobileBottomTabs';
 import { MapPanelProvider } from '@/shared/ui/map-list-header/MapPanelContext';
 import { MapModeProvider, type MapModeSwitch } from '@/shared/ui/map-mode-tile/MapModeContext';
@@ -24,6 +30,7 @@ const UnifiedNavRail = ({
   isMy,
   isFinding,
   isMeals,
+  isChecklists,
   onRecords,
   onFinding,
   onMy,
@@ -33,6 +40,7 @@ const UnifiedNavRail = ({
   isMy: boolean;
   isFinding: boolean;
   isMeals: boolean;
+  isChecklists: boolean;
   onRecords: () => void;
   onFinding: () => void;
   onMy: () => void;
@@ -44,10 +52,10 @@ const UnifiedNavRail = ({
       items={NAV_RAIL_ITEMS.map((item) => ({
         ...item,
         isActive:
-          (item.key === 'records' && !isMy && !isFinding && !isMeals) ||
-          (item.key === 'neighborhoods' && !isMy && isFinding) ||
+          (item.key === 'records' && !isMy && !isChecklists && !isFinding && !isMeals) ||
+          (item.key === 'neighborhoods' && !isMy && !isChecklists && isFinding) ||
           (item.key === 'my' && isMy) ||
-          (item.path !== undefined && isMeals && pathname.startsWith(item.path)),
+          (item.path !== undefined && (isMeals || isChecklists) && pathname.startsWith(item.path)),
         onSelect: () => {
           if (item.key === 'records') onRecords();
           else if (item.key === 'neighborhoods') onFinding();
@@ -66,16 +74,19 @@ const UnifiedMapPage = () => {
   const [recordsView, setRecordsView] = useRecordsView();
   const params = useParams();
   const isMy = pathname === MY_PATH;
+  // 체크리스트는 데스크탑에서 마이처럼 내 기록 목록 칸 자리에 들어가고, 오른쪽 지도는 그대로 둔다.
+  const isChecklists = pathname === CHECKLISTS_PATH || pathname.startsWith(`${CHECKLISTS_PATH}/`);
+  const isPanelRoute = isMy || isChecklists;
   const [lastFinding, setLastFinding] = useState(pathname.startsWith(NEIGHBORHOODS_PATH));
   // 저렴한 한 끼도 이 화면 안에서 그린다. 지도 인스턴스와 줌, 중심이 내 기록, 동네 찾기와 이어진다.
   const isMeals = pathname.startsWith(CHEAP_MEALS_PATH);
-  const isFinding = isMy ? lastFinding : pathname.startsWith(NEIGHBORHOODS_PATH);
-  if (!isMy && lastFinding !== isFinding) setLastFinding(isFinding);
+  const isFinding = isPanelRoute ? lastFinding : pathname.startsWith(NEIGHBORHOODS_PATH);
+  if (!isPanelRoute && lastFinding !== isFinding) setLastFinding(isFinding);
   const [recordsUrl, setRecordsUrl] = useState(RECORDS_PATH);
   const [findingUrl, setFindingUrl] = useState(NEIGHBORHOODS_PATH);
   const currentUrl = pathname + search;
-  if (!isMy && isFinding && findingUrl !== currentUrl) setFindingUrl(currentUrl);
-  if (!isMy && !isFinding && !isMeals && recordsUrl !== currentUrl) setRecordsUrl(currentUrl);
+  if (!isPanelRoute && isFinding && findingUrl !== currentUrl) setFindingUrl(currentUrl);
+  if (!isPanelRoute && !isFinding && !isMeals && recordsUrl !== currentUrl) setRecordsUrl(currentUrl);
   const isMobileDetail = !isDesktop && !isFinding && params.propertyId !== undefined;
   const closeMy = () => navigate(isFinding ? findingUrl : recordsUrl);
   // 동네 찾기로 넘어갈 때는 지난 검색(목적지, 조건, 결과)이 있으면 그 화면으로, 처음이면 동네 찾기 지도로 바로 간다.
@@ -85,7 +96,18 @@ const UnifiedMapPage = () => {
     onSwitch: () => navigate(findingUrl),
   };
   const toRecords: MapModeSwitch = { target: 'records', onSwitch: () => navigate(recordsUrl) };
-  const panel = isMy ? { content: <MyMapPanel onClose={closeMy} />, close: closeMy } : null;
+  const panel = isMy
+    ? { content: <MyMapPanel onClose={closeMy} />, close: closeMy }
+    : isChecklists
+      ? {
+          content: (
+            <div className={styles.checklistPanel}>
+              <Outlet />
+            </div>
+          ),
+          close: closeMy,
+        }
+      : null;
   return (
     <FacilityFocusProvider>
       <RecordsMapProvider>
@@ -102,6 +124,7 @@ const UnifiedMapPage = () => {
                 pathname={pathname}
                 isMeals={isMeals}
                 isMy={isMy}
+                isChecklists={isChecklists}
                 isFinding={isFinding}
                 onRecords={toRecords.onSwitch}
                 onFinding={toFinding.onSwitch}
@@ -116,7 +139,7 @@ const UnifiedMapPage = () => {
                 data-mobile={!isDesktop || undefined}
               >
                 <MapCanvasMode active={!isFinding && !isMobileDetail && !isMeals}>
-                  <MapPanelProvider value={isMy && !isFinding ? panel : null}>
+                  <MapPanelProvider value={isPanelRoute && !isFinding ? panel : null}>
                     <MapModeProvider value={toFinding}>
                       <DesignRecordsPage />
                     </MapModeProvider>
@@ -125,7 +148,7 @@ const UnifiedMapPage = () => {
               </div>
               <div hidden={!isFinding || isMeals} className={styles.screen} data-mobile={!isDesktop || undefined}>
                 <MapCanvasMode active={isFinding}>
-                  <MapPanelProvider value={isMy && isFinding ? panel : null}>
+                  <MapPanelProvider value={isPanelRoute && isFinding ? panel : null}>
                     <MapModeProvider value={toRecords}>
                       <NeighborhoodPreviewPage />
                     </MapModeProvider>
@@ -160,6 +183,12 @@ const UnifiedMapPage = () => {
   );
 };
 const styles = {
+  checklistPanel: css`
+    label: UnifiedMapPage-checklistPanel;
+    height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  `,
   detail: css`
     label: UnifiedMapPage-detail;
     height: 100%;

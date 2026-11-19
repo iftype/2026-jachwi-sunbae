@@ -4,15 +4,13 @@ import { useState } from 'react';
 import { useChecklistPreset } from '@/features/checklist/api/useChecklists';
 import { groupChecklistItems } from '@/features/checklist/lib/checklistCategories';
 import { USER_CHECKLIST_STAGE } from '@/features/checklist/model/checklist';
-import { CHECKLIST_CREATE_PATH } from '@/shared/lib/navigation/appPaths';
-import { ButtonLink } from '@/shared/ui/button/Button';
 import Icon from '@/shared/ui/icon/Icon';
 import StateIllustration from '@/shared/ui/state-illustration/StateIllustration';
 
 /**
- * 체크리스트 관리 데스크탑 화면에서 왼쪽 목록에서 아무것도 고르지 않았을 때 오른쪽에 두는 안내.
- * 고르지 않으면 서비스의 기본 체크리스트가 쓰인다는 그림과 문구, 카테고리(보안, 창문·채광 등) 버튼을 세로로 둔다.
- * 버튼을 누르면 그 카테고리의 기본 항목이 버튼 아래에 펼쳐진다. 맨 아래에 내 체크리스트를 새로 만드는(추가) 버튼을 둔다.
+ * 체크리스트 관리 데스크탑 화면에서 내 체크리스트 목록 아래에 두는 안내.
+ * 고르지 않으면 서비스의 기본 체크리스트가 쓰인다는 그림과 문구, 카테고리(보안, 창문, 채광 등) 버튼을 세로로 둔다.
+ * 버튼을 누르면 그 카테고리의 기본 항목이 버튼 아래에 펼쳐진다.
  */
 const ChecklistDefaultIntro = () => {
   const preset = useChecklistPreset(USER_CHECKLIST_STAGE, 'ONE_ROOM', true);
@@ -56,9 +54,6 @@ const ChecklistDefaultIntro = () => {
           })}
         </ul>
       )}
-      <ButtonLink to={CHECKLIST_CREATE_PATH} variant="secondary" fullWidth className={styles.add}>
-        <Icon name="plus" size={16} /> 내 체크리스트 추가하기
-      </ButtonLink>
     </section>
   );
 };
@@ -68,10 +63,7 @@ const styles = {
     label: ChecklistDefaultIntro-root;
     display: grid;
     gap: 1rem;
-    /* 카테고리 버튼이 칸 폭을 꽉 채우지 않게 가로 길이를 줄여 가운데에 둔다. */
-    width: min(100%, 32rem);
-    margin: 0 auto;
-    padding: 1.5rem 1.25rem 2rem;
+    padding: 1.5rem 0.5rem 0;
   `,
 
   header: css`
@@ -178,17 +170,6 @@ const styles = {
     label: ChecklistDefaultIntro-icon;
     display: inline-flex;
     color: var(--color-brand-blue-ink);
-  `,
-
-  add: css`
-    label: ChecklistDefaultIntro-add;
-
-    & > span {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.4rem;
-    }
   `,
 };
 
