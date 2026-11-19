@@ -596,7 +596,7 @@ const useNaverMap = ({
   }, [engine, liveMode, mapReady]);
 
   useEffect(() => {
-    regionLayerRef.current?.sync(regions, selectedRegionId, !isDesktop);
+    regionLayerRef.current?.sync(regions, selectedRegionId, isDesktop ? 'full' : 'chip');
   }, [engine, isDesktop, liveMode, mapReady, regions, selectedRegionId, settledVersion]);
 
   useEffect(() => {
