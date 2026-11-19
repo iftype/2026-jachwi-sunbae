@@ -1262,8 +1262,8 @@ it('동네 찾기 지도에도 내 기록과 같은 매물 마커를 올리고, 
   try {
     show(false, undefined, true);
     const user = await choosePoint();
-    // 출퇴근 장소를 고르는 동안에도 매물이 보이지만 누를 수는 없다.
-    await waitFor(() => expect(markerList().map((marker) => marker.id)).toContain('my-property:10'));
+    // 출퇴근 장소를 고르는 동안에는 선택한 위치만 보이고 매물은 그리지 않는다.
+    expect(markerList().map((marker) => marker.id)).not.toContain('my-property:10');
     expect(screen.queryByRole('button', { name: '마커 신림역 원룸' })).not.toBeInTheDocument();
     await submitCurrentSearch(user);
     await screen.findByRole('region', { name: '행정동 프리셋 지도' });

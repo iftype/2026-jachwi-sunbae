@@ -247,10 +247,9 @@ const useNeighborhoodMapView = (
     ],
     [railMarkers, preview.destination],
   );
+  // 출퇴근 장소를 고르거나 검색하는 동안에는 위치만 보인다. 내 매물은 결과가 나온 뒤에 올린다.
   const candidateMarkers = useMemo(
     () => [
-      // 출퇴근 장소를 고르는 동안에도 내 매물을 보여 주되 누를 수 없게 둔다. 매물 위를 눌러도 그 자리를 출퇴근 장소로 고른다.
-      ...groupedMyMarkers.map((marker) => ({ ...marker, actionable: false })),
       ...(preview.hasChosenMapPoint
         ? // 목적지를 고른 방법으로 핀을 가른다: 검색은 이름이 붙은 검은 핀, 지도를 눌러 고른 곳은 점선 고리가 있는 작은 핀.
           // 분석은 이 마커와 같은 좌표(`mapCandidate`)로 요청한다. 새로 고르면 이전 마커는 같은 id라 바뀐다.
@@ -270,13 +269,7 @@ const useNeighborhoodMapView = (
           ? [{ ...preview.destination, id: 'destination', label: DESTINATION_LABEL, tone: 'destination' as const }]
           : []),
     ],
-    [
-      groupedMyMarkers,
-      preview.mapCandidate,
-      preview.hasChosenMapPoint,
-      preview.hasSubmittedSearch,
-      preview.destination,
-    ],
+    [preview.mapCandidate, preview.hasChosenMapPoint, preview.hasSubmittedSearch, preview.destination],
   );
   // 위치를 고르기 전, 지도 가운데 좌표에 붙는 첫 안내. 위치를 고르거나 검색을 시작하면 잠시 숨긴다.
   const tip = useMapTip({
