@@ -3,9 +3,8 @@ import { useLocation } from 'react-router-dom';
 
 import { type MapCoordinate, MapLocationError, requestCurrentMapLocation } from '@/features/map/lib/mapLocation';
 import type { MapAddress } from '@/features/map/model/Map';
-import type { MapMarker } from '@/features/map/model/Map';
 import { usePropertyList } from '@/features/property/api/useProperties';
-import usePropertyMarkerPhotos from '@/features/property/hooks/usePropertyMarkerPhotos';
+import usePropertyPhotoMarkers from '@/features/property/hooks/usePropertyPhotoMarkers';
 import { takeMovedProperty } from '@/features/property/model/movedProperty';
 import {
   hiddenPreviewSnapshot,
@@ -18,7 +17,6 @@ import {
   SAMPLE_PROPERTIES_VIEW,
   withPreviewProperties,
 } from '@/features/property/model/sampleProperties';
-import { PROPERTY_PLACEHOLDER } from '@/shared/assets/propertyImageAssets';
 
 import { moveUnregisteredLast, recordPresentation } from '../model/recordPresentation';
 
@@ -117,29 +115,7 @@ const useRecords = (selection?: RecordsSelection) => {
     }
   }, [allRecords]);
 
-  const photoUrls = usePropertyMarkerPhotos(records);
-  const markers = useMemo<MapMarker[]>(
-    () =>
-      records.flatMap((record) =>
-        record.latitude !== null && record.longitude !== null
-          ? [
-              {
-                id: record.id,
-                latitude: record.latitude,
-                longitude: record.longitude,
-                label: record.name,
-                summary: { amount: record.rent },
-                tone: 'property',
-                actionable: true,
-                appear: record.id === createdId || undefined,
-                // 대표 사진이 있으면 그 사진, 없으면 기본 매물 이미지를 네모 마커로 올려 모든 매물 마커를 같은 모양으로 둔다.
-                photo: photoUrls.get(record.id) ?? PROPERTY_PLACEHOLDER.src2x,
-              },
-            ]
-          : [],
-      ),
-    [records, createdId, photoUrls],
-  );
+  const markers = usePropertyPhotoMarkers(records, createdId);
 
   /**
    * 지도에서 방금 만든 매물을 알린다. 동네 필터를 풀고 그 자리로 다가가 매물을 고르며, 핀은 떠오르며 나타난다.

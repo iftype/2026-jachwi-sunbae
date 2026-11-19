@@ -32,6 +32,16 @@ it('매물과 목적지 마커는 확대 단계에 맞춰 같은 비율로 커�
 });
 
 describe('markerZIndex', () => {
+  it('selected 마커는 고른 마커 id가 따로 있어도 일반 매물과 가게보다 앞에 둔다', () => {
+    const store = marker({ id: 'store', tone: 'destination', latitude: 90 });
+    const property = marker({ id: 'property', tone: 'property', latitude: 90 });
+    const base = marker({ id: 'base', tone: 'property', latitude: -90, selected: true });
+    const pickedStore = markerZIndex(store, 'store');
+    expect(markerZIndex(property, 'store')).toBeGreaterThan(markerZIndex(store, null));
+    expect(markerZIndex(base, 'store')).toBeGreaterThan(markerZIndex(property, 'store'));
+    expect(Math.floor(markerZIndex(base, 'store') / 20_000_000)).toBe(Math.floor(pickedStore / 20_000_000));
+  });
+
   it('순위 알약은 순위가 높을수록 앞에 둔다', () => {
     const ranks = [1, 2, 3, 4, 5].map((rank) => markerZIndex(marker({ id: `rank-${rank}`, tone: 'rank', rank }), null));
     expect(ranks).toEqual([...ranks].sort((a, b) => b - a));

@@ -10,6 +10,8 @@ import {
 } from '@/features/map/lib/mapLocation';
 import type { MapMarker } from '@/features/map/model/Map';
 import { usePropertyList } from '@/features/property/api/useProperties';
+import usePropertyPhotoMarkers from '@/features/property/hooks/usePropertyPhotoMarkers';
+import { formatMarkerRent } from '@/features/property/lib/propertyFormat';
 import {
   hiddenPreviewSnapshot,
   parseHiddenPreviewIds,
@@ -88,6 +90,8 @@ const useRestaurantMap = (
               address: property.location.address,
               latitude: property.location.latitude,
               longitude: property.location.longitude,
+              rent: formatMarkerRent(property.monthlyRentAmount),
+              representativePhoto: property.representativePhoto,
             },
           ],
     );
@@ -154,39 +158,52 @@ const useRestaurantMap = (
     () => filterByBusinessType(query.data?.stores ?? [], businessType),
     [query.data, businessType],
   );
+  /** 지금 기준과 같은 자리의 기록 매물. 기록 매물 줄(뱃지)과 지도 마커가 같은 선택으로 보이게 한다. */
+  const baseProperty = recorded.find((property) => coordinatesAreClose(property, area)) ?? null;
+  // 기록 매물 전부를 내 기록과 같은 사진 카드 마커로 그린다. 기준이 된 매물은 고른 모양으로 가장 위에 둔다.
+  const markerRecords = useMemo(
+    () => recorded.map((property) => ({ ...property, id: String(property.id) })),
+    [recorded],
+  );
+  const propertyMarkers = usePropertyPhotoMarkers(markerRecords);
+  const baseMarkerId = baseProperty === null ? null : `${PROPERTY_MARKER_PREFIX}${baseProperty.id}`;
+  // 내 매물 마커는 편의점과 배달 탭에서도 보여야 해서 가게 마커와 따로 둔다.
+  const recordedMarkers = useMemo<MapMarker[]>(
+    () =>
+      propertyMarkers.map((marker) => {
+        const id = `${PROPERTY_MARKER_PREFIX}${marker.id}`;
+        return { ...marker, id, appear: undefined, selected: id === baseMarkerId || undefined };
+      }),
+    [propertyMarkers, baseMarkerId],
+  );
   const markers = useMemo<MapMarker[]>(
     () => [
-      // 기록 매물은 작은 공용 매물 핀으로 보인다. 기준과 같은 자리의 매물은 기준 마커가 대신한다.
-      ...recorded
-        .filter((property) => !coordinatesAreClose(property, area))
-        .map((property) => ({
-          id: `${PROPERTY_MARKER_PREFIX}${property.id}`,
-          latitude: property.latitude,
-          longitude: property.longitude,
-          label: `${property.label} 기준으로 보기`,
-          tone: 'property' as const,
-          compact: true,
-          actionable: true,
-        })),
+      ...recordedMarkers,
       ...stores.map((store) => ({
         id: String(store.id),
         latitude: store.latitude,
         longitude: store.longitude,
         label: store.name,
         tone: 'destination' as const,
+        // 가게는 한 화면에 많이 겹치니 흰 바탕에 진한 글자의 가벼운 말풍선으로 그린다.
+        variant: 'light' as const,
         actionable: true,
       })),
-      // 기준 마커. 진한 파란 핀에 작은 `기준` 라벨. 가게와 매물 마커보다 위에 그려지지만 눌리지는 않는다.
-      {
-        id: BASE_MARKER_ID,
-        latitude: area.latitude,
-        longitude: area.longitude,
-        label: '기준',
-        tone: 'pinLabel' as const,
-        pinKind: 'commute' as const,
-      },
+      // 기준이 기록 매물이 아닐 때(현재 위치 등)만 기준 마커를 둔다. 기록 매물이 기준이면 그 매물 마커가 선택된 모양으로 대신한다.
+      ...(baseProperty === null
+        ? [
+            {
+              id: BASE_MARKER_ID,
+              latitude: area.latitude,
+              longitude: area.longitude,
+              label: '기준',
+              tone: 'pinLabel' as const,
+              pinKind: 'commute' as const,
+            },
+          ]
+        : []),
     ],
-    [recorded, stores, area],
+    [recordedMarkers, stores, area, baseProperty],
   );
   const chooseArea = (next: RestaurantArea) => {
     requestId.current += 1;
@@ -244,8 +261,6 @@ const useRestaurantMap = (
       isCancelled = true;
     };
   }, [isActive]);
-  /** 지금 기준과 같은 자리의 기록 매물. 기록 매물 줄에서 고른 칸으로 보여 준다. */
-  const baseProperty = recorded.find((property) => coordinatesAreClose(property, area)) ?? null;
   return {
     area,
     recorded,
@@ -261,6 +276,7 @@ const useRestaurantMap = (
     businessTypes,
     selectBusinessType: setBusinessType,
     markers,
+    recordedMarkers,
     selectedStore,
     isListOpen,
     isLocating,
@@ -276,7 +292,7 @@ const useRestaurantMap = (
       if (coordinatesAreClose(viewport, next)) return;
       setViewport(next);
     },
-    /** 지도 마커를 눌렀을 때. 매물 마커는 기준으로 삼고, 가게 마커는 상세를 연다. 기준 마커는 눌러도 아무 일도 없다. */
+    /** 지도 마커를 눌렀을 때. 매물 마커는 기준으로 삼고(뱃지를 누른 것과 같다), 가게 마커는 상세를 연다. 기준 마커는 눌러도 아무 일도 없다. */
     selectMarker: (markerId: string) => {
       if (markerId === BASE_MARKER_ID) return;
       if (markerId.startsWith(PROPERTY_MARKER_PREFIX)) {

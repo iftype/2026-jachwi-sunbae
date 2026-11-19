@@ -52,7 +52,7 @@ const markSeen = (key: string) => {
 
 /**
  * 지도 좌표에 붙는 첫 안내 말풍선을 `MapCanvas`의 `tip`으로 넘길 값으로 만든다.
- * `확인`을 누르거나 지도의 다른 곳을 누르거나 끌면 닫고 봤음으로 저장한다. 좌표가 화면 밖으로 나가면 저장하지 않고 조용히 닫는다.
+ * `확인`을 누르거나 지도의 다른 곳, 마커, 구역을 누르거나 끌거나 Esc를 누르면 닫고 봤음으로 저장한다. 좌표가 화면 밖으로 나가면 저장하지 않고 조용히 닫는다.
  */
 const useMapTip = ({
   storageKey,
@@ -79,6 +79,16 @@ const useMapTip = ({
     setIsOpen(false);
   }, [storageKey]);
   const hide = useCallback(() => setIsOpen(false), []);
+  // Esc로도 닫는다. 확인을 누르는 것만이 닫는 방법이 아니다.
+  const isShown = isOpen && enabled;
+  useEffect(() => {
+    if (!isShown) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') confirm();
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [isShown, confirm]);
   return useMemo(
     () =>
       isOpen && enabled

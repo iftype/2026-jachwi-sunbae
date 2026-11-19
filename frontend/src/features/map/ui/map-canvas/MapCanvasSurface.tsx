@@ -47,7 +47,7 @@ const MapCanvas = ({
   hideLoading = false,
   showRadiusLabels = false,
   selectedMarkerId = null,
-  onSelectMarker,
+  onSelectMarker: onSelectMarkerProp,
   onSelectLocation,
   onCenterChange,
   onLevelChange,
@@ -56,9 +56,22 @@ const MapCanvas = ({
   radiusCenter = center,
   regions,
   selectedRegionId,
-  onSelectRegion,
+  onSelectRegion: onSelectRegionProp,
   onHoverRegion,
 }: MapCanvasProps) => {
+  // 첫 안내 말풍선은 지도의 다른 곳을 누르는 것과 같이, 마커나 구역을 눌러도 확인을 기다리지 않고 닫힌다.
+  const onSelectMarker = onSelectMarkerProp
+    ? (marker: MapMarker) => {
+        tip?.onInteract();
+        onSelectMarkerProp(marker);
+      }
+    : undefined;
+  const onSelectRegion = onSelectRegionProp
+    ? (...args: Parameters<NonNullable<MapCanvasProps['onSelectRegion']>>) => {
+        tip?.onInteract();
+        onSelectRegionProp(...args);
+      }
+    : undefined;
   // 내 현재 위치는 모든 지도에서 파란 점으로 보인다. 위치 권한이 이미 허용돼 있으면 조용히 한 번 받아 온다.
   const currentLocation = useCurrentLocation();
   useEffect(() => {

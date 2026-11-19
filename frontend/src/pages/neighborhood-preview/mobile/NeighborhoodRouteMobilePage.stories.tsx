@@ -158,6 +158,7 @@ const preview: NeighborhoodPreviewContext = {
   focusPoint: noop,
   moveMapTo: noop,
   fitPoints: noop,
+  rememberMapBounds: noop,
   rememberSelectionCenter: noop,
   rememberSelectionLevel: noop,
   zoomSelectionBy: noop,

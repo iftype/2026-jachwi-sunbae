@@ -52,7 +52,7 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
     // 동을 누르면 코너 정보 카드 대신 그 자리의 마커(소요시간, 월세 시세 포함)를 띄운다.
     showAreaAction: true,
   });
-  const { isResultMap, mapProps, places, closeLayers } = mapView;
+  const { isResultMap, showsPropertyPanel, mapProps, places, closeLayers } = mapView;
   // 지도 칸은 목록과 상세 패널 아래까지 깔린다. 패널이 가리는 폭을 왼쪽 여백으로 빼고 시점을 맞춘다.
   const mapSectionRef = useResultMapViewport<HTMLElement>(preview, (section) => {
     const layout = section.parentElement?.parentElement;
@@ -97,7 +97,7 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
       : { kind: 'place', place: places.selectedPlace };
   const { property } = mapView;
   const propertyDetail =
-    isResultMap && property.selected !== null ? (
+    showsPropertyPanel && property.selected !== null ? (
       property.isDetailOpen ? (
         <aside className={styles.propertyPanel} aria-label="선택한 매물 상세">
           <PropertyDetailPage
@@ -113,6 +113,7 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
             destination={preview.destination}
             route={property.route}
             commuteMaxMinutes={property.commuteMaxMinutes}
+            hasDestination={property.hasDestination}
             onOpenDetail={property.openDetail}
             onDeleted={property.close}
           />
@@ -259,15 +260,6 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
                   </button>
                 )
               }
-              // 출퇴근 장소를 다시 고르는 칩. 뱃지 줄 맨 앞에 고정해 둔다.
-              leading={{
-                label: RESELECT_COMMUTE_LABEL,
-                onClick: () => {
-                  closeLayers();
-                  preview.selectRegion(null);
-                  preview.editLocation();
-                },
-              }}
               items={preview.resultAreas.map((area) => ({
                 id: area.adminDongCode,
                 label: area.name,
@@ -306,6 +298,21 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
           )}
           {isResultMap && (
             <>
+              {/* 지도 아래 가운데(왼쪽 패널을 뺀 보이는 지도 기준). 하단 가운데에 놓는 것은 이 한 칸에서 위에서 아래로 쌓는다. */}
+              <div className={styles.bottomCenter}>
+                <button
+                  type="button"
+                  className={styles.reselectPill}
+                  onClick={() => {
+                    closeLayers();
+                    preview.selectRegion(null);
+                    preview.editLocation();
+                  }}
+                >
+                  <Icon name="refresh" size={16} />
+                  {RESELECT_COMMUTE_LABEL}
+                </button>
+              </div>
               {/* 지도 안 왼쪽 아래: 위에 통근 시간 색 기준, 그 아래 월세 시세 슬라이더를 쌓는다. 동네를 찾은 뒤 슬라이더를 끌어 상한을 바꾸면, 받아 둔 결과에서 지도 색이 바로 바뀐다. */}
               <div className={styles.bottomStack}>
                 {preview.hasSubmittedSearch && <CommuteLegend maxMinutes={preview.maxMinutes} />}
@@ -629,6 +636,42 @@ const styles = {
   /* 왼쪽 패널에 조건 카드를 붙이는 회원용. 패널 바깥 여백을 두지 않고 안쪽 카드가 자기 여백만 갖는다. */
   /* 동네를 찾은 뒤 지도 왼쪽 위(뱃지 줄 아래)에 띄우는 월세 시세 슬라이더 카드. */
   /* 지도 왼쪽 아래에 색 기준(위)과 월세 슬라이더(아래)를 쌓는다. 오른쪽 정보 카드는 이 줄 옆으로 비킨다. */
+  /* 지도 아래 가운데. 가운데는 왼쪽 패널(--map-panel-width)을 뺀 지도 영역 기준이다. 여기에 더 놓을 것도 이 칸 안에서 쌓는다. */
+  bottomCenter: css`
+    label: NeighborhoodPreviewDesktopPage-bottomCenter;
+    position: absolute;
+    z-index: 31;
+    bottom: 1.25rem;
+    left: calc(var(--map-panel-width, 0px) + (100% - var(--map-panel-width, 0px)) / 2);
+    display: grid;
+    gap: 0.6rem;
+    justify-items: center;
+    transform: translateX(-50%);
+    pointer-events: none;
+  `,
+  /* 흰 바탕, 파랑 글자와 테두리, 되돌림 아이콘의 알약. 뱃지(회색 글자)와 구분한다. */
+  reselectPill: css`
+    label: NeighborhoodPreviewDesktopPage-reselectPill;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.6rem 1rem;
+    border: 1.5px solid var(--color-brand-blue-ink);
+    border-radius: 1.5rem;
+    background: var(--color-surface);
+    color: var(--color-brand-blue-ink);
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 800;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
+    white-space: nowrap;
+    cursor: pointer;
+    pointer-events: auto;
+    &:focus-visible {
+      outline: 2px solid var(--color-focus);
+      outline-offset: 3px;
+    }
+  `,
   bottomStack: css`
     label: NeighborhoodPreviewDesktopPage-bottomStack;
     position: absolute;

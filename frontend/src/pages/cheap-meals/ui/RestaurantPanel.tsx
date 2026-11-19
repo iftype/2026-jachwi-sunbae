@@ -134,7 +134,7 @@ const RestaurantPanel = ({ isActive, layout, listHeader, listOverride }: Restaur
     if (layout !== 'desktop' || !store) return;
     document.getElementById(`store-card-${store.id}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [layout, store]);
-  // 데스크탑 편의점과 배달 탭도 지도를 그대로 두고 목록 칸 안에서만 바뀐다. 가게 마커와 기준 반경은 식당 탭에서만 그린다.
+  // 데스크탑 편의점과 배달 탭도 지도를 그대로 두고 목록 칸 안에서만 바뀐다. 가게 마커와 기준 반경은 식당 탭에서만 그리고, 내 매물 마커는 모든 탭에서 그린다.
   const showOverride = layout === 'desktop' && !isActive && listOverride !== undefined;
   const mapView = (
     <>
@@ -143,7 +143,7 @@ const RestaurantPanel = ({ isActive, layout, listHeader, listOverride }: Restaur
           shared
           onRetry={() => window.location.reload()}
           center={map.viewport}
-          markers={showOverride ? [] : map.markers}
+          markers={showOverride ? map.recordedMarkers : map.markers}
           regions={sharedMap?.regions}
           bookmarkControl={sharedMap?.bookmarkControl}
           circles={showOverride ? [] : [{ radiusMeters: map.radius, label: `${map.radius}m` }]}
