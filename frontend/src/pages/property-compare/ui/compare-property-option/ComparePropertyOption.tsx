@@ -80,7 +80,7 @@ const styles = {
       cursor: pointer;
       transition: background-color 0.18s ease;
 
-      /* 파란 테두리와 체크 표시를 함께 써서 색 차이가 작아도 구분할 수 있게 한다. */
+      /* 파란 띠와 바탕색, 체크 표시를 함께 써서 색 차이가 작아도 구분할 수 있게 한다. */
       &[data-selected='true'] {
         background: color-mix(in srgb, var(--color-brand-blue) 12%, var(--color-canvas));
         box-shadow: inset 3px 0 var(--color-brand-blue-ink);
@@ -112,9 +112,8 @@ const styles = {
     box-sizing: border-box;
     width: 1.1rem;
     height: 1.1rem;
-    border: 1px solid var(--color-border-strong);
     border-radius: 50%;
-    background: var(--color-surface);
+    background: var(--color-border-strong);
     color: var(--color-on-primary);
     font-size: 0.7rem;
     font-weight: 800;
@@ -122,7 +121,6 @@ const styles = {
     place-items: center;
 
     .ComparePropertyOption-option[data-selected='true'] & {
-      border-color: var(--color-brand-blue-ink);
       background: var(--color-brand-blue-ink);
     }
   `,
