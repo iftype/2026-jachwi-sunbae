@@ -91,6 +91,8 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
     : selectedArea
       ? { kind: 'area', area: selectedArea }
       : null;
+  // 내 매물 시트는 위에 매물 요약, 아래에 노선을 두어 한 단계 더 높게 열고 끌어 올릴 수 있다.
+  const isPropertySheet = infoSubject?.kind === 'place' && infoSubject.place.kind === 'property';
   const bookmark = infoSubject?.kind === 'area' ? mapView.bookmark(infoSubject.area.adminDongCode) : undefined;
   // 고른 동네가 있으면(시트를 닫아 두었어도) 빈 곳을 찍어 선택을 푼다. 마커나 `My` 시트만 열려 있으면 제목만 보이게 내린다.
   emptyTapRef.current = () => {
@@ -303,8 +305,10 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
               <BottomSheet
                 key={infoSubject.kind === 'area' ? `area:${infoSubject.area.adminDongCode}` : infoSubject.kind}
                 title={mapInfoTitle(infoSubject)}
-                initialHeightPercent={infoSubject.kind === 'area' ? MOBILE_AREA_SHEET_PERCENT : 40}
-                resizable={infoSubject.kind === 'area'}
+                initialHeightPercent={
+                  infoSubject.kind === 'area' ? MOBILE_AREA_SHEET_PERCENT : isPropertySheet ? 55 : 40
+                }
+                resizable={infoSubject.kind === 'area' || isPropertySheet}
                 fullPage={false}
                 closeLabel="정보 닫기"
                 onBack={myPager?.backToList}
@@ -336,6 +340,7 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
                   preview={preview}
                   my={mapView.my}
                   onSelectProperty={mapView.selectMyProperty}
+                  property={mapView.property}
                   phoneAction="call"
                 />
               </BottomSheet>
