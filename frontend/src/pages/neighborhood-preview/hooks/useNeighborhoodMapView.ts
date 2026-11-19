@@ -170,7 +170,8 @@ const useNeighborhoodMapView = (
     else if (hasOpenLayer) closeLayers();
   };
   const tapMap = (latitude: number, longitude: number) => {
-    if (isResultMap && (hasOpenLayer || preview.selected)) {
+    // 결과 지도에서는 열린 정보만 닫고 출퇴근 장소는 건드리지 않는다.
+    if (!preview.canPickDestination) {
       tapEmpty();
       return;
     }
@@ -353,7 +354,8 @@ const useNeighborhoodMapView = (
         onCenterChange: preview.rememberSelectionCenter,
         onLevelChange: preview.rememberSelectionLevel,
         markers: [...candidateMarkers, ...searchPinMarker],
-        regions: preview.hasSubmittedSearch ? preview.regions : NO_REGIONS,
+        // 출퇴근 장소를 다시 고르는 동안에는 이전 결과의 동 영역을 지운다. 새로 찾아야 다시 그려지고, 이전 결과 보기로 돌아오면 그대로 복원된다.
+        regions: NO_REGIONS,
         tip,
         // 분석 중이거나 실패 화면이 지도를 덮고 있을 때는 위치 찍기를 끈다.
         onSelectLocation: preview.isSelectingOnMap ? tapMap : undefined,

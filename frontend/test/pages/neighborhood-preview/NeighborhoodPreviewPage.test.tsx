@@ -889,6 +889,25 @@ it('결과 지도 클릭은 목적지·결과를 유지하고 다시 선택하�
   expect(screen.getByRole('button', { name: /에서 찾기$/ })).toBeEnabled();
 });
 
+it('결과가 있을 때 지도를 눌러도 목적지가 바뀌지 않고, 바꾸기를 누르는 순간 이전 결과 동 영역을 지운다', async () => {
+  server.use(...createStreetMemoHandlers([]));
+  show();
+  const user = await choosePoint();
+  await submitCurrentSearch(user);
+  await screen.findByRole('region', { name: '행정동 프리셋 지도' });
+  const destination = screen.getByLabelText('목적지 좌표').textContent;
+  // 결과를 보는 동안 지도를 눌러도 목적지와 결과는 그대로이고 다시 찾기 단계로 넘어가지 않는다.
+  if (screen.queryByRole('button', { name: '지도에서 목적지 선택' }))
+    await user.click(screen.getByRole('button', { name: '지도에서 목적지 선택' }));
+  await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
+  expect(screen.getByLabelText('목적지 좌표').textContent).toBe(destination);
+  expect(screen.getByRole('region', { name: '행정동 프리셋 지도' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '역삼1동' })).toBeInTheDocument();
+  // 바꾸기를 누르면 새로 찾기 전까지 이전 결과 레이어를 지도에서 걷는다.
+  await user.click(screen.getByRole('button', { name: '출퇴근 장소 다시 선택' }));
+  expect(screen.queryByRole('button', { name: '역삼1동' })).not.toBeInTheDocument();
+});
+
 it('위치 선택·분석·결과·다시 선택하기 내내 지도를 새로 만들지 않는다', async () => {
   server.use(...createCommuteAreaHandlers({ delayMs: 50 }));
   show();
