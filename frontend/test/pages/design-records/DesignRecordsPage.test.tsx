@@ -422,10 +422,9 @@ it('휴대폰은 버튼 없이 늘 화면 안 거리 메모를 지도에 올리�
   await screen.findByText('신림역 원룸');
   // 분류 레일과 메모 버튼은 두지 않고 거리 메모는 늘 켜 둔다.
   expect(screen.queryByRole('complementary', { name: '지도 시설 카테고리' })).not.toBeInTheDocument();
-  // 멀리 보면 메모를 동네 묶음으로 보이므로, 동네를 고르고 확대한 뒤 화면 범위를 알린다. 동네를 골라도 확대 단계는 그대로다.
+  // 휴대폰에는 확대 축소 버튼이 없다(손가락으로 확대한다). 멀리 보면 메모를 동네 묶음으로 보이므로, 동네를 골라 다가가고 화면 범위를 알린다.
+  expect(screen.queryByRole('button', { name: '지도 확대' })).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: /^마포구/ }));
-  await user.click(screen.getByRole('button', { name: '지도 확대' }));
-  await user.click(screen.getByRole('button', { name: '지도 확대' }));
   await user.click(screen.getByRole('button', { name: '화면 범위 알림' }));
   await user.click(await screen.findByRole('button', { name: '늦게까지 여는 세탁소가 있어요.' }));
   const memo = within(await screen.findByRole('region', { name: '거리 메모' }));
@@ -765,7 +764,7 @@ it('데스크탑은 리스트에 매물이 모두 보여, 겹친 매물 묶음�
   }
 });
 
-it('본 방 기록 지도에는 분류 레일 없이 확대 축소와 현재 위치만 두고, 통근 시간 버튼도 두지 않는다', async () => {
+it('휴대폰 본 방 기록 지도에는 분류 레일과 확대 축소 없이 현재 위치만 두고, 통근 시간 버튼도 두지 않는다', async () => {
   localStorage.setItem(
     'jachwi-sunbae:commute-destination',
     JSON.stringify({ latitude: 37.5665, longitude: 126.978, name: '서울시청' }),
@@ -776,7 +775,7 @@ it('본 방 기록 지도에는 분류 레일 없이 확대 축소와 현재 위
     await screen.findByText('신림역 원룸');
     // 시설 분류(병원, 교통, 학교, 편의)는 동네 찾기 결과 지도로 옮겼다.
     expect(screen.queryByRole('complementary', { name: '지도 시설 카테고리' })).not.toBeInTheDocument();
-    expect(screen.getByRole('group', { name: '지도 확대·축소' })).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: '지도 확대·축소' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '현재 위치로 이동' })).toBeInTheDocument();
     // 리스트에는 통근 시간 버튼도, 통근거리 줄과 바꾸기도 두지 않는다.
     await user.click(screen.getByRole('button', { name: /리스트/ }));

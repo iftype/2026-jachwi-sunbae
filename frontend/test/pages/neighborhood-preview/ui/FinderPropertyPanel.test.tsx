@@ -3,9 +3,10 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { MemoryRouter } from 'react-router-dom';
-import { expect, it, vi } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 
 import { propertySummaryFixture } from '@/app/mocks/fixtures/propertyFixtures';
+import { success } from '@/app/mocks/mockStore';
 import usePropertyRoute from '@/pages/neighborhood-preview/hooks/usePropertyRoute';
 import type { MyPropertyRow } from '@/pages/neighborhood-preview/model/myProperty';
 import FinderPropertyPanel from '@/pages/neighborhood-preview/ui/finder-property-panel/FinderPropertyPanel';
@@ -13,6 +14,23 @@ import { PublicConfigProvider } from '@/shared/config/PublicConfigContext';
 import { MapModeProvider } from '@/shared/ui/map-mode-tile/MapModeContext';
 
 import { server } from '../../../server';
+
+const CENTER = { latitude: 37.5, longitude: 127.0 };
+
+// 패널의 주변 인프라 카드가 부르는 요청. 핸들러가 없으면 카드가 오류 alert를 그려 경로 오류 alert와 겹친다.
+beforeEach(() => {
+  server.use(
+    http.get('*/api/maps/nearby', () =>
+      success({
+        center: CENTER,
+        radius: 500,
+        counts: { HOSPITAL: 0, SCHOOL: 0, CONVENIENCE: 0, AGENCY: 0 },
+        places: [],
+      }),
+    ),
+    http.get('*/api/maps/bus-stops', () => success({ center: CENTER, radius: 500, count: 0, busStops: [] })),
+  );
+});
 
 const destination = { latitude: 37.55, longitude: 127.0, name: '회사', address: '서울 중구' };
 
