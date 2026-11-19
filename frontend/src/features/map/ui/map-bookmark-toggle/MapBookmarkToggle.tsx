@@ -1,6 +1,11 @@
 import { css } from '@emotion/css';
 
-import { MOBILE_MAP_CONTROLS_RIGHT, MOBILE_MAP_CONTROLS_TOP } from '../../lib/mapControlsLayout';
+import {
+  DESKTOP_MAP_CONTROLS_RIGHT,
+  DESKTOP_MAP_CONTROLS_TOP,
+  MOBILE_MAP_CONTROLS_RIGHT,
+  MOBILE_MAP_CONTROLS_TOP,
+} from '../../lib/mapControlsLayout';
 import type { MapCanvasProps } from '../../model/MapCanvas';
 
 const MapBookmarkToggle = ({
@@ -47,8 +52,8 @@ const styles = {
     label: MapBookmarkToggle-button;
     position: absolute;
     z-index: 32;
-    top: 13.7rem;
-    right: 1.15rem;
+    top: ${DESKTOP_MAP_CONTROLS_TOP};
+    right: ${DESKTOP_MAP_CONTROLS_RIGHT};
     display: grid;
     place-content: center;
     justify-items: center;

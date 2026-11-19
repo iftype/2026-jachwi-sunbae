@@ -9,6 +9,7 @@ import { LogClick } from '@/shared/lib/analytics/logging';
 import { NEIGHBORHOOD_ADDRESS_SEARCH_PATH, ROUTE_PATTERNS } from '@/shared/lib/navigation/appPaths';
 import BottomSheet from '@/shared/ui/bottom-sheet/BottomSheet';
 import { hideWhenSheetExpanded } from '@/shared/ui/bottom-sheet/hideWhenSheetExpanded';
+import { setSheetCollapsed, useSheetCollapsed } from '@/shared/ui/bottom-sheet/sheetCollapse';
 import { Button } from '@/shared/ui/button/Button';
 import Icon from '@/shared/ui/icon/Icon';
 import { useMapPanel } from '@/shared/ui/map-list-header/MapPanelContext';
@@ -96,6 +97,8 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
       : null;
   // 내 매물 시트는 위에 매물 요약, 아래에 노선을 두어 한 단계 더 높게 열고 끌어 올릴 수 있다.
   const isPropertySheet = infoSubject?.kind === 'place' && infoSubject.place.kind === 'property';
+  // 선택한 매물 시트를 접어 둔 선호(내 기록 모바일과 같은 세션 상태). 접어도 고른 매물과 지도 마커는 그대로고, 마커를 누르면 펼친다.
+  const isSheetCollapsed = useSheetCollapsed();
   const bookmark = infoSubject?.kind === 'area' ? mapView.bookmark(infoSubject.area.adminDongCode) : undefined;
   // 고른 동네가 있으면(시트를 닫아 두었어도) 빈 곳을 찍어 선택을 푼다. 마커나 `My` 시트만 열려 있으면 제목만 보이게 내린다.
   emptyTapRef.current = () => {
@@ -134,6 +137,9 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
       fullPage={false}
       className={infoSubject.kind === 'area' ? styles.areaSheet : undefined}
       closeLabel="정보 닫기"
+      collapsible={isPropertySheet}
+      initialMode={isPropertySheet && isSheetCollapsed ? 'peek' : 'default'}
+      onModeChange={isPropertySheet ? (mode) => setSheetCollapsed(mode === 'peek') : undefined}
       onBack={myPager?.backToList}
       headerEnd={
         bookmark ? (

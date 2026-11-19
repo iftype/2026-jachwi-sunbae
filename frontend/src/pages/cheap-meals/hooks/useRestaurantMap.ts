@@ -30,7 +30,6 @@ import { RESTAURANT_SEARCH_RADIUS, type RestaurantArea } from '../model/Restaura
 import useRestaurantOverlay from './useRestaurantOverlay';
 
 const DEFAULT_AREA: RestaurantArea = { ...DEFAULT_MAP_CENTER, label: '판교 주변' };
-const NOTICE_MS = 3000;
 const BASE_MARKER_ID = 'restaurant-base';
 const PROPERTY_MARKER_PREFIX = 'record-property:';
 
@@ -66,8 +65,6 @@ const useRestaurantMap = (
   const [isListOpen, setIsListOpen] = useState(() => overlay.selectedStoreId !== null || readRestaurantListOpen());
   const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
-  // 기준이 바뀌었을 때 잠깐 보여 주는 안내.
-  const [notice, setNotice] = useState<string | null>(null);
   // 고른 업종. null이면 모든 업종을 보여 준다. 기준을 바꿔도 그대로 두어 같은 업종을 이어서 찾는다.
   const [businessType, setBusinessType] = useState<string | null>(null);
   const properties = usePropertyList(isActive);
@@ -108,12 +105,6 @@ const useRestaurantMap = (
   const requestId = useRef(0);
   // 사용자가 기준을 직접 고르면 뒤늦게 도착한 현재 위치나 기록 매물이 그 기준을 덮지 않는다.
   const hasChosen = useRef(false);
-  const showNotice = (text: string) => setNotice(text);
-  useEffect(() => {
-    if (notice === null) return;
-    const timer = window.setTimeout(() => setNotice(null), NOTICE_MS);
-    return () => window.clearTimeout(timer);
-  }, [notice]);
   useEffect(() => {
     setIsLocating(false);
     return () => {
@@ -220,9 +211,8 @@ const useRestaurantMap = (
     if (property === undefined) return;
     hasChosen.current = true;
     chooseArea({ latitude: property.latitude, longitude: property.longitude, label: property.label });
-    showNotice(`${property.label} 기준으로 보고 있어요`);
   };
-  const locate = async (options: { announce?: boolean } = {}) => {
+  const locate = async () => {
     const id = ++requestId.current;
     setIsLocating(true);
     setLocationError(null);
@@ -232,7 +222,6 @@ const useRestaurantMap = (
       if (!isInSouthKorea(coordinate)) throw new Error('국내 위치가 필요합니다.');
       hasChosen.current = true;
       chooseArea({ ...coordinate, label: '현재 위치' });
-      if (options.announce !== false) showNotice('현재 위치 기준으로 보고 있어요');
     } catch {
       if (id === requestId.current) {
         setIsLocating(false);
@@ -265,8 +254,6 @@ const useRestaurantMap = (
     area,
     recorded,
     baseProperty,
-    notice,
-    closeNotice: () => setNotice(null),
     viewport,
     radius: RESTAURANT_SEARCH_RADIUS,
     level,
@@ -282,7 +269,7 @@ const useRestaurantMap = (
     isLocating,
     locationError,
     chooseProperty,
-    locate: () => locate(),
+    locate,
     changeLevel: setLevel,
     openList: () => setIsListOpen(true),
     closeList: () => setIsListOpen(false),

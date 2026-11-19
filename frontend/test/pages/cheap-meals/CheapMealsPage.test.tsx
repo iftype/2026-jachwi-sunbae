@@ -316,9 +316,7 @@ it('기록 매물 마커를 누르면 그 매물이 기준이 되어 원과 조�
   expect(await screen.findByRole('button', { name: '매물 마커 501' })).toHaveAttribute('aria-pressed', 'true');
   expect(screen.getByRole('button', { name: '매물 마커 502' })).toHaveAttribute('aria-pressed', 'false');
   await user.click(screen.getByRole('button', { name: '매물 마커 502' }));
-  expect(
-    await screen.findByRole('status', { name: '새 매물(서울 강남구 테헤란로 1) 기준으로 보고 있어요' }),
-  ).toBeInTheDocument();
+  expect(screen.queryByRole('status', { name: /기준으로 보고 있어요/ })).not.toBeInTheDocument();
   expect(screen.getByLabelText('반경 원 중심')).toHaveTextContent('37.5,127.03');
   await waitFor(() => expect(calls.stores).toHaveBeenLastCalledWith('2000', '37.5', '127.03'));
   expect(screen.getByRole('button', { name: '매물 마커 502' })).toHaveAttribute('aria-pressed', 'true');
@@ -839,8 +837,8 @@ it('명시적으로 요청한 현재 위치가 거부되면 안내하고 재요�
     expect(await screen.findByRole('alert')).toHaveTextContent('위치 권한을 확인해 주세요');
     await user.click(screen.getByRole('button', { name: '내 현재 위치로 이동' }));
     await waitFor(() => expect(calls.stores).toHaveBeenCalledWith('2000', '37.5665', '126.978'));
-    expect(await screen.findByRole('status', { name: '현재 위치 기준으로 보고 있어요' })).toBeInTheDocument();
-    expect(screen.getByLabelText('기준 마커')).toHaveTextContent('37.5665,126.978');
+    expect(screen.queryByRole('status', { name: /기준으로 보고 있어요/ })).not.toBeInTheDocument();
+    expect(await screen.findByLabelText('기준 마커')).toHaveTextContent('37.5665,126.978');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   } finally {
     locate.mockRestore();

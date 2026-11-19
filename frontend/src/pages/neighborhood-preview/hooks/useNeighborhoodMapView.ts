@@ -23,6 +23,7 @@ import { isPreviewProperty } from '@/features/property/model/sampleProperties';
 import useDebouncedValue from '@/shared/lib/hooks/useDebouncedValue';
 import useHoverIntent from '@/shared/lib/hooks/useHoverIntent';
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
+import { setSheetCollapsed } from '@/shared/ui/bottom-sheet/sheetCollapse';
 import { setDetailCollapsed } from '@/shared/ui/list-detail-layout/detailCollapse';
 
 import { formatRentPair } from '../model/criteriaLabels';
@@ -280,6 +281,8 @@ const useNeighborhoodMapView = (
         openProperty(row.propertyId);
         // 접어 둔 매물 패널을 펼치고, 패널에 가린 폭을 뺀 남은 지도 영역의 가운데로 그 매물을 옮긴다. 확대 단계는 그대로 둔다.
         setDetailCollapsed(false);
+        // 휴대폰 매물 시트도 마커를 누르면 접힘을 풀고 연다.
+        setSheetCollapsed(false);
         const center = recordsController?.centerBesidePanels(marker, preview.resultLevel, true) ?? marker;
         preview.focusPoint(center);
       }

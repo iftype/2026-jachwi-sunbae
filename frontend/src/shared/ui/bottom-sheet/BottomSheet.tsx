@@ -35,7 +35,10 @@ type BottomSheetProps = {
    * 접힌 시트는 손잡이나 펼치기 버튼을 누르거나 위로 끌면 다시 열린다. 닫기는 닫기 버튼과 Escape로만 한다.
    */
   collapsible?: boolean;
-  /** 처음 열 때 높이 단계. 접어 둔 선호를 이어 갈 때 `peek`을 준다. */
+  /**
+   * 처음 열 때 높이 단계. 접어 둔 선호를 이어 갈 때 `peek`을 준다.
+   * 접혀 있는 동안 `default`로 바뀌면(마커를 눌러 펼치는 경우) 시트도 펼친다.
+   */
   initialMode?: SheetMode;
   /** 높이 단계가 바뀌면(처음 열 때 포함) 알린다. */
   onModeChange?: (mode: SheetMode) => void;
@@ -80,6 +83,10 @@ const BottomSheet = ({
   useEffect(() => {
     onModeChangeRef.current?.(mode);
   }, [mode]);
+  // 접어 둔 선호가 밖에서 풀리면 접힌 시트를 펼친다. 시트를 직접 끌어 올린 경우는 이미 peek이 아니라 건드리지 않는다.
+  useEffect(() => {
+    if (initialMode === 'default') setMode((current) => (current === 'peek' ? 'default' : current));
+  }, [initialMode]);
   const modes: SheetMode[] = fullPage ? ['peek', 'default', 'expanded', 'full'] : ['peek', 'default', 'expanded'];
   const lastPeekSignal = useRef(peekSignal);
   useEffect(() => {

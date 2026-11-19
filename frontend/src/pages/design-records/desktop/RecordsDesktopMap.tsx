@@ -1,6 +1,7 @@
 import { css } from '@emotion/css';
 import type { ReactNode } from 'react';
 
+import { DESKTOP_MAP_CONTROLS_RIGHT, DESKTOP_MAP_LOCATE_BOTTOM } from '@/features/map/lib/mapControlsLayout';
 import MapCanvas from '@/features/map/ui/map-canvas/MapCanvas';
 import MapZoomControl from '@/features/map/ui/map-zoom-control/MapZoomControl';
 import StreetMemoImpressionLog from '@/features/street-memo/ui/street-memo-impression-log/StreetMemoImpressionLog';
@@ -52,7 +53,7 @@ const RecordsDesktopMap = ({ records, layers, districts, className }: Props) => 
 );
 
 const styles = {
-  /* 데스크탑 본 방 기록 지도: 오른쪽 칸 전체. 동네 뱃지는 위에, 확대 축소와 현재 위치는 오른쪽에, 메모 카드는 왼쪽 위에 띄운다. */
+  /* 데스크탑 본 방 기록 지도: 오른쪽 칸 전체. 동네 뱃지는 위에, 확대 축소와 찜 토글은 오른쪽 위에, 현재 위치는 오른쪽 아래에, 메모 카드는 왼쪽 위에 띄운다. */
   map: css`
     label: RecordsDesktopMap-map;
     position: relative;
@@ -63,9 +64,9 @@ const styles = {
   recenter: css`
     label: RecordsDesktopMap-recenter;
     position: absolute;
-    /* 확대 축소 바로 아래(zoom top 4.75rem + 높이 약 5.3rem + 간격 0.5rem)에 붙인다. */
-    top: 10.55rem;
-    right: 1.15rem;
+    /* 오른쪽 컨트롤 열(확대 축소, 찜 토글)에서 떼어 오른쪽 아래 모서리에 둔다. */
+    bottom: ${DESKTOP_MAP_LOCATE_BOTTOM};
+    right: ${DESKTOP_MAP_CONTROLS_RIGHT};
     z-index: 12;
     display: grid;
     place-items: center;

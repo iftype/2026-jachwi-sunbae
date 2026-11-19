@@ -26,6 +26,7 @@ import { MENU_MEMO_ICON, MENU_PROPERTY_ICON, PROPERTY_PLACEHOLDER } from '@/shar
 import { usePublicConfig } from '@/shared/config/PublicConfigContext';
 import { useLogger } from '@/shared/lib/analytics/logging';
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
+import { setDetailCollapsed } from '@/shared/ui/list-detail-layout/detailCollapse';
 
 import { readBookmarkLayerOn, writeBookmarkLayerOn } from '../model/bookmarkLayer';
 import { FIRST_PROPERTY_TIP_KEY, RECORDS_TAP_TIP_KEY, SHOW_FIRST_PROPERTY_TIP } from '../model/mapTapTipKey';
@@ -393,7 +394,13 @@ const useRecordsMapLayers = (
     memo.close();
     setTapPoint(null);
     setGroupIds([]);
-    records.showRecord(marker.id);
+    if (!isDesktop) {
+      records.showRecord(marker.id);
+      return;
+    }
+    // 데스크탑은 접어 둔 상세 패널을 펼치고, 목록 카드를 누를 때처럼 확대 단계는 두고 남은 지도 영역의 가운데로만 옮긴다.
+    setDetailCollapsed(false);
+    records.showRecordOnMap(marker.id);
   };
   const tapBookmarkRegion = bookmarkRegions.find((region) => region.id === tapBookmarkCode);
   const tapBookmarkNote = tapBookmarkRegion

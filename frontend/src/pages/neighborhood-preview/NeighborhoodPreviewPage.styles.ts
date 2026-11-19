@@ -65,6 +65,8 @@ export const locationControls = css`
 export const mapSearch = cx(
   css`
     label: NeighborhoodPreviewPage-mapSearch;
+    /* 결과 드롭다운이 입력창이 아니라 홈 버튼까지 포함한 이 줄 전체 너비를 쓴다. */
+    position: relative;
     display: flex;
     width: 100%;
     min-width: 0;
@@ -102,6 +104,7 @@ export const mapBack = cx(
 /* 데스크탑 헤더 안의 검색창은 본 방 기록과 같은 흰 칸에 그림자를 쓴다(`activeSearchField`). */
 export const headerMapSearch = css`
   label: NeighborhoodPreviewPage-headerMapSearch;
+  position: relative;
   display: flex;
   flex: 1;
   min-width: 0;
