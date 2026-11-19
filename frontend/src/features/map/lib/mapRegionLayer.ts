@@ -1,5 +1,5 @@
 import type { MapRegion } from '../model/MapCanvas';
-import { mapZoomScale } from './mapMarkerPresentation';
+import { COORDINATE_ACTION_Z_INDEX, mapZoomScale } from './mapMarkerPresentation';
 import { createRegionRentLabelElement, createRegionSummaryElement, regionLabelPosition } from './mapRegionSummary';
 import type { LiveMap, LiveOverlay, naverEngine } from './naverMapEngine';
 
@@ -14,6 +14,8 @@ export const READY_TIMEOUT_MS = 3000;
  * 더 멀리서는 동 수백 개 라벨이 겹쳐 읽히지 않아, 이름만 남기지 않고 라벨을 모두 숨긴다.
  */
 export const RENT_LABEL_SHOW_LEVEL = 7;
+/** 이름만 두는 동 이름표(찜한 동네)의 z-index. 모든 마커보다 앞, 찍은 좌표의 버튼·메뉴보다는 뒤다. */
+const NAME_LABEL_Z_INDEX = COORDINATE_ACTION_Z_INDEX - 1;
 /** 마우스를 올린 동네를 이만큼 진하게 한다. 옅게 깐 색에 맞춰 조금만 올린다. */
 const HOVER_OPACITY = 0.04;
 type Polygon = InstanceType<NaverMapsNamespace['Polygon']>;
@@ -41,7 +43,7 @@ const regionStyle = (region: MapRegion, selected: boolean) => ({
     : selected
       ? '#787b80'
       : '#a4a7ab',
-  strokeWeight: region.appearance ? (selected ? 3.5 : region.showsName ? 2 : 1.25) : selected ? 2 : 1,
+  strokeWeight: region.appearance ? (selected ? 3.5 : region.showsName ? 3 : 1.25) : selected ? 2 : 1,
   strokeStyle: region.appearance?.dashed && !selected ? ('shortdash' as const) : ('solid' as const),
   fillColor: region.appearance?.fillColor ?? (region.isRecommended === false && !selected ? '#888888' : '#f5c344'),
   // 지도 글자와 길이 비쳐 보이게 옅게 깐다. 고른 동만 두 배로 진하게 한다.
@@ -242,7 +244,8 @@ export const createMapRegionLayer = (
             map,
             { id: region.id, label: region.name, ...regionLabelPosition(region) },
             summary,
-            5,
+            // 찜한 동네 이름표는 그 위의 메모와 매물 마커에 가려 누르지 못하지 않게 마커보다 앞에 둔다.
+            showsNameLabel ? NAME_LABEL_Z_INDEX : 5,
           );
         }
       }

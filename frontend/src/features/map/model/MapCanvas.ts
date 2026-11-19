@@ -48,6 +48,8 @@ export type MapRegionCard = {
   rows: { label: string; value: string; isEmpty?: boolean; tone?: 'primary' }[];
   /** 카드 맨 아래 작은 회색 글씨 한 줄. */
   note?: string;
+  /** 있으면 이름 줄과 값 줄 없이 이 버튼 하나만 둔다(찜 해제하기). 동 이름은 지도 라벨에 이미 보인다. */
+  action?: { label: string; onClick: () => void };
   /** 카드 안 링크 버튼(길찾기 등). 새 탭으로 연다. */
   link?: { label: string; href: string; onClick?: () => void };
   /** 좌표에서 마커 위쪽 가장자리까지의 높이(px). 카드 꼬리 끝이 마커 위쪽에 닿게 그만큼 올린다. 핀은 그림 높이, 가운데가 좌표인 알약은 높이의 절반이다. */

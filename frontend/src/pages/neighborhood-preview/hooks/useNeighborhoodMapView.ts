@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 
 import { useRecordsMapController } from '@/pages/design-records/RecordsMapProvider';
 import { useAdminDongBookmarks } from '@/features/map/api/useAdminDongBookmarks';
+import { BOOKMARK_LABEL_HALF_HEIGHT, useBookmarkedRegions } from '@/features/map/api/useBookmarkedRegions';
 import useMapTip from '@/features/map/hooks/useMapTip';
 import useViewportFacilityLayer from '@/features/map/hooks/useViewportFacilityLayer';
 import {
@@ -74,9 +75,28 @@ const useNeighborhoodMapView = (
   const isDesktop = useIsDesktop();
   // 로그인한 회원은 동네를 북마크해 내 기록 지도에서 다시 볼 수 있다.
   const bookmarks = useAdminDongBookmarks(!preview.isPublicExplore);
+  // 찜 버튼은 동네 찾기에서 켜고 끄는 보기 전환이다. 켜면 찜한 동네만 칠하고 추천 동네와 주변 마커는 잠깐 숨긴다.
+  // 내 기록 지도의 찜 층과 따로 두고, 기본은 꺼 둬 찾은 추천 동네가 먼저 보이게 한다.
+  const [isBookmarkOnly, setIsBookmarkOnly] = useState(false);
+  const hasBookmarks = bookmarks.codes.length > 0;
+  const showsBookmarkOnly = isBookmarkOnly && hasBookmarks && registration != null;
+  // 새로 찾기 시작하면 다시 추천 동네를 보여 준다.
+  const [wasAnalyzing, setWasAnalyzing] = useState(preview.isAnalyzing);
+  if (wasAnalyzing !== preview.isAnalyzing) {
+    setWasAnalyzing(preview.isAnalyzing);
+    if (preview.isAnalyzing) setIsBookmarkOnly(false);
+  }
+  const bookmarkRegions = useBookmarkedRegions(bookmarks.codes, showsBookmarkOnly);
+  // 찜한 동네의 이름표를 눌러 연 `찜 해제하기` 카드의 동 코드.
+  const [openBookmarkCode, setOpenBookmarkCode] = useState<string | null>(null);
+  const openBookmarkRegion = showsBookmarkOnly
+    ? bookmarkRegions.find((region) => region.id === openBookmarkCode)
+    : undefined;
   const markerLevel = isDesktop ? DESKTOP_FACILITY_MARKER_LEVEL : FACILITY_MARKER_LEVEL;
   const isResultMap = !preview.isAnalyzing && !preview.error && !preview.isSelectingOnMap;
   const [railSelection, setRailSelection] = useState<RailSelection | null>(null);
+  // 누른 동네의 카드는 마우스를 치워도 띄워 둔다. 빈 곳이나 같은 동네를 다시 누르면 닫고, 그 동네 코드를 여기 둔다.
+  const [dismissedCode, setDismissedCode] = useState<string | null>(null);
   const facilityCategory = railSelection === 'MY' ? null : railSelection;
   // 로그인한 회원은 동네 찾기에서도 기록한 매물을 늘 지도에 띄우고, 매물마다 이번 출퇴근 장소까지 걸리는 시간을 적는다.
   const showsMy = SHOW_RECORDED_PROPERTIES_ON_FINDER && !preview.isPublicExplore;
@@ -170,6 +190,7 @@ const useNeighborhoodMapView = (
   const tapEmpty = () => {
     if (onEmptyTap) onEmptyTap();
     else if (hasOpenLayer) closeLayers();
+    else setDismissedCode(preview.selected?.adminDongCode ?? null);
   };
   const tapMap = (latitude: number, longitude: number) => {
     // 결과 지도에서는 열린 정보만 닫고 출퇴근 장소는 건드리지 않는다.
@@ -183,9 +204,12 @@ const useNeighborhoodMapView = (
   const selectRegion = (id: string) => {
     if (id === preview.selected?.adminDongCode) {
       if (onSelectedRegionTap) onSelectedRegionTap();
+      // 같은 동네를 다시 누르면 띄워 둔 카드를 닫고, 닫혀 있으면 다시 띄운다.
+      else if (!hasOpenLayer) setDismissedCode((current) => (current === id ? null : id));
       else tapEmpty();
       return;
     }
+    setDismissedCode(null);
     closeLayers();
     preview.selectRegion(id, showAreaAction ? { focus: 'none' } : { openDetails: false, focus: 'none' });
   };
@@ -278,8 +302,13 @@ const useNeighborhoodMapView = (
     if (isHovered) regionHover.enter(id);
     else regionHover.leave();
   };
+  // 누른 동네의 카드는 마우스를 치워도 띄워 둬, 다시 올려 정보를 보거나 별을 누를 수 있게 한다.
+  // 다른 동네에 마우스를 올리면 그 동네 카드를 잠깐 보여 준다.
+  const selectedCode = preview.selected?.adminDongCode ?? null;
+  const pinnedCode = showAreaAction && selectedCode !== dismissedCode ? selectedCode : null;
+  const cardCode = hoveredCode ?? pinnedCode;
   const hoveredArea =
-    hoveredCode === null ? undefined : preview.resultAreas.find((area) => area.adminDongCode === hoveredCode);
+    cardCode === null ? undefined : preview.resultAreas.find((area) => area.adminDongCode === cardCode);
   // 위쪽 지도 검색에서 고른 위치는 핀을 누르면 출퇴근 장소로 설정된다.
   const searchPinMarker: MapMarker[] = preview.searchPin
     ? [
@@ -374,33 +403,76 @@ const useNeighborhoodMapView = (
   const composedProps: MapCanvasProps = registration
     ? {
         ...mapProps,
-        bookmarkControl: registration.canvasProps.bookmarkControl,
-        // 찜한 동네를 켜 두면 찜한 영역만 또렷하게 보이도록 시설, 매물, 메모 같은 주변 마커를 걷고 출퇴근 장소 핀만 남긴다.
-        markers: registration.canvasProps.bookmarkControl.isOn
+        bookmarkControl: {
+          count: bookmarks.codes.length,
+          isOn: showsBookmarkOnly,
+          isDisabled: !hasBookmarks,
+          onToggle: () => {
+            if (!hasBookmarks) return;
+            setOpenBookmarkCode(null);
+            closeLayers();
+            setIsBookmarkOnly((current) => !current);
+          },
+        },
+        // 찜한 동네만 볼 때는 찜한 영역이 또렷하게 보이도록 시설, 매물, 메모 같은 주변 마커를 걷고 출퇴근 장소 핀만 남긴다.
+        markers: showsBookmarkOnly
           ? (mapProps.markers ?? []).filter(isCommutePin)
           : [
               ...(mapProps.markers ?? []),
               ...(registration.canvasProps.markers ?? []).filter((marker) => marker.category === 'MEMO'),
             ],
-        // 찜한 동네는 행정동 경계 안쪽을 칠해 두 지도에 같은 모양으로 보인다. 통근 결과 구역과 id가 겹치지 않게 접두어를 붙이고, 눌러도 고르지 않는다.
-        regions: [
-          ...(mapProps.regions ?? []),
-          ...(registration.canvasProps.regions ?? []).map((region) => ({
-            ...region,
-            id: `${BOOKMARK_REGION_PREFIX}${region.id}`,
-          })),
-        ],
+        // 찜한 동네만 볼 때는 추천 동네 대신 찜한 동네를 칠한다. 통근 결과 구역과 id가 겹치지 않게 접두어를 붙인다.
+        regions: showsBookmarkOnly
+          ? bookmarkRegions.map((region) => ({ ...region, id: `${BOOKMARK_REGION_PREFIX}${region.id}` }))
+          : (mapProps.regions ?? []),
+        selectedRegionId: showsBookmarkOnly ? null : mapProps.selectedRegionId,
+        onHoverRegion: showsBookmarkOnly ? undefined : mapProps.onHoverRegion,
         // 동네 찾기에서는 지도를 눌러도 메모 남기기, 본 방 기록하기 메뉴를 띄우지 않는다.
         coordinateMenu: undefined,
+        onSelectLocation: mapProps.onSelectLocation
+          ? (latitude, longitude) => {
+              setOpenBookmarkCode(null);
+              mapProps.onSelectLocation?.(latitude, longitude);
+            }
+          : undefined,
         onSelectRegion: (id, point) => {
-          // 찜한 동네를 누르면 내 기록 지도와 같은 카드(동 이름과 별)를 띄워 거기서 찜을 해제한다.
           if (id.startsWith(BOOKMARK_REGION_PREFIX)) {
-            registration.canvasProps.onSelectRegion(id.slice(BOOKMARK_REGION_PREFIX.length), point);
+            const code = id.slice(BOOKMARK_REGION_PREFIX.length);
+            // 칠한 영역을 누르면 지도 빈 곳을 누른 것과 같다. 동 이름표를 누를 때만(좌표 없이) `찜 해제하기` 카드를 띄운다.
+            if (point) {
+              setOpenBookmarkCode(null);
+              tapMap(point.latitude, point.longitude);
+              return;
+            }
+            setOpenBookmarkCode((current) => (current === code ? null : code));
             return;
           }
           mapProps.onSelectRegion?.(id, point);
         },
-        coordinateAction: mapProps.coordinateAction ?? registration.canvasProps.coordinateAction,
+        coordinateAction:
+          openBookmarkRegion?.center === undefined
+            ? showsBookmarkOnly
+              ? undefined
+              : mapProps.coordinateAction
+            : {
+                ...openBookmarkRegion.center,
+                placement: 'above' as const,
+                label: openBookmarkRegion.name,
+                onClick: () => undefined,
+                card: {
+                  markerAbove: BOOKMARK_LABEL_HALF_HEIGHT,
+                  markerBelow: BOOKMARK_LABEL_HALF_HEIGHT,
+                  title: openBookmarkRegion.name,
+                  action: {
+                    label: '찜 해제하기',
+                    onClick: () => {
+                      bookmarks.toggle(openBookmarkRegion.id);
+                      setOpenBookmarkCode(null);
+                    },
+                  },
+                  rows: [],
+                },
+              },
         onSelectMarker: (marker) => {
           if (marker.category === 'MEMO') registration.canvasProps.onSelectMarker?.(marker);
           else baseSelectMarker?.(marker);

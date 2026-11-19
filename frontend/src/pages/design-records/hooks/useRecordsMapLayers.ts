@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 
 import { reverseGeocode } from '@/features/map/api/mapApi';
 import { useAdminDongBookmarks } from '@/features/map/api/useAdminDongBookmarks';
-import { useBookmarkedRegions } from '@/features/map/api/useBookmarkedRegions';
+import { BOOKMARK_LABEL_HALF_HEIGHT, useBookmarkedRegions } from '@/features/map/api/useBookmarkedRegions';
 import useMapTip from '@/features/map/hooks/useMapTip';
 import {
   groupOverlappingMarkers,
@@ -83,7 +83,7 @@ const useRecordsMapLayers = (
   const [storedBookmarkLayerOn, setStoredBookmarkLayerOn] = useState(readBookmarkLayerOn);
   const isBookmarkLayerOn = storedBookmarkLayerOn ?? true;
   const bookmarkRegions = useBookmarkedRegions(bookmarkStore.codes, isBookmarkLayerOn);
-  // 칠한 찜한 동네를 누르면 그 자리에 동 이름과 별 카드를 띄워 거기서 찜을 해제한다.
+  // 찜한 동네의 이름표를 누르면 그 자리에 `찜 해제하기` 카드를 띄운다.
   const [openBookmarkCode, setOpenBookmarkCode] = useState<string | null>(null);
   const openBookmarkRegion = bookmarkRegions.find((region) => region.id === openBookmarkCode);
   // 매물 상세에서 주소를 바꿀 때, 옆의 큰 지도를 눌러 새 자리를 고르는 모드. 상세는 저장 함수를 맡기고, 고른 자리와 저장은 이 겹이 맡는다.
@@ -393,14 +393,21 @@ const useRecordsMapLayers = (
     onBoundsChange: rememberBounds,
     tip: firstPropertyTip ?? tip,
     regions: bookmarkRegions,
+    // 찜한 동네의 칠한 영역을 누르면 지도 빈 곳을 누른 것과 같다(메모 남기기, 본 방 기록하기).
     // 찜한 동네 위의 기록과 메모를 눌러도 구역이 먼저 눌릴 수 있어, 누른 자리 아래 마커가 있으면 그 마커의 말풍선을 연다.
+    // 동 이름표를 누를 때만 좌표 없이 불려, 그때 `찜 해제하기` 카드를 띄운다.
     onSelectRegion: (id: string, point?: MapPoint) => {
-      const marker = point ? nearestMarkerAt(allMarkers, point, bounds) : null;
-      if (marker) {
-        setOpenBookmarkCode(null);
-        selectMapMarker(marker);
+      if (point) {
+        const marker = nearestMarkerAt(allMarkers, point, bounds);
+        if (marker) {
+          setOpenBookmarkCode(null);
+          selectMapMarker(marker);
+          return;
+        }
+        tapLocation(point.latitude, point.longitude);
         return;
       }
+      setTapPoint(null);
       setOpenBookmarkCode((current) => (current === id ? null : id));
     },
     coordinateAction:
@@ -411,11 +418,14 @@ const useRecordsMapLayers = (
             placement: 'above' as const,
             label: openBookmarkRegion.name,
             onClick: () => undefined,
+            // 동 이름은 이름표에 보이므로 카드에는 `찜 해제하기` 버튼만 둔다.
             card: {
               title: openBookmarkRegion.name,
-              bookmark: {
-                isOn: bookmarkStore.isBookmarked(openBookmarkRegion.id),
-                onToggle: () => {
+              markerAbove: BOOKMARK_LABEL_HALF_HEIGHT,
+              markerBelow: BOOKMARK_LABEL_HALF_HEIGHT,
+              action: {
+                label: '찜 해제하기',
+                onClick: () => {
                   bookmarkStore.toggle(openBookmarkRegion.id);
                   setOpenBookmarkCode(null);
                 },
