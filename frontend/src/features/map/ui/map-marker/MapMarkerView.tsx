@@ -2,7 +2,7 @@ import { css, cx, keyframes } from '@emotion/css';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { mapCategoryMarkerSrc, propertyMarkerSrc } from '../../lib/mapIconAssets';
-import { isPinMarker } from '../../lib/mapMarkerPresentation';
+import { isMarkerSelected, isPinMarker } from '../../lib/mapMarkerPresentation';
 import type { MapMarker } from '../../model/Map';
 
 type MapMarkerViewProps = {
@@ -38,7 +38,6 @@ const markerClassName = (marker: MapMarker, selectedMarkerId: string | null | un
     marker.appear ? styles.appearMarker : '',
     marker.pop ? styles.popMarker : '',
     marker.tone === 'property' || marker.tone === 'propertyCluster' ? styles.propertyMarker : '',
-    marker.compact ? styles.compactMarker : '',
     marker.tone === 'current' ? styles.currentMarker : '',
     marker.tone === 'dot' ? styles.dotMarker : '',
     marker.tone === 'selected' ? styles.selectedMarker : '',
@@ -48,7 +47,7 @@ const markerClassName = (marker: MapMarker, selectedMarkerId: string | null | un
     marker.tone === 'flash' ? styles.flashMarker : '',
     marker.tone === 'place' ? styles.placeMarker : '',
     marker.tone === 'cluster' ? styles.clusterMarker : '',
-    selectedMarkerId === marker.id ? styles.activeMarker : '',
+    isMarkerSelected(marker, selectedMarkerId) ? styles.activeMarker : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -577,15 +576,6 @@ const styles = {
     'MapMarkerView-propertyMarker',
   ),
 
-  /* 작은 매물 핀. propertyMarker보다 선택자가 겹쳐 있어 뒤에 둬도 이긴다. */
-  compactMarker: css`
-    label: MapMarkerView-compactMarker;
-    &&&& {
-      width: 2rem;
-      height: 2rem;
-    }
-  `,
-
   markerSummaryCard: css`
     label: MapMarkerView-markerSummaryCard;
 
@@ -982,6 +972,38 @@ const styles = {
 
     &[data-variant='negative'] .MapMarkerView-destinationTail {
       border-top-color: var(--color-memo-dislike, #f7cfcf);
+    }
+
+    /*
+     * 가게처럼 한 화면에 여러 개가 겹치는 말풍선은 흰 바탕에 진한 글자로 가볍게 그린다(variant light).
+     * 꼬리도 흰색이고, 얇은 테두리와 옅은 그림자만 둔다. 고른 마커는 파란 바탕에 흰 글자로 구분한다.
+     */
+    &[data-variant='light'] {
+      filter: drop-shadow(0 1px 2px rgb(0 0 0 / 14%));
+    }
+
+    &[data-variant='light'] .MapMarkerView-destinationLabel {
+      max-width: 9em;
+      padding: 0.35rem 0.6rem;
+      border: 1px solid #dcdfe4;
+      background: white;
+      color: #212124;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    &[data-variant='light'] .MapMarkerView-destinationTail {
+      border-top-color: white;
+    }
+
+    &[data-variant='light'].MapMarkerView-activeMarker .MapMarkerView-destinationLabel {
+      border-color: #3d6fe8;
+      background: #3d6fe8;
+      color: white;
+    }
+
+    &[data-variant='light'].MapMarkerView-activeMarker .MapMarkerView-destinationTail {
+      border-top-color: #3d6fe8;
     }
 
     /* 거리 메모는 멀리 축소할수록 작게 그려, 넓은 화면에 큰 말풍선이 빽빽하게 덮지 않게 한다. 꼬리 끝(아래 가운데)을 기준으로 줄인다. */

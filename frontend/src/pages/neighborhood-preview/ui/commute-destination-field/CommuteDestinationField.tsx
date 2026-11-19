@@ -108,6 +108,19 @@ const CommuteDestinationField = ({ preview, disabled = false }: Props) => {
               }}
             />
           )}
+          {preview.addressResults.length === 0 && !preview.isSearching && !preview.searchError && (
+            <AddressSearchResults
+              dropdown
+              wide
+              recent={query.trim() === ''}
+              status="idle"
+              results={[]}
+              onSelect={(address) => {
+                dropdown.close();
+                preview.selectAddress(address);
+              }}
+            />
+          )}
           {preview.isSearching && (
             <AddressSearchResults dropdown wide status="loading" results={[]} onSelect={() => undefined} />
           )}

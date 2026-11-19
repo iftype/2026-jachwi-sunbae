@@ -656,23 +656,15 @@ it('통근 필터·조회·동네 선택 및 닫기에도 결과와 시점을 �
   expect(screen.queryByRole('button', { name: '동네 정보 닫기' })).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: '역삼1동' })).toBeInTheDocument();
 });
-it('결과 지도에 확대·축소 버튼을 두고, 손가락이나 휠로 바꾼 단계에서 한 단계씩 옮긴다', async () => {
+it('휴대폰 지도는 확대, 축소 버튼 없이 결과가 나와도 고르던 지도의 단계를 그대로 둔다', async () => {
   server.use(...mapHandlers, ...createStreetMemoHandlers([]));
   show();
   const user = await choosePoint();
-  // 장소를 고르는 지도에도 버튼을 두고, 결과 지도로 넘어가도 그대로 둔다.
-  expect(screen.getByRole('group', { name: '지도 확대·축소' })).toBeInTheDocument();
+  expect(screen.queryByRole('group', { name: '지도 확대·축소' })).not.toBeInTheDocument();
   await submitCurrentSearch(user);
-  const level = () => JSON.parse(screen.getByLabelText('지도 시점').textContent ?? '{}').level as number;
-  // 결과가 나와도 지도를 자동으로 맞추거나 확대하지 않고, 고르던 지도의 단계(5)를 그대로 둔다.
   await screen.findByRole('region', { name: '행정동 프리셋 지도' });
-  expect(level()).toBe(5);
-  await user.click(await screen.findByRole('button', { name: '지도 확대' }));
-  expect(level()).toBe(4);
-  // 지도가 휠로 4단계에 멈췄다고 알리면, 축소 버튼은 그 단계에서 한 단계 멀어진다.
-  await user.click(screen.getByRole('button', { name: '가까이 확대' }));
-  await user.click(screen.getByRole('button', { name: '지도 축소' }));
-  expect(level()).toBe(5);
+  expect(screen.queryByRole('group', { name: '지도 확대·축소' })).not.toBeInTheDocument();
+  expect(JSON.parse(screen.getByLabelText('지도 시점').textContent ?? '{}').level).toBe(5);
 });
 it('지도에서 선택을 켜면 안내 띠가 뜨고, 취소하면 사라지며 출퇴근 장소는 그대로다', async () => {
   show(true);
@@ -699,19 +691,6 @@ it('선택 모드에서는 말풍선 대신 안내 띠만 두고, 지도를 누�
   await user.click(screen.getByRole('button', { name: '지도에서 위치 찍기' }));
   expect(screen.getByLabelText('목적지 좌표')).toHaveTextContent('37.4');
   expect(screen.queryByText('지도에서 출퇴근 장소를 눌러 주세요')).not.toBeInTheDocument();
-});
-it('장소를 고르는 지도에도 현재 위치 버튼 위에 확대, 축소 버튼을 두고 한 단계씩 옮긴다', async () => {
-  show();
-  const level = () => (JSON.parse(screen.getByLabelText('지도 시점').textContent ?? '{}') as { level: number }).level;
-  const user = userEvent.setup();
-  const zoom = within(await screen.findByRole('group', { name: '지도 확대·축소' }));
-  // 첫 시점은 미리보기 매물 시점보다 3단계 가까운 단계(INTRO_MAP_LEVEL)다.
-  expect(level()).toBe(5);
-  await user.click(zoom.getByRole('button', { name: '지도 확대' }));
-  expect(level()).toBe(4);
-  await user.click(zoom.getByRole('button', { name: '지도 축소' }));
-  await user.click(zoom.getByRole('button', { name: '지도 축소' }));
-  expect(level()).toBe(6);
 });
 it('데스크탑도 장소를 고르는 지도에 확대, 축소 버튼을 둔다', async () => {
   const matchMedia = useDesktopViewport();
