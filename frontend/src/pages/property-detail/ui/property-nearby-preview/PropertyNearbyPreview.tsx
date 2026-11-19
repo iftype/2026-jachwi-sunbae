@@ -2,8 +2,9 @@ import { css } from '@emotion/css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { useNearbyFacilities } from '@/features/map/api/useNearbyFacilities';
+import useFacilityFocus from '@/features/map/hooks/useFacilityFocus';
 import { coordinatesAreClose, type MapCoordinate, requestCurrentMapLocation } from '@/features/map/lib/mapLocation';
-import { FACILITY_CATEGORY_COLOR, type FacilityCategory, isFacilityCategory } from '@/features/map/lib/mapPresentation';
+import { FACILITY_CATEGORY_COLOR, isFacilityCategory } from '@/features/map/lib/mapPresentation';
 import { summarizeNearby } from '@/features/map/lib/nearbySummary';
 import type { MapAddress, MapMarker } from '@/features/map/model/Map';
 import type { MapRadiusCircle } from '@/features/map/model/MapCanvas';
@@ -64,7 +65,7 @@ const PropertyNearbyPreview = ({
     }
   };
   /** 범례에서 고른 시설. 고르면 지도에 그 시설 점만 남긴다. */
-  const [focused, setFocused] = useState<FacilityCategory | null>(null);
+  const [focused, setFocused] = useFacilityFocus();
   const location = useLocationPick(isEditingLocation, onSaveLocation, onEndEditLocation);
   const nearby = useNearbyFacilities(center, RADIUS, [], true, { loadAllCategories: true });
 
@@ -197,7 +198,7 @@ const PropertyNearbyPreview = ({
             <NearbyRing
               summary={summary}
               focused={focused}
-              onFocus={(category) => setFocused((current) => (current === category ? null : category))}
+              onFocus={(category) => setFocused(focused === category ? null : category)}
             />
           )}
         </div>
