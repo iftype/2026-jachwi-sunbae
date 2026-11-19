@@ -106,7 +106,8 @@ it('내 매물로 지도·리스트와 주소 필터를 구성하고 홈으로 �
   expect(
     within(screen.getByRole('navigation', { name: '기록 보기 방식' })).getByRole('button', { name: /지도/ }),
   ).toHaveAttribute('aria-pressed', 'true');
-  expect(screen.getByRole('link', { name: '마이페이지' })).toHaveAttribute('href', '/me');
+  // 휴대폰 폭에서는 하단 탭에 마이가 있어 머리에는 마이페이지 링크를 두지 않는다.
+  expect(screen.queryByRole('link', { name: '마이페이지' })).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: /리스트/ }));
   expect(screen.getByRole('heading', { name: '모든 기록' })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /망원동 투룸/ })).toHaveAttribute(

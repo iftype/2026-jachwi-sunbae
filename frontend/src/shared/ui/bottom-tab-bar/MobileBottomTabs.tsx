@@ -2,29 +2,26 @@ import { useEffect, useLayoutEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
-import { isRunningInNativeApp } from '@/shared/lib/native-app/nativeApp';
 import { MY_PATH, NEIGHBORHOODS_PATH, RECORDS_PATH } from '@/shared/lib/navigation/appPaths';
 
 import type { IconName } from '../icon/Icon';
 import { NAV_RAIL_ITEMS } from '../nav-rail/navRailItems';
 import BottomTabBar from './BottomTabBar';
-import type { MOBILE_BOTTOM_TAB_KEYS } from './bottomTabConfig';
 import {
-  bottomTabKeys,
   isMobileBottomTabsPath,
+  MOBILE_BOTTOM_TAB_KEYS as TAB_KEYS,
   MOBILE_BOTTOM_TABS_ENABLED,
   MOBILE_TAB_SPACE,
   MOBILE_TAB_SPACE_VAR,
 } from './bottomTabConfig';
 
+type TabKey = (typeof TAB_KEYS)[number];
+
 const TAB_ICONS = {
   records: 'home',
   neighborhoods: 'map',
-  checklists: 'checklist',
-  compare: 'replace',
-  meals: 'utensils',
   my: 'user',
-} satisfies Record<(typeof MOBILE_BOTTOM_TAB_KEYS)[number], IconName>;
+} satisfies Record<TabKey, IconName>;
 
 const TEXT_ENTRY =
   'input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]), textarea, select, [contenteditable="true"]';
@@ -77,7 +74,7 @@ type Props = {
 };
 
 /**
- * 휴대폰 하단 탭. 위쪽 네비 목록(`navRailItems`)에서 `bottomTabKeys`가 고른 칸만(앱은 내 기록, 동네 찾기, 마이 셋) 같은 그림과 글자로 쓴다.
+ * 휴대폰 하단 탭. 위쪽 네비 목록(`navRailItems`)에서 `MOBILE_BOTTOM_TAB_KEYS`가 고른 칸(내 기록, 동네 찾기, 마이)만 같은 그림과 글자로 쓴다.
  * 보이는 동안 `<html>`에 `--mobile-tab-space`를 걸어, 지도의 아래 요소들이 탭 높이만큼 함께 올라가게 한다.
  */
 const MobileBottomTabs = ({ recordsTo = RECORDS_PATH, neighborhoodsTo = NEIGHBORHOODS_PATH }: Props) => {
@@ -102,23 +99,19 @@ const MobileBottomTabs = ({ recordsTo = RECORDS_PATH, neighborhoodsTo = NEIGHBOR
   }, [visible, enabled, isDesktop]);
 
   if (!enabled) return null;
-  const targets: Partial<Record<(typeof MOBILE_BOTTOM_TAB_KEYS)[number], string>> = {
-    records: recordsTo,
-    neighborhoods: neighborhoodsTo,
-    my: MY_PATH,
-  };
-  const tabs = bottomTabKeys(isRunningInNativeApp()).flatMap((key) => {
+  const targets: Record<TabKey, string> = { records: recordsTo, neighborhoods: neighborhoodsTo, my: MY_PATH };
+  // 내 기록과 동네 찾기는 마지막 주소를 기억하는 화면이라 눌렀을 때 갈 곳과 활성 판정 기준 주소가 다르다.
+  const activeBase: Record<TabKey, string> = { records: RECORDS_PATH, neighborhoods: NEIGHBORHOODS_PATH, my: MY_PATH };
+  const tabs = TAB_KEYS.flatMap((key) => {
     const item = NAV_RAIL_ITEMS.find((entry) => entry.key === key);
     if (!item) return [];
-    const path = item.path ?? targets[key] ?? RECORDS_PATH;
-    const base = key === 'records' ? RECORDS_PATH : key === 'neighborhoods' ? NEIGHBORHOODS_PATH : (item.path ?? path);
     return [
       {
         key,
         label: item.label,
         icon: TAB_ICONS[key],
-        isActive: item.path !== undefined || key === 'neighborhoods' ? pathname.startsWith(base) : pathname === base,
-        onSelect: () => navigate(path),
+        isActive: key === 'neighborhoods' ? pathname.startsWith(activeBase[key]) : pathname === activeBase[key],
+        onSelect: () => navigate(targets[key]),
       },
     ];
   });
