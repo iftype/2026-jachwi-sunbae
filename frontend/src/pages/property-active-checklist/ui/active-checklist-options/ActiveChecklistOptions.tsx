@@ -2,7 +2,7 @@ import { css, cx } from '@emotion/css';
 
 import type { ChecklistSummary } from '@/features/checklist/model/checklistTypes';
 import { CHECKLIST_CREATE_PATH, propertyChecklistCreatePath } from '@/shared/lib/navigation/appPaths';
-import { ButtonLink } from '@/shared/ui/button/Button';
+import { Button, ButtonLink } from '@/shared/ui/button/Button';
 import Icon from '@/shared/ui/icon/Icon';
 import SelectionControl from '@/shared/ui/selection-control/SelectionControl';
 
@@ -16,6 +16,8 @@ type ActiveChecklistOptionsProps = {
   newlyCreatedId: number | null;
   isDisabled: boolean;
   onSelect: (checklistId: number) => void;
+  /** 주면 만들기를 다른 주소로 가지 않고 이 함수로 제자리에서 연다(데스크탑 패널). */
+  onCreate?: () => void;
 };
 
 const ActiveChecklistOptions = ({
@@ -26,6 +28,7 @@ const ActiveChecklistOptions = ({
   newlyCreatedId,
   isDisabled,
   onSelect,
+  onCreate,
 }: ActiveChecklistOptionsProps) => (
   <fieldset className={`${styles.options} active-checklist-options`}>
     <legend className="sr-only">적용할 체크리스트</legend>
@@ -47,15 +50,29 @@ const ActiveChecklistOptions = ({
     <div className={styles.userChecklists} role="group" aria-label="내 체크리스트">
       <div className={styles.groupHeading}>
         <h2>내 체크리스트</h2>
-        <ButtonLink
-          to={propertyId === undefined ? CHECKLIST_CREATE_PATH : propertyChecklistCreatePath(propertyId)}
-          variant="text"
-          className={styles.manageAction}
-          aria-label="새 체크리스트"
-        >
-          <Icon name="plus" size={14} />
-          만들기
-        </ButtonLink>
+        {onCreate === undefined ? (
+          <ButtonLink
+            to={propertyId === undefined ? CHECKLIST_CREATE_PATH : propertyChecklistCreatePath(propertyId)}
+            variant="neutral"
+            className={styles.manageAction}
+            aria-label="새 체크리스트"
+          >
+            <Icon name="plus" size={14} />
+            만들기
+          </ButtonLink>
+        ) : (
+          <Button
+            type="button"
+            variant="neutral"
+            className={styles.manageAction}
+            aria-label="새 체크리스트"
+            disabled={isDisabled}
+            onClick={onCreate}
+          >
+            <Icon name="plus" size={14} />
+            만들기
+          </Button>
+        )}
       </div>
       {items.length === 0 && <p className={styles.empty}>저장된 내 체크리스트가 없어요.</p>}
       {items.map((item) => (
@@ -104,6 +121,8 @@ const styles = {
   `,
   manageAction: css`
     label: ActiveChecklistOptions-manageAction;
+    min-height: 2.25rem;
+    padding: 0.4rem 0.8rem;
     font-size: 0.75rem;
     & > span {
       display: inline-flex;
@@ -129,39 +148,22 @@ const styles = {
 
       & label {
         display: grid;
-        grid-template-columns: 1.75rem minmax(0, 1fr) auto;
+        grid-template-columns: 1.35rem minmax(0, 1fr) auto;
         align-items: center;
-        gap: 0.55rem;
-        min-height: 5.25rem;
+        gap: 0.75rem;
+        min-height: 4.5rem;
         padding: 0.9rem 1rem;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-md);
-        background: var(--color-surface);
+        border: 0;
+        border-radius: 1rem;
+        background: var(--color-card-surface);
         cursor: pointer;
       }
 
       & label.is-selected {
-        border-color: var(--color-primary);
-        background: var(--color-surface);
+        background: color-mix(in srgb, var(--color-brand-blue) 16%, white);
       }
 
-      & input {
-        width: 1.75rem;
-        height: 1.75rem;
-        margin: 0;
-        border: 1px solid var(--color-border);
-        border-radius: 50%;
-        appearance: none;
-        cursor: pointer;
-      }
-
-      & input:checked {
-        border-color: var(--color-primary);
-        background: var(--color-primary);
-        box-shadow: inset 0 0 0 0.5rem var(--color-surface);
-      }
-
-      & input:focus-visible {
+      & label:has(input:focus-visible) {
         outline: 2px solid var(--color-focus);
         outline-offset: 2px;
       }
@@ -173,24 +175,24 @@ const styles = {
       }
 
       & strong {
-        font-size: 0.76rem;
+        font-size: 0.875rem;
         line-height: 1.4;
       }
 
       & small {
         margin-top: 0.1rem;
         color: var(--color-muted);
-        font-size: 0.65rem;
+        font-size: 0.75rem;
       }
 
       & em {
-        padding: 0.3rem 0.45rem;
+        padding: 0.25rem 0.55rem;
         border-radius: 999px;
-        background: var(--color-primary);
-        color: var(--color-on-primary);
-        font-size: 0.65rem;
+        background: color-mix(in srgb, var(--color-brand-blue) 22%, white);
+        color: var(--color-brand-blue-ink);
+        font-size: 0.7rem;
         font-style: normal;
-        font-weight: 600;
+        font-weight: 700;
       }
     `,
     'ActiveChecklistOptions-options',
@@ -203,17 +205,18 @@ const styles = {
     box-sizing: border-box;
     width: 1.35rem;
     height: 1.35rem;
-    border: 1px solid var(--color-border-strong);
+    border: 1.5px solid var(--color-border-strong);
     border-radius: 50%;
-    color: var(--color-on-primary);
+    background: var(--color-surface);
+    color: var(--color-on-card-accent);
     font-size: 0.72rem;
     font-weight: 600;
     line-height: 1;
     place-items: center;
 
     .ActiveChecklistOptions-options label.is-selected & {
-      border-color: var(--color-primary);
-      background: var(--color-primary);
+      border-color: var(--color-brand-blue);
+      background: var(--color-brand-blue);
     }
   `,
 };
