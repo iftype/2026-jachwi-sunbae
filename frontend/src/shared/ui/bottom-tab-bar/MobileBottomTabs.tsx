@@ -8,8 +8,7 @@ import { MY_PATH, NEIGHBORHOODS_PATH, RECORDS_PATH } from '@/shared/lib/navigati
 import type { IconName } from '../icon/Icon';
 import { NAV_RAIL_ITEMS } from '../nav-rail/navRailItems';
 import BottomTabBar from './BottomTabBar';
-import type {
-  MOBILE_BOTTOM_TAB_KEYS} from './bottomTabConfig';
+import type { MOBILE_BOTTOM_TAB_KEYS } from './bottomTabConfig';
 import {
   bottomTabKeys,
   isMobileBottomTabsPath,
