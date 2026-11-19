@@ -622,10 +622,11 @@ it('결과 지도에 확대·축소 버튼을 두고, 손가락이나 휠로 바
   expect(screen.getByRole('group', { name: '지도 확대·축소' })).toBeInTheDocument();
   await submitCurrentSearch(user);
   const level = () => JSON.parse(screen.getByLabelText('지도 시점').textContent ?? '{}').level as number;
-  // 결과 첫 시점은 출퇴근 장소와 가까운 동네가 보이되 7단계보다 멀어지지 않는다.
-  await waitFor(() => expect(level()).toBe(7));
+  // 결과가 나와도 지도를 자동으로 맞추거나 확대하지 않고, 고르던 지도의 단계(5)를 그대로 둔다.
+  await screen.findByRole('region', { name: '행정동 프리셋 지도' });
+  expect(level()).toBe(5);
   await user.click(await screen.findByRole('button', { name: '지도 확대' }));
-  expect(level()).toBe(6);
+  expect(level()).toBe(4);
   // 지도가 휠로 4단계에 멈췄다고 알리면, 축소 버튼은 그 단계에서 한 단계 멀어진다.
   await user.click(screen.getByRole('button', { name: '가까이 확대' }));
   await user.click(screen.getByRole('button', { name: '지도 축소' }));
