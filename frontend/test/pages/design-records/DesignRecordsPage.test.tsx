@@ -354,7 +354,7 @@ it('데스크탑에서 지도나 리스트의 방을 누르면 리스트 옆 칸
   matchMedia.mockRestore();
 });
 
-it('데스크탑 리스트에서 방을 누르면 옆 칸에 상세를 열고 지도는 그대로 둔다', async () => {
+it('데스크탑 리스트에서 방을 누르면 옆 칸에 상세를 열고 지도를 그 방 자리로 옮긴다', async () => {
   const matchMedia = useDesktopViewport();
   const user = userEvent.setup();
   try {
@@ -367,8 +367,8 @@ it('데스크탑 리스트에서 방을 누르면 옆 칸에 상세를 열고 �
     const level = map.getByLabelText('지도 배율').textContent;
 
     await user.click(screen.getByRole('link', { name: /신림역 원룸/ }));
-    // 상세는 지도 위에 얹히므로 열어도 지도를 옮기거나 확대하지 않는다.
-    expect(map.getByLabelText('지도 중심')).not.toHaveTextContent(`${target?.latitude},${target?.longitude}`);
+    // 카드를 누르면 지도 중심이 그 방 자리로 옮겨 가고, 확대 단계는 그대로다.
+    expect(map.getByLabelText('지도 중심')).toHaveTextContent(`${target?.latitude},${target?.longitude}`);
     expect(map.getByLabelText('지도 배율')).toHaveTextContent(level ?? '');
     expect(
       await within(screen.getByRole('complementary', { name: '선택한 매물 상세' })).findByRole('heading', {

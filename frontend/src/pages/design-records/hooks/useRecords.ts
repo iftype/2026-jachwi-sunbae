@@ -76,8 +76,13 @@ const useRecords = (selection?: RecordsSelection) => {
   const [center, setCenter] = useState<MapCoordinate>(SAMPLE_PROPERTIES_VIEW);
   const [level, setLevel] = useState(INTRO_MAP_LEVEL);
   const [notice, setNotice] = useState('');
-  const focus = (point: MapCoordinate, nextLevel = level, opensDetail = false) =>
-    setCenter(selection?.focusCenter?.(point, nextLevel, opensDetail) ?? point);
+  const focus = (point: MapCoordinate, nextLevel = level, opensDetail = false) => {
+    const next = selection?.focusCenter?.(point, nextLevel, opensDetail) ?? point;
+    // 이미 그 자리면 새 좌표 객체를 넣지 않아 지도가 다시 움직이지 않는다.
+    setCenter((current) =>
+      current.latitude === next.latitude && current.longitude === next.longitude ? current : next,
+    );
+  };
   // 지도에서 방금 만든 매물. 그 핀은 아래에서 떠오르며 나타나 새로 생긴 자리를 알린다.
   const [createdId, setCreatedId] = useState<string | null>(null);
   const records = useMemo(
@@ -178,13 +183,17 @@ const useRecords = (selection?: RecordsSelection) => {
       focus({ latitude: first.latitude, longitude: first.longitude }, level, opened);
   };
 
-  /**
-   * 리스트에서 고른 매물을 열고 지도를 그 매물 핀 자리로 옮긴다. 배율은 그대로 두어 주변을 함께 본다.
-   * 위치가 없는 매물은 고르기만 한다.
-   */
-  // 상세는 지도 위에 얹히므로 열어도 지도를 옮기거나 확대하지 않는다.
+  /** 매물을 열기만 한다. 마커와 이전, 다음으로 넘길 때 쓰며 지도는 옮기거나 확대하지 않는다. */
   const showRecord = (recordId: string) => {
     setSelectedId(recordId);
+  };
+
+  /** 리스트 카드를 눌러 매물을 열고 지도를 그 매물 핀 자리로 옮긴다. 배율은 그대로 두어 주변을 함께 본다. 위치가 없는 매물은 고르기만 한다. */
+  const showRecordOnMap = (recordId: string) => {
+    showRecord(recordId);
+    const record = records.find((item) => item.id === recordId);
+    if (record !== undefined && record.latitude !== null && record.longitude !== null)
+      focus({ latitude: record.latitude, longitude: record.longitude }, level, true);
   };
 
   // 주소 검색으로 간 자리. 지도에 단순한 핀으로 남긴다.
@@ -248,6 +257,7 @@ const useRecords = (selection?: RecordsSelection) => {
     revealCreated,
     createdId,
     showRecord,
+    showRecordOnMap,
     notice,
     setNotice,
   };
