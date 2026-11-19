@@ -6,6 +6,7 @@ import {
   COORDINATE_MENU_Z_INDEX,
   markerScale,
   markerZIndex,
+  REGION_NAME_LABEL_Z_INDEX,
 } from '@/features/map/lib/mapMarkerPresentation';
 import type { MapMarker } from '@/features/map/model/Map';
 
@@ -86,6 +87,26 @@ describe('markerZIndex', () => {
     expect(COORDINATE_MENU_Z_INDEX).toBeGreaterThan(COORDINATE_ACTION_Z_INDEX);
     expect(Number.isSafeInteger(COORDINATE_MENU_Z_INDEX) && COORDINATE_MENU_Z_INDEX < 2 ** 31).toBe(true);
   });
+});
+
+it('눌러 고른 동네 카드는 어떤 마커보다 위에 오고, 동 이름표는 카드 아래에 둔다', () => {
+  const tones = [
+    'pinLabel',
+    'flash',
+    'selected',
+    'property',
+    'propertyCluster',
+    'current',
+    'rank',
+    'destination',
+    'place',
+  ] as const;
+  tones.forEach((tone) => {
+    // 가장 앞서는 세부 순서(위도가 가장 남쪽)로 만든 마커도 카드를 넘지 못한다.
+    expect(markerZIndex(marker({ tone, latitude: -90 }), null)).toBeLessThan(COORDINATE_ACTION_Z_INDEX);
+  });
+  expect(markerZIndex(marker({ id: 'picked', latitude: -90 }), 'picked')).toBeLessThan(COORDINATE_ACTION_Z_INDEX);
+  expect(REGION_NAME_LABEL_Z_INDEX).toBeLessThan(COORDINATE_ACTION_Z_INDEX);
 });
 
 it.each(['property', 'propertyCluster', 'destination', 'place', 'rank'] as const)(

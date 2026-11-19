@@ -103,8 +103,6 @@ export type MapCanvasProps = {
   /** 지도가 처음 그려져 쓸 수 있게 되면 부른다. 데모 지도는 바로 부른다. 급하지 않은 요청을 이 뒤로 미룰 때 쓴다. */
   onReady?: () => void;
   coordinateAction?: MapCoordinateAction;
-  /** 눌러 고정한 `coordinateAction` 카드와 함께 띄우는 호버 카드. 위에 그려지고, 고정 카드와 겹치면 반대쪽으로 간다. */
-  hoverAction?: MapCoordinateAction;
   bookmarkControl?: { count: number; isOn: boolean; isDisabled?: boolean; onToggle: () => void };
   /** 처음 한 번 보이는 안내 말풍선. 지도 좌표에 붙어 있다. */
   tip?: MapTip;
