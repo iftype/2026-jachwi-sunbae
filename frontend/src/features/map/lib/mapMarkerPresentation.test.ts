@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { MapMarker } from '../model/Map';
-
-import { PHOTO_MARKER_SCALE, markerScale } from './mapMarkerPresentation';
+import { markerScale,PHOTO_MARKER_SCALE } from './mapMarkerPresentation';
 
 const photoMarker: MapMarker = {
   id: 'record-1',
