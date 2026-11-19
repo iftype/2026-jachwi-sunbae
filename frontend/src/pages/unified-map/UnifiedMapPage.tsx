@@ -1,5 +1,5 @@
 import { css } from '@emotion/css';
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import DesignRecordsPage from '@/pages/design-records/DesignRecordsPage';
@@ -23,6 +23,8 @@ import NavRail from '@/shared/ui/nav-rail/NavRail';
 import { NAV_RAIL_ITEMS } from '@/shared/ui/nav-rail/navRailItems';
 
 import MyMapPanel from './ui/MyMapPanel';
+
+const ChecklistListPage = lazy(() => import('@/pages/checklist-list/ChecklistListPage'));
 
 /** 지도 화면 왼쪽 레일. */
 const UnifiedNavRail = ({
@@ -88,6 +90,8 @@ const UnifiedMapPage = () => {
   if (!isPanelRoute && isFinding && findingUrl !== currentUrl) setFindingUrl(currentUrl);
   if (!isPanelRoute && !isFinding && !isMeals && recordsUrl !== currentUrl) setRecordsUrl(currentUrl);
   const isMobileDetail = !isDesktop && !isFinding && params.propertyId !== undefined;
+  const isChecklistEditor = isChecklists && pathname.replace(/\/+$/, '') !== CHECKLISTS_PATH;
+  const closeChecklistEditor = () => navigate(CHECKLISTS_PATH);
   const closeMy = () => navigate(isFinding ? findingUrl : recordsUrl);
   // 동네 찾기로 넘어갈 때는 지난 검색(목적지, 조건, 결과)이 있으면 그 화면으로, 처음이면 동네 찾기 지도로 바로 간다.
   // 따로 검색 화면을 거치지 않고, 지도에서 출퇴근 장소를 고르거나 검색하게 한다.
@@ -100,12 +104,28 @@ const UnifiedMapPage = () => {
     ? { content: <MyMapPanel onClose={closeMy} />, close: closeMy }
     : isChecklists
       ? {
+          // 목록은 왼쪽 칸에 그대로 두고, 만들기와 편집(`/checklists/new`, `/checklists/:id`)은 옆 상세 칸에 연다.
           content: (
             <div className={styles.checklistPanel}>
-              <Outlet />
+              <Suspense fallback={null}>
+                <ChecklistListPage />
+              </Suspense>
             </div>
           ),
           close: closeMy,
+          detail: isChecklistEditor
+            ? {
+                content: (
+                  <aside className={styles.checklistDetail} aria-label="체크리스트 편집">
+                    <div className={styles.checklistDetailScroll}>
+                      <Outlet />
+                    </div>
+                  </aside>
+                ),
+                close: closeChecklistEditor,
+                closeLabel: '체크리스트 편집 칸 닫기',
+              }
+            : undefined,
         }
       : null;
   return (
@@ -185,6 +205,28 @@ const UnifiedMapPage = () => {
 const styles = {
   checklistPanel: css`
     label: UnifiedMapPage-checklistPanel;
+    height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  `,
+  /* 편집 칸은 안쪽만 스크롤하고, 아래 고정 바(저장, 항목 추가)는 화면이 아니라 이 칸의 맨 아래에 붙인다. */
+  checklistDetail: css`
+    label: UnifiedMapPage-checklistDetail;
+    position: relative;
+    min-height: 0;
+    overflow: hidden;
+    background: white;
+
+    & [class*='ChecklistEditor-fixedActions'] {
+      position: absolute;
+      right: 0;
+      left: 0;
+      width: 100%;
+      transform: none;
+    }
+  `,
+  checklistDetailScroll: css`
+    label: UnifiedMapPage-checklistDetailScroll;
     height: 100%;
     overflow-y: auto;
     overscroll-behavior: contain;

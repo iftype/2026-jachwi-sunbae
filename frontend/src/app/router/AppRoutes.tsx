@@ -153,7 +153,7 @@ const AppRoutes = () => (
           <Route path={ROUTE_PATTERNS.areaDetails} element={lazyPage(<NeighborhoodRoutePage />)} />
         </Route>
       </Route>
-      {/* 체크리스트 관리는 데스크탑에서 통합 지도의 왼쪽 칸에 들어가 지도와 함께 보이고, 휴대폰은 앱 셸의 전체 화면이다. */}
+      {/* 체크리스트 관리는 데스크탑에서 통합 지도의 왼쪽 칸에 목록을 두고 만들기와 편집은 옆 상세 칸에 열며, 휴대폰은 앱 셸의 전체 화면이다. */}
       <Route path={CHECKLISTS_PATH} element={<ChecklistsRoute />}>
         <Route index element={lazyPage(<ChecklistListPage />)} />
         <Route path={CHECKLIST_CREATE_PATH} element={lazyPage(<CreateChecklistPage />)} />

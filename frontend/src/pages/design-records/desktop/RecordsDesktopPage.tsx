@@ -136,9 +136,9 @@ const RecordsDesktopPage = ({ records, layers }: Props) => {
                 {panel?.content ?? list}
               </>
             }
-            detail={panel ? undefined : detail}
-            onCloseDetail={closeDetail}
-            closeLabel="매물 상세 칸 닫기"
+            detail={panel ? panel.detail?.content : detail}
+            onCloseDetail={panel ? panel.detail?.close : closeDetail}
+            closeLabel={panel ? panel.detail?.closeLabel : '매물 상세 칸 닫기'}
           >
             {/* 기록을 받는 동안 지도 칸도 화면 코드를 받는 동안의 뼈대와 같은 지도 영역 뼈대로 채운다. 알림은 목록 영역이 맡는다. */}
             {records.properties.isPending && <AreaSkeleton area="map" />}
