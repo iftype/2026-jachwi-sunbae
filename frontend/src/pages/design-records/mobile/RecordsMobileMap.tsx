@@ -1,4 +1,5 @@
 import { css, cx } from '@emotion/css';
+import { useState } from 'react';
 
 import MapCanvas from '@/features/map/ui/map-canvas/MapCanvas';
 import StreetMemoImpressionLog from '@/features/street-memo/ui/street-memo-impression-log/StreetMemoImpressionLog';
@@ -26,6 +27,8 @@ type Props = {
  */
 const RecordsMobileMap = ({ records, layers }: Props) => {
   const { selected } = records;
+  // 매물 시트를 접어 둔 선호. 접힌 채로 다른 마커를 눌러도, 선택을 풀었다 다시 골라도 이어진다(세션 상태).
+  const [isSheetCollapsed, setIsSheetCollapsed] = useState(false);
   const sheetRecords = layers.groupRecords.length > 0 ? layers.groupRecords : selected ? [selected] : [];
   // 겹친 매물 묶음을 볼 때는 넘길 기준이 하나가 아니라 화살표를 두지 않는다.
   const neighbors = layers.groupRecords.length === 0 && selected ? recordNeighbors(records.records, selected.id) : null;
@@ -53,6 +56,8 @@ const RecordsMobileMap = ({ records, layers }: Props) => {
         onClose={layers.closeAll}
         stepper={neighbors && <RecordStepper neighbors={neighbors} onStep={records.showRecord} />}
         onNotice={records.setNotice}
+        collapsed={isSheetCollapsed}
+        onCollapsedChange={setIsSheetCollapsed}
         floating={layers.memo.mode === null ? sheetLocate : undefined}
       />
       <StreetMemoSheet layer={layers.memo} floating={sheetLocate} />
