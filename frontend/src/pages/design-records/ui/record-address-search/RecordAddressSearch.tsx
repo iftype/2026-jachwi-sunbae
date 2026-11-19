@@ -82,6 +82,7 @@ const RecordAddressSearch = ({
           <AddressSearchResults
             results={search.results}
             dropdown
+            recent={search.query.trim() === ''}
             status={search.status === 'idle' && search.results.length > 0 ? 'success' : search.status}
             onSelect={(result) => {
               pickedRef.current = formatAddress(result);

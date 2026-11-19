@@ -84,6 +84,7 @@ const NeighborhoodMapSearch = ({ preview, hideHome = false }: NeighborhoodMapSea
               <AddressSearchResults
                 results={preview.addressResults}
                 dropdown
+                recent={preview.query.trim() === ''}
                 status={
                   preview.isSearching
                     ? 'loading'
