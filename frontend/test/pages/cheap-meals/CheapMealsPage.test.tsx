@@ -316,6 +316,46 @@ it('기록 매물 마커를 누르면 그 매물이 기준이 되어 기준 마�
   expect(screen.getByRole('button', { name: '새 매물(서울 중구 세종대로 110) 기준으로 보기' })).toBeInTheDocument();
 });
 
+it('가게 카드는 업종을 뱃지로, 싼 메뉴 두 개와 가격을 오른쪽에 두고 직선거리 문구는 없다', async () => {
+  server.use(
+    http.get('http://localhost:8080/api/maps/good-price-stores', () =>
+      success({
+        center: { latitude: 37.3948, longitude: 127.1112 },
+        radius: 2000,
+        count: 1,
+        dataAsOf: '2026-06-30',
+        stores: [
+          {
+            id: 1,
+            name: '국밥집',
+            businessType: '한식',
+            phone: null,
+            address: '테스트 주소',
+            latitude: 37.3948,
+            longitude: 127.1119,
+            distanceMeters: 100,
+            menus: [
+              { name: '수육', price: '12,000원' },
+              { name: '국밥', price: '8,000원' },
+              { name: '순대', price: '9,000원' },
+            ],
+          },
+        ],
+      }),
+    ),
+  );
+  setup('/cheap-meals/restaurant');
+  const card = within(await screen.findByRole('list', { name: '가게 목록' })).getByRole('button', {
+    name: '국밥집 상세 보기',
+  });
+  expect(within(card).getByText('한식')).toBeInTheDocument();
+  expect(within(card).getByText('국밥')).toBeInTheDocument();
+  expect(within(card).getByText('8,000원')).toBeInTheDocument();
+  expect(within(card).getByText('순대')).toBeInTheDocument();
+  expect(within(card).queryByText('수육')).not.toBeInTheDocument();
+  expect(card).not.toHaveTextContent('직선');
+});
+
 it('업종 칩으로 식당 목록을 거르고 다시 누르면 전체 업종으로 돌아간다', async () => {
   const shop = (id: number, name: string, businessType: string) => ({
     id,
