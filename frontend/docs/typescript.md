@@ -107,7 +107,7 @@ const journey = parseJourney(JSON.parse(sessionStorage.getItem(KEY) ?? 'null'));
 
 ## 5. 스키마 라이브러리를 쓰지 않는 선택
 
-`package.json`에 zod, valibot 같은 스키마 라이브러리가 없고, 응답 파서는 `readRecord`, `readString`, `readInteger` 같은 작은 함수(`src/shared/api/responseParsers.ts` 94줄)를 조합해 손으로 쓴다(`authParsers.ts`, `checklistParsers.ts`, `propertyParsers.ts` 합쳐 622줄). 얻는 것은 세 가지다. 의존성과 번들이 늘지 않는다(첫 화면 묶음은 `webpack.config.cjs`의 `performance` 설정으로 355KiB를 넘으면 빌드가 실패하고, 주석에 적힌 대로 이미 한도 가까이에 있다). 검증과 함께 화면 타입으로의 변환, 범위와 길이 확인을 같은 함수에서 한다. 파서가 평범한 함수라 뮤테이션 테스트 대상에 그대로 들어간다. 잃는 것도 있다. 타입과 파서를 따로 쓰므로 둘이 어긋날 수 있다. 파서가 필드를 빠뜨리면 반환 타입 때문에 `tsc`가 잡지만, 확인한 뒤 `as`로 좁히는 곳(예: `propertyParsers.ts`의 통근 상태)은 확인 코드가 타입과 맞는지를 `tsc`가 보지 못해 리뷰와 테스트에 기댄다. 필드가 늘 때마다 손으로 쓰는 줄이 늘고, 실패한 필드의 경로 같은 오류 정보도 직접 만들어야 한다. 팀이 스키마 라이브러리와 비교해 결정한 기록은 저장소와 커밋 기록에서 찾지 못했다. MVP 이관(`0915ce00`) 때부터 손으로 쓴 파서였고 그 방식을 이어 온 것이다.
+`package.json`에 zod, valibot 같은 스키마 라이브러리가 없고, 응답 파서는 `readRecord`, `readString`, `readInteger` 같은 작은 함수(`src/shared/api/responseParsers.ts` 94줄)를 조합해 손으로 쓴다(`authParsers.ts`, `checklistParsers.ts`, `propertyParsers.ts` 합쳐 622줄). 얻는 것은 세 가지다. 의존성과 번들이 늘지 않는다(첫 화면 묶음은 `webpack.config.cjs`의 `performance` 설정으로 380KiB를 넘으면 빌드가 실패하며, 한도는 쌓인 PR과 Mac UI 작업본 중 최대 main에 5%를 더해 5KiB 단위로 올린 값이다). 검증과 함께 화면 타입으로의 변환, 범위와 길이 확인을 같은 함수에서 한다. 파서가 평범한 함수라 뮤테이션 테스트 대상에 그대로 들어간다. 잃는 것도 있다. 타입과 파서를 따로 쓰므로 둘이 어긋날 수 있다. 파서가 필드를 빠뜨리면 반환 타입 때문에 `tsc`가 잡지만, 확인한 뒤 `as`로 좁히는 곳(예: `propertyParsers.ts`의 통근 상태)은 확인 코드가 타입과 맞는지를 `tsc`가 보지 못해 리뷰와 테스트에 기댄다. 필드가 늘 때마다 손으로 쓰는 줄이 늘고, 실패한 필드의 경로 같은 오류 정보도 직접 만들어야 한다. 팀이 스키마 라이브러리와 비교해 결정한 기록은 저장소와 커밋 기록에서 찾지 못했다. MVP 이관(`0915ce00`) 때부터 손으로 쓴 파서였고 그 방식을 이어 온 것이다.
 
 ## 6. LLM 설정
 
