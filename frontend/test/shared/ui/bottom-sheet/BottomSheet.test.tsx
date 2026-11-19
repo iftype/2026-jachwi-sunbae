@@ -183,10 +183,12 @@ it('fullPage={false}를 주면 끝까지 올려도 크게에서 멈춘다', asyn
   expect(sheet).toHaveAttribute('data-mode', 'expanded');
 });
 
-it('floating은 시트 상자 안(시트 바로 위)에 두어 시트와 함께 움직이고, 페이지로 열면 숨긴다', async () => {
+it('floating은 시트 밖 바로 앞 형제 층(시트 바로 위)에 두어 시트와 함께 움직이고, 페이지로 열면 숨긴다', async () => {
   const user = userEvent.setup();
   const { sheet } = renderSheet({ floating: <button type="button">지도 확대</button> });
-  expect(sheet()).toContainElement(screen.getByRole('button', { name: '지도 확대' }));
+  const floating = screen.getByRole('button', { name: '지도 확대' });
+  expect(sheet()).not.toContainElement(floating);
+  expect(sheet().previousElementSibling).toContainElement(floating);
   screen.getByRole('button', { name: '상세 패널 높이 조절' }).focus();
   await user.keyboard('{ArrowUp}{ArrowUp}');
   expect(sheet()).toHaveAttribute('data-mode', 'full');
