@@ -4,7 +4,10 @@ import type { CSSProperties } from 'react';
 import { LOGO_DUCK } from '@/shared/assets/imageAssets';
 
 import introVideo from '../assets/landing-intro.mp4';
+import introPoster from '../assets/landing-intro-poster.webp';
 import {
+  CLOSING_LEAD,
+  CLOSING_TITLE,
   HERO_LEAD,
   HERO_TITLE,
   STORIES,
@@ -44,6 +47,7 @@ const LandingMobilePage = ({ search, returnTo }: LandingMobilePageProps) => (
       <figure className={styles.video}>
         <video
           src={introVideo}
+          poster={introPoster}
           width={VIDEO_SIZE.width}
           height={VIDEO_SIZE.height}
           autoPlay
@@ -111,10 +115,11 @@ const LandingMobilePage = ({ search, returnTo }: LandingMobilePageProps) => (
 
     <section className={`${styles.section} ${styles.tinted} ${styles.closing}`} aria-labelledby="landing-closing-title">
       <h2 id="landing-closing-title" className={styles.title}>
-        내 출퇴근 동네부터
+        {CLOSING_TITLE[0]}
         <br />
-        찾아볼까요?
+        {CLOSING_TITLE[1]}
       </h2>
+      <p className={styles.closingLead}>{CLOSING_LEAD}</p>
       <LandingGetStarted search={search} returnTo={returnTo} position="bottom" layout="stack" />
       <p className={styles.footer}>우아한테크코스 8기 팀 프로젝트</p>
     </section>
@@ -271,8 +276,16 @@ const styles = {
     text-align: center;
 
     & h2 {
-      margin-bottom: 1.5rem;
+      margin-bottom: 0.75rem;
     }
+  `,
+
+  closingLead: css`
+    label: LandingMobilePage-closingLead;
+    margin: 0 0 1.5rem;
+    color: var(--color-ink-soft);
+    font-size: 0.95rem;
+    line-height: 1.6;
   `,
 
   footer: css`

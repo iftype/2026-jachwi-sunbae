@@ -21,10 +21,15 @@ export const TECH_LEAD =
   '동네를 한 번에 칠하려면 검색할 때마다 전국 버스, 지하철 117만 구간을 다 따라가야 해요. 그래도 기다리지 않게 만드는 게 제일 어려웠어요.';
 
 export const VIDEO_LABEL =
-  '통근 시간으로 동네를 찾고, 거리 메모를 보고, 본 방을 기록하고 체크리스트로 살핀 뒤 비교해 PDF로 받는 흐름을 보여주는 영상';
+  '처음 가는 동네에서 방 구하기가 막막한 이유를 짚고, 목적지와 통근 시간으로 동네를 찾고, 본 방과 거리 메모를 지도에 남긴 뒤 기록을 나란히 놓고 비교하는 흐름을 보여주는 영상';
 
 /** 소개 영상(`landing-intro.mp4`)의 원본 크기. 영상을 받기 전에도 칸이 이 비율로 잡혀 아래 내용이 밀리지 않는다. */
 export const VIDEO_SIZE = { width: 1920, height: 1080 } as const;
+
+/** 페이지 맨 아래 마무리 문구. 발표 자료 마지막 장과 같은 말로 끝낸다. */
+export const CLOSING_TITLE = ['첫 동네 찾기,', '목적지 하나면 충분해요'] as const;
+
+export const CLOSING_LEAD = '회사나 학교 하나만 입력해 보세요.';
 
 export const APP_STORES = [
   {

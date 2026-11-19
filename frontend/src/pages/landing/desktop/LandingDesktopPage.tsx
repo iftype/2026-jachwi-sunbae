@@ -4,7 +4,10 @@ import type { CSSProperties } from 'react';
 import { LOGO_DUCK } from '@/shared/assets/imageAssets';
 
 import introVideo from '../assets/landing-intro.mp4';
+import introPoster from '../assets/landing-intro-poster.webp';
 import {
+  CLOSING_LEAD,
+  CLOSING_TITLE,
   HERO_LEAD,
   HERO_TITLE,
   STORIES,
@@ -47,6 +50,7 @@ const LandingDesktopPage = ({ search, returnTo }: LandingDesktopPageProps) => (
         <figure className={styles.heroVideo}>
           <video
             src={introVideo}
+            poster={introPoster}
             width={VIDEO_SIZE.width}
             height={VIDEO_SIZE.height}
             autoPlay
@@ -127,7 +131,10 @@ const LandingDesktopPage = ({ search, returnTo }: LandingDesktopPageProps) => (
     </section>
 
     <section className={`${styles.screen} ${styles.tinted} ${styles.closing}`} aria-labelledby="landing-closing-title">
-      <h2 id="landing-closing-title">내 출퇴근 동네부터 찾아볼까요?</h2>
+      <h2 id="landing-closing-title">
+        {CLOSING_TITLE[0]} {CLOSING_TITLE[1]}
+      </h2>
+      <p className={styles.closingLead}>{CLOSING_LEAD}</p>
       <LandingGetStarted search={search} returnTo={returnTo} position="bottom" layout="row" />
       <p className={styles.footer}>우아한테크코스 8기 팀 프로젝트</p>
     </section>
@@ -353,11 +360,19 @@ const styles = {
     text-align: center;
 
     & h2 {
-      margin: 0 0 2rem;
+      margin: 0 0 1rem;
       font-size: 2.25rem;
       font-weight: 800;
       letter-spacing: -0.02em;
     }
+  `,
+
+  closingLead: css`
+    label: LandingDesktopPage-closingLead;
+    margin: 0 0 2rem;
+    color: var(--color-ink-soft);
+    font-size: 1.125rem;
+    line-height: 1.6;
   `,
 
   footer: css`
