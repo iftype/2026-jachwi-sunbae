@@ -102,8 +102,6 @@ const useNeighborhoodPreview = () => {
   const [, setResultViewVersion] = useState(0);
   const [hasChosenMapPoint, setHasChosenMapPoint] = useState(Boolean(restoredSearch));
   const [isMapSelectionEnabled, setIsMapSelectionEnabled] = useState(false);
-  // 출퇴근 장소는 `지도에서 선택`으로 선택 모드를 켠 동안에만 지도를 눌러 정한다. 그 밖에는 지도를 눌러도 바뀌지 않는다.
-  const canPickDestination = isMapSelectionEnabled && phase !== 'analyzing';
   // 지도 검색(위쪽 검색창)으로 간 자리의 검색 핀. 출퇴근 장소(`mapCandidate`, `destination`)와는 따로 두며, 통근 분석에 쓰지 않는다.
   const [searchPin, setSearchPin] = useState<{ latitude: number; longitude: number; name: string } | null>(null);
   const [shouldFocusMapSearch, setShouldFocusMapSearch] = useState(false);
@@ -123,6 +121,10 @@ const useNeighborhoodPreview = () => {
         }
       : null,
   );
+  // 출퇴근 장소가 아직 없으면(처음 진입) 지도 빈 곳을 눌러 바로 정한다. 이미 있으면 `바꾸기`나 `지도에서 선택`으로 선택 모드에 들어온 동안에만 지도를 눌러 정한다.
+  // 결과를 보는 동안(분석 이후)에는 지도를 눌러도 바뀌지 않는다.
+  const hasNoDestination = !hasChosenMapPoint && submitted === null;
+  const canPickDestination = phase !== 'analyzing' && (isMapSelectionEnabled || hasNoDestination);
   const appliedMaxRent = submitted?.maxRent ?? maxRent;
   const hasSearchChanges =
     submitted === null ||

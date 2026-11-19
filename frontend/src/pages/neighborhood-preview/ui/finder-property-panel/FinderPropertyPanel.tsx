@@ -17,6 +17,8 @@ type Props = {
   destination: NeighborhoodPreviewContext['destination'];
   route: ReturnType<typeof usePropertyRoute>;
   commuteMaxMinutes: number;
+  /** 출퇴근 장소가 정해진 결과 단계인지. 아니면 노선을 부르지 않고 안내만 보인다. 기본은 정해짐. */
+  hasDestination?: boolean;
   /** 주면 요약을 눌러도 화면을 옮기지 않고 이 함수를 부른다(데스크탑은 같은 옆 칸을 상세로 바꾼다). 없으면 상세 화면으로 이동한다. */
   onOpenDetail?: () => void;
   /** 카드 메뉴로 매물을 지운 뒤. */
@@ -27,13 +29,14 @@ type Props = {
 /**
  * 동네 찾기 결과 지도에서 누른 내 매물. 위에는 내 기록 리스트와 같은 매물 카드(요약), 아래에는 출퇴근 장소와 그 집에서 출퇴근 장소까지의 노선을 둔다.
  * 위는 카드 높이만큼만 차지하고 아래가 나머지를 쓰며 길면 스크롤한다. `split`은 데스크탑 옆 칸, `stack`은 휴대폰 시트처럼 위아래로 쌓는다.
- * 예시 매물은 서버에 없어 노선을 부르지 않고 안내만 보인다.
+ * 예시 매물은 서버에 없어 노선을 부르지 않고 안내만 보인다. 출퇴근 장소를 정하기 전(선택 전, 선택 중)에도 노선을 부르지 않고 안내만 보인다.
  */
 const FinderPropertyPanel = ({
   property,
   destination,
   route,
   commuteMaxMinutes,
+  hasDestination = true,
   onOpenDetail,
   onDeleted,
   layout = 'stack',
@@ -65,14 +68,18 @@ const FinderPropertyPanel = ({
         />
       </section>
       <section className={styles.body} aria-label="동네 찾기 상세">
-        <div className={styles.destination} role="group" aria-label="출퇴근 장소">
-          <strong>{destination.name}</strong>
-          {destination.address !== '' && destination.address !== destination.name && (
-            <small>{destination.address}</small>
-          )}
-        </div>
+        {hasDestination && (
+          <div className={styles.destination} role="group" aria-label="출퇴근 장소">
+            <strong>{destination.name}</strong>
+            {destination.address !== '' && destination.address !== destination.name && (
+              <small>{destination.address}</small>
+            )}
+          </div>
+        )}
         {isPreview ? (
           <p className={styles.notice}>예시 매물이라 통근 시간을 계산하지 않아요</p>
+        ) : !hasDestination ? (
+          <p className={styles.notice}>출퇴근 장소를 정하면 이 집에서 가는 노선을 알려 드려요</p>
         ) : commute === null ? (
           <p className={styles.notice}>통근 시간을 불러오고 있어요</p>
         ) : commute.status === 'REACHABLE' ? (

@@ -5,6 +5,7 @@ import { useRecordsMapController } from '@/pages/design-records/RecordsMapProvid
 import { useAdminDongBookmarks } from '@/features/map/api/useAdminDongBookmarks';
 import { useBookmarkedRegionRents } from '@/features/map/api/useBookmarkedRegionRents';
 import { BOOKMARK_LABEL_HALF_HEIGHT, useBookmarkedRegions } from '@/features/map/api/useBookmarkedRegions';
+import useMapTip from '@/features/map/hooks/useMapTip';
 import useViewportFacilityLayer from '@/features/map/hooks/useViewportFacilityLayer';
 import { bookmarkRentCardRows, rentOf, withRentCaptions } from '@/features/map/lib/bookmarkedRegionRent';
 import {
@@ -31,6 +32,7 @@ import {
   FINDER_PROPERTY_VIEW_PARAM,
   parseFinderPropertyId,
 } from '../model/finderPropertyUrl';
+import { NEIGHBORHOOD_TAP_TIP_KEY } from '../model/mapTapTipKey';
 import type { MyPropertyRow } from '../model/myProperty';
 import useNeighborhoodPlaces, { MY_PROPERTY_PREFIX, type NeighborhoodPlace } from './useNeighborhoodPlaces';
 import type { NeighborhoodPreviewContext } from './useNeighborhoodPreview';
@@ -105,6 +107,8 @@ const useNeighborhoodMapView = (
     : undefined;
   const markerLevel = isDesktop ? DESKTOP_FACILITY_MARKER_LEVEL : FACILITY_MARKER_LEVEL;
   const isResultMap = !preview.isAnalyzing && !preview.error && !preview.isSelectingOnMap;
+  // 내 매물 마커는 선택 전, 선택 중, 결과 단계 어디서나 눌려 같은 패널을 연다. 분석 중이거나 실패 화면이 지도를 덮은 동안만 닫아 둔다.
+  const showsPropertyPanel = !preview.isAnalyzing && !preview.error;
   const [railSelection, setRailSelection] = useState<RailSelection | null>(null);
   // 누른 동네의 카드는 마우스를 치워도 띄워 둔다. 빈 곳이나 같은 동네를 다시 누르면 닫고, 그 동네 코드를 여기 둔다.
   const [dismissedCode, setDismissedCode] = useState<string | null>(null);
@@ -177,7 +181,7 @@ const useNeighborhoodMapView = (
   const navigate = useNavigate();
   const propertyId = parseFinderPropertyId(searchParams.get(FINDER_PROPERTY_PARAM));
   const pickedProperty =
-    isResultMap && propertyId !== null ? myRows.find((row) => row.propertyId === propertyId) : undefined;
+    showsPropertyPanel && propertyId !== null ? myRows.find((row) => row.propertyId === propertyId) : undefined;
   const selectedPlace = useMemo<NeighborhoodPlace | null>(
     () => places.selectedPlace ?? (pickedProperty ? { kind: 'property', property: pickedProperty } : null),
     [places.selectedPlace, pickedProperty],
@@ -216,7 +220,10 @@ const useNeighborhoodMapView = (
   // 고른 내 매물에서 출퇴근 장소까지의 동선. 통근 시간이 나온 매물만 부르고 예시 매물은 부르지 않는다.
   // 시트의 노선 안내와 같은 쿼리(목적지 좌표와 매물 번호)라 한 번만 받는다.
   const routePropertyId =
-    selectedProperty !== null && selectedProperty.isPreview !== true && selectedProperty.commute?.status === 'REACHABLE'
+    isResultMap &&
+    selectedProperty !== null &&
+    selectedProperty.isPreview !== true &&
+    selectedProperty.commute?.status === 'REACHABLE'
       ? selectedProperty.propertyId
       : null;
   const propertyRoute = usePropertyRoute(preview, routePropertyId);
@@ -232,11 +239,13 @@ const useNeighborhoodMapView = (
     else setDismissedCode(preview.selected?.adminDongCode ?? null);
   };
   const tapMap = (latitude: number, longitude: number) => {
-    // 선택 모드가 아니면 열린 정보만 닫고 출퇴근 장소는 건드리지 않는다.
+    // 결과를 보는 동안에는 열린 정보만 닫고 출퇴근 장소는 건드리지 않는다.
     if (!preview.canPickDestination) {
       tapEmpty();
       return;
     }
+    // 고르는 중에 열어 둔 매물 패널은 새 위치를 고르면 닫는다.
+    closeLayers();
     preview.chooseMapPoint(latitude, longitude);
   };
   /** 같은 동네를 다시 누르면 열어 둔 정보를 닫거나 다시 연다. 다른 동네는 한 번에 선택한다. */
@@ -258,7 +267,8 @@ const useNeighborhoodMapView = (
     const memberIds = groupMemberIds(marker.id);
     if (memberIds !== null) {
       closeLayers();
-      preview.fitPoints(myMarkers.filter((member) => memberIds.includes(member.id)));
+      // 결과 지도의 시점만 옮긴다. 위치를 고르는 지도는 그대로 둔다.
+      if (isResultMap) preview.fitPoints(myMarkers.filter((member) => memberIds.includes(member.id)));
       return;
     }
     if (marker.id.startsWith(MY_PROPERTY_PREFIX)) {
@@ -270,7 +280,7 @@ const useNeighborhoodMapView = (
       if (facility) places.selectFacility(marker, facility);
       else places.selectMarker(marker);
     }
-    preview.focusPoint(marker);
+    if (isResultMap) preview.focusPoint(marker);
   };
   // 시설 마커는 레일 칸을 켰고 가까이 확대했을 때 지금 화면 범위로 받은 것만 올린다. 동네를 골라도 따로 마커를 받지 않는다.
   // 아무 칸도 켜지 않으면 동네 경계와 출퇴근 장소 핀만 남는다. 거리 메모는 동네 찾기에 띄우지 않는다.
@@ -296,10 +306,6 @@ const useNeighborhoodMapView = (
     () => (groupedMyMarkers.length === 0 ? facilityMarkers : [...facilityMarkers, ...groupedMyMarkers]),
     [facilityMarkers, groupedMyMarkers],
   );
-  // 처음 들어온 조건 입력 화면에서도 내 매물을 늘 그린다. 지도에서 위치를 고르는 선택 모드와 주소를 검색하는 동안, 분석 중(이 지도가 아님)에만 숨긴다.
-  const isSearchingPlace = preview.isSearching || (preview.query.trim() !== '' && !preview.hasChosenMapPoint);
-  const pickingMyMarkers =
-    preview.isSelectingOnMap && !preview.isMapSelectionEnabled && !isSearchingPlace ? groupedMyMarkers : NO_MARKERS;
   const destinationMarkers = useMemo(
     () => [
       ...railMarkers,
@@ -339,6 +345,20 @@ const useNeighborhoodMapView = (
     ],
     [preview.mapCandidate, preview.hasChosenMapPoint, preview.hasSubmittedSearch, preview.destination],
   );
+  // 위치를 고르기 전, 지도 가운데 좌표에 붙는 첫 안내. 위치를 고르거나 검색을 시작하면 잠시 숨기고, 선택 모드에서는 안내 띠가 같은 말을 한다.
+  const tip = useMapTip({
+    storageKey: NEIGHBORHOOD_TAP_TIP_KEY,
+    message: '지도를 눌러 출퇴근 장소를 골라요',
+    point: preview.selectionCenter,
+    offsetPx: isDesktop ? undefined : { x: 0, y: -64 },
+    level: preview.selectionLevel,
+    enabled:
+      preview.isSelectingOnMap &&
+      !preview.isMapSelectionEnabled &&
+      !preview.hasChosenMapPoint &&
+      !preview.query.trim() &&
+      preview.addressResults.length === 0,
+  });
   // 구역 위 마우스 상태. 올리고 잠깐(HOVER_SHOW_DELAY_MS) 머물러야 카드가 뜨고, 나간 뒤 잠깐(HOVER_HIDE_DELAY_MS) 기다려 카드로 옮겨 가도 닫히지 않게 한다.
   const regionHover = useHoverIntent<string>();
   const hoveredCode = regionHover.target;
@@ -450,9 +470,11 @@ const useNeighborhoodMapView = (
         // 확대·축소 버튼이 지금 보이는 자리에서 옮기도록 움직인 시점을 기억한다.
         onCenterChange: preview.rememberSelectionCenter,
         onLevelChange: preview.rememberSelectionLevel,
-        markers: [...candidateMarkers, ...searchPinMarker, ...pickingMyMarkers],
+        // 내 매물은 선택 전과 선택 중에도 그리고 누르면 결과 지도와 같은 패널을 연다. 지도 빈 곳만 출퇴근 장소 후보가 된다.
+        markers: [...candidateMarkers, ...searchPinMarker, ...groupedMyMarkers],
         // 출퇴근 장소를 다시 고르는 동안에는 이전 결과의 동 영역을 지운다. 새로 찾아야 다시 그려지고, 이전 결과 보기로 돌아오면 그대로 복원된다.
         regions: NO_REGIONS,
+        tip,
         // 분석 중이거나 실패 화면이 지도를 덮고 있을 때는 위치 찍기를 끈다.
         onSelectLocation: preview.isSelectingOnMap ? tapMap : undefined,
         onSelectRegion: preview.isSelectingOnMap
@@ -460,7 +482,11 @@ const useNeighborhoodMapView = (
               if (point) tapMap(point.latitude, point.longitude);
             }
           : undefined,
-        onSelectMarker: selectSearchPin,
+        onSelectMarker: (marker: MapMarker) => {
+          if (marker.id.startsWith(SEARCH_PIN_ID)) selectSearchPin(marker);
+          else if (isMyPropertyMarker(marker)) selectMarker(marker);
+        },
+        selectedMarkerId: selectedProperty ? `${MY_PROPERTY_PREFIX}${selectedProperty.propertyId}` : null,
       };
   const baseSelectMarker = mapProps.onSelectMarker;
   const baseBoundsChange = mapProps.onBoundsChange;
@@ -559,6 +585,7 @@ const useNeighborhoodMapView = (
     : mapProps;
   return {
     isResultMap,
+    showsPropertyPanel,
     mapProps: composedProps,
     bookmark: (code: string) =>
       preview.isPublicExplore
@@ -571,6 +598,8 @@ const useNeighborhoodMapView = (
     /** 고른 내 매물과 그 매물의 동선. 데스크탑 옆 칸과 휴대폰 시트가 함께 쓴다. */
     property: {
       selected: selectedProperty,
+      /** 출퇴근 장소가 정해진 결과 단계인지. 아니면 노선 대신 안내만 보인다. */
+      hasDestination: isResultMap,
       route: propertyRoute,
       commuteMaxMinutes,
       isDetailOpen: isPropertyDetailOpen,

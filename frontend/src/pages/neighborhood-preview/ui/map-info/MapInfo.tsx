@@ -35,7 +35,12 @@ type Props = {
   my: My;
   onSelectProperty: (row: MyPropertyRow) => void;
   /** 고른 내 매물의 노선과 매물 지운 뒤 처리. 휴대폰 시트는 매물 요약과 노선을 함께 보인다. */
-  property: { route: ReturnType<typeof usePropertyRoute>; commuteMaxMinutes: number; close: () => void };
+  property: {
+    route: ReturnType<typeof usePropertyRoute>;
+    commuteMaxMinutes: number;
+    hasDestination: boolean;
+    close: () => void;
+  };
   /** 휴대폰은 바로 전화를 걸고, 데스크탑은 번호를 보여 주고 복사하게 한다. */
   phoneAction: 'call' | 'copy';
 };
@@ -52,6 +57,7 @@ const MapInfo = ({ subject, preview, my, onSelectProperty, property, phoneAction
         destination={preview.destination}
         route={property.route}
         commuteMaxMinutes={property.commuteMaxMinutes}
+        hasDestination={property.hasDestination}
         onDeleted={property.close}
       />
     );

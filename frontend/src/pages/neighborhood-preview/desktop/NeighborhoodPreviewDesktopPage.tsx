@@ -52,7 +52,7 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
     // 동을 누르면 코너 정보 카드 대신 그 자리의 마커(소요시간, 월세 시세 포함)를 띄운다.
     showAreaAction: true,
   });
-  const { isResultMap, mapProps, places, closeLayers } = mapView;
+  const { isResultMap, showsPropertyPanel, mapProps, places, closeLayers } = mapView;
   // 지도 칸은 목록, 상세 칸 오른쪽에 있다. 상세 칸이 아직 닫혀 있으면 고른 뒤 열릴 폭을 미리 빼고 시점을 맞춘다.
   const mapSectionRef = useResultMapViewport<HTMLElement>(preview, (section) => {
     const layout = section.parentElement?.parentElement;
@@ -96,7 +96,7 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
       : { kind: 'place', place: places.selectedPlace };
   const { property } = mapView;
   const propertyDetail =
-    isResultMap && property.selected !== null ? (
+    showsPropertyPanel && property.selected !== null ? (
       property.isDetailOpen ? (
         <aside className={styles.propertyPanel} aria-label="선택한 매물 상세">
           <PropertyDetailPage
@@ -112,6 +112,7 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
             destination={preview.destination}
             route={property.route}
             commuteMaxMinutes={property.commuteMaxMinutes}
+            hasDestination={property.hasDestination}
             onOpenDetail={property.openDetail}
             onDeleted={property.close}
           />
