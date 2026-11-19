@@ -9,27 +9,10 @@ const items = [
   { id: 'b', label: '신림동' },
 ];
 
-it('맨 앞 칩은 뱃지 줄 밖에 두고, 눌러도 뱃지 선택은 바꾸지 않는다', async () => {
+it('뱃지만 그리고, 누르면 그 뱃지를 고른다', async () => {
   const onSelect = vi.fn();
-  const onLeading = vi.fn();
-  render(
-    <MapBadgeRail
-      items={items}
-      selectedId="a"
-      onSelect={onSelect}
-      label="찾은 동네"
-      leading={{ label: '다시 뽑기', onClick: onLeading }}
-    />,
-  );
-  const chip = screen.getByRole('button', { name: '다시 뽑기' });
-  expect(screen.getByRole('navigation', { name: '찾은 동네' })).not.toContainElement(chip);
-  await userEvent.click(chip);
-  expect(onLeading).toHaveBeenCalledOnce();
-  expect(onSelect).not.toHaveBeenCalled();
-});
-
-it('앞 칩이 없으면 뱃지만 그린다', () => {
-  render(<MapBadgeRail items={items} selectedId={null} onSelect={vi.fn()} label="찾은 동네" />);
-  expect(screen.queryByRole('button', { name: '다시 뽑기' })).not.toBeInTheDocument();
+  render(<MapBadgeRail items={items} selectedId={null} onSelect={onSelect} label="찾은 동네" />);
   expect(screen.getAllByRole('button')).toHaveLength(2);
+  await userEvent.click(screen.getByRole('button', { name: '신림동' }));
+  expect(onSelect).toHaveBeenCalledWith('b');
 });

@@ -1298,6 +1298,24 @@ it('데스크탑 통합 지도는 왼쪽 조건 칸과 지도 위 찾은 동네 
   }
 });
 
+it('데스크탑 결과 지도의 출퇴근 장소 다시 선택은 동네 뱃지 줄 밖 지도 아래 가운데에 있고, 선택 모드에서는 보이지 않는다', async () => {
+  const viewport = useDesktopViewport();
+  try {
+    show(false, undefined, true);
+    const user = await choosePoint();
+    await user.click(screen.getByRole('button', { name: '이 조건으로 동네 찾기' }));
+    await screen.findByRole('region', { name: '행정동 프리셋 지도' });
+    const reselect = screen.getByRole('button', { name: '출퇴근 장소 다시 선택' });
+    expect(
+      within(screen.getByRole('navigation', { name: '찾은 동네' })).queryByText('출퇴근 장소 다시 선택'),
+    ).toBeNull();
+    expect(reselect.closest('nav')).toBeNull();
+    await user.click(reselect);
+    expect(screen.queryByRole('button', { name: '출퇴근 장소 다시 선택' })).not.toBeInTheDocument();
+  } finally {
+    viewport.mockRestore();
+  }
+});
 it('데스크탑 동네 찾기는 선택 전, 선택 중, 주소 검색 중에도 내 매물을 늘 그린다', async () => {
   const viewport = useDesktopViewport();
   useOneRecordedProperty();
