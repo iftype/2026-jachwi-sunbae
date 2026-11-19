@@ -440,20 +440,22 @@ export const categoryFilters = css`
   label: ChecklistEditor-categoryFilters;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
-  margin-top: var(--space-md);
+  gap: 0.5rem;
+  margin-top: var(--space-lg);
   padding: 0;
   background: transparent;
   & button {
-    min-height: 2.75rem;
-    padding: 0.4rem 0.7rem;
-    border: 1px solid var(--color-border);
+    min-height: 2.5rem;
+    padding: 0.4rem 0.9rem;
+    border: 0;
     border-radius: var(--radius-full, 999px);
-    background: var(--color-surface);
+    background: var(--color-card-surface);
+    font-weight: 500;
   }
   & button[aria-checked='true'] {
     background: var(--color-surface-muted);
     color: var(--color-ink);
+    font-weight: 800;
     box-shadow: none;
   }
 `;
