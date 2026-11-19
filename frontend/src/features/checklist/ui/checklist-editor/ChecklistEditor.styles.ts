@@ -141,22 +141,20 @@ export const checkItemSearchResults = cx(
   css`
     label: ChecklistEditor-checkItemSearchResults;
     display: grid;
-    gap: 0;
+    gap: 0.75rem;
     margin: 0;
     padding: 0;
     list-style: none;
-    margin-top: 0.25rem;
 
     & li {
       position: relative;
       display: grid;
       align-items: center;
-      min-height: 2.75rem;
-      padding: 0.35rem 0;
+      min-height: 3.5rem;
+      padding: 0.9rem 1rem;
       border: 0;
-      border-bottom: 1px solid var(--color-border);
-      border-radius: 0;
-      background: transparent;
+      border-radius: 1rem;
+      background: var(--color-card-surface);
     }
 
     & strong,
@@ -166,8 +164,8 @@ export const checkItemSearchResults = cx(
 
     & strong {
       color: var(--color-ink);
-      font-size: 0.8125rem;
-      font-weight: 400;
+      font-size: 0.9375rem;
+      font-weight: 700;
       line-height: 1.4;
     }
 
@@ -222,13 +220,29 @@ export const compactState = css`
 
 export const checkItemResults = css`
   label: ChecklistEditor-checkItemResults;
-  margin-top: 0.9rem;
+  margin-top: 1.5rem;
 
-  & h3 {
+  & > h3 {
     margin: 0;
     color: var(--color-ink);
-    font-size: 0.8rem;
-    font-weight: 700;
+    font-size: 1.0625rem;
+    font-weight: 800;
+  }
+
+  /* 카테고리 섹션은 구분선 대신 넉넉한 간격으로 나눈다. */
+  & > section {
+    padding: 0;
+    margin-top: 1.75rem;
+  }
+
+  & > section + section {
+    border-top: 0;
+  }
+
+  & > section > h3 {
+    margin-bottom: 0.75rem;
+    font-size: 1rem;
+    font-weight: 800;
   }
 `;
 
@@ -238,8 +252,7 @@ export const alreadyAddedItem = cx(
     label: ChecklistEditor-alreadyAddedItem;
 
     .ChecklistEditor-checkItemSearchResults & {
-      border-color: var(--color-border);
-      background: transparent;
+      background: var(--color-surface-muted);
     }
   `,
   'ChecklistEditor-alreadyAddedItem',
@@ -254,7 +267,7 @@ export const existingDivider = css`
     align-items: center;
     gap: 0.6rem;
     margin: 0.25rem 0 0;
-    padding: 0.25rem 0.15rem 0.05rem;
+    padding: 0.25rem 0.15rem 0;
     border: 0;
     border-radius: 0;
     background: transparent;
@@ -285,7 +298,7 @@ export const resultSelect = cx(
       display: grid;
       grid-template-columns: auto minmax(0, 1fr);
       align-items: center;
-      gap: 0.65rem;
+      gap: 0.75rem;
       width: 100%;
       padding: 0;
       border: 0;
@@ -315,9 +328,9 @@ export const resultControl = css`
 
   & {
     display: grid;
-    width: 1.375rem;
-    height: 1.375rem;
-    border: 1px solid var(--color-border-strong);
+    width: 1.5rem;
+    height: 1.5rem;
+    border: 1.5px solid var(--color-border-strong);
     border-radius: 50%;
     background: var(--color-surface);
     color: var(--color-on-primary);
