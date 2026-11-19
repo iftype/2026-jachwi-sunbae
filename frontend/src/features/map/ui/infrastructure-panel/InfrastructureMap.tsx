@@ -100,7 +100,7 @@ const InfrastructureMap = ({ mapProps, open }: Props) => {
         }))
       : [];
   }, [layer.markers, anchorPoint, isNear, isDesktop]);
-  // 눌린 시설 마커 위에 이름만 띄운다. 중개업소는 전화번호가 있을 때만 전화 걸기를 더한다.
+  // 눌린 시설 마커 위에 이름만 띄운다. 중개업소는 전화번호가 있을 때만 전화하기를 더한다.
   const facilityMenu = useMemo<MapCoordinateMenu | undefined>(() => {
     const place = layer.selected;
     if (!open || anchorPoint === null || place === null) return undefined;
@@ -112,7 +112,15 @@ const InfrastructureMap = ({ mapProps, open }: Props) => {
       heading: place.name,
       markerAbove: isNear ? FACILITY_PIN_HEIGHT : FACILITY_DOT_RADIUS,
       actions: phone
-        ? [{ id: 'call', label: '전화', href: `tel:${phone}`, ariaLabel: `${place.name} 전화걸기`, onSelect: () => {} }]
+        ? [
+            {
+              id: 'call',
+              label: '전화하기',
+              href: `tel:${phone}`,
+              ariaLabel: `${place.name} 전화하기`,
+              onSelect: () => {},
+            },
+          ]
         : [],
     };
   }, [open, anchorPoint, layer.selected, isNear]);
