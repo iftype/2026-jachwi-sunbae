@@ -2,7 +2,6 @@ import { css } from '@emotion/css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
-import Icon from '@/shared/ui/icon/Icon';
 
 import useInfrastructureLayer from '../../hooks/useInfrastructureLayer';
 import {
@@ -18,7 +17,7 @@ import {
 } from '../../lib/mapFacilityVisibility';
 import { FACILITY_CATEGORY_COLOR, isFacilityCategory } from '../../lib/mapPresentation';
 import type { MapBounds, MapMarker } from '../../model/Map';
-import type { MapCanvasProps, MapRadiusCircle } from '../../model/MapCanvas';
+import type { MapCanvasProps, MapCoordinateMenu, MapRadiusCircle } from '../../model/MapCanvas';
 import MapBookmarkToggle from '../map-bookmark-toggle/MapBookmarkToggle';
 import MapCanvasSurface from '../map-canvas/MapCanvasSurface';
 import MapCategoryRail from '../map-category-rail/MapCategoryRail';
@@ -46,6 +45,11 @@ const distanceMeters = (a: { latitude: number; longitude: number }, b: { latitud
   const eastWest = (a.longitude - b.longitude) * METERS_PER_LATITUDE_DEGREE * Math.cos((b.latitude * Math.PI) / 180);
   return Math.hypot(northSouth, eastWest);
 };
+
+/** 좌표에서 시설 핀 위쪽 가장자리까지의 높이(px). 핀(2.3rem)을 가리지 않게 말풍선을 그만큼 올린다. */
+const FACILITY_PIN_HEIGHT = 37;
+/** 멀리서 점으로만 보일 때 점 반지름 정도만 올린다. */
+const FACILITY_DOT_RADIUS = 6;
 
 const isPropertyMarker = (marker: MapMarker) => marker.tone === 'property' || marker.tone === 'propertyCluster';
 
@@ -96,12 +100,29 @@ const InfrastructureMap = ({ mapProps, open }: Props) => {
         }))
       : [];
   }, [layer.markers, anchorPoint, isNear, isDesktop]);
+  // 눌린 시설 마커 위에 이름만 띄운다. 중개업소는 전화번호가 있을 때만 전화 걸기를 더한다.
+  const facilityMenu = useMemo<MapCoordinateMenu | undefined>(() => {
+    const place = layer.selected;
+    if (!open || anchorPoint === null || place === null) return undefined;
+    const phone = place.category === 'AGENCY' ? place.phone?.trim() : undefined;
+    return {
+      latitude: place.latitude,
+      longitude: place.longitude,
+      title: place.name,
+      heading: place.name,
+      markerAbove: isNear ? FACILITY_PIN_HEIGHT : FACILITY_DOT_RADIUS,
+      actions: phone
+        ? [{ id: 'call', label: '전화', href: `tel:${phone}`, ariaLabel: `${place.name} 전화걸기`, onSelect: () => {} }]
+        : [],
+    };
+  }, [open, anchorPoint, layer.selected, isNear]);
   return (
     <>
       <MapCanvasSurface
         {...mapProps}
         circles={circles ?? mapProps.circles}
         radiusCenter={open && anchorPoint ? anchorPoint : mapProps.radiusCenter}
+        coordinateMenu={facilityMenu ?? mapProps.coordinateMenu}
         markers={[...(mapProps.markers ?? []), ...facilityMarkers]}
         selectedMarkerId={open && layer.selected ? layer.selected.id : mapProps.selectedMarkerId}
         onCenterChange={(latitude, longitude) => {
@@ -112,7 +133,20 @@ const InfrastructureMap = ({ mapProps, open }: Props) => {
           setObservedLevel(next);
           mapProps.onLevelChange?.(next);
         }}
+        onSelectLocation={
+          mapProps.onSelectLocation || layer.selected
+            ? (latitude, longitude) => {
+                layer.clearSelection();
+                mapProps.onSelectLocation?.(latitude, longitude);
+              }
+            : undefined
+        }
         onSelectMarker={(marker) => {
+          // 열린 말풍선의 마커를 다시 누르면 닫는다.
+          if (open && layer.selected?.id === marker.id) {
+            layer.clearSelection();
+            return;
+          }
           if (open && layer.selectMarker(marker)) return;
           layer.clearSelection();
           mapProps.onSelectMarker?.(marker);
@@ -137,18 +171,6 @@ const InfrastructureMap = ({ mapProps, open }: Props) => {
                 다시 시도
               </button>
             </div>
-          )}
-          {layer.selected && (
-            <aside className={styles.info} aria-label="시설 정보 카드">
-              <header>
-                <h2>{layer.selected.name}</h2>
-                <button type="button" aria-label="시설 정보 닫기" onClick={layer.clearSelection}>
-                  <Icon name="close" size={20} />
-                </button>
-              </header>
-              <p>{layer.selected.address || '지도에서 위치를 확인해 주세요.'}</p>
-              {layer.selected.phone && <a href={`tel:${layer.selected.phone}`}>{layer.selected.phone}</a>}
-            </aside>
           )}
         </>
       )}
@@ -183,49 +205,6 @@ const styles = {
     border-radius: 0.75rem;
     background: white;
     font-size: 0.8rem;
-  `,
-  info: css`
-    label: InfrastructureMap-info;
-    position: absolute;
-    z-index: 45;
-    bottom: 1.25rem;
-    right: 5rem;
-    width: min(20rem, calc(100% - 2rem));
-    max-height: calc(100% - 6rem);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    padding: 1rem;
-    border: 1px solid var(--color-border);
-    border-radius: 1rem;
-    background: white;
-    box-shadow: var(--shadow-floating);
-    & > header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-    }
-    & h2 {
-      margin: 0;
-      font-size: 1rem;
-    }
-    & button {
-      display: grid;
-      place-items: center;
-      border: 0;
-      background: transparent;
-      cursor: pointer;
-    }
-    & p {
-      font-size: 0.85rem;
-      color: var(--color-muted);
-      line-height: 1.5;
-    }
-    [data-desktop='false'] & {
-      bottom: 9rem;
-      right: 1rem;
-      max-height: 45%;
-    }
   `,
 };
 export default InfrastructureMap;
