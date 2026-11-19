@@ -111,25 +111,10 @@ const ConveniencePanel = ({ isActive, layout, onDetail }: ConveniencePanelProps)
   );
   return (
     <section className={cx(shared.section, layout === 'desktop' && shared.sectionDesktop)} aria-label="편의점 행사상품">
-      <h2>편의점 행사상품</h2>
-      <p className={shared.description}>지금 진행 중인 브랜드 행사 살펴보기</p>
-      {/* 데스크탑은 브랜드와 행사 유형을 한 줄 도구 막대에 나란히 둬, 선택 줄이 겹겹이 쌓이지 않게 한다.
-          모바일은 브랜드 바로 아래에 검색 줄을 두고 행사 유형을 그 아래에 둔다. */}
-      {layout === 'desktop' ? (
-        <>
-          <div className={styles.toolbarDesktop}>
-            {brandControl}
-            {filterControl}
-          </div>
-          {searchRow}
-        </>
-      ) : (
-        <>
-          {brandControl}
-          {searchRow}
-          {filterControl}
-        </>
-      )}
+      {/* 데스크탑 리스트 칸은 좁아서 브랜드, 검색, 행사 유형을 세로로 쌓는다. */}
+      {brandControl}
+      {searchRow}
+      {filterControl}
       <QueryState query={query} loadingTitle="행사상품을 불러오고 있어요" describeError={describeMealError}>
         {(result) => {
           const products = selectProducts(result.products, { filter, keyword, sort });
@@ -172,11 +157,16 @@ const ConveniencePanel = ({ isActive, layout, onDetail }: ConveniencePanelProps)
                         onClick={() => onDetail({ kind: 'product', product, brand, sourceUrl: result.sourceUrl })}
                         aria-label={`${product.name} 상세 보기`}
                       >
-                        <ProductImage src={product.imageUrl} name={product.name} />
-                        <span className={shared.badge}>{PROMOTIONS[product.promotionType]}</span>
-                        <strong className={styles.name}>{product.name}</strong>
-                        <span className={styles.price}>{won(product.price)}</span>
-                        <small>판매가격</small>
+                        <span className={styles.thumb}>
+                          <ProductImage src={product.imageUrl} name={product.name} />
+                        </span>
+                        <span className={styles.body}>
+                          <span className={shared.itemHeading}>
+                            <span className={shared.badge}>{PROMOTIONS[product.promotionType]}</span>
+                            <strong className={styles.name}>{product.name}</strong>
+                          </span>
+                          <span className={styles.price}>{won(product.price)}</span>
+                        </span>
                       </button>
                     </li>
                   ))}
@@ -247,26 +237,6 @@ const styles = {
       border-color: var(--color-ink, #212124);
     }
   `,
-  /* 브랜드는 두 칸만큼만, 행사 유형은 남은 폭에서 최대 34rem까지 쓴다. */
-  toolbarDesktop: css`
-    label: ConveniencePanel-toolbarDesktop;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 0.5rem;
-
-    & > [role='radiogroup'] {
-      flex: none;
-      width: 16rem;
-      margin: 0;
-    }
-
-    & > [role='radiogroup'] + [role='radiogroup'] {
-      flex: 1;
-      width: auto;
-      max-width: 34rem;
-    }
-  `,
   footer: css`
     label: ConveniencePanel-footer;
     display: grid;
@@ -284,9 +254,20 @@ const styles = {
     gap: 1.4rem 0.8rem;
   `,
   gridDesktop: css`
-    label: ConveniencePanel-gridDesktop;
-    grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
-    gap: 2rem 1.25rem;
+    grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  `,
+  thumb: css`
+    label: ConveniencePanel-thumb;
+    flex: none;
+    width: 3.5rem;
+  `,
+  body: css`
+    label: ConveniencePanel-body;
+    display: grid;
+    min-width: 0;
+    flex: 1;
+    gap: 0.15rem;
+    justify-items: start;
   `,
   card: css`
     label: ConveniencePanel-card;
@@ -302,9 +283,9 @@ const styles = {
     text-align: left;
     cursor: pointer;
     font: inherit;
-    & small {
-      color: var(--color-ink-soft);
-      font-size: 0.72rem;
+    &:focus-visible {
+      outline: 2px solid var(--color-focus);
+      outline-offset: 2px;
     }
   `,
   name: css`
@@ -315,8 +296,8 @@ const styles = {
   `,
   price: css`
     label: ConveniencePanel-price;
-    font-weight: 800;
-    font-size: 1.06rem;
+    font-weight: 700;
+    font-size: 0.95rem;
     margin-top: auto;
   `,
 };

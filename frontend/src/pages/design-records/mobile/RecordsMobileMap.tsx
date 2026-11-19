@@ -9,7 +9,7 @@ import Icon from '@/shared/ui/icon/Icon';
 import type { RecordsState } from '../hooks/useRecords';
 import type { RecordsMapLayers } from '../hooks/useRecordsMapLayers';
 import { recordNeighbors } from '../model/recordNavigation';
-import RecordMapTapIntro from '../ui/record-map-tap-intro/RecordMapTapIntro';
+import RecordNeighborhoodBanner from '../ui/record-neighborhood-banner/RecordNeighborhoodBanner';
 import RecordRegisterSuggestion from '../ui/record-register-suggestion/RecordRegisterSuggestion';
 import RecordStepper from '../ui/record-stepper/RecordStepper';
 import RecordsSelectedSheet from './RecordsSelectedSheet';
@@ -33,7 +33,6 @@ const RecordsMobileMap = ({ records, layers }: Props) => {
   return (
     <section className={styles.map} aria-label="본 방 기록 지도">
       <MapCanvas shared {...layers.canvasProps} coordinateMenu={layers.coordinateMenu} />
-      <RecordMapTapIntro hasTapped={layers.tapPoint !== null || layers.memo.mode !== null} />
       <StreetMemoImpressionLog memos={layers.memo.visibleMemos} />
       <button
         className={styles.recenter}
@@ -44,6 +43,7 @@ const RecordsMobileMap = ({ records, layers }: Props) => {
         <Icon name="target" size={22} />
       </button>
       <MapZoomControl className={styles.zoom} level={records.level} onChange={records.setLevel} />
+      {sheetRecords.length === 0 && layers.memo.mode === null && <RecordNeighborhoodBanner className={styles.banner} />}
       <RecordsSelectedSheet
         records={sheetRecords}
         onClose={layers.closeAll}
@@ -69,11 +69,18 @@ const styles = {
     min-height: 0;
   `,
 
+  /* 아래 가운데 보기 방식 스위치(fixed, 약 3rem) 위에 둔다. */
+  banner: css`
+    label: RecordsMobileMap-banner;
+    bottom: calc(var(--map-sheet-bottom, env(safe-area-inset-bottom)) + 4.75rem);
+  `,
+
   /* 세로 확대 축소 버튼 바로 아래에 둔다. */
   recenter: css`
     label: RecordsMobileMap-recenter;
     position: absolute;
-    top: calc(max(0.85rem, env(safe-area-inset-top)) + 25rem);
+    /* 확대 축소 바로 아래(zoom 8rem + 높이 약 5.3rem + 간격 0.5rem)에 붙인다. */
+    top: calc(max(0.85rem, env(safe-area-inset-top)) + 13.8rem);
     right: 0.95rem;
     z-index: 12;
     display: grid;

@@ -22,11 +22,18 @@ export type MapMarker = {
     | 'place'
     | 'selected'
     | 'destination'
+    | 'pinLabel'
     | 'flash'
     | 'cluster'
     | 'propertyCluster'
     | 'rank'
     | 'dot';
+  /** tone이 pinLabel일 때 점 모양. search는 파란 점, map(지도를 눌러 고른 곳)은 파란 링이다. */
+  pinKind?: 'search' | 'commute';
+  /** tone이 pinLabel이고 search일 때 라벨에 `출퇴근 장소로 설정` 작은 버튼을 둔다. 누르면 `<id>:set-commute`로 알린다. */
+  setsCommute?: boolean;
+  /** tone이 pinLabel일 때 라벨 오른쪽 끝에 작은 ×를 둔다. 마커를 누르면 지운다(`actionable`과 함께 쓴다). */
+  removable?: boolean;
   /** tone이 dot일 때 점 색. 매물 주변 미리보기처럼 시설을 작은 색 점으로만 보일 때 쓴다. */
   color?: string;
   category?: MapCategory;
@@ -53,6 +60,8 @@ export type MapMarker = {
   tally?: { positive: number; negative: number };
   placeId?: string;
   actionable?: boolean;
+  /** 매물 핀을 작게 그리고 다른 마커(가게 등) 아래에 둔다. 저렴한 한 끼 지도처럼 매물이 주인공이 아닌 화면에 쓴다. */
+  compact?: boolean;
 };
 
 export type MapAddress = {

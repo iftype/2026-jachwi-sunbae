@@ -13,13 +13,15 @@ type CompareTableProps = {
   selectedIds: number[];
   maxSelection: number;
   onToggle: (propertyId: number) => void;
+  previewId: number | undefined;
+  onPreview: (propertyId: number) => void;
 };
 
 /**
  * 데스크탑 비교 표. 관리 화면 표처럼 회색 머리글 줄과 짝수 줄 줄무늬를 두고,
  * 한 줄에 체크·사진·매물 이름·보증금/월세·발견 경로·체크 진행을 나란히 놓는다.
  */
-const CompareTable = ({ properties, selectedIds, maxSelection, onToggle }: CompareTableProps) => (
+const CompareTable = ({ properties, selectedIds, maxSelection, onToggle, previewId, onPreview }: CompareTableProps) => (
   <div className={styles.table}>
     {/* 각 칸 이름은 줄 안의 값으로도 읽히므로 화면 낭독기에서는 머리글 줄을 숨긴다. */}
     <div className={styles.header} aria-hidden="true">
@@ -29,13 +31,14 @@ const CompareTable = ({ properties, selectedIds, maxSelection, onToggle }: Compa
       <span>보증금 / 월세</span>
       <span>발견 경로</span>
       <span>체크 진행</span>
+      <span />
     </div>
     <ul className={styles.rows} aria-label="비교할 매물 목록">
       {properties.length === 0 && <li className={styles.noResult}>조건에 맞는 매물이 없어요.</li>}
       {properties.map((property) => {
         const isSelected = selectedIds.includes(property.propertyId);
         return (
-          <li key={property.propertyId}>
+          <li key={property.propertyId} className={styles.rowWrapper}>
             <SelectionControl
               className={styles.row}
               checked={isSelected}
@@ -66,6 +69,16 @@ const CompareTable = ({ properties, selectedIds, maxSelection, onToggle }: Compa
               <span className={styles.cell}>{property.discoverySource.value || '—'}</span>
               <StageOverview property={property} />
             </SelectionControl>
+            <button
+              type="button"
+              className={styles.previewButton}
+              onClick={() => onPreview(property.propertyId)}
+              aria-label={`${property.name} 미리 보기`}
+              aria-controls={previewId === property.propertyId ? 'compare-property-preview' : undefined}
+              aria-pressed={previewId === property.propertyId}
+            >
+              상세
+            </button>
           </li>
         );
       })}
@@ -77,6 +90,7 @@ const styles = {
   table: css`
     label: CompareTable-table;
     --compare-table-columns: 1.1rem 2.5rem minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.3fr);
+    --preview-column: 2.9rem;
     display: grid;
     overflow: hidden;
     border-radius: var(--radius-md);
@@ -86,15 +100,39 @@ const styles = {
   header: css`
     label: CompareTable-header;
     display: grid;
-    grid-template-columns: var(--compare-table-columns);
+    grid-template-columns: var(--compare-table-columns) var(--preview-column);
     align-items: center;
     gap: 0.75rem;
     padding: 0.5rem 1rem;
-    padding-block: 0.65rem;
+    padding-block: 0.5rem;
     background: #f3f4f7;
     color: var(--color-muted);
     font-size: 0.66rem;
     font-weight: 600;
+  `,
+
+  rowWrapper: css`
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) calc(var(--preview-column) + 1rem);
+    align-items: center;
+  `,
+
+  previewButton: css`
+    justify-self: center;
+    border: 0;
+    border-radius: var(--radius-sm);
+    padding: 0.4rem;
+    background: transparent;
+    color: var(--color-brand-blue-ink);
+    font: inherit;
+    font-size: 0.7rem;
+    font-weight: 700;
+    cursor: pointer;
+
+    &[aria-pressed='true'],
+    &:hover {
+      background: var(--color-card-surface);
+    }
   `,
 
   // 다른 요소의 선택자에서 `.CompareTable-row`로 가리킨다.
@@ -105,8 +143,8 @@ const styles = {
       grid-template-columns: var(--compare-table-columns);
       align-items: center;
       gap: 0.75rem;
-      padding: 0.5rem 1rem;
-      min-height: 3.5rem;
+      padding: 0.35rem 0.75rem 0.35rem 1rem;
+      min-height: 2.75rem;
       cursor: pointer;
       transition: background-color 0.18s ease;
 
@@ -164,7 +202,7 @@ const styles = {
   thumbnail: css`
     label: CompareTable-thumbnail;
     display: grid;
-    width: 2.5rem;
+    width: 2rem;
     aspect-ratio: 1;
     overflow: hidden;
     border-radius: var(--radius-sm);

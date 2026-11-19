@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { StrictMode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   checkItemPageFixture,
@@ -30,6 +30,8 @@ import { server } from '../../server';
 const config: PublicConfig = {
   apiBaseUrl: 'http://localhost:8080',
 };
+
+beforeEach(() => queryClient.clear());
 
 type TestEntry = string | { pathname: string; state?: unknown };
 
@@ -147,7 +149,7 @@ describe('내 체크리스트 편집', () => {
     renderAuthenticated('/checklists');
     expect(await screen.findByText(/저장된 체크리스트가 없어요/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '체크리스트 저장' })).not.toBeInTheDocument();
-    await user.click(screen.getByRole('link', { name: '사용자 체크리스트 만들기' }));
+    await user.click(screen.getByRole('link', { name: '새 체크리스트' }));
     expect(await screen.findByRole('button', { name: '선택한 0개 항목 추가' })).toBeDisabled();
     expect(screen.getByRole('heading', { name: '체크리스트 만들기', level: 1 })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: '체크리스트 관리' })).not.toBeInTheDocument();
@@ -793,9 +795,9 @@ describe('매물 체크리스트 연결과 자동 저장', () => {
     expect(screen.getByRole('heading', { name: '사용자 체크리스트' })).toBeInTheDocument();
     await user.click(screen.getByRole('link', { name: '사용자 체크리스트 교체' }));
     expect(await screen.findByRole('heading', { name: '체크리스트 교체', level: 1 })).toBeInTheDocument();
-    expect(screen.getByRole('group', { name: '사용자 체크리스트' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: '내 체크리스트' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: '홈으로 돌아가기' })).not.toBeInTheDocument();
-    const manage = screen.getByRole('link', { name: '사용자 체크리스트 만들기' });
+    const manage = screen.getByRole('link', { name: '새 체크리스트' });
     expect(manage).toHaveAttribute('href', '/checklists/new?propertyId=10');
     await user.click(manage);
     await user.click(await screen.findByRole('checkbox', { name: onSiteItemFixture.question }));

@@ -161,7 +161,7 @@ const styles = {
   inactiveNote: css`
     label: ChecklistItemRow-inactiveNote;
     color: var(--color-error);
-    font-weight: 750;
+    font-weight: 600;
   `,
 
   actions: css`

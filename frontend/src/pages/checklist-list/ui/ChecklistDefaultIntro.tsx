@@ -23,9 +23,9 @@ const ChecklistDefaultIntro = () => {
   return (
     <section className={styles.root} aria-label="기본 체크리스트 안내">
       <header className={styles.header}>
-        <StateIllustration name="empty-properties" size={8} />
-        <h2>고른 체크리스트가 없으면 기본 체크리스트를 써요</h2>
-        <p>왼쪽에서 체크리스트를 고르면 여기서 보고 고칠 수 있어요. 아래는 기본으로 쓰이는 확인 항목이에요.</p>
+        <StateIllustration name="empty-properties" size={5} />
+        <h2>기본 체크리스트</h2>
+        <p>내 체크리스트를 고르기 전에는 아래 항목으로 방을 확인해요.</p>
       </header>
       {groups.length > 0 && (
         <ul className={styles.categories} aria-label="기본 체크리스트 항목">
@@ -69,7 +69,7 @@ const styles = {
     display: grid;
     gap: 1rem;
     /* 카테고리 버튼이 칸 폭을 꽉 채우지 않게 가로 길이를 줄여 가운데에 둔다. */
-    width: min(100%, 30rem);
+    width: min(100%, 32rem);
     margin: 0 auto;
     padding: 1.5rem 1.25rem 2rem;
   `,
@@ -99,7 +99,7 @@ const styles = {
   categories: css`
     label: ChecklistDefaultIntro-categories;
     display: grid;
-    gap: 0.5rem;
+    gap: 0;
     margin: 0;
     padding: 0;
     list-style: none;
@@ -107,8 +107,7 @@ const styles = {
 
   category: css`
     label: ChecklistDefaultIntro-category;
-    border-radius: var(--radius-md);
-    background: var(--color-card-surface);
+    border-bottom: 1px solid var(--color-border);
 
     & > button {
       display: flex;
@@ -117,12 +116,16 @@ const styles = {
       gap: 0.6rem;
       padding: 0.85rem 1rem;
       border: 0;
-      border-radius: inherit;
+      border-radius: var(--radius-sm);
       background: transparent;
       color: var(--color-ink);
       font: inherit;
       text-align: left;
       cursor: pointer;
+    }
+
+    & > button:hover {
+      background: var(--color-card-surface);
     }
 
     & > button:focus-visible {

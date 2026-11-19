@@ -20,7 +20,7 @@ const styles = {
     label: MapViewSwitch-position;
     position: fixed;
     left: 50%;
-    bottom: calc(env(safe-area-inset-bottom) + 0.75rem);
+    bottom: calc(var(--map-sheet-bottom, env(safe-area-inset-bottom)) + 0.75rem);
     transform: translateX(-50%);
     z-index: 20;
     pointer-events: auto;

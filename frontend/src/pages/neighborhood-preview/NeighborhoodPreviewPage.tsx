@@ -36,11 +36,15 @@ const NeighborhoodPreviewPage = () => {
   const selectAddress = preview.selectAddress;
   const selectRef = useRef(selectAddress);
   selectRef.current = selectAddress;
+  const searchToRef = useRef(preview.searchTo);
+  searchToRef.current = preview.searchTo;
   // 출퇴근 장소를 새로 고르면 이전 결과를 버리고 지금 조건으로 바로 다시 찾는다. 기록 지도의 `동네 추천받기`처럼
   // 조건 시트를 먼저 여는 진입만 조건을 고른 뒤 찾는다.
   useEffect(() => {
     if (!address) return;
-    selectRef.current(address, { analyze: !openRecommendationFilters });
+    // `동네 추천받기`로 넘어온 주소만 출퇴근 장소가 된다. 지도 검색(위쪽 검색창)으로 온 주소는 지도를 옮기고 검색 핀만 찍는다.
+    if (openRecommendationFilters) selectRef.current(address, { analyze: false });
+    else searchToRef.current(address);
     navigate(location.pathname + location.search, { replace: true, state: null });
   }, [address, navigate, location.pathname, location.search, openRecommendationFilters]);
   const selectionState: unknown = location.state;

@@ -2,10 +2,8 @@ import type { ReactNode } from 'react';
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
-import { reverseGeocode } from '@/features/map/api/mapApi';
 import { centerWithInsets } from '@/features/map/lib/mapCamera';
 import type { MapAddress } from '@/features/map/model/Map';
-import { usePublicConfig } from '@/shared/config/PublicConfigContext';
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
 import {
   NEIGHBORHOODS_PATH,
@@ -30,8 +28,6 @@ const Context = createContext<RecordsMapController | null>(null);
 export const useRecordsMapController = () => useContext(Context);
 export const RecordsMapProvider = ({ children }: { children: ReactNode }) => {
   const isDesktop = useIsDesktop();
-  const config = usePublicConfig();
-  const recommendationIntent = useRef(0);
   const pageRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const params = useParams();
@@ -89,13 +85,10 @@ export const RecordsMapProvider = ({ children }: { children: ReactNode }) => {
     groupAction: isDesktop ? 'list' : undefined,
     keepSelectionOnMapTap: isDesktop,
     memoLevelBoost: isDesktop ? 1 : 0,
+    // 추천받을 자리는 주소를 찾아 검색창에 맞추지 않고, 찍은 좌표 그대로 동네 찾기 조건 칸을 연다.
+    onFindBookmarks: () => navigate(NEIGHBORHOODS_PATH),
     onRecommend: (location) => {
-      const intent = ++recommendationIntent.current;
-      const open = (address: MapAddress) => {
-        if (intent !== recommendationIntent.current) return;
-        navigate(NEIGHBORHOODS_PATH, { state: { searchedAddress: address, openRecommendationFilters: true } });
-      };
-      void reverseGeocode(config, location.latitude, location.longitude).then(open, () => open(location));
+      navigate(NEIGHBORHOODS_PATH, { state: { searchedAddress: location, openRecommendationFilters: true } });
     },
     onRegister: (location) => {
       if (quickCreate.isCreating) return;

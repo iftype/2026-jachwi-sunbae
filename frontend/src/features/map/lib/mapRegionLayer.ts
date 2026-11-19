@@ -10,12 +10,10 @@ const STAGE_CHUNK = 40;
 /** GL 준비 신호를 못 받아도 이 시간이 지나면 그린다. */
 export const READY_TIMEOUT_MS = 3000;
 /**
- * 이 확대 단계(작을수록 가까움) 이하로 다가가면 동 이름 아래에 평균 월세 라벨을 올린다.
- * 더 멀리서는 동 수백 개 라벨이 겹쳐 읽히지 않는다.
+ * 이 확대 단계(작을수록 가까움) 이하로 다가가면 동 이름과 평균 월세를 함께 보여 주는 라벨을 올린다.
+ * 더 멀리서는 동 수백 개 라벨이 겹쳐 읽히지 않아, 이름만 남기지 않고 라벨을 모두 숨긴다.
  */
-export const RENT_LABEL_SHOW_LEVEL = 11;
-/** 이 단계보다 멀리 보면 동네마다 라벨은 두되 동 이름만 남겨, 수백 개 라벨이 지도를 덮지 않게 한다. */
-export const RENT_LABEL_FULL_LEVEL = 8;
+export const RENT_LABEL_SHOW_LEVEL = 7;
 /** 마우스를 올린 동네를 이만큼 진하게 한다. 옅게 깐 색에 맞춰 조금만 올린다. */
 const HOVER_OPACITY = 0.04;
 type Polygon = InstanceType<NaverMapsNamespace['Polygon']>;
@@ -43,14 +41,27 @@ const regionStyle = (region: MapRegion, selected: boolean) => ({
     : selected
       ? '#787b80'
       : '#a4a7ab',
-  strokeWeight: region.appearance ? (selected ? 3.5 : 1.25) : selected ? 2 : 1,
+  strokeWeight: region.appearance ? (selected ? 3.5 : region.showsName ? 2 : 1.25) : selected ? 2 : 1,
   strokeStyle: region.appearance?.dashed && !selected ? ('shortdash' as const) : ('solid' as const),
   fillColor: region.appearance?.fillColor ?? (region.isRecommended === false && !selected ? '#888888' : '#f5c344'),
   // 지도 글자와 길이 비쳐 보이게 옅게 깐다. 고른 동만 두 배로 진하게 한다.
-  fillOpacity: region.appearance ? (selected ? 0.25 : 0.12) : selected ? 0.25 : region.isRecommended ? 0.12 : 0.05,
+  fillOpacity:
+    region.appearance?.fillOpacity ??
+    (region.appearance
+      ? selected
+        ? 0.25
+        : region.showsName
+          ? 0.18
+          : 0.12
+      : selected
+        ? 0.25
+        : region.isRecommended
+          ? 0.12
+          : 0.05),
   zIndex: selected ? 2 : 1,
 });
 type Entry = {
+  id: string;
   geometry: MapRegion['polygons'] | MapRegion['paths'];
   polygons: Polygon[];
   listeners: unknown[];
@@ -78,6 +89,7 @@ export const createMapRegionLayer = (
   engine: Engine,
   onSelect: (id: string, point?: { latitude: number; longitude: number }) => void,
   getLevel: () => number = () => 4,
+  onHover?: (id: string, hovered: boolean) => void,
 ) => {
   const entries = new Map<string, Entry>();
   // 처음 그릴 때 GL 등록이 한 프레임에 몰리지 않도록 drawStage 순서로 나눠 만든다.
@@ -100,6 +112,7 @@ export const createMapRegionLayer = (
   const hover = (entry: Entry, hovered: boolean) => {
     if (entry.hovered === hovered) return;
     entry.hovered = hovered;
+    onHover?.(entry.id, hovered);
     entry.polygons.forEach((polygon) =>
       polygon.setOptions({ fillOpacity: entry.opacity + (hovered ? HOVER_OPACITY : 0) }),
     );
@@ -119,6 +132,7 @@ export const createMapRegionLayer = (
           }),
       );
     const entry: Entry = {
+      id: region.id,
       geometry: region.polygons ?? region.paths,
       polygons,
       listeners: [],
@@ -195,17 +209,20 @@ export const createMapRegionLayer = (
       }
       // 요약이 없는 통근 경계에는 불필요한 DOM을 만들지 않는다.
       const showsRentLabel = region.rentLabel !== undefined && region.name !== '' && level <= RENT_LABEL_SHOW_LEVEL;
+      const showsNameLabel = region.showsName === true && !region.summary && !showsRentLabel;
       const labelKey = region.summary
         ? JSON.stringify([region.name, region.summary, region.center, region.appearance, selected])
         : showsRentLabel
           ? JSON.stringify(['rent', region.name, region.rentLabel, region.center, selected])
-          : '';
+          : showsNameLabel
+            ? JSON.stringify(['name', region.name, region.center, selected])
+            : '';
       if (entry.labelKey !== labelKey) {
         entry.label?.setMap(null);
         entry.label = null;
         entry.summary = null;
         entry.labelKey = labelKey;
-        if (region.summary || showsRentLabel) {
+        if (region.summary || showsRentLabel || showsNameLabel) {
           const summary = region.summary
             ? createRegionSummaryElement(region, selected, () => onSelect(region.id))
             : createRegionRentLabelElement(region, selected, () => onSelect(region.id));
@@ -225,7 +242,8 @@ export const createMapRegionLayer = (
       }
       if (entry.summary) {
         entry.summary.style.setProperty('--map-region-scale', String(mapZoomScale(level)));
-        entry.summary.dataset.compact = String(!region.summary && level > RENT_LABEL_FULL_LEVEL);
+        // 이름만 보이는 이름표는 뜻이 없어, 이름표가 보이는 단계에서는 월세를 늘 함께 보여 준다.
+        entry.summary.dataset.compact = 'false';
       }
     }
     const waiting = regions.filter((region) => !entries.has(region.id)).map((region) => region.drawStage ?? 0);

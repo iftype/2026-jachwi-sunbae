@@ -9,7 +9,10 @@ import type { PropertySummary } from '@/features/property/model/Property';
 import { PublicConfigProvider } from '@/shared/config/PublicConfigContext';
 
 const { listQuery } = vi.hoisted(() => ({ listQuery: { current: null as unknown } }));
-vi.mock('@/features/property/api/useProperties', () => ({ usePropertyList: () => listQuery.current }));
+vi.mock('@/features/property/api/useProperties', () => ({
+  usePropertyList: () => listQuery.current,
+  usePropertyDetail: () => ({ data: undefined, isPending: false, isError: false }),
+}));
 vi.mock('@/features/property/api/usePropertyMutations', () => ({
   useRecordPropertyComparisonView: () => ({ mutate: vi.fn() }),
 }));
@@ -116,4 +119,20 @@ describe.each([
     expect(within(screen.getByRole('main')).getByRole('button', { name: /PDF 받기/ })).toBeDisabled();
     expect(screen.getByText('PDF로 받을 매물을 골라 주세요.')).toBeInTheDocument();
   });
+});
+
+it('데스크탑에서는 PDF에 넣기 전에 매물의 주소를 미리 볼 수 있다', async () => {
+  withProperties([
+    property(1, '성수동 투룸'),
+    { ...property(2, '망원동 원룸'), location: { address: '서울 마포구 희우정로 1', latitude: null, longitude: null } },
+  ]);
+  renderPage(CompareDesktopPage);
+  const user = userEvent.setup();
+
+  await user.click(screen.getByRole('button', { name: '망원동 원룸 미리 보기' }));
+
+  const detail = within(screen.getByRole('complementary', { name: '매물 미리 보기' }));
+  expect(detail.getByRole('heading', { name: '망원동 원룸' })).toBeInTheDocument();
+  expect(detail.getByText('서울 마포구 희우정로 1')).toBeInTheDocument();
+  expect(screen.getByRole('checkbox', { name: /망원동 원룸/ })).not.toBeChecked();
 });

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'reac
 import { useLocation } from 'react-router-dom';
 
 import { type MapCoordinate, MapLocationError, requestCurrentMapLocation } from '@/features/map/lib/mapLocation';
+import type { MapAddress } from '@/features/map/model/Map';
 import type { MapMarker } from '@/features/map/model/Map';
 import { usePropertyList } from '@/features/property/api/useProperties';
 import usePropertyMarkerPhotos from '@/features/property/hooks/usePropertyMarkerPhotos';
@@ -12,13 +13,14 @@ import {
   subscribeHiddenPreviews,
 } from '@/features/property/model/previewPropertyDismissal';
 import {
+  INTRO_MAP_LEVEL,
   isPreviewProperty,
   SAMPLE_PROPERTIES_VIEW,
   withPreviewProperties,
 } from '@/features/property/model/sampleProperties';
 import { PROPERTY_PLACEHOLDER } from '@/shared/assets/propertyImageAssets';
 
-import { recordPresentation } from '../model/recordPresentation';
+import { moveUnregisteredLast, recordPresentation } from '../model/recordPresentation';
 
 /** 화면 밖(주소 등)에서 정하는 선택 매물. 넘기지 않으면 화면 안 상태로 고른다. */
 type RecordsSelection = {
@@ -50,9 +52,12 @@ const useRecords = (selection?: RecordsSelection) => {
   const hiddenPreviewIds = useMemo(() => parseHiddenPreviewIds(hiddenPreviewValue), [hiddenPreviewValue]);
   const allRecords = useMemo(
     () =>
-      withPreviewProperties(properties.data?.pages.flatMap((page) => page.content) ?? [], properties.isSuccess)
-        .properties.filter((property) => !hiddenPreviewIds.includes(property.propertyId))
-        .map(recordPresentation),
+      // 주소 미등록 기록은 맨 뒤로 보낸다(한 곳에서 정렬해 리스트, 지도 마커, 이전과 다음 이동이 같은 순서를 쓴다).
+      moveUnregisteredLast(
+        withPreviewProperties(properties.data?.pages.flatMap((page) => page.content) ?? [], properties.isSuccess)
+          .properties.filter((property) => !hiddenPreviewIds.includes(property.propertyId))
+          .map(recordPresentation),
+      ),
     [properties.data, properties.isSuccess, hiddenPreviewIds],
   );
   // 주소가 없는 매물도 `주소 미등록` 뱃지로 모아 보여 준다.
@@ -69,7 +74,7 @@ const useRecords = (selection?: RecordsSelection) => {
   const setSelectedId = selection ? selection.setSelectedId : setLocalSelectedId;
   // 기록을 받기 전에는 미리보기 매물 자리에서 시작한다. 기록이 오면 아래에서 첫 기록 자리로 한 번 옮긴다.
   const [center, setCenter] = useState<MapCoordinate>(SAMPLE_PROPERTIES_VIEW);
-  const [level, setLevel] = useState(SAMPLE_PROPERTIES_VIEW.level);
+  const [level, setLevel] = useState(INTRO_MAP_LEVEL);
   const [notice, setNotice] = useState('');
   const focus = (point: MapCoordinate, nextLevel = level, opensDetail = false) =>
     setCenter(selection?.focusCenter?.(point, nextLevel, opensDetail) ?? point);
@@ -177,11 +182,21 @@ const useRecords = (selection?: RecordsSelection) => {
    * 리스트에서 고른 매물을 열고 지도를 그 매물 핀 자리로 옮긴다. 배율은 그대로 두어 주변을 함께 본다.
    * 위치가 없는 매물은 고르기만 한다.
    */
+  // 상세는 지도 위에 얹히므로 열어도 지도를 옮기거나 확대하지 않는다.
   const showRecord = (recordId: string) => {
     setSelectedId(recordId);
-    const record = records.find((item) => item.id === recordId);
-    if (record !== undefined && record.latitude !== null && record.longitude !== null)
-      focus({ latitude: record.latitude, longitude: record.longitude }, level, true);
+  };
+
+  // 주소 검색으로 간 자리. 지도에 단순한 핀으로 남긴다.
+  const [searchedPoint, setSearchedPoint] = useState<(MapCoordinate & { name: string }) | null>(null);
+  const searchTo = (coordinate: MapCoordinate & Partial<MapAddress>) => {
+    const name = coordinate.roadAddress ?? coordinate.jibunAddress ?? coordinate.address ?? '검색한 곳';
+    setSearchedPoint((current) =>
+      current?.latitude === coordinate.latitude && current.longitude === coordinate.longitude && current.name === name
+        ? current
+        : { latitude: coordinate.latitude, longitude: coordinate.longitude, name },
+    );
+    focus(coordinate, level);
   };
 
   /** 주소 검색 결과처럼 고른 자리로 지도를 옮기고 동네 수준으로 확대한다. */
@@ -226,8 +241,12 @@ const useRecords = (selection?: RecordsSelection) => {
     setLevel,
     markers,
     moveTo,
+    searchedPoint,
+    searchTo,
+    clearSearchedPoint: () => setSearchedPoint(null),
     moveToCurrentLocation,
     revealCreated,
+    createdId,
     showRecord,
     notice,
     setNotice,

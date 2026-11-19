@@ -1,5 +1,5 @@
 import { css } from '@emotion/css';
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 
 import Icon from '../icon/Icon';
 
@@ -12,9 +12,22 @@ type Props = {
   overMap?: boolean;
   desktopMap?: boolean;
   className?: string;
+  /** 줄 맨 앞에 두는 되돌아가기 칩. 눌러도 선택 상태는 바뀌지 않는다. */
+  leading?: { label: string; onClick: () => void };
+  trailing?: ReactNode;
 };
 
-const MapBadgeRail = ({ items, selectedId, onSelect, label, overMap, desktopMap, className }: Props) => {
+const MapBadgeRail = ({
+  items,
+  selectedId,
+  onSelect,
+  label,
+  overMap,
+  desktopMap,
+  className,
+  leading,
+  trailing,
+}: Props) => {
   const rail = useRef<HTMLElement>(null);
   const drag = useRef<{ x: number; scroll: number; moved: boolean } | null>(null);
   const suppressClick = useRef(false);
@@ -43,7 +56,18 @@ const MapBadgeRail = ({ items, selectedId, onSelect, label, overMap, desktopMap,
     if (element) element.scrollBy({ left: direction * element.clientWidth * 0.75, behavior: 'smooth' });
   };
   return (
-    <div className={`${styles.root} ${className ?? ''}`} data-desktop-map={desktopMap || undefined}>
+    <div
+      className={`${styles.root} ${className ?? ''}`}
+      data-desktop-map={desktopMap || undefined}
+      data-has-leading={leading ? 'true' : undefined}
+    >
+      {/* 맨 앞 되돌아가기 칩은 뱃지 줄 밖에 둬서, 뱃지를 끌어 넘겨도 제자리에 있고 뱃지와 모양도 다르다. */}
+      {leading && (
+        <button className={styles.leading} type="button" onClick={leading.onClick}>
+          <Icon name="refresh" size={16} />
+          {leading.label}
+        </button>
+      )}
       <nav
         ref={rail}
         className={styles.rail}
@@ -99,6 +123,7 @@ const MapBadgeRail = ({ items, selectedId, onSelect, label, overMap, desktopMap,
           </button>
         ))}
       </nav>
+      {trailing}
       {desktopMap && edges.before && (
         <button
           className={`${styles.arrow} ${styles.before}`}
@@ -126,13 +151,48 @@ const styles = {
     position: relative;
     min-width: 0;
     flex-shrink: 0;
+    &[data-has-leading='true'] {
+      display: flex;
+      align-items: center;
+      gap: 0;
+    }
+    &[data-has-leading='true'] > nav {
+      flex: 1;
+      min-width: 0;
+      /* 맨 앞 칩과 첫 뱃지 사이가 벌어지지 않게 왼쪽 안쪽 여백을 줄인다. */
+      padding-left: 0.25rem;
+    }
     &[data-desktop-map='true'] {
       position: absolute;
       z-index: 31;
-      top: 1rem;
+      /* 데스크탑 지도 위 뱃지 줄은 맨 위에 바짝 붙여 지도를 덜 가린다. */
+      top: 0;
       left: calc(var(--map-panel-width, 0px) + 0.5rem);
       right: 4rem;
-      padding-top: 0.75rem;
+      padding-top: 0.35rem;
+    }
+  `,
+  /* 뱃지와 같은 알약 높이에 흰 바탕, 파랑 글자와 테두리, 되돌림 아이콘을 둬서 뱃지(회색 글자)와 구분한다. */
+  leading: css`
+    label: MapBadgeRail-leading;
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 0.35rem;
+    margin-top: 0.1rem;
+    padding: 0.6rem 1rem;
+    border: 1.5px solid var(--color-brand-blue-ink);
+    border-radius: 1.5rem;
+    background: var(--color-surface);
+    color: var(--color-brand-blue-ink);
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 800;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
+    cursor: pointer;
+    &:focus-visible {
+      outline: 2px solid var(--color-focus);
+      outline-offset: 3px;
     }
   `,
   rail: css`

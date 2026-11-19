@@ -76,13 +76,14 @@ const styles = {
       gap: 0.7rem;
       min-height: 6.15rem;
       padding: 0.75rem 1rem;
-      background: transparent;
+      background: var(--color-canvas);
       cursor: pointer;
       transition: background-color 0.18s ease;
 
-      /* 이어진 리스트 안의 한 줄이므로 테두리 대신 옅은 바탕색으로만 선택을 보여 준다. */
+      /* 파란 테두리와 체크 표시를 함께 써서 색 차이가 작아도 구분할 수 있게 한다. */
       &[data-selected='true'] {
-        background: color-mix(in srgb, var(--color-brand-blue) 10%, transparent);
+        background: color-mix(in srgb, var(--color-brand-blue) 12%, var(--color-canvas));
+        box-shadow: inset 3px 0 var(--color-brand-blue-ink);
       }
 
       &:has(input:focus-visible) {
@@ -121,8 +122,8 @@ const styles = {
     place-items: center;
 
     .ComparePropertyOption-option[data-selected='true'] & {
-      border-color: var(--color-brand-blue);
-      background: var(--color-brand-blue);
+      border-color: var(--color-brand-blue-ink);
+      background: var(--color-brand-blue-ink);
     }
   `,
 

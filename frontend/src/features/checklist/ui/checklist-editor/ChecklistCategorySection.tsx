@@ -37,7 +37,7 @@ const styles = {
       margin: 0 0 var(--space-md);
       color: var(--color-ink);
       font-size: 0.9375rem;
-      font-weight: 750;
+      font-weight: 700;
     }
   `,
 };

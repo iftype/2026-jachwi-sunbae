@@ -1,8 +1,9 @@
 import type { PublicConfig } from '@/shared/config/publicConfigTypes';
 
 import { isRentLimit } from './criteriaLabels';
+import type { DestinationSource } from './preview';
 
-type Point = { latitude: number; longitude: number; name: string; address: string };
+type Point = { latitude: number; longitude: number; name: string; address: string; source?: DestinationSource };
 export type NeighborhoodSearchSession = {
   destination: Point;
   maxMinutes: number;

@@ -23,8 +23,6 @@ const DeliveryPanel = ({ isActive, layout, onDetail }: DeliveryPanelProps) => {
   const query = useDeliveryOffers(isActive);
   return (
     <section className={cx(shared.section, layout === 'desktop' && shared.sectionDesktop)} aria-label="배달 할인정보">
-      <h2>배달 할인 모아보기</h2>
-      <p className={shared.description}>할인금액뿐 아니라 적용 조건도 확인해 보세요.</p>
       <SegmentedControl
         value={platform}
         onValueChange={(value) => {
@@ -54,7 +52,7 @@ const DeliveryPanel = ({ isActive, layout, onDetail }: DeliveryPanelProps) => {
                   description="다른 플랫폼을 고르거나 나중에 다시 확인해 주세요."
                 />
               ) : (
-                <ul className={cx(styles.list, layout === 'desktop' && styles.listDesktop)} aria-label="배달 혜택 목록">
+                <ul className={cx(styles.list, layout === 'desktop' && styles.gridDesktop)} aria-label="배달 혜택 목록">
                   {offers.slice(0, limit).map((offer) => (
                     <li key={offer.id}>
                       <button
@@ -63,8 +61,10 @@ const DeliveryPanel = ({ isActive, layout, onDetail }: DeliveryPanelProps) => {
                         onClick={() => onDetail({ kind: 'delivery', offer })}
                         aria-label={`${PLATFORMS[offer.platform]} ${offer.brandName} 할인 상세 보기`}
                       >
-                        <span className={shared.badge}>{PLATFORMS[offer.platform]}</span>
-                        <span className={styles.brand}>{offer.brandName}</span>
+                        <span className={shared.itemHeading}>
+                          <span className={shared.badge}>{PLATFORMS[offer.platform]}</span>
+                          <strong className={styles.brand}>{offer.brandName}</strong>
+                        </span>
                         <strong className={styles.amount}>{won(offer.discountAmount)} 할인</strong>
                         <span className={styles.condition}>
                           <span>최소 주문금액</span>
@@ -112,10 +112,8 @@ const styles = {
     padding: 0;
     margin: 0 0 1.5rem;
   `,
-  listDesktop: css`
-    label: DeliveryPanel-listDesktop;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1.25rem;
+  gridDesktop: css`
+    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
   `,
   card: css`
     label: DeliveryPanel-card;
@@ -136,14 +134,15 @@ const styles = {
   `,
   brand: css`
     label: DeliveryPanel-brand;
-    font-weight: 650;
-    margin-top: 0.4rem;
+    font-size: 0.94rem;
+    font-weight: 600;
+    margin-top: 0.2rem;
   `,
   amount: css`
     label: DeliveryPanel-amount;
-    font-size: 1.65rem;
-    letter-spacing: -0.04em;
-    margin-bottom: 0.6rem;
+    font-size: 1.05rem;
+    letter-spacing: -0.03em;
+    margin-bottom: 0.2rem;
   `,
   condition: css`
     label: DeliveryPanel-condition;

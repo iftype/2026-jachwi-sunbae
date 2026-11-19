@@ -34,6 +34,15 @@ it('스타일을 지정한 지도만 GL과 스타일 ID를 사용한다', () => 
   naverEngine('test', 'dark-style').createMap(document.createElement('div'), { latitude: 37.5, longitude: 127 }, 6);
   expect(Map.mock.calls[0][1]).toMatchObject({ gl: true, customStyleId: 'dark-style', zoom: 14 });
 });
+it('가장 가까운 단계(1)보다 더 확대하지 못하게 최대 확대를 19로 막는다', () => {
+  const Map = mockSdk();
+  const engine = naverEngine('test');
+  engine.createMap(document.createElement('div'), { latitude: 37.5, longitude: 127 }, 1);
+  expect(Map.mock.calls[0][1]).toMatchObject({ maxZoom: 19, zoom: 19 });
+  // 단계 0처럼 더 가까운 값을 줘도 네이버 기본 타일이 없는 20 이상으로 가지 않는다.
+  engine.createMap(document.createElement('div'), { latitude: 37.5, longitude: 127 }, 0);
+  expect(Map.mock.calls[1][1]).toMatchObject({ zoom: 19 });
+});
 it('기존 지도는 GL과 스타일 옵션 없이 생성한다', () => {
   const Map = mockSdk();
   naverEngine('test').createMap(document.createElement('div'), { latitude: 37.5, longitude: 127 }, 6);

@@ -1,5 +1,7 @@
 import type { CommuteArea } from '@/features/map/api/commuteApi';
 
+export const RESELECT_COMMUTE_LABEL = '출퇴근 장소 다시 선택';
+
 /** 고를 수 있는 월세 상한(만원). 0은 전체 가격이다. 자취방 월세 범위를 넘는 큰 값은 두지 않는다. */
 export const RENT_LIMITS = [0, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150] as const;
 export const isRentLimit = (value: unknown): value is number =>
@@ -44,3 +46,9 @@ export const criteriaItems = ({
   { label: '환승', value: maxTransfers === 0 ? '없음' : `${maxTransfers}회` },
   { label: '월세', value: maxRent === 0 ? '전체' : `${maxRent}만` },
 ];
+
+const WON_PER_MANWON = 10_000;
+
+/** 월세 시세를 `55 / 3,000`처럼 월세와 보증금(만원)만 슬래시로 이어 보여 준다. */
+export const formatRentPair = (rent: { monthlyRentKrw: number; depositKrw: number }): string =>
+  `${Math.round(rent.monthlyRentKrw / WON_PER_MANWON).toLocaleString('ko-KR')} / ${Math.round(rent.depositKrw / WON_PER_MANWON).toLocaleString('ko-KR')}`;

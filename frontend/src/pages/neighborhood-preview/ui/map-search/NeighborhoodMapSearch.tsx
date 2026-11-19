@@ -1,7 +1,7 @@
 import { css } from '@emotion/css';
 import { useEffect, useRef, useState } from 'react';
 
-import AddressSearchResults from '@/features/map/ui/address-search-results/AddressSearchResults';
+import AddressSearchResults, { handleSearchKeys } from '@/features/map/ui/address-search-results/AddressSearchResults';
 import DesktopHeaderSlot, { useHasDesktopHeaderSlot } from '@/shared/ui/desktop-header/DesktopHeaderSlot';
 import Icon from '@/shared/ui/icon/Icon';
 import SearchField from '@/shared/ui/search-field/SearchField';
@@ -58,6 +58,8 @@ const NeighborhoodMapSearch = ({ preview, hideHome = false }: NeighborhoodMapSea
         )}
         <div
           className={styles.search}
+          data-search-root
+          onKeyDown={(event) => handleSearchKeys(event, () => setIsOpen(false))}
           onFocus={() => setIsOpen(true)}
           onBlur={(event) => {
             if (!event.currentTarget.contains(event.relatedTarget)) setIsOpen(false);
@@ -68,7 +70,7 @@ const NeighborhoodMapSearch = ({ preview, hideHome = false }: NeighborhoodMapSea
             shape="pill"
             showSubmitButton={false}
             label="출퇴근 장소"
-            placeholder="출퇴근하는 장소 검색"
+            placeholder="주소로 지도 이동"
             value={preview.query}
             onValueChange={preview.changeQuery}
             onSubmit={() => {

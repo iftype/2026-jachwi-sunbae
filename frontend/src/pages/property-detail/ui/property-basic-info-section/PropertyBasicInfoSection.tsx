@@ -1,15 +1,15 @@
-import { css } from '@emotion/css';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 
 import { UNSUPPORTED_ADDRESS_MESSAGE } from '@/features/map/lib/mapAddress';
+import { forgetJustCreated, isJustCreated } from '@/features/property/lib/justCreatedProperties';
+import { DEFAULT_PROPERTY_NAME } from '@/features/property/lib/propertyForm';
 import { formatPropertyPrice, hasPropertyPrice } from '@/features/property/lib/propertyFormat';
 import type { PropertyDetail } from '@/features/property/model/Property';
-import { usePropertyAiImport } from '@/features/property/model/usePropertyAiImport';
 import InfoValue from '@/shared/ui/info-value/InfoValue';
 
 import type { BasicEditField, PropertyEditField } from '../../model/editField';
 import PropertyInfoSection from '../property-info-section/PropertyInfoSection';
-import PropertyAiImportButton from './PropertyAiImportButton';
+import PropertySavedNote from '../PropertySavedNote';
 import PropertyNameInput from './PropertyNameInput';
 import PropertyPriceInput from './PropertyPriceInput';
 
@@ -37,7 +37,7 @@ const formatPrice = ({ depositAmount, monthlyRentAmount }: PropertyDetail): stri
 
 const SAVED_TEXT = '✓ 저장했어요';
 
-/** 기본 정보. 줄을 누르면 모달 없이 그 줄 안에서 바로 고친다. */
+/** 기본 정보. 줄을 누르면 모달 없이 그 줄 안에서 바로 고친다. 이름은 처음 등록했을 때만 바꾼다. */
 const PropertyBasicInfoSection = ({
   property,
   editingField,
@@ -48,24 +48,22 @@ const PropertyBasicInfoSection = ({
   savedField,
   afterAddress,
 }: PropertyBasicInfoSectionProps) => {
-  const [isEditingName, setIsEditingName] = useState(false);
-  const aiImport = usePropertyAiImport(property.propertyId);
+  // 이름은 처음 등록해 `새 매물`로 남아 있을 때만 바꾼다. 이름 칸을 바로 열어 포커스를 두는 것은 이 세션에서 방금 만든 매물일 때뿐이다.
+  // 이름과 금액이 비어 있는지로는 판단하지 않는다. 이미 등록해 둔 `새 매물`을 다시 열면 보기 모드다.
+  const isUnnamed = property.name === DEFAULT_PROPERTY_NAME;
+  const [isEditingName, setIsEditingName] = useState(() => isJustCreated(property.propertyId));
+  useEffect(() => () => forgetJustCreated(property.propertyId), [property.propertyId]);
   return (
     <>
       <PropertyInfoSection
         title="기본 정보"
         label="매물 기본 정보"
-        action={
-          <PropertyAiImportButton
-            isImporting={aiImport.isImporting}
-            onSelectFiles={(files) => void aiImport.importFiles(files)}
-          />
-        }
+        meta={savedField === 'price' || savedField === 'location' ? <PropertySavedNote text={SAVED_TEXT} /> : undefined}
       >
         <InfoValue
           label="매물 이름"
           value={property.name}
-          onEdit={() => setIsEditingName(true)}
+          onEdit={isUnnamed ? () => setIsEditingName(true) : undefined}
           editor={
             isEditingName ? <PropertyNameInput property={property} onDone={() => setIsEditingName(false)} /> : undefined
           }
@@ -81,48 +79,17 @@ const PropertyBasicInfoSection = ({
               <PropertyPriceInput property={property} onSaved={() => onSaved('price')} onCancel={onCancel} />
             ) : undefined
           }
-          feedback={savedField === 'price' ? SAVED_TEXT : undefined}
         />
         <InfoValue
           label="주소"
           value={property.location.address ?? ''}
           emptyText={UNSUPPORTED_ADDRESS_MESSAGE}
           onEdit={onEditLocation}
-          feedback={savedField === 'location' ? SAVED_TEXT : undefined}
         />
         {afterAddress !== undefined && <div>{afterAddress}</div>}
       </PropertyInfoSection>
-      {aiImport.isImporting ? (
-        <p className={styles.aiImportFeedback} role="status">
-          이미지를 분석하고 있어요. 1분 정도 걸릴 수 있어요.
-        </p>
-      ) : (
-        aiImport.feedback !== null && (
-          <p
-            className={styles.aiImportFeedback}
-            data-tone={aiImport.feedback.tone}
-            role={aiImport.feedback.tone === 'error' ? 'alert' : 'status'}
-          >
-            {aiImport.feedback.message}
-          </p>
-        )
-      )}
     </>
   );
-};
-
-const styles = {
-  aiImportFeedback: css`
-    label: PropertyBasicInfoSection-aiImportFeedback;
-    margin: 0 0 0.75rem;
-    color: var(--color-muted);
-    font-size: 0.75rem;
-    line-height: 1.5;
-
-    &[data-tone='error'] {
-      color: var(--color-error);
-    }
-  `,
 };
 
 export default PropertyBasicInfoSection;

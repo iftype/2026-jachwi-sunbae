@@ -39,6 +39,12 @@ export const SAMPLE_PROPERTIES_VIEW = fitCoordinates(
   DEFAULT_MAP_CENTER,
 );
 
+/**
+ * 처음 앱을 열었을 때 지도(내 기록, 동네 찾기)의 확대 단계. 예시 매물이 모두 들어오는 단계보다 3단계 가까이 다가가
+ * 골목 단위로 보이게 하고, 첫 안내 말풍선이 마커와 겹치지 않을 자리를 낸다.
+ */
+export const INTRO_MAP_LEVEL = Math.max(3, SAMPLE_PROPERTIES_VIEW.level - 3);
+
 /** 미리보기 매물인지. 서버에 없는 매물이라 상세 데이터는 JSON에서 만들고, 삭제할 때는 기기에서 숨긴다. */
 export const isPreviewProperty = (propertyId: number | string): boolean => Number(propertyId) < 0;
 

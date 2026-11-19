@@ -71,13 +71,9 @@ export const createRegionRentLabelElement = (region: MapRegion, selected: boolea
   const name = document.createElement('strong');
   name.textContent = region.name;
   button.append(name);
-  if (rent?.commute || rent?.price) {
+  // 통근 시간은 동 색(15분 이하, 16~30분...)으로 이미 알리므로 이름표 글자에는 쓰지 않는다. 화면 낭독기에는 위 aria-label로 읽어 준다.
+  if (rent) {
     const line = document.createElement('span');
-    if (rent.commute) {
-      const commute = document.createElement('i');
-      commute.textContent = rent.commute;
-      line.append(commute);
-    }
     const price = document.createElement('b');
     price.textContent = rent.price ? `월세 ${rent.price}` : '월세 정보 없음';
     price.dataset.empty = String(!rent.price);

@@ -21,6 +21,56 @@ export type MapCoordinateMenu = {
   actions: MapTapAction[];
 };
 
+/** 지도 좌표에 붙는 첫 안내 말풍선. 지도를 움직이면 그 자리에 붙어 같이 움직인다. */
+export type MapTip = {
+  latitude: number;
+  longitude: number;
+  message: string;
+  /** 말풍선을 점 위(기본)나 아래에 둔다. 점이 마커 위치면 마커를 가리지 않게 아래에 둔다. */
+  placement?: 'above' | 'below';
+  /** `확인`을 눌렀을 때. */
+  onConfirm: () => void;
+  /** 지도의 다른 곳을 누르거나 지도를 끌기 시작했을 때. 눌림은 그대로 지도에도 전해진다. */
+  onInteract: () => void;
+  /** 좌표가 화면 밖으로 나갔을 때. */
+  onOutOfView: () => void;
+};
+
+/** 행정동 정보 카드. 맨 위에 동 이름과 별(북마크), 아래에 `라벨 값` 줄을 둔다. */
+export type MapRegionCard = {
+  title: string;
+  /** 없으면 별을 그리지 않는다(북마크할 수 없는 화면). */
+  bookmark?: { isOn: boolean; onToggle: () => void };
+  /** 이름 아래 회색 한 줄(업종과 거리 등). */
+  subtitle?: string;
+  /** 값 없이 글자만 있는 줄(주소 등). */
+  lines?: string[];
+  rows: { label: string; value: string; isEmpty?: boolean; tone?: 'primary' }[];
+  /** 카드 맨 아래 작은 회색 글씨 한 줄. */
+  note?: string;
+  /** 카드 안 링크 버튼(길찾기 등). 새 탭으로 연다. */
+  link?: { label: string; href: string; onClick?: () => void };
+  /** 좌표에서 마커 위쪽 가장자리까지의 높이(px). 카드 꼬리 끝이 마커 위쪽에 닿게 그만큼 올린다. 핀은 그림 높이, 가운데가 좌표인 알약은 높이의 절반이다. */
+  markerAbove?: number;
+  /** 좌표에서 마커 아래쪽 가장자리까지의 높이(px). 카드가 화면 위쪽을 넘어 마커 아래로 뒤집힐 때 쓴다. 핀은 0이다. */
+  markerBelow?: number;
+};
+
+/** 오른쪽 위 레이어 칸(중개사, 병원, 교통, 편의)에 이어 붙이는 켜고 끄는 항목. 찜한 동네 등. */
+export type MapRailExtraItem = {
+  key: string;
+  label: string;
+  ariaLabel: string;
+  selected: boolean;
+  onToggle: () => void;
+  /** 글자 위에 둘 하트 같은 작은 아이콘 표시. */
+  icon?: 'heart';
+  /** 항목에 붙는 개수 배지. 0이면 두지 않는다. */
+  badge?: number;
+  /** 눌러도 켜지지 않는 상태(찜한 동네가 하나도 없을 때)라 연한 회색으로 보인다. */
+  isMuted?: boolean;
+};
+
 export type MapCanvasProps = {
   animateView?: boolean;
   onRetry?: () => void;
@@ -33,7 +83,14 @@ export type MapCanvasProps = {
     disabled?: boolean;
     placement?: 'above';
     onClick: () => void;
+    /** 있으면 버튼 대신 정보 카드(동 이름과 별, 값이 있는 줄)로 그린다. */
+    card?: MapRegionCard;
+    /** 카드 위로 마우스가 들어오고 나갈 때. 마우스가 동 라벨에서 카드로 옮겨 가도 닫히지 않게 한다. */
+    onHoverChange?: (hovered: boolean) => void;
   };
+  bookmarkControl?: { count: number; isOn: boolean; onToggle: () => void };
+  /** 처음 한 번 보이는 안내 말풍선. 지도 좌표에 붙어 있다. */
+  tip?: MapTip;
   /** 찍은 좌표에 고정된 동작 말풍선. 꼬리 끝이 좌표를 가리킨다. */
   coordinateMenu?: MapCoordinateMenu;
   center: { latitude: number; longitude: number };
@@ -61,14 +118,18 @@ export type MapCanvasProps = {
   selectedRegionId?: string | null;
   /** 찍은 좌표를 알면 함께 넘긴다(실제 지도만). */
   onSelectRegion?: (id: string, point?: { latitude: number; longitude: number }) => void;
+  /** 구역 위로 마우스가 들어오고 나갈 때(데스크탑). */
+  onHoverRegion?: (id: string, hovered: boolean) => void;
 };
 
 export type MapRegion = {
   id: string;
   name: string;
   /** 채움과 테두리 색. `dashed`면 테두리를 점선으로 그린다(월세 정보가 없는 동네). */
-  appearance?: { fillColor: string; strokeColor: string; dashed?: boolean };
+  appearance?: { fillColor: string; strokeColor: string; fillOpacity?: number; dashed?: boolean };
   isRecommended?: boolean;
+  /** 구역 가운데에 동 이름만 작게 둔다(찜한 동네). */
+  showsName?: boolean;
   /** 처음 그릴 때의 순서. 낮은 단계부터 한 프레임씩 나눠 지도에 등록한다. 없으면 0이다. */
   drawStage?: number;
   /** 구역 위 두 칸으로 표시할 요약. 화면이 아니라 지도 좌표에 고정한다. */

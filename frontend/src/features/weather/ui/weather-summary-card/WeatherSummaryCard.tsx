@@ -163,14 +163,14 @@ const styles = {
   webNote: css`
     label: WeatherSummaryCard-webNote;
     margin: 0;
-    padding-inline: 0.25rem;
     color: var(--color-ink);
     font-size: var(--my-subtext-size, 0.78rem);
   `,
   card: css`
     label: WeatherSummaryCard-card;
-    padding: var(--my-card-padding, 1.15rem);
-    border-radius: var(--radius-md);
+    padding: 0.75rem var(--my-card-padding, 1.15rem);
+    border: 1px solid var(--color-border);
+    border-radius: var(--my-card-radius, var(--radius-md));
     background: var(--my-card-surface, var(--color-card-surface));
     color: var(--color-ink);
   `,
@@ -195,8 +195,8 @@ const styles = {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    min-height: 2.75rem;
-    margin: 0.4rem 0;
+    min-height: 2.5rem;
+    margin: 0.25rem 0;
 
     & b {
       font-size: var(--my-text-size, 0.95rem);
@@ -242,9 +242,9 @@ const styles = {
 
   divider: css`
     label: WeatherSummaryCard-divider;
-    margin-top: 0.55rem;
-    padding-top: 0.45rem;
-    border-top: 1px solid var(--color-border);
+    margin-top: 0.5rem;
+    padding-top: 0.25rem;
+    margin-top: 0.35rem;
   `,
 
   /* 알림을 켜고 끌 때 바뀐 내용이 살짝 올라오며 나타난다. 카드 높이는 그대로라 아래 내용은 움직이지 않는다. */

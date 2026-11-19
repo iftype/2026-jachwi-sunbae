@@ -1,11 +1,10 @@
 import { css } from '@emotion/css';
 
-import { formatManwon } from '@/features/map/api/commuteApi';
-
 import type { NeighborhoodPlace } from '../../hooks/useNeighborhoodPlaces';
 import { placeTitle } from '../../hooks/useNeighborhoodPlaces';
 import type { NeighborhoodPreviewContext } from '../../hooks/useNeighborhoodPreview';
-import { overRentNotice } from '../../model/criteriaLabels';
+import { commuteColor } from '../../model/commuteColors';
+import { formatRentPair, overRentNotice } from '../../model/criteriaLabels';
 import type { MyPropertyRow } from '../../model/myProperty';
 import { propertyCommuteLabel, propertyCommuteOrder } from '../../model/propertyCommute';
 import ListingLink from '../listing-link/ListingLink';
@@ -58,23 +57,14 @@ const MapInfo = ({ subject, preview, my, onSelectProperty, phoneAction }: Props)
       <div className={styles.body}>
         <p className={styles.subtitle}>{area.fullName}</p>
         <dl className={styles.facts}>
-          <dt>통근</dt>
-          <dd>
-            {preview.destination.name}까지 약 {area.commuteMinutes}분
-            {area.stations[0] ? ` · ${area.stations[0].stopName}에서 출발` : ''}
+          <dt>소요시간</dt>
+          <dd className={styles.commute}>
+            {/* 시간은 통근 색(15분 이하 파랑 등)의 뱃지로, 뒤에 가는 방법(출발 정류장)을 붙인다. */}
+            <b style={{ background: commuteColor(area.commuteMinutes).fillColor }}>{area.commuteMinutes}분</b>
+            {area.stations[0] && <span>{area.stations[0].stopName}에서 출발</span>}
           </dd>
           <dt>월세 시세</dt>
-          <dd>
-            {area.rent
-              ? `월세 ${formatManwon(area.rent.monthlyRentKrw)} · 보증금 ${formatManwon(area.rent.depositKrw)}`
-              : '거래가 적어 시세를 내지 않았어요'}
-            {area.rent && (
-              <small>
-                {area.rent.legalDongNames.join(', ')} 거래 {area.rent.transactionCount}건 중앙값
-                {preview.rentPeriod && `, ${preview.rentPeriod.startDate} ~ ${preview.rentPeriod.endDate} 계약`}
-              </small>
-            )}
-          </dd>
+          <dd>{area.rent ? formatRentPair(area.rent) : '거래가 적어 시세를 내지 않았어요'}</dd>
         </dl>
         {overRent && <p className={styles.notice}>{overRent}</p>}
         <ListingLink areaName={area.name} center={area.center} onOpen={preview.openListing} />
@@ -154,6 +144,27 @@ const styles = {
       color: var(--color-muted);
       font-size: 0.75rem;
       font-weight: 500;
+    }
+  `,
+
+  /* 소요시간: 색 뱃지와 가는 방법을 한 줄에 놓는다. */
+  commute: css`
+    label: MapInfo-commute;
+    display: flex !important;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem !important;
+
+    & b {
+      padding: 0.15rem 0.6rem;
+      border-radius: 999px;
+      color: #fff;
+      font-size: 0.8rem;
+      font-weight: 800;
+    }
+    & span {
+      color: var(--color-ink);
+      font-weight: 600;
     }
   `,
 

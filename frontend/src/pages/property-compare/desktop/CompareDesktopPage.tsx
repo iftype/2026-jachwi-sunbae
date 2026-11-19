@@ -1,4 +1,4 @@
-import { css } from '@emotion/css';
+import { css, cx } from '@emotion/css';
 import { useState } from 'react';
 
 import { usePropertyList } from '@/features/property/api/useProperties';
@@ -10,6 +10,7 @@ import CompareActionBar from '../ui/compare-action-bar/CompareActionBar';
 import CompareEmpty from '../ui/compare-empty/CompareEmpty';
 import CompareFilters from '../ui/compare-filters/CompareFilters';
 import CompareLoadState from '../ui/compare-load-state/CompareLoadState';
+import ComparePropertyPreview from '../ui/compare-property-preview/ComparePropertyPreview';
 import CompareTable from '../ui/compare-table/CompareTable';
 
 import * as shared from '../ComparePage.styles';
@@ -25,6 +26,8 @@ const CompareDesktopPage = () => {
   const hasProperties = items.length > 0;
   const [filters, setFilters] = useState(DEFAULT_COMPARE_FILTERS);
   const visibleItems = filterCompareProperties(items, filters);
+  const [previewId, setPreviewId] = useState<number>();
+  const preview = visibleItems.find((item) => item.propertyId === previewId);
 
   return (
     <main className={shared.page}>
@@ -42,12 +45,20 @@ const CompareDesktopPage = () => {
               )}
             </div>
             {hasProperties ? (
-              <CompareTable
-                properties={visibleItems}
-                selectedIds={selectedIds}
-                maxSelection={MAX_SELECTION}
-                onToggle={toggle}
-              />
+              <div className={cx(styles.body, preview && styles.withPreview)}>
+                <CompareTable
+                  properties={visibleItems}
+                  selectedIds={selectedIds}
+                  maxSelection={MAX_SELECTION}
+                  onToggle={(id) => {
+                    setPreviewId(id);
+                    toggle(id);
+                  }}
+                  previewId={preview?.propertyId}
+                  onPreview={setPreviewId}
+                />
+                {preview && <ComparePropertyPreview property={preview} />}
+              </div>
             ) : (
               <CompareEmpty />
             )}
@@ -69,6 +80,16 @@ const CompareDesktopPage = () => {
 };
 
 const styles = {
+  body: css`
+    display: grid;
+    align-items: start;
+    gap: 1rem;
+  `,
+  withPreview: css`
+    @media (min-width: 67rem) {
+      grid-template-columns: minmax(0, 1fr) minmax(16rem, 28%);
+    }
+  `,
   /* 리스트 바로 위 줄: 왼쪽에 선택 개수, 오른쪽에 필터. */
   listHeader: css`
     label: CompareDesktopPage-listHeader;

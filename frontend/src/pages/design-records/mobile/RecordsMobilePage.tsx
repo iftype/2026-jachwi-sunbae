@@ -3,15 +3,15 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import usePreloadMapSdk from '@/features/map/hooks/usePreloadMapSdk';
 import { readSearchedAddress } from '@/features/map/lib/searchedAddressState';
-import { RECORDS_PATH } from '@/shared/lib/navigation/appPaths';
+import { RECORDS_PATH, RECORDS_VIEW_PARAM } from '@/shared/lib/navigation/appPaths';
 import AreaSkeleton from '@/shared/ui/area-skeleton/AreaSkeleton';
-import MapAddPropertyButton from '@/shared/ui/map-add-button/MapAddPropertyButton';
 import { useMapPanel } from '@/shared/ui/map-list-header/MapPanelContext';
 import MapViewSwitch from '@/shared/ui/map-view-switch/MapViewSwitch';
 
 import type { RecordsState } from '../hooks/useRecords';
 import type { RecordsMapLayers } from '../hooks/useRecordsMapLayers';
 import useRecordsView from '../hooks/useRecordsView';
+import { writeLastRecordsView } from '../model/recordsView';
 import { RECORDS_LOADING_LABEL } from '../RecordsPageSkeleton';
 import RecordDistricts from '../ui/record-districts/RecordDistricts';
 import RecordList from '../ui/record-list/RecordList';
@@ -31,7 +31,7 @@ type Props = { records: RecordsState; layers: RecordsMapLayers; searchTo?: strin
 const RecordsMobilePage = ({ records, layers, searchTo }: Props) => {
   const panel = useMapPanel();
   const navigate = useNavigate();
-  const { setNotice, moveTo } = records;
+  const { setNotice, searchTo: moveTo } = records;
   const location = useLocation();
   // 주소 검색 화면에서 고른 주소가 오면 그 자리로 지도를 옮긴다. 새로고침해도 다시 옮기지 않도록 바로 비운다.
   const searchedAddress = useMemo(
@@ -45,23 +45,19 @@ const RecordsMobilePage = ({ records, layers, searchTo }: Props) => {
   }, [searchedAddress, moveTo, navigate]);
   const [view, setView] = useRecordsView();
   const showsMap = view === 'map';
+  const openMapToRecord = () => {
+    if (location.pathname === RECORDS_PATH) {
+      setView('map');
+      return;
+    }
+    writeLastRecordsView('map');
+    navigate(`${RECORDS_PATH}?${RECORDS_VIEW_PARAM}=map`);
+  };
   // 지도는 매물 목록이 온 뒤에 붙으므로, 목록을 기다리는 동안 지도 SDK를 먼저 받기 시작한다.
   usePreloadMapSdk(showsMap);
   // 헤더·동네 뱃지는 지도 보기에서 지도(불러오는 중 뼈대 포함) 위에 띄워, 지도가 나오기 전에도 헤더만 흰 띠로 남지 않게 한다.
   // 실패 안내는 가리지 않도록 제외한다.
   const overMap = !panel && showsMap && !records.properties.isError;
-  // 오른쪽 아래 `매물 추가`. 지도에서 시트나 말풍선이 열려 있으면 그 위를 가리지 않게 내린다.
-  const isMapSheetOpen =
-    showsMap &&
-    (records.selected !== undefined ||
-      layers.groupRecords.length > 0 ||
-      layers.memo.mode !== null ||
-      layers.tapPoint !== null ||
-      layers.isRegistering ||
-      layers.isSuggestingRegister);
-  const startRegister = layers.startRegister;
-  const showsAddButton = !panel && startRegister !== null && records.properties.isSuccess && !isMapSheetOpen;
-
   return (
     <main className={styles.page}>
       <div className={styles.frame}>
@@ -69,7 +65,7 @@ const RecordsMobilePage = ({ records, layers, searchTo }: Props) => {
           <h1 ref={records.headingRef} className="sr-only" tabIndex={-1}>
             본 방 기록
           </h1>
-          {!panel && <RecordsMobileHeader view={view} searchTo={searchTo} onViewChange={setView} />}
+          {!panel && <RecordsMobileHeader view={view} searchTo={searchTo} onRecord={openMapToRecord} />}
           {/* 기록을 받는 동안과 마이 같은 다른 화면(패널)을 볼 때는 동네 칩 줄을 두지 않는다. */}
           {!panel && showsMap && !records.properties.isPending && (
             <RecordDistricts
@@ -102,18 +98,11 @@ const RecordsMobilePage = ({ records, layers, searchTo }: Props) => {
               records={records.records}
               district={records.district}
               onNotice={setNotice}
+              showCompare={!panel}
             />
           )}
         </div>
         {!panel && <MapViewSwitch value={view} onChange={setView} label="기록 보기 방식" />}
-        {showsAddButton && (
-          <MapAddPropertyButton
-            onClick={() => {
-              if (!showsMap) setView('map');
-              startRegister();
-            }}
-          />
-        )}
         <RecordNotice message={records.notice} onClose={() => setNotice('')} />
       </div>
     </main>

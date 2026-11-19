@@ -45,6 +45,9 @@ const styles = {
     color: var(--color-ink);
     overflow: hidden;
     padding-top: env(safe-area-inset-top);
+    /* 본문에서 이미 하단 탭 높이를 빼므로, 내부 시트는 지도 맨 아래에 닿게 둔다. */
+    --map-sheet-bottom: 0px;
+    padding-bottom: var(--mobile-tab-space, 0px);
     box-sizing: border-box;
   `,
   header: css`

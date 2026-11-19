@@ -4,12 +4,12 @@ import { usePublicConfig } from '@/shared/config/PublicConfigContext';
 
 import type { AddressSearchStatus } from '../model/AddressSearch';
 import type { MapAddress } from '../model/Map';
-import { searchAddress } from './mapApi';
+import { searchPlacesAndAddresses } from './mapApi';
 
-type SearchAddress = typeof searchAddress;
+type SearchAddress = typeof searchPlacesAndAddresses;
 
 /** 검색 요청과 화면 표현을 분리한다. 입력 변경·닫기 이후의 오래된 응답은 반영하지 않는다. */
-const useAddressSearch = (search: SearchAddress = searchAddress) => {
+const useAddressSearch = (search: SearchAddress = searchPlacesAndAddresses) => {
   const config = usePublicConfig();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<MapAddress[]>([]);

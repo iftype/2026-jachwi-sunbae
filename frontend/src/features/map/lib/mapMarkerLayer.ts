@@ -1,5 +1,5 @@
 import type { MapMarker } from '../model/Map';
-import { markerScale, markerSignature, markerZIndex } from './mapMarkerPresentation';
+import { FAR_MARKER_LEVEL, markerScale, markerSignature, markerZIndex } from './mapMarkerPresentation';
 import type { LiveMap, LiveOverlay, naverEngine } from './naverMapEngine';
 
 type Engine = Pick<ReturnType<typeof naverEngine>, 'createOverlay'>;
@@ -60,6 +60,8 @@ export const createMapMarkerLayer = (map: LiveMap, engine: Engine, createElement
           };
         }
         entry.content.style.setProperty('--map-marker-scale', String(markerScale(marker, level)));
+        // 멀리 볼 때는 마커 라벨 글자를 숨긴다(CSS의 `data-far`).
+        entry.content.dataset.far = String(level > FAR_MARKER_LEVEL);
         next.set(marker.id, entry);
       }
       previous.forEach((entry, id) => park(id, entry));

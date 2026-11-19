@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
+import { useRecordsMapController } from '@/pages/design-records/RecordsMapProvider';
 import type { MapAddress } from '@/features/map/model/Map';
 import { describePropertyLoadError } from '@/features/property/api/propertyErrorMessages';
 import { usePropertyDetail } from '@/features/property/api/useProperties';
@@ -19,6 +20,7 @@ import PropertyPhotoManager from '@/features/property/ui/property-photo-manager/
 import PropertyPhotoViewer from '@/features/property/ui/property-photo-viewer/PropertyPhotoViewer';
 import { LogScreen } from '@/shared/lib/analytics/logging';
 import useDocumentTitle from '@/shared/lib/hooks/useDocumentTitle';
+import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
 import { MAP_SELECT_LOCATION_PATH, PROPERTY_DETAIL_TAB_PARAM, RECORDS_PATH } from '@/shared/lib/navigation/appPaths';
 import useReturnNavigation from '@/shared/lib/navigation/useReturnNavigation';
 import ContentState from '@/shared/ui/content-state/ContentState';
@@ -33,6 +35,7 @@ import { readLastDetailTab, writeLastDetailTab } from './model/lastDetailTab';
 import PropertyDetailSkeleton from './PropertyDetailSkeleton';
 import PreviewNotSavedToast from './ui/PreviewNotSavedToast';
 import PropertyAdditionalInfoSection from './ui/property-additional-info-section/PropertyAdditionalInfoSection';
+import PropertyAiImportBar from './ui/property-basic-info-section/PropertyAiImportBar';
 import PropertyBasicInfoSection from './ui/property-basic-info-section/PropertyBasicInfoSection';
 import PropertyChecklistSection from './ui/property-checklist-section/PropertyChecklistSection';
 import PropertyHeroPhoto from './ui/property-hero-photo/PropertyHeroPhoto';
@@ -168,6 +171,8 @@ const PropertyDetailView = ({ propertyId, detail, backTo, panel }: PropertyDetai
   const currentLocation = useLocation();
   const [isEditingLocation, setIsEditingLocation] = useState(false);
   const updateLocation = useUpdateProperty(propertyId);
+  // 데스크탑은 옆에 큰 지도가 이미 보여 상세 안 주변 지도를 두지 않는다. 위치는 그 큰 지도를 눌러 고른다.
+  const isDesktop = useIsDesktop();
   const hasCoordinates = detail.location.latitude !== null && detail.location.longitude !== null;
   const saveLocation = async (selected: MapAddress) => {
     const address = selected.roadAddress ?? selected.jibunAddress ?? selected.address ?? '';
@@ -176,12 +181,16 @@ const PropertyDetailView = ({ propertyId, detail, backTo, panel }: PropertyDetai
       changes: { address, latitude: selected.latitude, longitude: selected.longitude },
     });
   };
+  // 데스크탑은 옆의 큰 기록 지도를 눌러 새 자리를 고른다. 따로 화면을 열지 않는다.
+  const recordsMap = useRecordsMapController();
   const editLocation = () =>
-    hasCoordinates
-      ? setIsEditingLocation(true)
-      : navigate(MAP_SELECT_LOCATION_PATH, {
-          state: { returnTo: `${currentLocation.pathname}${currentLocation.search}`, propertyId },
-        });
+    isDesktop && recordsMap
+      ? recordsMap.layers.startLocationPick(saveLocation)
+      : hasCoordinates && !isDesktop
+        ? setIsEditingLocation(true)
+        : navigate(MAP_SELECT_LOCATION_PATH, {
+            state: { returnTo: `${currentLocation.pathname}${currentLocation.search}`, propertyId },
+          });
   // 삭제는 ⋮ 메뉴 안에 있어 잘못 누를 일이 적으므로 확인을 묻지 않고 바로 지운다.
   const removeProperty = useRemoveProperty(propertyId);
   const photoTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -286,13 +295,13 @@ const PropertyDetailView = ({ propertyId, detail, backTo, panel }: PropertyDetai
               backTo={backTo}
               backState={returnState}
               showBackButton={false}
-              onManagePhotos={managePhotos}
               onOpen={() => {
                 photoTriggerRef.current = null;
                 setSelectedPhotoIndex(0);
               }}
             />
             <div className={styles.infoPanel}>
+              <PropertyAiImportBar propertyId={propertyId} />
               <PropertyBasicInfoSection
                 property={detail}
                 {...inlineEdit}
@@ -303,6 +312,7 @@ const PropertyDetailView = ({ propertyId, detail, backTo, panel }: PropertyDetai
                       propertyId={propertyId}
                       latitude={detail.location.latitude}
                       longitude={detail.location.longitude}
+                      showMap={!isDesktop}
                       isEditingLocation={isEditingLocation}
                       onSaveLocation={saveLocation}
                       onEndEditLocation={() => setIsEditingLocation(false)}

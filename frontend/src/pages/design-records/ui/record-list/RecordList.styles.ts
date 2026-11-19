@@ -11,6 +11,22 @@ export const items = css`
   gap: 1.5rem;
 `;
 
+/* 지도에서 고른 매물을 목록에서도 알아보게, 테두리 없이 카드 뒤에 옅은 파란 바탕만 깐다. */
+export const item = css`
+  label: RecordList-item;
+  border-radius: 1rem;
+
+  &[data-selected='true'] {
+    background: #eef3ff;
+    box-shadow: 0 0 0 0.5rem #eef3ff;
+
+    /* 카드 안쪽의 흰 바탕도 같은 색으로 칠해, 흰 네모가 따로 떠 보이지 않게 한다. */
+    & > * {
+      background: transparent;
+    }
+  }
+`;
+
 export const actions = css`
   label: RecordList-actions;
   position: relative;

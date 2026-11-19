@@ -1,10 +1,12 @@
 import { css } from '@emotion/css';
+import type { ReactNode } from 'react';
 
 import { Button } from '@/shared/ui/button/Button';
 import { SegmentedControl, SegmentedControlItem } from '@/shared/ui/segmented-control/SegmentedControl';
 
 import type { NeighborhoodPreviewContext } from '../../hooks/useNeighborhoodPreview';
 import { MINUTE_OPTIONS } from '../../NeighborhoodFilters';
+import CommuteDestinationField from '../commute-destination-field/CommuteDestinationField';
 import RentSlider from '../rent-slider/RentSlider';
 
 type ConditionPanelProps = {
@@ -16,6 +18,14 @@ type ConditionPanelProps = {
     | 'searchError'
     | 'addressResults'
     | 'selectAddress'
+    | 'editLocation'
+    | 'query'
+    | 'changeQuery'
+    | 'searchDestination'
+    | 'openMapSearch'
+    | 'isMapSelectionEnabled'
+    | 'openMapSelection'
+    | 'cancelMapSelection'
     | 'maxMinutes'
     | 'changeMaxMinutes'
     | 'maxTransfers'
@@ -28,7 +38,13 @@ type ConditionPanelProps = {
   onSubmit: () => void;
   includeRent?: boolean;
   canSubmit?: boolean;
+  /** false면 찾기 버튼과 옆 버튼 줄을 통째로 숨긴다. 바뀐 조건이 없을 때 쓴다. */
+  showActions?: boolean;
   submitLabel?: string;
+  /** 찾기 버튼 옆에 같은 크기로 나란히 두는 버튼(취소 등). */
+  secondaryAction?: ReactNode;
+  /** 제목 줄 오른쪽 끝에 두는 버튼(접기 등). 제목과 같은 줄, 같은 높이에 맞춘다. */
+  headerAction?: ReactNode;
 };
 
 /**
@@ -42,21 +58,18 @@ const ConditionPanel = ({
   onSubmit,
   includeRent = false,
   canSubmit = true,
+  showActions = true,
   submitLabel = '이 조건으로 동네 찾기',
+  secondaryAction,
+  headerAction,
 }: ConditionPanelProps) => {
   return (
     <aside className={styles.panel} aria-label="탐색 조건">
-      <h2>어디로 출퇴근하세요?</h2>
-      <section className={styles.place} aria-label="출퇴근 장소">
-        {preview.hasChosenMapPoint ? (
-          <>
-            <small>출퇴근 장소</small>
-            <strong>{preview.mapCandidate.name}</strong>
-          </>
-        ) : (
-          <p>위에서 학교·회사를 검색하거나 지도에서 위치를 골라주세요.</p>
-        )}
-      </section>
+      <header className={styles.header}>
+        <h2>어디로 출퇴근하세요?</h2>
+        {headerAction}
+      </header>
+      <CommuteDestinationField preview={preview} disabled={disabled} />
       <fieldset className={styles.field} disabled={disabled}>
         <legend>통근 시간</legend>
         <SegmentedControl
@@ -91,41 +104,95 @@ const ConditionPanel = ({
           <RentSlider preview={preview} compact />
         </fieldset>
       )}
-      <Button
-        className={styles.submit}
-        fullWidth
-        disabled={disabled || !canSubmit || !preview.hasChosenMapPoint || !preview.isValidCommuteTime}
-        onClick={onSubmit}
-      >
-        {submitLabel}
-      </Button>
+      {showActions && (
+        <div className={styles.actions} data-paired={secondaryAction ? 'true' : undefined}>
+          <Button
+            className={styles.submit}
+            fullWidth
+            disabled={disabled || !canSubmit || !preview.hasChosenMapPoint || !preview.isValidCommuteTime}
+            onClick={onSubmit}
+          >
+            {submitLabel}
+          </Button>
+          {secondaryAction}
+        </div>
+      )}
     </aside>
   );
 };
 
 const styles = {
+  /* 제목과 접기 버튼을 한 줄에 두고 세로 가운데를 맞춘다. */
+  header: css`
+    label: ConditionPanel-header;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    min-height: 2.25rem;
+  `,
+  placeText: css`
+    label: ConditionPanel-placeText;
+    display: grid;
+    gap: 0.25rem;
+    min-width: 0;
+  `,
+  change: css`
+    label: ConditionPanel-change;
+    flex: none;
+    min-height: 2rem;
+    padding: 0 0.85rem;
+    border: 0;
+    border-radius: 999px;
+    background: white;
+    color: var(--color-brand-blue-ink);
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+  `,
+  /* 찾기와 취소를 1:1로 나란히 둔다. 취소가 없으면 찾기 버튼이 한 줄을 다 쓴다. */
+  actions: css`
+    label: ConditionPanel-actions;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.5rem;
+
+    &[data-paired='true'] {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  `,
+
   panel: css`
     label: ConditionPanel-panel;
     display: flex;
     flex-direction: column;
-    gap: 1.25rem;
+    gap: 0.9rem;
     min-height: 0;
     overflow-y: auto;
-    padding: 1.25rem 1.5rem 1.5rem;
+    padding: 1rem 1.25rem 1.15rem;
     background: white;
 
     & h2 {
       margin: 0;
-      font-size: 1.1rem;
+      font-size: 1rem;
+      font-weight: 800;
       letter-spacing: -0.02em;
     }
   `,
 
   place: css`
     label: ConditionPanel-place;
-    display: grid;
-    gap: 0.25rem;
-    padding: 0.9rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.7rem 0.9rem;
     border-radius: 0.7rem;
     background: var(--color-card-surface);
 

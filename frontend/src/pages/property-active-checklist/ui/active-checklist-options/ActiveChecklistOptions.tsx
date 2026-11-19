@@ -44,20 +44,20 @@ const ActiveChecklistOptions = ({
       </span>
       {currentId === SYSTEM_DEFAULT_ID && <em>현재</em>}
     </SelectionControl>
-    <div className={styles.userChecklists} role="group" aria-label="사용자 체크리스트">
+    <div className={styles.userChecklists} role="group" aria-label="내 체크리스트">
       <div className={styles.groupHeading}>
-        <h2>사용자 체크리스트</h2>
+        <h2>내 체크리스트</h2>
         <ButtonLink
           to={propertyId === undefined ? CHECKLIST_CREATE_PATH : propertyChecklistCreatePath(propertyId)}
           variant="text"
           className={styles.manageAction}
-          aria-label="사용자 체크리스트 만들기"
+          aria-label="새 체크리스트"
         >
           <Icon name="plus" size={14} />
           만들기
         </ButtonLink>
       </div>
-      {items.length === 0 && <p className={styles.empty}>저장된 사용자 체크리스트가 없어요.</p>}
+      {items.length === 0 && <p className={styles.empty}>저장된 내 체크리스트가 없어요.</p>}
       {items.map((item) => (
         <SelectionControl
           key={item.checklistId}
@@ -190,7 +190,7 @@ const styles = {
         color: var(--color-on-primary);
         font-size: 0.65rem;
         font-style: normal;
-        font-weight: 800;
+        font-weight: 600;
       }
     `,
     'ActiveChecklistOptions-options',
@@ -203,11 +203,11 @@ const styles = {
     box-sizing: border-box;
     width: 1.35rem;
     height: 1.35rem;
-    border: 1px solid var(--color-border-strong, #d7d9dc);
+    border: 1px solid var(--color-border-strong);
     border-radius: 50%;
     color: var(--color-on-primary);
     font-size: 0.72rem;
-    font-weight: 800;
+    font-weight: 600;
     line-height: 1;
     place-items: center;
 

@@ -762,8 +762,6 @@ export const mapSearchResult = css`
 export const activeSearchField = css`
   label: NeighborhoodPreviewPage-activeSearchField;
   min-width: 0;
-  height: 2.75rem;
-  font-size: 0.85rem;
   background: white;
   box-shadow: 0 1px 4px rgb(0 0 0 / 6%);
 

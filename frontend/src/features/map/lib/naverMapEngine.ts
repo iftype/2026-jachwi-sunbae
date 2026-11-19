@@ -4,7 +4,9 @@ import { markerAnchorTransform } from './mapMarkerPresentation';
 const clamp = (value: number, min: number, max: number): number => Math.min(Math.max(value, min), max);
 const NAVER_ZOOM_BASE = 20;
 const MIN_NAVER_ZOOM = 6;
-const toNaverZoom = (level: number): number => clamp(NAVER_ZOOM_BASE - level, MIN_NAVER_ZOOM, 21);
+/** 앱의 가장 가까운 단계(레벨 1)와 같다. 이보다 더 확대하면 네이버 기본 타일이 없어 지도가 빈다. */
+const MAX_NAVER_ZOOM = 19;
+const toNaverZoom = (level: number): number => clamp(NAVER_ZOOM_BASE - level, MIN_NAVER_ZOOM, MAX_NAVER_ZOOM);
 const toMapLevel = (zoom: number): number => clamp(NAVER_ZOOM_BASE - zoom, 1, 14);
 let naverSdkPromise: Promise<void> | null = null;
 let hasAuthFailed = false;
@@ -138,6 +140,7 @@ export const naverEngine = (clientId: string, customStyleId?: string): LiveEngin
       zoom: toNaverZoom(level),
       // 남한 밖으로는 옮기지도 줄이지도 못하게 막는다.
       minZoom: MIN_NAVER_ZOOM,
+      maxZoom: MAX_NAVER_ZOOM,
       maxBounds: new maps.LatLngBounds(
         new maps.LatLng(SOUTH_KOREA_BOUNDS.south, SOUTH_KOREA_BOUNDS.west),
         new maps.LatLng(SOUTH_KOREA_BOUNDS.north, SOUTH_KOREA_BOUNDS.east),
@@ -226,10 +229,11 @@ export const naverEngine = (clientId: string, customStyleId?: string): LiveEngin
       center: center as NaverLatLng,
       radius,
       strokeWeight: 2,
-      strokeColor: '#555555',
-      strokeOpacity: 0.58,
-      fillColor: '#999999',
-      fillOpacity: 0.08,
+      // 매물 주변 500m 범위는 우리 파랑 테두리와 옅은 파랑 바탕으로 그린다.
+      strokeColor: '#3f6fc4',
+      strokeOpacity: 0.9,
+      fillColor: '#3f6fc4',
+      fillOpacity: 0.06,
     });
   },
 });

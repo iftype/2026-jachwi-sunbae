@@ -19,6 +19,7 @@ import RecordDistricts from '../ui/record-districts/RecordDistricts';
 import RecordGroupList from '../ui/record-group/RecordGroupList';
 import RecordList from '../ui/record-list/RecordList';
 import RecordLoadError from '../ui/record-load-error/RecordLoadError';
+import RecordNeighborhoodBanner from '../ui/record-neighborhood-banner/RecordNeighborhoodBanner';
 import RecordNotice from '../ui/record-notice/RecordNotice';
 import RecordStepper from '../ui/record-stepper/RecordStepper';
 import RecordsDesktopMap from './RecordsDesktopMap';
@@ -74,6 +75,7 @@ const RecordsDesktopPage = ({ records, layers }: Props) => {
         records={records.records}
         district={records.district}
         onOpen={records.showRecord}
+        selectedId={records.selected?.id}
         onNotice={setNotice}
       />
     </div>
@@ -83,7 +85,9 @@ const RecordsDesktopPage = ({ records, layers }: Props) => {
       records={records.records}
       district={records.district}
       onOpen={records.showRecord}
+      selectedId={records.selected?.id}
       onNotice={setNotice}
+      showCompare
     />
   );
 
@@ -127,10 +131,11 @@ const RecordsDesktopPage = ({ records, layers }: Props) => {
               <>
                 {!panel && (
                   <MapListHeader center={<MapHeaderWeather />}>
-                    <RecordAddressSearch onSelect={records.moveTo} />
+                    <RecordAddressSearch onSelect={records.searchTo} />
                   </MapListHeader>
                 )}
                 {panel?.content ?? list}
+                {!panel && <RecordNeighborhoodBanner />}
               </>
             }
             detail={panel ? undefined : detail}
