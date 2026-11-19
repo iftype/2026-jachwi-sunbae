@@ -1046,8 +1046,8 @@ it('공개 탐색 데스크탑 왼쪽 칸은 찾은 동네 카드를 통근 시�
     expect(screen.getByRole('slider', { name: '최대 월세 시세' })).toBeInTheDocument();
     await user.click(cards[1]);
     expect(cards[1]).toHaveAttribute('aria-pressed', 'true');
-    // 동을 누르면 정보 카드 대신 그 자리에 동 이름, 소요시간, 월세 시세만 담은 요약 마커가 뜬다.
-    expect(screen.getByRole('button', { name: /^신림동$/ })).toBeInTheDocument();
+    // 동을 누르면 그 자리에 동 이름, 소요시간, 월세 시세 카드가 뜨고, 마우스를 치워도 띄워 둔다(지도 구역 버튼과 카드 둘).
+    expect(screen.getAllByRole('button', { name: /^신림동$/ })).toHaveLength(2);
     // 목록은 그대로 둔다.
     expect(list.getAllByRole('button')).toHaveLength(3);
   } finally {
@@ -1162,7 +1162,7 @@ it('동네 찾기 지도에서는 행정동 안을 눌러도 메모 남기기나
   expect(screen.queryByRole('button', { name: '말풍선 여기에 본 방 기록하기' })).not.toBeInTheDocument();
 });
 
-it('모바일 지역 상세에서 찜한 동네 토글을 켜면 찜한 행정동 영역이 뒤 지도에 더해진다', async () => {
+it('모바일 지역 상세에서 찜 버튼을 켜면 추천 동네를 숨기고 찜한 행정동 영역만 뒤 지도에 칠하며, 끄면 되돌린다', async () => {
   writeBookmarkedAdminDongs(['11210690']);
   localStorage.setItem('jachwi:records-bookmark-layer-rail', 'off');
   server.use(...adminDongBookmarkHandlers);
@@ -1173,9 +1173,16 @@ it('모바일 지역 상세에서 찜한 동네 토글을 켜면 찜한 행정�
     await screen.findByRole('region', { name: '행정동 프리셋 지도' });
     await user.click(screen.getByRole('button', { name: '역삼1동' }));
     await screen.findByRole('region', { name: /역삼1동/ });
-    const before = screen.getAllByRole('button', { name: '신림동' }).length;
-    await user.click(await screen.findByRole('button', { name: '찜한 동네 토글' }));
-    await waitFor(() => expect(screen.getAllByRole('button', { name: '신림동' })).toHaveLength(before + 1));
+    const yeoksamBefore = screen.getAllByRole('button', { name: '역삼1동' }).length;
+    const toggle = await screen.findByRole('button', { name: '찜한 동네 토글' });
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await user.click(toggle);
+    // 추천 동네(역삼1동) 구역은 걷히고, 찜한 신림동 구역은 남는다.
+    await waitFor(() => expect(screen.queryAllByRole('button', { name: '역삼1동' })).toHaveLength(yeoksamBefore - 1));
+    expect(screen.getByRole('button', { name: '신림동' })).toBeInTheDocument();
+    expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    await user.click(toggle);
+    await waitFor(() => expect(screen.getAllByRole('button', { name: '역삼1동' })).toHaveLength(yeoksamBefore));
   } finally {
     writeBookmarkedAdminDongs([]);
     localStorage.removeItem('jachwi:records-bookmark-layer-rail');
