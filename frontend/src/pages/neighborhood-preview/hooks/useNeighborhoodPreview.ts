@@ -121,10 +121,9 @@ const useNeighborhoodPreview = () => {
         }
       : null,
   );
-  // 출퇴근 장소가 아직 없으면(처음 진입) 지도 빈 곳을 눌러 바로 정한다. 이미 있으면 `바꾸기`나 `지도에서 선택`으로 선택 모드에 들어온 동안에만 지도를 눌러 정한다.
-  // 결과를 보는 동안(분석 이후)에는 지도를 눌러도 바뀌지 않는다.
-  const hasNoDestination = !hasChosenMapPoint && submitted === null;
-  const canPickDestination = phase !== 'analyzing' && (isMapSelectionEnabled || hasNoDestination);
+  // 결과(행정동 영역)가 그려지기 전에는 출퇴근 장소가 이미 있어도 지도 빈 곳을 누를 때마다 그 위치로 바꾼다.
+  // 결과를 보는 동안(분석 이후)에는 지도를 눌러도 바뀌지 않고, `바꾸기`나 `지도에서 선택`으로 선택 모드에 들어와야 다시 정한다.
+  const canPickDestination = phase !== 'analyzing';
   const appliedMaxRent = submitted?.maxRent ?? maxRent;
   const hasSearchChanges =
     submitted === null ||

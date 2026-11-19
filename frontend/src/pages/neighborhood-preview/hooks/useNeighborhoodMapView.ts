@@ -22,6 +22,7 @@ import { isPreviewProperty } from '@/features/property/model/sampleProperties';
 import useDebouncedValue from '@/shared/lib/hooks/useDebouncedValue';
 import useHoverIntent from '@/shared/lib/hooks/useHoverIntent';
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
+import { setDetailCollapsed } from '@/shared/ui/list-detail-layout/detailCollapse';
 
 import { formatRentPair } from '../model/criteriaLabels';
 import {
@@ -273,13 +274,17 @@ const useNeighborhoodMapView = (
     }
     if (marker.id.startsWith(MY_PROPERTY_PREFIX)) {
       const row = myRows.find((item) => `${MY_PROPERTY_PREFIX}${item.propertyId}` === marker.id);
-      if (row) openProperty(row.propertyId);
-    } else {
-      closeProperty();
-      const facility = facilities.placeOf(marker);
-      if (facility) places.selectFacility(marker, facility);
-      else places.selectMarker(marker);
+      if (row) {
+        openProperty(row.propertyId);
+        // 접어 둔 매물 패널을 펼친다. 지도 시점은 옮기지 않는다.
+        setDetailCollapsed(false);
+      }
+      return;
     }
+    closeProperty();
+    const facility = facilities.placeOf(marker);
+    if (facility) places.selectFacility(marker, facility);
+    else places.selectMarker(marker);
     if (isResultMap) preview.focusPoint(marker);
   };
   // 시설 마커는 레일 칸을 켰고 가까이 확대했을 때 지금 화면 범위로 받은 것만 올린다. 동네를 골라도 따로 마커를 받지 않는다.
@@ -474,7 +479,7 @@ const useNeighborhoodMapView = (
         onCenterChange: preview.rememberSelectionCenter,
         onLevelChange: preview.rememberSelectionLevel,
         onBoundsChange: preview.rememberMapBounds,
-        // 내 매물은 선택 전과 선택 중에도 그리고 누르면 결과 지도와 같은 패널을 연다. 지도 빈 곳만 출퇴근 장소 후보가 된다.
+        // 내 매물은 선택 전과 선택 중에도 그리지만 누르면 반응하지 않는다. 지도 빈 곳이 출퇴근 장소 후보가 된다.
         markers: [...candidateMarkers, ...searchPinMarker, ...groupedMyMarkers],
         // 출퇴근 장소를 다시 고르는 동안에는 이전 결과의 동 영역을 지운다. 새로 찾아야 다시 그려지고, 이전 결과 보기로 돌아오면 그대로 복원된다.
         regions: NO_REGIONS,
@@ -486,9 +491,9 @@ const useNeighborhoodMapView = (
               if (point) tapMap(point.latitude, point.longitude);
             }
           : undefined,
+        // 시작 전과 선택 중에는 매물 마커를 눌러도 아무 일도 하지 않는다. 눌림은 마커에서 막혀 지도 클릭으로 번지지 않는다.
         onSelectMarker: (marker: MapMarker) => {
           if (marker.id.startsWith(SEARCH_PIN_ID)) selectSearchPin(marker);
-          else if (isMyPropertyMarker(marker)) selectMarker(marker);
         },
         selectedMarkerId: selectedProperty ? `${MY_PROPERTY_PREFIX}${selectedProperty.propertyId}` : null,
       };
