@@ -58,8 +58,8 @@ export type MapMarker = {
   tally?: { positive: number; negative: number };
   placeId?: string;
   actionable?: boolean;
-  /** 매물 핀을 작게 그리고 다른 마커(가게 등) 아래에 둔다. 저렴한 한 끼 지도처럼 매물이 주인공이 아닌 화면에 쓴다. */
-  compact?: boolean;
+  /** `selectedMarkerId`와 별개로 이 마커를 고른 모양(강조와 맨 위 순서)으로 그린다. 고른 것이 둘 이상일 때 쓴다. */
+  selected?: boolean;
 };
 
 export type MapAddress = {

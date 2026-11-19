@@ -27,7 +27,15 @@ vi.mock('@/features/map/ui/map-canvas/MapCanvas', () => ({
   }: {
     onCenterChange: (lat: number, lng: number) => void;
     onSelectMarker: (marker: { id: string }) => void;
-    markers?: { id: string; latitude: number; longitude: number; label: string; tone?: string; image?: unknown }[];
+    markers?: {
+      id: string;
+      latitude: number;
+      longitude: number;
+      label: string;
+      tone?: string;
+      image?: unknown;
+      selected?: boolean;
+    }[];
     radiusCenter?: { latitude: number; longitude: number };
   }) => (
     <>
@@ -47,14 +55,20 @@ vi.mock('@/features/map/ui/map-canvas/MapCanvas', () => ({
             {marker.label}
           </output>
         ))}
-      {/* 기준 마커와 기록 매물 마커. 가게 마커는 위 버튼으로 대신한다. */}
+      {/* 기준 마커(기준이 기록 매물이 아닐 때)와 기록 매물 마커. 가게 마커는 위 버튼으로 대신한다. */}
       {markers
         .filter((marker) => marker.id !== '10' && !/^\d+$/.test(marker.id))
         .map((marker) =>
           marker.id === 'restaurant-base' ? (
             <output key={marker.id} aria-label="기준 마커">{`${marker.latitude},${marker.longitude}`}</output>
           ) : (
-            <button key={marker.id} onClick={() => onSelectMarker({ id: marker.id })}>
+            <button
+              key={marker.id}
+              aria-label={`매물 마커 ${marker.id.replace('record-property:', '')}`}
+              aria-pressed={marker.selected === true}
+              data-tone={marker.tone}
+              onClick={() => onSelectMarker({ id: marker.id })}
+            >
               {marker.label}
             </button>
           ),
@@ -293,27 +307,28 @@ it('가게 목록을 닫고 다른 화면에 다녀와도 닫힌 상태로 돌�
   expect(screen.getByRole('button', { name: '가게 목록 닫기' })).toBeInTheDocument();
 });
 
-it('기록 매물 마커를 누르면 그 매물이 기준이 되어 기준 마커, 원, 조회 좌표가 옮겨 가고 다른 탭을 다녀와도 남는다', async () => {
+it('기록 매물 마커를 누르면 그 매물이 기준이 되어 원과 조회 좌표가 옮겨 가고 마커가 선택된 모양이 되며 다른 탭을 다녀와도 남는다', async () => {
   useTwoSameNamedRecords();
   const user = setup('/cheap-meals/restaurant');
-  // 이름이 같은 매물은 주소로 구분한다. 처음 기준은 가장 최근 기록 매물(시청 근처)이라, 강남 매물은 마커로 보인다.
-  await user.click(await screen.findByRole('button', { name: '새 매물(서울 강남구 테헤란로 1) 기준으로 보기' }));
+  // 내 매물은 전부 마커로 보인다. 처음 기준은 가장 최근 기록 매물(시청 근처)이다.
+  expect(await screen.findByRole('button', { name: '매물 마커 501' })).toHaveAttribute('aria-pressed', 'true');
+  expect(screen.getByRole('button', { name: '매물 마커 502' })).toHaveAttribute('aria-pressed', 'false');
+  await user.click(screen.getByRole('button', { name: '매물 마커 502' }));
   expect(
     await screen.findByRole('status', { name: '새 매물(서울 강남구 테헤란로 1) 기준으로 보고 있어요' }),
   ).toBeInTheDocument();
-  expect(screen.getByLabelText('기준 마커')).toHaveTextContent('37.5,127.03');
   expect(screen.getByLabelText('반경 원 중심')).toHaveTextContent('37.5,127.03');
   await waitFor(() => expect(calls.stores).toHaveBeenLastCalledWith('2000', '37.5', '127.03'));
+  expect(screen.getByRole('button', { name: '매물 마커 502' })).toHaveAttribute('aria-pressed', 'true');
+  expect(screen.getByRole('button', { name: '매물 마커 501' })).toHaveAttribute('aria-pressed', 'false');
+  // 기준이 기록 매물이면 그 매물 마커가 기준을 대신해 따로 기준 마커를 두지 않는다.
+  expect(screen.queryByLabelText('기준 마커')).not.toBeInTheDocument();
   await user.click(tab('편의점'));
   await user.click(tab('식당'));
   expect(currentUrl()).toBe('/cheap-meals/restaurant');
-  expect(screen.getByLabelText('기준 마커')).toHaveTextContent('37.5,127.03');
+  expect(screen.getByLabelText('반경 원 중심')).toHaveTextContent('37.5,127.03');
   expect(calls.stores).toHaveBeenLastCalledWith('2000', '37.5', '127.03');
-  // 기준이 된 매물은 마커가 겹치지 않게 기준 마커가 대신하고, 이전 기준 매물이 다시 마커로 보인다.
-  expect(
-    screen.queryByRole('button', { name: '새 매물(서울 강남구 테헤란로 1) 기준으로 보기' }),
-  ).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: '새 매물(서울 중구 세종대로 110) 기준으로 보기' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '매물 마커 502' })).toHaveAttribute('aria-pressed', 'true');
 });
 
 it('가게 카드는 업종을 뱃지로, 싼 메뉴 두 개와 가격을 오른쪽에 두고 직선거리 문구는 없다', async () => {
@@ -413,7 +428,7 @@ it('가게 마커는 전용 그림 없이 공용 이름 말풍선 마커로 그�
 it('가게 상세를 연 채 새로고침하면 판교로 돌아가지 않고 고른 기준에서 같은 가게를 다시 연다', async () => {
   useTwoSameNamedRecords();
   const first = renderAt('/cheap-meals/restaurant');
-  await first.user.click(await screen.findByRole('button', { name: '새 매물(서울 강남구 테헤란로 1) 기준으로 보기' }));
+  await first.user.click(await screen.findByRole('button', { name: '매물 마커 502' }));
   await waitFor(() => expect(calls.stores).toHaveBeenLastCalledWith('2000', '37.5', '127.03'));
   await first.user.click(await screen.findByRole('button', { name: '착한 세탁소 상세 보기' }));
   expect(currentUrl()).toBe('/cheap-meals/restaurant?store=10');
@@ -421,7 +436,7 @@ it('가게 상세를 연 채 새로고침하면 판교로 돌아가지 않고 �
 
   reload(first.unmount);
   expect(await screen.findByRole('link', { name: /길찾기/ })).toBeInTheDocument();
-  expect(screen.getByLabelText('기준 마커')).toHaveTextContent('37.5,127.03');
+  expect(screen.getByLabelText('반경 원 중심')).toHaveTextContent('37.5,127.03');
   expect(calls.stores).toHaveBeenCalledTimes(1);
   expect(calls.stores).toHaveBeenCalledWith('2000', '37.5', '127.03');
 });
@@ -646,24 +661,24 @@ it('지도를 연달아 끌어도 기준과 원은 그대로이고 다시 찾지
   const user = setup('/cheap-meals/restaurant');
   expect((await screen.findAllByText(/기타비요식업/)).length).toBeGreaterThan(0);
   const before = calls.stores.mock.calls.length;
-  const base = screen.getByLabelText('기준 마커').textContent;
+  const base = screen.getByLabelText('반경 원 중심').textContent;
   await user.click(screen.getByRole('button', { name: '지도 중간 이동 테스트' }));
   await moveMap(user);
   await new Promise((resolve) => setTimeout(resolve, 600));
   expect(screen.getByRole('list', { name: '가게 목록' })).toBeInTheDocument();
   expect(calls.stores).toHaveBeenCalledTimes(before);
-  expect(screen.getByLabelText('기준 마커')).toHaveTextContent(base ?? '');
+  expect(screen.getByLabelText('반경 원 중심')).toHaveTextContent(base ?? '');
 });
 
 it('가게를 골라 지도가 그 가게로 옮겨 가도 기준은 그대로이고 다시 찾지 않는다', async () => {
   const user = setup('/cheap-meals/restaurant');
   await user.click(await screen.findByRole('button', { name: '업소 마커 테스트' }));
   const before = calls.stores.mock.calls.length;
-  const base = screen.getByLabelText('기준 마커').textContent;
+  const base = screen.getByLabelText('반경 원 중심').textContent;
   await user.click(screen.getByRole('button', { name: '가게 자리 멈춤 테스트' }));
   await new Promise((resolve) => setTimeout(resolve, 600));
   expect(calls.stores).toHaveBeenCalledTimes(before);
-  expect(screen.getByLabelText('기준 마커')).toHaveTextContent(base ?? '');
+  expect(screen.getByLabelText('반경 원 중심')).toHaveTextContent(base ?? '');
 });
 
 it('카테고리 탭을 키보드로 전환할 수 있다', async () => {
@@ -735,9 +750,11 @@ it('기록한 매물을 기준 매물 뱃지 줄로 보여 주고 뱃지를 고�
   expect(within(rail).getByRole('button', { name: /세종대로 110/ })).toHaveAttribute('aria-pressed', 'true');
   expect(within(rail).getByRole('button', { name: /테헤란로 1/ })).toHaveAttribute('aria-pressed', 'false');
   await user.click(within(rail).getByRole('button', { name: /테헤란로 1/ }));
-  expect(screen.getByLabelText('기준 마커')).toHaveTextContent('37.5,127.03');
+  expect(screen.getByLabelText('반경 원 중심')).toHaveTextContent('37.5,127.03');
   await waitFor(() => expect(calls.stores).toHaveBeenLastCalledWith('2000', '37.5', '127.03'));
   expect(within(rail).getByRole('button', { name: /테헤란로 1/ })).toHaveAttribute('aria-pressed', 'true');
+  // 뱃지와 지도 마커가 같은 선택을 따른다.
+  expect(screen.getByRole('button', { name: '매물 마커 502' })).toHaveAttribute('aria-pressed', 'true');
 });
 
 it('기록이 없으면 내 기록 화면과 같은 미리보기 예시 매물이 뱃지와 지도 마커로 나온다', async () => {
@@ -746,9 +763,12 @@ it('기록이 없으면 내 기록 화면과 같은 미리보기 예시 매물�
   await screen.findByRole('list', { name: '가게 목록' });
   const rail = await screen.findByRole('navigation', { name: '기준 매물' });
   expect(within(rail).getByRole('button', { name: /\(미리보기\) 코엑스 근처/ })).toBeInTheDocument();
+  // 예시 매물도 내 기록처럼 사진 카드 마커로 보인다.
+  expect((await screen.findAllByRole('button', { name: /^매물 마커 -\d+$/ })).length).toBeGreaterThan(0);
 });
 
 it('데스크탑 편의점과 배달 탭도 지도를 그대로 두고 목록 칸 안에서 보이며, 식당 탭으로 돌아오면 가게 목록이 다시 나온다', async () => {
+  useTwoSameNamedRecords();
   const viewport = vi.spyOn(window, 'matchMedia').mockImplementation(
     (query) =>
       ({
@@ -763,10 +783,14 @@ it('데스크탑 편의점과 배달 탭도 지도를 그대로 두고 목록 �
     expect(await screen.findByRole('button', { name: '지도 이동 테스트' })).toBeInTheDocument();
     await user.click(tab('편의점'));
     expect(screen.getByRole('button', { name: '지도 이동 테스트' })).toBeInTheDocument();
+    // 내 매물 마커는 편의점과 배달 탭에서도 남고, 가게 마커는 식당 탭에서만 그린다.
+    expect((await screen.findAllByRole('button', { name: /^매물 마커 / })).length).toBeGreaterThan(0);
+    expect(screen.queryAllByLabelText('가게 마커')).toHaveLength(0);
     expect(screen.getByRole('region', { name: '주변 착한가격업소' })).toBeInTheDocument();
     expect(screen.queryByRole('list', { name: '가게 목록' })).not.toBeInTheDocument();
     await user.click(tab('배달'));
     expect(screen.getByRole('button', { name: '지도 이동 테스트' })).toBeInTheDocument();
+    expect((await screen.findAllByRole('button', { name: /^매물 마커 / })).length).toBeGreaterThan(0);
     await user.click(tab('식당'));
     expect(await screen.findByRole('button', { name: '지도 이동 테스트' })).toBeInTheDocument();
     expect(screen.getByRole('list', { name: '가게 목록' })).toBeInTheDocument();
@@ -908,8 +932,8 @@ it('가게 상세를 연 채 기록 매물 마커를 누르면 그 매물이 기
   await user.click(tab('식당'));
   await screen.findByRole('list', { name: '가게 목록' });
   await user.click(screen.getByRole('button', { name: '업소 마커 테스트' }));
-  await user.click(await screen.findByRole('button', { name: '새 매물(서울 강남구 테헤란로 1) 기준으로 보기' }));
-  expect(screen.getByLabelText('기준 마커')).toHaveTextContent('37.5,127.03');
+  await user.click(await screen.findByRole('button', { name: '매물 마커 502' }));
+  expect(screen.getByLabelText('반경 원 중심')).toHaveTextContent('37.5,127.03');
   expect(screen.queryByRole('region', { name: '메뉴와 서비스 가격' })).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: '브라우저 뒤로' }));
   expect(tab('배달')).toHaveAttribute('aria-selected', 'true');
@@ -928,9 +952,9 @@ it('현재 위치를 기다리는 동안 매물 마커로 기준을 고르면 �
     const user = setup('/cheap-meals/restaurant');
     await screen.findByRole('list', { name: '가게 목록' });
     await user.click(screen.getByRole('button', { name: '내 현재 위치로 이동' }));
-    await user.click(await screen.findByRole('button', { name: '새 매물(서울 강남구 테헤란로 1) 기준으로 보기' }));
+    await user.click(await screen.findByRole('button', { name: '매물 마커 502' }));
     await act(async () => complete({ latitude: 37.5665, longitude: 126.978 }));
-    expect(screen.getByLabelText('기준 마커')).toHaveTextContent('37.5,127.03');
+    expect(screen.getByLabelText('반경 원 중심')).toHaveTextContent('37.5,127.03');
     expect(screen.getByRole('button', { name: '내 현재 위치로 이동' })).toBeEnabled();
   } finally {
     locate.mockRestore();
