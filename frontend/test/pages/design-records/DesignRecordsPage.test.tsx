@@ -352,22 +352,16 @@ it('데스크탑에서 지도나 리스트의 방을 누르면 리스트 옆 칸
   expect(screen.getByTestId('current-path')).toHaveTextContent(selectedPath);
   expect(selectedCard()).toHaveAttribute('data-selected', 'true');
 
-  // 접은 채로 다른 방을 고르면 선택만 바뀌고 상세는 접힌 채로 둔다.
+  // 접은 채로 목록 카드를 눌러 다른 방을 고르면 상세를 펼쳐 그 방을 보여 준다.
   await user.click(screen.getByRole('link', { name: /망원동 투룸/ }));
-  await waitFor(() =>
-    expect(screen.getByRole('link', { name: /망원동 투룸/ }).closest('li')).toHaveAttribute('data-selected', 'true'),
-  );
-  expect(screen.getByTestId('current-path')).not.toHaveTextContent(selectedPath);
-  expect(screen.queryByRole('complementary', { name: '선택한 매물 상세' })).not.toBeInTheDocument();
-
-  // 펼치면 지금 고른 방의 상세가 보인다.
-  await user.click(screen.getByRole('button', { name: '상세 펼치기' }));
   expect(
     await within(screen.getByRole('complementary', { name: '선택한 매물 상세' })).findByRole('heading', {
       level: 1,
       name: '망원동 투룸',
     }),
   ).toBeInTheDocument();
+  expect(screen.getByTestId('current-path')).not.toHaveTextContent(selectedPath);
+  expect(screen.getByRole('button', { name: '상세 접기' })).toBeInTheDocument();
   matchMedia.mockRestore();
 });
 
