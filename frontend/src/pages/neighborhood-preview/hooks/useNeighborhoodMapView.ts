@@ -35,6 +35,7 @@ import {
 } from '../model/finderPropertyUrl';
 import { NEIGHBORHOOD_TAP_TIP_KEY } from '../model/mapTapTipKey';
 import type { MyPropertyRow } from '../model/myProperty';
+import { regionCardCode } from '../model/regionCardCode';
 import useNeighborhoodPlaces, { MY_PROPERTY_PREFIX, type NeighborhoodPlace } from './useNeighborhoodPlaces';
 import type { NeighborhoodPreviewContext } from './useNeighborhoodPreview';
 import usePropertyRoute from './usePropertyRoute';
@@ -369,11 +370,11 @@ const useNeighborhoodMapView = (
     if (isHovered) regionHover.enter(id);
     else regionHover.leave();
   };
-  // 누른 동네의 카드는 마우스를 치워도 띄워 둬, 다시 올려 정보를 보거나 별을 누를 수 있게 한다.
-  // 다른 동네에 마우스를 올리면 그 동네 카드를 잠깐 보여 준다.
+  // 누른 동네의 카드는 마우스를 치워도, 다른 동네에 마우스를 올려도 그 동네 중심에 그대로 둔다.
+  // 누른 동네가 없을 때만 마우스를 올린 동네 카드를 잠깐 보여 준다.
   const selectedCode = preview.selected?.adminDongCode ?? null;
   const pinnedCode = showAreaAction && selectedCode !== dismissedCode ? selectedCode : null;
-  const cardCode = hoveredCode ?? pinnedCode;
+  const cardCode = regionCardCode(pinnedCode, hoveredCode);
   const hoveredArea =
     cardCode === null ? undefined : preview.resultAreas.find((area) => area.adminDongCode === cardCode);
   // 위쪽 지도 검색에서 고른 위치는 핀을 누르면 출퇴근 장소로 설정된다.
