@@ -63,14 +63,16 @@ const RestaurantPanel = ({ isActive, layout, listHeader, listOverride }: Restaur
       </span>
     </p>
   );
-  // 내 기록, 동네 찾기처럼 기준이 되는 내 매물을 뱃지 줄로 보여 주고, 고르면 그 매물을 기준으로 삼는다. 기록이 없으면 예시 매물이 나온다.
+  // 내 기록, 동네 찾기처럼 기준이 되는 내 매물을 지도 위 뱃지 줄로 보여 주고, 고르면 그 매물을 기준으로 삼는다. 기록이 없으면 예시 매물이 나온다.
+  // 데스크탑은 목록 패널을 뺀 지도 위쪽에, 휴대폰은 지도 위 띄운 줄에 둔다. 편의점과 배달 탭에서도 지도가 그대로라 같은 줄을 쓴다.
   const propertyRail = map.recorded.length > 0 && (
     <MapBadgeRail
       items={map.recorded.map((property) => ({ id: String(property.id), label: property.label }))}
       selectedId={map.baseProperty === null ? null : String(map.baseProperty.id)}
       onSelect={(id) => map.chooseProperty(Number(id))}
       label="기준 매물"
-      overMap={layout === 'mobile'}
+      overMap
+      desktopMap={layout === 'desktop'}
     />
   );
   const chips = (
@@ -216,7 +218,6 @@ const RestaurantPanel = ({ isActive, layout, listHeader, listOverride }: Restaur
                 <>
                   <div className={styles.desktopControls}>
                     {baseCaption}
-                    {propertyRail}
                     {chips}
                   </div>
                   <div className={styles.desktopStores}>
@@ -230,6 +231,7 @@ const RestaurantPanel = ({ isActive, layout, listHeader, listOverride }: Restaur
         >
           <div ref={desktopMapRef} className={cx(styles.map, styles.desktopMap)}>
             {mapView}
+            {propertyRail}
             {/* 내 기록, 동네 찾기와 같은 자리: 오른쪽 위에 줌, 그 아래에 내 위치 버튼. */}
             <MapZoomControl className={styles.zoomDesktop} level={map.level} onChange={map.changeLevel} />
             {locationControl}

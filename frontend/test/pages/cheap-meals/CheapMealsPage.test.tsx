@@ -801,6 +801,34 @@ it('데스크탑 편의점과 배달 탭도 지도를 그대로 두고 목록 �
   }
 });
 
+it('데스크탑에서는 기준 매물 뱃지 줄이 목록 칸이 아니라 지도 위에 있고, 편의점 탭에서도 뱃지로 기준을 바꾼다', async () => {
+  useTwoSameNamedRecords();
+  const viewport = vi.spyOn(window, 'matchMedia').mockImplementation(
+    (query) =>
+      ({
+        matches: query === '(min-width: 1024px)',
+        media: query,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+      }) as unknown as MediaQueryList,
+  );
+  try {
+    const user = setup('/cheap-meals/restaurant');
+    await screen.findByRole('button', { name: '지도 이동 테스트' });
+    const rail = await screen.findByRole('navigation', { name: '기준 매물' });
+    expect(rail.parentElement).toHaveAttribute('data-desktop-map', 'true');
+    expect(rail.closest('[data-floating="true"]')?.firstElementChild).not.toContainElement(rail);
+    await user.click(tab('편의점'));
+    const kept = await screen.findByRole('navigation', { name: '기준 매물' });
+    expect(screen.getAllByRole('navigation', { name: '기준 매물' })).toHaveLength(1);
+    await user.click(within(kept).getByRole('button', { name: /테헤란로 1/ }));
+    expect(within(kept).getByRole('button', { name: /테헤란로 1/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByText('확대하면 주변 시설이 보여요')).not.toBeInTheDocument();
+  } finally {
+    viewport.mockRestore();
+  }
+});
+
 it('휴대폰 편의점과 배달 탭에는 지도가 없다', async () => {
   const user = setup('/cheap-meals/restaurant');
   expect(await screen.findByRole('button', { name: '지도 이동 테스트' })).toBeInTheDocument();
