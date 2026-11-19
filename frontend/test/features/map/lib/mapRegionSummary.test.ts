@@ -77,3 +77,14 @@ it('월세 시세가 없는 동도 라벨을 두고 `월세 정보 없음`을 �
   expect(label.querySelector('b')?.dataset.empty).toBe('true');
   expect(label).toHaveAttribute('aria-label', '샘플동 통근 18분 월세 정보 없음');
 });
+
+it('찜한 동네 이름표는 동 이름 옆에 월세 시세를 붙이고, 시세를 모르면 이름만 둔다', () => {
+  const bookmark = { ...region, summary: undefined, showsName: true };
+  const captioned = createRegionRentLabelElement({ ...bookmark, nameCaption: '월세 70만' }, false, vi.fn());
+  expect(captioned.dataset.bookmark).toBe('true');
+  expect(captioned.querySelector('small')).toHaveTextContent('월세 70만');
+  expect(captioned).toHaveAttribute('aria-label', '샘플동 월세 70만');
+  const plain = createRegionRentLabelElement(bookmark, false, vi.fn());
+  expect(plain.querySelector('small')).toBeNull();
+  expect(plain).toHaveAttribute('aria-label', '샘플동');
+});

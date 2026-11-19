@@ -4,6 +4,7 @@ import { Outlet, useMatch } from 'react-router-dom';
 
 import { useRecordsMapController } from '@/pages/design-records/RecordsMapProvider';
 import RecordAddressSearch from '@/pages/design-records/ui/record-address-search/RecordAddressSearch';
+import PropertyDetailPage from '@/pages/property-detail/PropertyDetailPage';
 import { formatManwon } from '@/features/map/api/commuteApi';
 import MapCanvas from '@/features/map/ui/map-canvas/MapCanvas';
 import ExplorationRecordAction from '@/features/onboarding/ui/exploration-record-action/ExplorationRecordAction';
@@ -25,6 +26,7 @@ import { desktopMapViewport } from '../model/resultMapView';
 import AnalysisOverlay from '../ui/analysis-overlay/AnalysisOverlay';
 import CommuteLegend from '../ui/commute-legend/CommuteLegend';
 import ConditionPanel from '../ui/condition-panel/ConditionPanel';
+import FinderPropertyPanel from '../ui/finder-property-panel/FinderPropertyPanel';
 import LocationControls from '../ui/location-controls/LocationControls';
 import MapInfo, { type MapInfoSubject, mapInfoTitle } from '../ui/map-info/MapInfo';
 import MapSelectionHint from '../ui/map-selection-hint/MapSelectionHint';
@@ -87,11 +89,35 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
   useEffect(() => {
     if (preview.isSelectingOnMap) setIsEditorHidden(false);
   }, [preview.isSelectingOnMap]);
-  const infoSubject: MapInfoSubject | null = !isResultMap
-    ? null
-    : places.selectedPlace
-      ? { kind: 'place', place: places.selectedPlace }
-      : null;
+  // 내 매물은 지도 안 카드가 아니라 왼쪽 옆 칸(요약과 노선, 눌러서 상세)에 둔다.
+  const infoSubject: MapInfoSubject | null =
+    !isResultMap || !places.selectedPlace || places.selectedPlace.kind === 'property'
+      ? null
+      : { kind: 'place', place: places.selectedPlace };
+  const { property } = mapView;
+  const propertyDetail =
+    isResultMap && property.selected !== null ? (
+      property.isDetailOpen ? (
+        <aside className={styles.propertyPanel} aria-label="선택한 매물 상세">
+          <PropertyDetailPage
+            key={property.selected.propertyId}
+            panel={{ propertyId: property.selected.propertyId, onClose: property.closeDetail }}
+          />
+        </aside>
+      ) : (
+        <aside className={styles.propertyPanel} aria-label="내 매물 정보">
+          <FinderPropertyPanel
+            layout="split"
+            property={property.selected}
+            destination={preview.destination}
+            route={property.route}
+            commuteMaxMinutes={property.commuteMaxMinutes}
+            onOpenDetail={property.openDetail}
+            onDeleted={property.close}
+          />
+        </aside>
+      )
+    ) : undefined;
   /** 지도 안 정보 카드를 닫는다. */
   const closeInfo = () => {
     if (infoSubject?.kind === 'place') closeLayers();
@@ -194,9 +220,9 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
       <ListDetailLayout
         list={panel ? panel.content : list}
         // 목록 옆 칸에는 동네 대중교통 상세만 연다. 장소, 동네, 내 매물 정보는 지도 안 왼쪽 아래 카드에 둔다.
-        detail={!panel && hasDetail ? <Outlet context={preview} /> : undefined}
-        onCloseDetail={preview.closeAreaDetails}
-        closeLabel="대중교통 상세 닫기"
+        detail={panel ? undefined : (propertyDetail ?? (hasDetail ? <Outlet context={preview} /> : undefined))}
+        onCloseDetail={propertyDetail ? property.close : preview.closeAreaDetails}
+        closeLabel={propertyDetail ? '매물 정보 닫기' : '대중교통 상세 닫기'}
       >
         <section
           ref={mapSectionRef}
@@ -299,6 +325,7 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
                     preview={preview}
                     my={mapView.my}
                     onSelectProperty={mapView.selectMyProperty}
+                    property={mapView.property}
                     phoneAction="copy"
                   />
                 </section>
@@ -334,6 +361,15 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
 };
 
 const styles = {
+  /* 옆 칸 안에서 위 요약과 아래 노선(또는 매물 상세)이 칸 높이를 채우고, 넘치면 안쪽에서 스크롤한다. */
+  propertyPanel: css`
+    label: NeighborhoodPreviewDesktopPage-propertyPanel;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow-y: auto;
+  `,
+
   bookmark: css`
     flex: none;
     min-width: 2.5rem;

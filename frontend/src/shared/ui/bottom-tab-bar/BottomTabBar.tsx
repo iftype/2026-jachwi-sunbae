@@ -9,6 +9,8 @@ export type BottomTab = {
   icon: IconName;
   isActive: boolean;
   onSelect: () => void;
+  /** 글자와 다르게 읽어 줄 이름. 눌렀을 때 일어나는 일을 알릴 때 쓴다. */
+  ariaLabel?: string;
 };
 
 type Props = { tabs: readonly BottomTab[]; hidden: boolean };
@@ -21,11 +23,12 @@ const BottomTabBar = ({ tabs, hidden }: Props) => (
         key={tab.key}
         type="button"
         className={styles.tab}
+        aria-label={tab.ariaLabel}
         aria-current={tab.isActive ? 'page' : undefined}
         tabIndex={hidden ? -1 : undefined}
         onClick={tab.onSelect}
       >
-        <Icon name={tab.icon} size={26} />
+        <Icon name={tab.icon} size={24} />
         <span>{tab.label}</span>
       </button>
     ))}
@@ -67,7 +70,7 @@ const styles = {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.35rem;
+    gap: 0.2rem;
     min-width: 0;
     min-height: 44px;
     padding: 0;
@@ -75,7 +78,7 @@ const styles = {
     background: transparent;
     color: var(--color-muted);
     font: inherit;
-    font-size: clamp(11px, 3.2vw, 14px);
+    font-size: 11px;
     font-weight: 700;
     letter-spacing: -0.04em;
     line-height: 1.2;

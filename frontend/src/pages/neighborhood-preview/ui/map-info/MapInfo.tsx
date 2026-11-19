@@ -3,10 +3,12 @@ import { css } from '@emotion/css';
 import type { NeighborhoodPlace } from '../../hooks/useNeighborhoodPlaces';
 import { placeTitle } from '../../hooks/useNeighborhoodPlaces';
 import type { NeighborhoodPreviewContext } from '../../hooks/useNeighborhoodPreview';
+import type usePropertyRoute from '../../hooks/usePropertyRoute';
 import { commuteColor } from '../../model/commuteColors';
 import { formatRentPair, overRentNotice } from '../../model/criteriaLabels';
 import type { MyPropertyRow } from '../../model/myProperty';
 import { propertyCommuteLabel, propertyCommuteOrder } from '../../model/propertyCommute';
+import FinderPropertyPanel from '../finder-property-panel/FinderPropertyPanel';
 import ListingLink from '../listing-link/ListingLink';
 import PlaceDetails from '../place-panel/PlaceDetails';
 
@@ -32,6 +34,8 @@ type Props = {
   >;
   my: My;
   onSelectProperty: (row: MyPropertyRow) => void;
+  /** 고른 내 매물의 노선과 매물 지운 뒤 처리. 휴대폰 시트는 매물 요약과 노선을 함께 보인다. */
+  property: { route: ReturnType<typeof usePropertyRoute>; commuteMaxMinutes: number; close: () => void };
   /** 휴대폰은 바로 전화를 걸고, 데스크탑은 번호를 보여 주고 복사하게 한다. */
   phoneAction: 'call' | 'copy';
 };
@@ -40,34 +44,40 @@ type Props = {
  * 결과 지도의 정보 한 단계. 휴대폰 시트와 데스크탑 지도 아래 카드가 함께 쓴다.
  * 누른 마커 하나의 정보, 고른 동네 정보, `My` 매물 목록 가운데 하나만 보인다. 목록에서 다른 단계로 넘어가지 않는다.
  */
-const MapInfo = ({ subject, preview, my, onSelectProperty, phoneAction }: Props) => {
-  if (subject.kind === 'place')
+const MapInfo = ({ subject, preview, my, onSelectProperty, property, phoneAction }: Props) => {
+  if (subject.kind === 'place' && subject.place.kind === 'property')
     return (
-      <PlaceDetails
-        place={subject.place}
-        preview={preview}
-        phoneAction={phoneAction}
-        commuteMaxMinutes={my.maxMinutes}
+      <FinderPropertyPanel
+        property={subject.place.property}
+        destination={preview.destination}
+        route={property.route}
+        commuteMaxMinutes={property.commuteMaxMinutes}
+        onDeleted={property.close}
       />
     );
+  if (subject.kind === 'place')
+    return <PlaceDetails place={subject.place} preview={preview} phoneAction={phoneAction} />;
   if (subject.kind === 'area') {
     const { area } = subject;
     const overRent = overRentNotice(area.rent, preview.maxRent);
     return (
       <div className={styles.body}>
         <p className={styles.subtitle}>{area.fullName}</p>
-        <dl className={styles.facts}>
-          <dt>소요시간</dt>
-          <dd className={styles.commute}>
-            {/* 시간은 통근 색(15분 이하 파랑 등)의 뱃지로, 뒤에 가는 방법(출발 정류장)을 붙인다. */}
-            <b style={{ background: commuteColor(area.commuteMinutes).fillColor }}>{area.commuteMinutes}분</b>
-            {area.stations[0] && <span>{area.stations[0].stopName}에서 출발</span>}
-          </dd>
-          <dt>월세 시세</dt>
-          <dd>{area.rent ? formatRentPair(area.rent) : '거래가 적어 시세를 내지 않았어요'}</dd>
-        </dl>
+        <div className={styles.summary}>
+          <dl className={styles.facts}>
+            <dt>소요시간</dt>
+            <dd className={styles.commute}>
+              {/* 시간은 통근 색(15분 이하 파랑 등)의 뱃지로, 뒤에 가는 방법(출발 정류장)을 붙인다. */}
+              <b style={{ background: commuteColor(area.commuteMinutes).fillColor }}>{area.commuteMinutes}분</b>
+              {area.stations[0] && <span>{area.stations[0].stopName}에서 출발</span>}
+            </dd>
+            <dt>월세 시세</dt>
+            <dd>{area.rent ? formatRentPair(area.rent) : '거래가 적어 시세를 내지 않았어요'}</dd>
+          </dl>
+          {/* 다방 링크는 정보 글 오른쪽에 정사각형 타일로 고정한다. */}
+          <ListingLink areaName={area.name} center={area.center} onOpen={preview.openListing} />
+        </div>
         {overRent && <p className={styles.notice}>{overRent}</p>}
-        <ListingLink areaName={area.name} center={area.center} onOpen={preview.openListing} />
       </div>
     );
   }
@@ -111,23 +121,34 @@ const styles = {
   body: css`
     label: MapInfo-body;
     display: grid;
-    gap: 0.6rem;
+    gap: 0.45rem;
   `,
 
   subtitle: css`
     label: MapInfo-subtitle;
     margin: 0;
     color: var(--color-ink-soft);
-    font-size: 0.8rem;
+    font-size: 0.875rem;
+  `,
+
+  summary: css`
+    label: MapInfo-summary;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
   `,
 
   facts: css`
     label: MapInfo-facts;
+    flex: 1;
+    min-width: 0;
+    align-content: center;
     display: grid;
     grid-template-columns: auto 1fr;
-    gap: 0.35rem 0.75rem;
+    gap: 0.25rem 0.75rem;
     margin: 0;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
 
     & dt {
       color: var(--color-muted);

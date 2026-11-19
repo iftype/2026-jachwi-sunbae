@@ -38,12 +38,12 @@ export const list = css`
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 0.75rem 1rem calc(6rem + var(--map-sheet-bottom, 0px));
+  padding: 0.5rem 1rem calc(6rem + var(--map-sheet-bottom, 0px));
   background: white;
 
   /* 태블릿 너비부터는 배치는 그대로 두고 글자와 여백만 키운다. */
   @media (min-width: 768px) {
-    padding: 1rem 1.5rem 2rem;
+    padding: 0.5rem 1.5rem 2rem;
   }
 `;
 

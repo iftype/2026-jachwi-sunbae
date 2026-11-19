@@ -1,9 +1,12 @@
 import { useMemo, useState } from 'react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { useRecordsMapController } from '@/pages/design-records/RecordsMapProvider';
 import { useAdminDongBookmarks } from '@/features/map/api/useAdminDongBookmarks';
+import { useBookmarkedRegionRents } from '@/features/map/api/useBookmarkedRegionRents';
 import { BOOKMARK_LABEL_HALF_HEIGHT, useBookmarkedRegions } from '@/features/map/api/useBookmarkedRegions';
 import useViewportFacilityLayer from '@/features/map/hooks/useViewportFacilityLayer';
+import { bookmarkRentCardRows, rentOf, withRentCaptions } from '@/features/map/lib/bookmarkedRegionRent';
 import {
   DESKTOP_FACILITY_MARKER_LEVEL,
   FACILITY_MARKER_LEVEL,
@@ -13,23 +16,30 @@ import {
 import { groupMemberIds, groupOverlappingMarkers, propertyGroupMarker } from '@/features/map/lib/propertyMarkerGroups';
 import type { MapCategory, MapMarker } from '@/features/map/model/Map';
 import type { MapCanvasProps, MapRegion } from '@/features/map/model/MapCanvas';
-import { usePropertyCommuteTimes, usePropertyList } from '@/features/property/api/useProperties';
-import usePropertyMarkerPhotos from '@/features/property/hooks/usePropertyMarkerPhotos';
-import { PROPERTY_PLACEHOLDER } from '@/shared/assets/propertyImageAssets';
+import { usePropertyCommuteTimes } from '@/features/property/api/useProperties';
+import { isPreviewProperty } from '@/features/property/model/sampleProperties';
 import useDebouncedValue from '@/shared/lib/hooks/useDebouncedValue';
 import useHoverIntent from '@/shared/lib/hooks/useHoverIntent';
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
 
+import { commuteRouteLines } from '../model/commuteRouteLines';
 import { formatRentPair } from '../model/criteriaLabels';
-import { SHOW_RECORDED_PROPERTIES_ON_FINDER } from '../model/finderMapOptions';
+import {
+  cameFromFinderSummary,
+  FINDER_FROM_SUMMARY_STATE,
+  FINDER_PROPERTY_DETAIL,
+  FINDER_PROPERTY_PARAM,
+  FINDER_PROPERTY_VIEW_PARAM,
+  parseFinderPropertyId,
+} from '../model/finderPropertyUrl';
 import type { MyPropertyRow } from '../model/myProperty';
-import { propertyCommuteLabel } from '../model/propertyCommute';
-import useNeighborhoodPlaces, { MY_PROPERTY_PREFIX } from './useNeighborhoodPlaces';
+import { regionCardCode } from '../model/regionCardCode';
+import useNeighborhoodPlaces, { MY_PROPERTY_PREFIX, type NeighborhoodPlace } from './useNeighborhoodPlaces';
 import type { NeighborhoodPreviewContext } from './useNeighborhoodPreview';
+import usePropertyRoute from './usePropertyRoute';
 
 const NO_REGIONS: MapRegion[] = [];
 const NO_MARKERS: MapMarker[] = [];
-const NO_PHOTO_SOURCES: Parameters<typeof usePropertyMarkerPhotos>[0] = [];
 /** 고른 출퇴근 장소 말풍선 핀의 글자. 장소 이름은 검색창·찾기 버튼에 있으니 핀은 고른 자리만 알린다. */
 const DESTINATION_LABEL = '선택한 지역';
 /** 동네 출발 정류장 마커 id의 머리. 결과 지도에는 올리지 않아 화면 안 정류장과 겹치지 않게 거른다. */
@@ -63,6 +73,9 @@ const SEARCH_PIN_ID = 'search-pin';
 const BOOKMARK_REGION_PREFIX = 'bookmark:';
 /** 출퇴근 장소 핀과 검색 핀. 찜한 동네만 보여 줄 때도 지우지 않는다. */
 const isCommutePin = (marker: MapMarker) => marker.id === 'destination' || marker.id.startsWith(SEARCH_PIN_ID);
+/** 내 매물 마커(하나 또는 겹쳐 묶인 무리). 찜한 동네만 보여 줄 때도 지우지 않는다. */
+const isMyPropertyMarker = (marker: MapMarker) =>
+  marker.id.startsWith(MY_PROPERTY_PREFIX) || groupMemberIds(marker.id) !== null;
 
 const useNeighborhoodMapView = (
   preview: NeighborhoodPreviewContext,
@@ -85,6 +98,8 @@ const useNeighborhoodMapView = (
     if (preview.isAnalyzing) setIsBookmarkOnly(false);
   }
   const bookmarkRegions = useBookmarkedRegions(bookmarks.codes, showsBookmarkOnly);
+  // 찜한 동네의 월세 시세. 이번 통근 결과에 든 동은 그 결과의 시세를 그대로 쓰고, 모자란 동만 따로 받는다.
+  const bookmarkRents = useBookmarkedRegionRents(bookmarks.codes, showsBookmarkOnly);
   // 찜한 동네의 이름표를 눌러 연 `찜 해제하기` 카드의 동 코드.
   const [openBookmarkCode, setOpenBookmarkCode] = useState<string | null>(null);
   const openBookmarkRegion = showsBookmarkOnly
@@ -96,8 +111,9 @@ const useNeighborhoodMapView = (
   // 누른 동네의 카드는 마우스를 치워도 띄워 둔다. 빈 곳이나 같은 동네를 다시 누르면 닫고, 그 동네 코드를 여기 둔다.
   const [dismissedCode, setDismissedCode] = useState<string | null>(null);
   const facilityCategory = railSelection === 'MY' ? null : railSelection;
-  // 로그인한 회원은 동네 찾기에서도 기록한 매물을 늘 지도에 띄우고, 매물마다 이번 출퇴근 장소까지 걸리는 시간을 적는다.
-  const showsMy = SHOW_RECORDED_PROPERTIES_ON_FINDER && !preview.isPublicExplore;
+  // 로그인한 회원은 동네 찾기에서도 기록한 매물을 늘 지도에 띄운다. 매물과 마커는 내 기록 지도가 쓰는 것(미리보기 매물 포함)을 그대로 쓴다.
+  const recordsState = registration ? recordsController?.records : undefined;
+  const showsMy = recordsState !== undefined;
   const showsTransport = facilityCategory === 'TRANSPORT';
   // 중개사(전화, 카카오 링크가 있는 중개사 응답)와 교통(버스정류장 응답)은 화면 안 장소 조회로 받는다.
   // 병원, 편의점은 화면을 칸으로 나눠 받는다(`useViewportFacilityLayer`). 둘 다 가까이 확대했을 때만 받는다.
@@ -112,61 +128,38 @@ const useNeighborhoodMapView = (
     settledBounds,
     facilityCategory === 'HOSPITAL' || facilityCategory === 'CONVENIENCE' ? facilityCategory : null,
   );
-  // `My`를 켜면 기록한 매물과 이번 출퇴근 장소까지 통근 시간을 받는다. 공개 동네 찾기는 로그인 전이라 부르지 않는다.
-  const loadsMy = showsMy && isResultMap && !preview.isPublicExplore;
-  const propertyList = usePropertyList(loadsMy);
-  const commuteTimes = usePropertyCommuteTimes(loadsMy ? preview.destination : null);
+  // 기록한 매물마다 이번 출퇴근 장소까지 통근 시간을 받는다. 미리보기 매물만 있으면 서버에 매물이 없어 부르지 않는다.
+  const records = recordsState?.records;
+  const hasRealRecords = records?.some((record) => !isPreviewProperty(record.id)) ?? false;
+  const loadsCommutes = showsMy && isResultMap && hasRealRecords;
+  const commuteTimes = usePropertyCommuteTimes(loadsCommutes ? preview.destination : null);
   const myRows = useMemo<MyPropertyRow[]>(() => {
     const commutes = new Map(commuteTimes.data?.properties.map((item) => [item.propertyId, item]) ?? []);
-    return (propertyList.data?.pages ?? [])
-      .flatMap((page) => page.content)
-      .map((property) => ({
-        propertyId: property.propertyId,
-        name: property.name,
-        depositAmount: property.depositAmount,
-        monthlyRentAmount: property.monthlyRentAmount,
-        address: property.location.address,
-        latitude: property.location.latitude,
-        longitude: property.location.longitude,
-        commute: commutes.get(property.propertyId) ?? null,
-        representativePhoto: property.representativePhoto,
-      }));
-  }, [propertyList.data, commuteTimes.data]);
+    return (records ?? []).map((record) => {
+      const propertyId = Number(record.id);
+      return {
+        propertyId,
+        name: record.name,
+        depositAmount: record.summary.depositAmount,
+        monthlyRentAmount: record.summary.monthlyRentAmount,
+        address: record.summary.location.address,
+        latitude: record.latitude,
+        longitude: record.longitude,
+        commute: commutes.get(propertyId) ?? null,
+        representativePhoto: record.representativePhoto,
+        summary: record.summary,
+        isPreview: isPreviewProperty(propertyId),
+      };
+    });
+  }, [records, commuteTimes.data]);
   const commuteMaxMinutes = commuteTimes.data?.maxMinutes ?? 60;
-  const myPhotoUrls = usePropertyMarkerPhotos(
-    showsMy
-      ? myRows.map((row) => ({
-          id: row.propertyId,
-          latitude: row.latitude,
-          longitude: row.longitude,
-          representativePhoto: row.representativePhoto,
-        }))
-      : NO_PHOTO_SOURCES,
-  );
+  // 마커는 내 기록 지도의 매물 마커(사진 카드와 월세)를 그대로 올리고, 동네 찾기의 다른 마커와 겹치지 않게 id에 머리를 붙인다.
+  const recordMarkers = recordsState?.markers;
   const myMarkers = useMemo<MapMarker[]>(
     () =>
-      showsMy
-        ? myRows.flatMap((row) =>
-            row.latitude === null || row.longitude === null
-              ? []
-              : [
-                  {
-                    id: `${MY_PROPERTY_PREFIX}${row.propertyId}`,
-                    latitude: row.latitude,
-                    longitude: row.longitude,
-                    label: row.name,
-                    // 매물 핀 금액 자리에 이번 출퇴근 장소까지 통근 시간을 적는다.
-                    summary: {
-                      amount: row.commute ? propertyCommuteLabel(row.commute, commuteMaxMinutes) : '…',
-                    },
-                    tone: 'property' as const,
-                    actionable: true,
-                    photo: myPhotoUrls.get(String(row.propertyId)) ?? PROPERTY_PLACEHOLDER.src2x,
-                  },
-                ],
-          )
-        : NO_MARKERS,
-    [showsMy, myRows, commuteMaxMinutes, myPhotoUrls],
+      recordMarkers?.map((marker) => ({ ...marker, id: `${MY_PROPERTY_PREFIX}${marker.id}`, appear: undefined })) ??
+      NO_MARKERS,
+    [recordMarkers],
   );
   /** 레일 칸을 켜고 끈다. 같은 칸을 다시 누르면 끈다. 열어 둔 장소 정보는 닫는다. */
   const selectRail = (next: RailSelection) => {
@@ -180,9 +173,68 @@ const useNeighborhoodMapView = (
     closeLayers();
     setRailSelection(value);
   };
-  const hasOpenLayer = places.selectedPlace !== null;
+  // 고른 내 매물은 주소(`?property=`)에 싣는다. 결과 지도를 보는 동안에만 되살리고, 기록이 올 때까지는 비워 둔다.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const propertyId = parseFinderPropertyId(searchParams.get(FINDER_PROPERTY_PARAM));
+  const pickedProperty =
+    isResultMap && propertyId !== null ? myRows.find((row) => row.propertyId === propertyId) : undefined;
+  const selectedPlace = useMemo<NeighborhoodPlace | null>(
+    () => places.selectedPlace ?? (pickedProperty ? { kind: 'property', property: pickedProperty } : null),
+    [places.selectedPlace, pickedProperty],
+  );
+  const selectedProperty = selectedPlace?.kind === 'property' ? selectedPlace.property : null;
+  const isPropertyDetailOpen =
+    selectedProperty !== null && searchParams.get(FINDER_PROPERTY_VIEW_PARAM) === FINDER_PROPERTY_DETAIL;
+  // 같은 매물의 요약에서 상세로, 다른 매물 마커로 옮길 때는 기록을 새로 쌓지 않고 바꾼다. 처음 고를 때와 상세를 열 때만 쌓는다.
+  const openProperty = (id: number) => {
+    places.closePlace();
+    setSearchParams({ [FINDER_PROPERTY_PARAM]: String(id) }, { replace: propertyId !== null });
+  };
+  const closeProperty = () => {
+    if (!searchParams.has(FINDER_PROPERTY_PARAM) && !searchParams.has(FINDER_PROPERTY_VIEW_PARAM)) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete(FINDER_PROPERTY_PARAM);
+    next.delete(FINDER_PROPERTY_VIEW_PARAM);
+    setSearchParams(next, { replace: true });
+  };
+  const openPropertyDetail = () => {
+    if (selectedProperty === null) return;
+    setSearchParams(
+      {
+        [FINDER_PROPERTY_PARAM]: String(selectedProperty.propertyId),
+        [FINDER_PROPERTY_VIEW_PARAM]: FINDER_PROPERTY_DETAIL,
+      },
+      { state: FINDER_FROM_SUMMARY_STATE },
+    );
+  };
+  /** 상세의 뒤로가기. 요약에서 들어왔으면 브라우저 뒤로가기와 같고, 주소로 바로 들어왔으면 요약으로 바꿔 둔다. */
+  const closePropertyDetail = () => {
+    if (cameFromFinderSummary(location.state)) void navigate(-1);
+    else if (selectedProperty !== null)
+      setSearchParams({ [FINDER_PROPERTY_PARAM]: String(selectedProperty.propertyId) }, { replace: true });
+  };
+  // 고른 내 매물에서 출퇴근 장소까지의 동선. 통근 시간이 나온 매물만 부르고 예시 매물은 부르지 않는다.
+  // 시트의 노선 안내와 같은 쿼리(목적지 좌표와 매물 번호)라 한 번만 받는다.
+  const routePropertyId =
+    selectedProperty !== null && selectedProperty.isPreview !== true && selectedProperty.commute?.status === 'REACHABLE'
+      ? selectedProperty.propertyId
+      : null;
+  const propertyRoute = usePropertyRoute(preview, routePropertyId);
+  // 받은 동선은 결과 지도에 구간마다 선으로 긋는다. 매물을 닫으면 선도 지운다.
+  const routeData = propertyRoute.route;
+  const routeLines = useMemo(
+    () =>
+      routeData === undefined || routePropertyId === null
+        ? undefined
+        : commuteRouteLines(routeData, `property-route:${routePropertyId}`),
+    [routeData, routePropertyId],
+  );
+  const hasOpenLayer = selectedPlace !== null;
   const closeLayers = () => {
     places.closePlace();
+    closeProperty();
   };
   /** 지도 빈 곳·고른 동네 안을 찍었을 때. 화면별 동작(시트 내리기) 또는 열린 정보 닫기를 한다. */
   const tapEmpty = () => {
@@ -216,14 +268,15 @@ const useNeighborhoodMapView = (
     // 겹쳐 묶인 내 매물은 갈라져 보일 때까지 묶인 매물이 한 화면에 들어오게 다가간다. 내 기록 지도와 같은 묶음이다.
     const memberIds = groupMemberIds(marker.id);
     if (memberIds !== null) {
-      places.closePlace();
+      closeLayers();
       preview.fitPoints(myMarkers.filter((member) => memberIds.includes(member.id)));
       return;
     }
     if (marker.id.startsWith(MY_PROPERTY_PREFIX)) {
       const row = myRows.find((item) => `${MY_PROPERTY_PREFIX}${item.propertyId}` === marker.id);
-      if (row) places.selectProperty(row);
+      if (row) openProperty(row.propertyId);
     } else {
+      closeProperty();
       const facility = facilities.placeOf(marker);
       if (facility) places.selectFacility(marker, facility);
       else places.selectMarker(marker);
@@ -237,7 +290,7 @@ const useNeighborhoodMapView = (
     () => groupOverlappingMarkers(myMarkers, places.bounds).map(propertyGroupMarker),
     [myMarkers, places.bounds],
   );
-  const railMarkers = useMemo<MapMarker[]>(() => {
+  const facilityMarkers = useMemo<MapMarker[]>(() => {
     if (facilityCategory === 'AGENCY' || facilityCategory === 'TRANSPORT')
       return places.isClose
         ? places.markers.filter(
@@ -246,15 +299,30 @@ const useNeighborhoodMapView = (
         : NO_MARKERS;
     if (facilityCategory === 'HOSPITAL' || facilityCategory === 'CONVENIENCE')
       return places.isClose ? facilities.markers : NO_MARKERS;
-    return groupedMyMarkers;
-  }, [facilityCategory, places.isClose, places.markers, facilities.markers, groupedMyMarkers]);
+    return NO_MARKERS;
+  }, [facilityCategory, places.isClose, places.markers, facilities.markers]);
+  // 내 매물은 시설 칸을 켜도 함께 둔다. 매물 사진 카드(종류 순서 8)가 시설 핀(5) 위에 오고,
+  // 출퇴근 장소 핀과 검색 핀(말풍선 라벨, 12)은 매물보다 위에 온다.
+  const railMarkers = useMemo(
+    () => (groupedMyMarkers.length === 0 ? facilityMarkers : [...facilityMarkers, ...groupedMyMarkers]),
+    [facilityMarkers, groupedMyMarkers],
+  );
   const destinationMarkers = useMemo(
     () => [
       ...railMarkers,
-      { ...preview.destination, id: 'destination', label: DESTINATION_LABEL, tone: 'destination' as const },
+      // 결과 지도의 출퇴근 장소도 장소를 고를 때와 같은 말풍선 라벨 핀으로 둬, 내 매물 사진 카드보다 위에 온다.
+      {
+        ...preview.destination,
+        id: 'destination',
+        label: DESTINATION_LABEL,
+        caption: '출퇴근 장소',
+        tone: 'pinLabel' as const,
+        pinKind: 'commute' as const,
+      },
     ],
     [railMarkers, preview.destination],
   );
+  // 출퇴근 장소를 고르거나 검색하는 동안에는 위치만 보인다. 내 매물은 결과가 나온 뒤에 올린다.
   const candidateMarkers = useMemo(
     () => [
       ...(preview.hasChosenMapPoint
@@ -287,11 +355,11 @@ const useNeighborhoodMapView = (
     if (isHovered) regionHover.enter(id);
     else regionHover.leave();
   };
-  // 누른 동네의 카드는 마우스를 치워도 띄워 둬, 다시 올려 정보를 보거나 별을 누를 수 있게 한다.
-  // 다른 동네에 마우스를 올리면 그 동네 카드를 잠깐 보여 준다.
+  // 누른 동네의 카드는 마우스를 치워도, 다른 동네에 마우스를 올려도 그 동네 중심에 그대로 둔다.
+  // 누른 동네가 없을 때만 마우스를 올린 동네 카드를 잠깐 보여 준다.
   const selectedCode = preview.selected?.adminDongCode ?? null;
   const pinnedCode = showAreaAction && selectedCode !== dismissedCode ? selectedCode : null;
-  const cardCode = hoveredCode ?? pinnedCode;
+  const cardCode = regionCardCode(pinnedCode, hoveredCode);
   const hoveredArea =
     cardCode === null ? undefined : preview.resultAreas.find((area) => area.adminDongCode === cardCode);
   // 위쪽 지도 검색에서 고른 위치는 핀을 누르면 출퇴근 장소로 설정된다.
@@ -316,13 +384,16 @@ const useNeighborhoodMapView = (
         center: preview.center,
         level: preview.resultLevel,
         markers: [...destinationMarkers, ...searchPinMarker],
+        routes: routeLines,
         onCenterChange: preview.rememberResultCenter,
         onLevelChange: (level: number) => {
           preview.rememberResultLevel(level);
           places.rememberLevel(level);
         },
         onBoundsChange: places.rememberBounds,
-        selectedMarkerId: places.selectedMarkerId,
+        selectedMarkerId: selectedProperty
+          ? `${MY_PROPERTY_PREFIX}${selectedProperty.propertyId}`
+          : places.selectedMarkerId,
         onSelectMarker: (marker: MapMarker) => {
           if (marker.id.startsWith(SEARCH_PIN_ID)) selectSearchPin(marker);
           else selectMarker(marker);
@@ -398,16 +469,20 @@ const useNeighborhoodMapView = (
             setIsBookmarkOnly((current) => !current);
           },
         },
-        // 찜한 동네만 볼 때는 찜한 영역이 또렷하게 보이도록 시설, 매물, 메모 같은 주변 마커를 걷고 출퇴근 장소 핀만 남긴다.
+        // 찜한 동네만 볼 때는 찜한 영역이 또렷하게 보이도록 시설, 메모 같은 주변 마커를 걷는다.
+        // 출퇴근 장소 핀과 내 매물은 찜한 동네와 견줘 볼 대상이라 남긴다.
         markers: showsBookmarkOnly
-          ? (mapProps.markers ?? []).filter(isCommutePin)
+          ? (mapProps.markers ?? []).filter((marker) => isCommutePin(marker) || isMyPropertyMarker(marker))
           : [
               ...(mapProps.markers ?? []),
               ...(registration.canvasProps.markers ?? []).filter((marker) => marker.category === 'MEMO'),
             ],
         // 찜한 동네만 볼 때는 추천 동네 대신 찜한 동네를 칠한다. 통근 결과 구역과 id가 겹치지 않게 접두어를 붙인다.
         regions: showsBookmarkOnly
-          ? bookmarkRegions.map((region) => ({ ...region, id: `${BOOKMARK_REGION_PREFIX}${region.id}` }))
+          ? withRentCaptions(bookmarkRegions, bookmarkRents).map((region) => ({
+              ...region,
+              id: `${BOOKMARK_REGION_PREFIX}${region.id}`,
+            }))
           : (mapProps.regions ?? []),
         selectedRegionId: showsBookmarkOnly ? null : mapProps.selectedRegionId,
         onHoverRegion: showsBookmarkOnly ? undefined : mapProps.onHoverRegion,
@@ -454,7 +529,7 @@ const useNeighborhoodMapView = (
                       setOpenBookmarkCode(null);
                     },
                   },
-                  rows: [],
+                  ...bookmarkRentCardRows(rentOf(bookmarkRents, openBookmarkRegion.id)),
                 },
               },
         onSelectMarker: (marker) => {
@@ -481,7 +556,17 @@ const useNeighborhoodMapView = (
             isOn: bookmarks.isBookmarked(code),
             onToggle: () => bookmarks.toggle(code),
           },
-    places,
+    places: selectedPlace === places.selectedPlace ? places : { ...places, selectedPlace },
+    /** 고른 내 매물과 그 매물의 동선. 데스크탑 옆 칸과 휴대폰 시트가 함께 쓴다. */
+    property: {
+      selected: selectedProperty,
+      route: propertyRoute,
+      commuteMaxMinutes,
+      isDetailOpen: isPropertyDetailOpen,
+      openDetail: openPropertyDetail,
+      closeDetail: closePropertyDetail,
+      close: closeLayers,
+    },
     /** 결과 지도 오른쪽에 처음부터 두는 분류 레일(중개사, 병원, 교통, 편의, My)의 값. */
     rail: {
       selectedCategories: (facilityCategory ? [facilityCategory] : []) as MapCategory[],
@@ -506,12 +591,12 @@ const useNeighborhoodMapView = (
     my: {
       rows: myRows,
       maxMinutes: commuteMaxMinutes,
-      isLoading: loadsMy && (propertyList.isPending || commuteTimes.isPending),
-      isError: propertyList.isError || commuteTimes.isError,
+      isLoading: showsMy && (recordsState.properties.isPending || (loadsCommutes && commuteTimes.isPending)),
+      isError: (recordsState?.properties.isError ?? false) || commuteTimes.isError,
     },
     /** My 목록에서 매물을 고르면 지도 마커를 누른 것처럼 그 매물 정보를 열고 그 자리로 옮긴다. */
     selectMyProperty: (row: MyPropertyRow) => {
-      places.selectProperty(row);
+      openProperty(row.propertyId);
       if (row.latitude !== null && row.longitude !== null)
         preview.focusPoint({ latitude: row.latitude, longitude: row.longitude });
     },

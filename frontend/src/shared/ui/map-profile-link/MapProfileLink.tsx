@@ -2,16 +2,17 @@ import { css } from '@emotion/css';
 import { Link } from 'react-router-dom';
 
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
-import { isRunningInNativeApp } from '@/shared/lib/native-app/nativeApp';
 import { MY_PATH } from '@/shared/lib/navigation/appPaths';
 import IdentityPlaceholder from '@/shared/ui/identity-placeholder/IdentityPlaceholder';
 
+import { MOBILE_BOTTOM_TABS_ENABLED } from '../bottom-tab-bar/bottomTabConfig';
+
 type Props = { className?: string };
 
-/** 지도 머리 오른쪽 위 마이 진입. 앱은 하단 탭에 마이가 있어 휴대폰 화면에서는 두지 않는다. */
+/** 지도 머리 오른쪽 위 마이 진입. 웹과 앱 모두 휴대폰 화면의 하단 탭에 마이가 있어 두지 않는다. */
 const MapProfileLink = ({ className }: Props) => {
   const isDesktop = useIsDesktop();
-  if (isRunningInNativeApp() && !isDesktop) return null;
+  if (MOBILE_BOTTOM_TABS_ENABLED && !isDesktop) return null;
   return (
     <Link to={MY_PATH} aria-label="마이페이지" className={`${styles.profile} ${className ?? ''}`.trim()}>
       <IdentityPlaceholder size={36} />

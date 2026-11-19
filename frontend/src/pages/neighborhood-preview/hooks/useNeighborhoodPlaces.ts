@@ -84,7 +84,6 @@ const useNeighborhoodPlaces = (
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [station, setStation] = useState<AreaStation | null>(null);
   const [facility, setFacility] = useState<NearbyPlace | null>(null);
-  const [property, setProperty] = useState<MyPropertyRow | null>(null);
   // 결과 지도가 아닌 동안(다시 고르기, 분석 중)은 지도가 확대 단계와 범위를 알려 주지 않는다.
   // 결과 지도를 떠날 때 기억한 값을 비워, 돌아온 지도가 멈추기 전에 예전 확대 단계로 마커를 올리지 않게 한다.
   const [wasEnabled, setWasEnabled] = useState(enabled);
@@ -158,7 +157,6 @@ const useNeighborhoodPlaces = (
     // 동네의 출발 정류장은 지도 화면과 상관없이 목록에서 고르므로 확대 여부와 무관하게 유지한다.
     if (selectedId.startsWith(STATION_PREFIX)) return station ? { kind: 'station', station } : null;
     // 분류 레일 시설은 지도 화면 범위로 따로 받으므로 확대 여부와 무관하게 고른 것을 유지한다.
-    if (selectedId.startsWith(MY_PROPERTY_PREFIX)) return property ? { kind: 'property', property } : null;
     if (selectedId.startsWith(FACILITY_PREFIX)) {
       if (!facility) return null;
       // 레일의 교통 마커는 버스 정류장이라, 그 정류장에서 출퇴근 장소까지 경로를 보여 준다.
@@ -182,7 +180,7 @@ const useNeighborhoodPlaces = (
     }
     const busStop = places.busStops.find((item) => `${BUS_STOP_PREFIX}${item.nodeId}` === selectedId);
     return busStop ? { kind: 'busStop', busStop } : null;
-  }, [enabled, isClose, selectedId, station, facility, property, places.agencies, places.busStops]);
+  }, [enabled, isClose, selectedId, station, facility, places.agencies, places.busStops]);
   return {
     isClose,
     markers: allMarkers,
@@ -204,11 +202,6 @@ const useNeighborhoodPlaces = (
     selectFacility: (marker: MapMarker, place: NearbyPlace) => {
       setFacility(place);
       setSelectedId(marker.id);
-    },
-    /** 레일 `My`로 올린 매물 마커를 고른다. */
-    selectProperty: (row: MyPropertyRow) => {
-      setProperty(row);
-      setSelectedId(`${MY_PROPERTY_PREFIX}${row.propertyId}`);
     },
     /** 동네 목록에서 출발 정류장을 고른다. */
     selectStation: (next: AreaStation) => {

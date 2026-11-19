@@ -619,10 +619,11 @@ it('결과 지도에 확대·축소 버튼을 두고, 손가락이나 휠로 바
   expect(screen.getByRole('group', { name: '지도 확대·축소' })).toBeInTheDocument();
   await submitCurrentSearch(user);
   const level = () => JSON.parse(screen.getByLabelText('지도 시점').textContent ?? '{}').level as number;
-  // 결과 첫 시점은 출퇴근 장소와 가까운 동네가 보이되 7단계보다 멀어지지 않는다.
-  await waitFor(() => expect(level()).toBe(7));
+  // 결과가 나와도 지도를 자동으로 맞추거나 확대하지 않고, 고르던 지도의 단계(5)를 그대로 둔다.
+  await screen.findByRole('region', { name: '행정동 프리셋 지도' });
+  expect(level()).toBe(5);
   await user.click(await screen.findByRole('button', { name: '지도 확대' }));
-  expect(level()).toBe(6);
+  expect(level()).toBe(4);
   // 지도가 휠로 4단계에 멈췄다고 알리면, 축소 버튼은 그 단계에서 한 단계 멀어진다.
   await user.click(screen.getByRole('button', { name: '가까이 확대' }));
   await user.click(screen.getByRole('button', { name: '지도 축소' }));
@@ -1235,4 +1236,58 @@ it('데스크탑 통합 지도는 왼쪽 조건 칸과 지도 위 찾은 동네 
   } finally {
     viewport.mockRestore();
   }
+});
+
+/** 기록한 매물 하나(신림역 원룸, id 10)와 그 매물의 통근 시간(25분)을 돌려준다. */
+const useOneRecordedProperty = () =>
+  server.use(
+    http.get('*/api/properties', () =>
+      HttpResponse.json(successEnvelope(propertyPageFixture([propertySummaryFixture]))),
+    ),
+    http.get('*/api/properties/commute-times', () =>
+      HttpResponse.json(
+        successEnvelope({
+          maxMinutes: 60,
+          maxTransfers: 2,
+          properties: [{ propertyId: 10, status: 'REACHABLE', commuteMinutes: 25 }],
+        }),
+      ),
+    ),
+  );
+
+it('동네 찾기 지도에도 내 기록과 같은 매물 마커를 올리고, 찜한 동네를 켜도 매물은 걷지 않는다', async () => {
+  useOneRecordedProperty();
+  writeBookmarkedAdminDongs(['11210690']);
+  server.use(...adminDongBookmarkHandlers);
+  try {
+    show(false, undefined, true);
+    const user = await choosePoint();
+    // 출퇴근 장소를 고르는 동안에는 선택한 위치만 보이고 매물은 그리지 않는다.
+    expect(markerList().map((marker) => marker.id)).not.toContain('my-property:10');
+    expect(screen.queryByRole('button', { name: '마커 신림역 원룸' })).not.toBeInTheDocument();
+    await submitCurrentSearch(user);
+    await screen.findByRole('region', { name: '행정동 프리셋 지도' });
+    const property = markerList().find((marker) => marker.id === 'my-property:10');
+    // 내 기록 지도의 매물 마커와 같은 사진 카드에 월세를 적는다.
+    expect(property).toMatchObject({ label: '신림역 원룸', tone: 'property', summary: { amount: '55만' } });
+    // 결과 지도의 출퇴근 장소 핀은 말풍선 라벨이라 매물 카드보다 위에 온다.
+    expect(markerList().find((marker) => marker.id === 'destination')).toMatchObject({ tone: 'pinLabel' });
+    const bookmark = await screen.findByRole('button', { name: '찜한 동네 토글' });
+    if (bookmark.getAttribute('aria-pressed') !== 'true') await user.click(bookmark);
+    await waitFor(() => expect(bookmark).toHaveAttribute('aria-pressed', 'true'));
+    expect(markerList().map((marker) => marker.id)).toEqual(expect.arrayContaining(['destination', 'my-property:10']));
+  } finally {
+    writeBookmarkedAdminDongs([]);
+    localStorage.removeItem('jachwi:records-bookmark-layer-rail');
+  }
+});
+
+it('동네 찾기 결과 지도의 매물 마커를 누르면 그 매물의 정보가 열린다', async () => {
+  useOneRecordedProperty();
+  show(false, undefined, true);
+  const user = await choosePoint();
+  await submitCurrentSearch(user);
+  await screen.findByRole('region', { name: '행정동 프리셋 지도' });
+  await user.click(await screen.findByRole('button', { name: '마커 신림역 원룸' }));
+  expect(await screen.findByText('서울 관악구 신림로 12')).toBeInTheDocument();
 });
