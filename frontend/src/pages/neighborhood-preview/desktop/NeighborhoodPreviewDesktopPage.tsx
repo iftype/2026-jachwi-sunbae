@@ -582,7 +582,8 @@ const styles = {
     label: NeighborhoodPreviewDesktopPage-zoomHint;
     position: absolute;
     bottom: 5rem;
-    left: 50%;
+    /* 떠 있는 패널을 뺀 보이는 지도 칸의 가운데. */
+    left: calc(50% + var(--map-panel-width, 0px) / 2);
     z-index: 31;
     margin: 0;
     padding: 0.5rem 0.9rem;
@@ -762,7 +763,8 @@ const styles = {
   recordAction: css`
     label: NeighborhoodPreviewDesktopPage-recordAction;
     right: auto;
-    width: min(24rem, calc(100% - 2rem));
+    left: calc(var(--map-panel-width, 0px) + 1rem);
+    width: min(24rem, calc(100% - var(--map-panel-width, 0px) - 2rem));
   `,
 };
 
