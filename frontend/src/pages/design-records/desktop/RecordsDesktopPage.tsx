@@ -60,7 +60,7 @@ const RecordsDesktopPage = ({ records, layers }: Props) => {
         backLabel="전체 리스트로 돌아가기"
         onBack={layers.closeGroup}
       />
-      <RecordGroupList records={layers.groupRecords} onOpen={records.showRecord} onNotice={setNotice} />
+      <RecordGroupList records={layers.groupRecords} onOpen={records.showRecordOnMap} onNotice={setNotice} />
     </div>
   ) : records.district !== '전체' ? (
     // 동네 뱃지를 고르면 맨 왼쪽 리스트가 그 동네 목록으로 바뀌고, 뒤로가기로 전체 리스트로 돌아간다. 옆으로 나오는 칸은 상세만 쓴다.
@@ -73,7 +73,7 @@ const RecordsDesktopPage = ({ records, layers }: Props) => {
       <RecordList
         records={records.records}
         district={records.district}
-        onOpen={records.showRecord}
+        onOpen={records.showRecordOnMap}
         selectedId={records.selected?.id}
         onNotice={setNotice}
       />
@@ -83,7 +83,7 @@ const RecordsDesktopPage = ({ records, layers }: Props) => {
       className={styles.list}
       records={records.records}
       district={records.district}
-      onOpen={records.showRecord}
+      onOpen={records.showRecordOnMap}
       selectedId={records.selected?.id}
       onNotice={setNotice}
       showCompare
