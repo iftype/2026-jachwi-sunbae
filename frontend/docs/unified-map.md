@@ -13,7 +13,7 @@
 
 ## 동네 북마크
 
-동네 찾기 결과에서 동을 누르면 뜨는 요약 마커의 `북마크하기`로 행정동을 북마크하고, 내 기록 지도의 `찜한 동네 보기` 버튼으로 북마크한 동네의 경계를 칠한다. API 클라이언트는 `features/map/api/adminDongBookmarkApi.ts`, 낙관적 갱신은 `useAdminDongBookmarks`, 경계 변환은 `useBookmarkedRegions`가 맡는다. 개발용 MSW 목업은 `app/mocks/handlers/adminDongBookmarkHandlers.ts`다. 서버 API는 백엔드 PR #712가 병합된 뒤에 동작한다.
+동네 찾기 결과에서 동을 누르면 뜨는 요약 마커의 `북마크하기`로 행정동을 북마크하고, 내 기록 지도의 `찜한 동네` 버튼으로 북마크한 동네의 경계를 칠한다. 찜한 동네가 있으면 기본으로 켜지고(켜고 끈 값을 고른 뒤에는 그 값을 따른다), 없으면 버튼이 비활성이다. 칠한 영역을 누르면 그 자리의 카드에서 찜을 해제하고, 영역 아래에 기록이나 메모 마커가 있으면 그 말풍선이 먼저 열린다. 동네 찾기에서 이 버튼을 켜 두면 출퇴근 장소 핀만 남기고 주변 마커를 걷는다. API 클라이언트는 `features/map/api/adminDongBookmarkApi.ts`, 낙관적 갱신은 `useAdminDongBookmarks`, 경계 변환은 `useBookmarkedRegions`가 맡는다. 개발용 MSW 목업은 `app/mocks/handlers/adminDongBookmarkHandlers.ts`다. 서버 API는 백엔드 PR #712가 병합된 뒤에 동작한다.
 
 ## 상태와 지도 수명
 
