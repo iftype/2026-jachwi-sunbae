@@ -120,7 +120,9 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
   });
   // 휴대폰 지도에는 확대 축소 버튼을 두지 않는다(두 손가락으로 확대한다). 현재 위치 버튼만 오른쪽 아래에 두고,
   // 시트가 있으면 시트 바로 위에 띄워(BottomSheet `floating`) 시트가 오르내릴 때 함께 움직이게 한다. 시트를 크게 열면 시트 뒤로 숨긴다.
-  const locateControls = (className: string) => <LocationControls preview={preview} isResult className={className} />;
+  const locateControls = (className: string, docked = false) => (
+    <LocationControls preview={preview} isResult docked={docked} className={className} />
+  );
   // 통근, 환승, 월세 조건 칸. 위치를 고르기 전후 모두 아래 시트에 둔다.
   // 칸마다 위에 항목, 아래에 값을 적고, 읽을 때는 `통근 40분 이내`처럼 한 문장으로 읽게 한다.
   const filterCells: { field: NeighborhoodFilterField; title: string; value: string; label: string }[] = [
@@ -324,7 +326,7 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
                 floating={
                   <div className={styles.floatingRow}>
                     {reselectButton(styles.reselectFloating)}
-                    {locateControls(styles.locateDocked)}
+                    {locateControls(styles.locateDocked, true)}
                   </div>
                 }
                 onClose={() => {
