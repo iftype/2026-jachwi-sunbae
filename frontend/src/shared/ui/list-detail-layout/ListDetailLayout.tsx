@@ -24,7 +24,7 @@ const ListDetailLayout = ({
   list,
   detail,
   onCloseDetail,
-  closeLabel = '상세 접기',
+  closeLabel = '상세 닫기',
   children,
   className,
 }: ListDetailLayoutProps) => {
@@ -38,7 +38,7 @@ const ListDetailLayout = ({
         {hasDetail && <div className={styles.detail}>{detail}</div>}
         {hasDetail && onCloseDetail && (
           <button type="button" className={styles.close} aria-label={closeLabel} onClick={onCloseDetail}>
-            <Icon name="chevron-left" size={24} />
+            <Icon name="close" size={22} />
           </button>
         )}
       </div>
@@ -88,7 +88,6 @@ const styles = {
     overflow: hidden;
     border-right: 1px solid #eceef1;
     background: white;
-    box-shadow: 0 0 1.5rem rgb(0 0 0 / 14%);
 
     & > * {
       flex: 1;

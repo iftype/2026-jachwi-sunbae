@@ -8,7 +8,7 @@ export const items = css`
   display: grid;
   /* 목록 칸이 화면 폭에 따라 좁아져도 카드가 칸을 넘지 않게, 긴 주소는 줄여 보이고 오른쪽 메뉴는 칸 안에 남긴다. */
   grid-template-columns: minmax(0, 1fr);
-  gap: 1.5rem;
+  gap: 1.05rem;
 `;
 
 /* 지도에서 고른 매물을 목록에서도 알아보게, 테두리 없이 카드 뒤에 옅은 파란 바탕만 깐다. */
