@@ -71,8 +71,15 @@ export const markerZIndex = (marker: MapMarker, selectedMarkerId: string | null)
   return tone * MARKER_Z_INDEX_TONE_SPAN + detailZIndex(marker);
 };
 
-/** 지도 위에서 찍은 좌표의 버튼과 메뉴는 모든 마커보다 앞에 둔다. */
-export const COORDINATE_ACTION_Z_INDEX = 12 * MARKER_Z_INDEX_TONE_SPAN;
+/** 이름만 두는 동 이름표(찜한 동네)는 가장 높은 종류(pinLabel)의 마커 자리 바로 아래에 둔다. 그 마커와 위로는 섞이지 않는다. */
+export const REGION_NAME_LABEL_Z_INDEX = 12 * MARKER_Z_INDEX_TONE_SPAN - 1;
+/**
+ * 좌표에 붙는 버튼과 눌러 고른 동네 정보 카드의 z-index. 지도 위에 올리는 것 가운데 맨 위다.
+ * 층 순서(아래에서 위): 동 이름표 < 종류별 마커(5~12, 내 매물 말풍선과 시설 마커와 출퇴근 장소 라벨 포함) < 이 카드와 버튼 < 좌표 메뉴.
+ * 마우스를 올려 뜨는 동네 카드도 같은 자리를 쓰지만, 눌러 고른 동네가 있으면 호버 카드는 뜨지 않아 둘이 겹치지 않는다.
+ * 마커 종류를 더하면 이 값이 가장 높은 종류의 자리(`종류 번호 * MARKER_Z_INDEX_TONE_SPAN`) 위에 오도록 같이 올린다.
+ */
+export const COORDINATE_ACTION_Z_INDEX = 13 * MARKER_Z_INDEX_TONE_SPAN;
 export const COORDINATE_MENU_Z_INDEX = COORDINATE_ACTION_Z_INDEX + 1;
 
 /**
