@@ -22,76 +22,88 @@ type CompareTableProps = {
  * 한 줄에 체크·사진·매물 이름·보증금/월세·발견 경로·체크 진행을 나란히 놓는다.
  */
 const CompareTable = ({ properties, selectedIds, maxSelection, onToggle, previewId, onPreview }: CompareTableProps) => (
-  <div className={styles.table}>
-    {/* 각 칸 이름은 줄 안의 값으로도 읽히므로 화면 낭독기에서는 머리글 줄을 숨긴다. */}
-    <div className={styles.header} aria-hidden="true">
-      <span />
-      <span />
-      <span>매물</span>
-      <span>보증금 / 월세</span>
-      <span>발견 경로</span>
-      <span>체크 진행</span>
-      <span />
+  <div className={styles.scroller}>
+    <div className={styles.table}>
+      {/* 각 칸 이름은 줄 안의 값으로도 읽히므로 화면 낭독기에서는 머리글 줄을 숨긴다. */}
+      <div className={styles.header} aria-hidden="true">
+        <span />
+        <span />
+        <span>매물</span>
+        <span>보증금 / 월세</span>
+        <span>발견 경로</span>
+        <span>체크 진행</span>
+        <span />
+      </div>
+      <ul className={styles.rows} aria-label="비교할 매물 목록">
+        {properties.length === 0 && <li className={styles.noResult}>조건에 맞는 매물이 없어요.</li>}
+        {properties.map((property) => {
+          const isSelected = selectedIds.includes(property.propertyId);
+          return (
+            <li key={property.propertyId} className={styles.rowWrapper}>
+              <SelectionControl
+                className={styles.row}
+                checked={isSelected}
+                disabled={!isSelected && selectedIds.length >= maxSelection}
+                onSelect={() => onToggle(property.propertyId)}
+                markClassName={styles.checkmark}
+              >
+                <span className={styles.thumbnail}>
+                  {property.representativePhoto === null ? (
+                    <PropertyPlaceholderPhoto />
+                  ) : (
+                    <AuthenticatedPhoto
+                      propertyId={property.propertyId}
+                      photoId={property.representativePhoto.photoId}
+                      kind="thumbnail"
+                      contentUrl={property.representativePhoto.thumbnailUrl}
+                      alt=""
+                    />
+                  )}
+                </span>
+                <strong className={styles.cell}>{property.name}</strong>
+                <PropertyPrice
+                  className={styles.cell}
+                  depositAmount={property.depositAmount}
+                  monthlyRentAmount={property.monthlyRentAmount}
+                  variant="plain"
+                />
+                <span className={styles.cell}>{property.discoverySource.value || '—'}</span>
+                <StageOverview property={property} />
+              </SelectionControl>
+              <button
+                type="button"
+                className={styles.previewButton}
+                onClick={() => onPreview(property.propertyId)}
+                aria-label={`${property.name} 미리 보기`}
+                aria-controls={previewId === property.propertyId ? 'compare-property-preview' : undefined}
+                aria-pressed={previewId === property.propertyId}
+              >
+                상세
+              </button>
+            </li>
+          );
+        })}
+      </ul>
     </div>
-    <ul className={styles.rows} aria-label="비교할 매물 목록">
-      {properties.length === 0 && <li className={styles.noResult}>조건에 맞는 매물이 없어요.</li>}
-      {properties.map((property) => {
-        const isSelected = selectedIds.includes(property.propertyId);
-        return (
-          <li key={property.propertyId} className={styles.rowWrapper}>
-            <SelectionControl
-              className={styles.row}
-              checked={isSelected}
-              disabled={!isSelected && selectedIds.length >= maxSelection}
-              onSelect={() => onToggle(property.propertyId)}
-              markClassName={styles.checkmark}
-            >
-              <span className={styles.thumbnail}>
-                {property.representativePhoto === null ? (
-                  <PropertyPlaceholderPhoto />
-                ) : (
-                  <AuthenticatedPhoto
-                    propertyId={property.propertyId}
-                    photoId={property.representativePhoto.photoId}
-                    kind="thumbnail"
-                    contentUrl={property.representativePhoto.thumbnailUrl}
-                    alt=""
-                  />
-                )}
-              </span>
-              <strong className={styles.cell}>{property.name}</strong>
-              <PropertyPrice
-                className={styles.cell}
-                depositAmount={property.depositAmount}
-                monthlyRentAmount={property.monthlyRentAmount}
-                variant="plain"
-              />
-              <span className={styles.cell}>{property.discoverySource.value || '—'}</span>
-              <StageOverview property={property} />
-            </SelectionControl>
-            <button
-              type="button"
-              className={styles.previewButton}
-              onClick={() => onPreview(property.propertyId)}
-              aria-label={`${property.name} 미리 보기`}
-              aria-controls={previewId === property.propertyId ? 'compare-property-preview' : undefined}
-              aria-pressed={previewId === property.propertyId}
-            >
-              상세
-            </button>
-          </li>
-        );
-      })}
-    </ul>
   </div>
 );
 
 const styles = {
+  /* 표가 필요한 폭보다 좁아지면 찌그러뜨리지 않고 가로로 민다. */
+  scroller: css`
+    label: CompareTable-scroller;
+    min-width: 0;
+    overflow-x: auto;
+    border-radius: var(--radius-md);
+  `,
+
   table: css`
     label: CompareTable-table;
-    --compare-table-columns: 1.1rem 2.5rem minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.3fr);
+    --compare-table-columns: 1.1rem 2.5rem minmax(8rem, 1.4fr) minmax(9.5rem, 1fr) minmax(5.5rem, 1fr)
+      minmax(7rem, 1.3fr);
     --preview-column: 2.9rem;
     display: grid;
+    min-width: 46rem;
     overflow: hidden;
     border-radius: var(--radius-md);
     background: #fff;
@@ -109,6 +121,7 @@ const styles = {
     color: var(--color-muted);
     font-size: 0.66rem;
     font-weight: 600;
+    white-space: nowrap;
   `,
 
   rowWrapper: css`
