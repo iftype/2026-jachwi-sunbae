@@ -296,6 +296,10 @@ const useNeighborhoodMapView = (
     () => (groupedMyMarkers.length === 0 ? facilityMarkers : [...facilityMarkers, ...groupedMyMarkers]),
     [facilityMarkers, groupedMyMarkers],
   );
+  // 처음 들어온 조건 입력 화면에서도 내 매물을 늘 그린다. 지도에서 위치를 고르는 선택 모드와 주소를 검색하는 동안, 분석 중(이 지도가 아님)에만 숨긴다.
+  const isSearchingPlace = preview.isSearching || (preview.query.trim() !== '' && !preview.hasChosenMapPoint);
+  const pickingMyMarkers =
+    preview.isSelectingOnMap && !preview.isMapSelectionEnabled && !isSearchingPlace ? groupedMyMarkers : NO_MARKERS;
   const destinationMarkers = useMemo(
     () => [
       ...railMarkers,
@@ -446,7 +450,7 @@ const useNeighborhoodMapView = (
         // 확대·축소 버튼이 지금 보이는 자리에서 옮기도록 움직인 시점을 기억한다.
         onCenterChange: preview.rememberSelectionCenter,
         onLevelChange: preview.rememberSelectionLevel,
-        markers: [...candidateMarkers, ...searchPinMarker],
+        markers: [...candidateMarkers, ...searchPinMarker, ...pickingMyMarkers],
         // 출퇴근 장소를 다시 고르는 동안에는 이전 결과의 동 영역을 지운다. 새로 찾아야 다시 그려지고, 이전 결과 보기로 돌아오면 그대로 복원된다.
         regions: NO_REGIONS,
         // 분석 중이거나 실패 화면이 지도를 덮고 있을 때는 위치 찍기를 끈다.
