@@ -93,7 +93,11 @@ export const createMapRegionLayer = (
 ) => {
   const entries = new Map<string, Entry>();
   // 처음 그릴 때 GL 등록이 한 프레임에 몰리지 않도록 drawStage 순서로 나눠 만든다.
-  let latest: { regions: MapRegion[]; selectedId: string | null } = { regions: [], selectedId: null };
+  let latest: { regions: MapRegion[]; selectedId: string | null; hidesLabels: boolean } = {
+    regions: [],
+    selectedId: null,
+    hidesLabels: false,
+  };
   let allowedStage = Infinity;
   let staging = false;
   const createdAt = performance.now();
@@ -153,7 +157,7 @@ export const createMapRegionLayer = (
     return entry;
   };
   const apply = () => {
-    const { regions, selectedId } = latest;
+    const { regions, selectedId, hidesLabels } = latest;
     const level = getLevel();
     // 나눠 그리는 중이면 이번 묶음에 넣을 동을 고른다. 같은 단계 안에서는 지금 화면 중심에 가까운 동부터 넣는다.
     let toCreate: Set<string> | null = null;
@@ -208,9 +212,11 @@ export const createMapRegionLayer = (
         );
       }
       // 요약이 없는 통근 경계에는 불필요한 DOM을 만들지 않는다.
-      const showsRentLabel = region.rentLabel !== undefined && region.name !== '' && level <= RENT_LABEL_SHOW_LEVEL;
-      const showsNameLabel = region.showsName === true && !region.summary && !showsRentLabel;
-      const labelKey = region.summary
+      const showsRentLabel =
+        !hidesLabels && region.rentLabel !== undefined && region.name !== '' && level <= RENT_LABEL_SHOW_LEVEL;
+      const showsSummary = !hidesLabels && Boolean(region.summary);
+      const showsNameLabel = !hidesLabels && region.showsName === true && !region.summary && !showsRentLabel;
+      const labelKey = showsSummary
         ? JSON.stringify([region.name, region.summary, region.center, region.appearance, selected])
         : showsRentLabel
           ? JSON.stringify(['rent', region.name, region.rentLabel, region.center, selected])
@@ -222,8 +228,8 @@ export const createMapRegionLayer = (
         entry.label = null;
         entry.summary = null;
         entry.labelKey = labelKey;
-        if (region.summary || showsRentLabel || showsNameLabel) {
-          const summary = region.summary
+        if (showsSummary || showsRentLabel || showsNameLabel) {
+          const summary = showsSummary
             ? createRegionSummaryElement(region, selected, () => onSelect(region.id))
             : createRegionRentLabelElement(region, selected, () => onSelect(region.id));
           summary.dataset.hovered = String(entry.hovered);
@@ -263,7 +269,8 @@ export const createMapRegionLayer = (
     });
   };
   return {
-    sync: (regions: MapRegion[], selectedId: string | null) => {
+    /** `hidesLabels`가 참이면 동 이름과 요약 라벨은 그리지 않고 영역(색칠)과 누르기만 남긴다. 휴대폰 지도가 쓴다. */
+    sync: (regions: MapRegion[], selectedId: string | null, hidesLabels = false) => {
       cancelPending();
       // 이미 그려진 동이 하나도 없는 새 결과만 단계를 나눈다. 선택·확대 같은 갱신은 바로 반영한다.
       if (!regions.some((region) => entries.has(region.id))) {
@@ -271,7 +278,7 @@ export const createMapRegionLayer = (
         allowedStage = stages.length ? Math.min(...stages) : Infinity;
         staging = stages.length > 0;
       }
-      latest = { regions, selectedId };
+      latest = { regions, selectedId, hidesLabels };
       apply();
     },
     dispose: (sdkUnavailable = false) => {
