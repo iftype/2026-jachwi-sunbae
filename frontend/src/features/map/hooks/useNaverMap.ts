@@ -7,6 +7,7 @@ import { clampToSouthKorea } from '../lib/mapLocation';
 import { createMapMarkerLayer } from '../lib/mapMarkerLayer';
 import { COORDINATE_ACTION_Z_INDEX, COORDINATE_MENU_Z_INDEX } from '../lib/mapMarkerPresentation';
 import { pinchLevelDelta } from '../lib/mapPinchZoom';
+import { cardFlipsBelow, hoverCardFlipBelow } from '../lib/mapRegionCardPlacement';
 import { createMapRegionLayer, READY_TIMEOUT_MS } from '../lib/mapRegionLayer';
 import { createMapTapGuard } from '../lib/mapTapGuard';
 import {
@@ -26,10 +27,7 @@ import * as actionStyles from '../ui/map-canvas/MapCanvas.styles';
 const EMPTY_MARKERS: NonNullable<MapCanvasProps['markers']> = [];
 const EMPTY_CIRCLES: NonNullable<MapCanvasProps['circles']> = [];
 const EMPTY_REGIONS: NonNullable<MapCanvasProps['regions']> = [];
-const EMPTY_ROUTES: NonNullable<MapCanvasProps['routes']> = [];
 /** 시점 옮기기(morph 180ms)가 끝났다고 보는 최대 시간. 이 안에 목표에 못 닿은 idle은 중간 시점으로 본다. */
-/** 정보 카드의 대략 높이(px). 위쪽 가장자리 근처에서 뒤집을지 가늠할 때 쓴다. */
-const CARD_ESTIMATED_HEIGHT = 130;
 const VIEW_SETTLE_MS = 450;
 
 type LiveMapProps = Pick<
@@ -37,13 +35,13 @@ type LiveMapProps = Pick<
   | 'center'
   | 'animateView'
   | 'coordinateAction'
+  | 'hoverAction'
   | 'coordinateMenu'
   | 'tip'
   | 'level'
   | 'customStyleId'
   | 'markers'
   | 'circles'
-  | 'routes'
   | 'radiusCenter'
   | 'selectedMarkerId'
   | 'onSelectLocation'
@@ -63,13 +61,13 @@ const useNaverMap = ({
   center,
   animateView = false,
   coordinateAction,
+  hoverAction,
   coordinateMenu,
   tip,
   level = 5,
   customStyleId,
   markers = EMPTY_MARKERS,
   circles = EMPTY_CIRCLES,
-  routes = EMPTY_ROUTES,
   radiusCenter = center,
   selectedMarkerId = null,
   onSelectLocation,
@@ -447,39 +445,32 @@ const useNaverMap = ({
     );
   }, [circleRadii, engine, liveMode, mapReady, radiusCenter.latitude, radiusCenter.longitude, settledVersion]);
 
-  // 선은 넘긴 배열이 바뀔 때만 다시 긋는다. 지도를 새로 만들면(SDK 인증 실패 뒤 다시 시도 등) 처음부터 긋는다.
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!liveMode || !mapReady || map === null || routes.length === 0 || !isNaverSdkAvailable()) return;
-    const lines = routes.map((route) => engine.createPolyline(map, route));
-    return () => {
-      if (isNaverSdkAvailable()) lines.forEach((line) => line.setMap(null));
-    };
-  }, [engine, liveMode, mapReady, routes]);
+  const containerHeight = () => containerRef.current?.clientHeight ?? 0;
+  const cardFlipsBelowOf = (map: LiveMap, action: NonNullable<MapCanvasProps['coordinateAction']>) =>
+    cardFlipsBelow(action, action.card?.markerAbove ?? 0, engine.getBounds(map), containerHeight());
 
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!liveMode || !overlayReady || map === null || !coordinateAction || !isNaverSdkAvailable()) return;
+  /** 좌표에 붙는 버튼이나 정보 카드 하나를 올리고, 걷어내는 함수를 돌려준다. `flipOverride`가 있으면 카드의 위아래를 그 값으로 정한다. */
+  const mountCoordinateAction = (
+    map: LiveMap,
+    action: NonNullable<MapCanvasProps['coordinateAction']>,
+    zIndex: number,
+    flipOverride?: boolean,
+  ) => {
     const content = document.createElement('div');
-    if (coordinateAction.card) {
-      // 카드가 화면 위쪽을 넘을 만큼 좌표가 위쪽 가장자리에 가까우면 마커 아래로 뒤집는다.
-      const view = engine.getBounds(map);
-      const height = containerRef.current?.clientHeight ?? 0;
-      const fromTop = ((view.north - coordinateAction.latitude) / (view.north - view.south || 1)) * height;
-      const needed = (coordinateAction.card.markerAbove ?? 0) + CARD_ESTIMATED_HEIGHT + 24;
-      const flip = height > 0 && fromTop < needed;
-      content.append(createMapRegionCardElement(coordinateAction.card, coordinateAction.onHoverChange, flip));
+    if (action.card) {
+      const flip = flipOverride ?? cardFlipsBelowOf(map, action);
+      content.append(createMapRegionCardElement(action.card, action.onHoverChange, flip));
       const cardOverlay = engine.createOverlay(
         map,
         {
           id: 'coordinate-action',
-          label: coordinateAction.card.title,
-          latitude: coordinateAction.latitude,
-          longitude: coordinateAction.longitude,
+          label: action.card.title,
+          latitude: action.latitude,
+          longitude: action.longitude,
           tone: 'destination',
         },
         content,
-        COORDINATE_ACTION_Z_INDEX,
+        zIndex,
       );
       return () => {
         if (isNaverSdkAvailable()) cardOverlay.setMap(null);
@@ -487,30 +478,60 @@ const useNaverMap = ({
     }
     const button = document.createElement('button');
     button.type = 'button';
-    button.textContent = coordinateAction.label;
-    button.disabled = coordinateAction.disabled ?? false;
+    button.textContent = action.label;
+    button.disabled = action.disabled ?? false;
     button.className = actionStyles.coordinateAction;
-    if (coordinateAction.placement) button.dataset.placement = coordinateAction.placement;
+    if (action.placement) button.dataset.placement = action.placement;
     button.addEventListener('click', (event) => {
       event.stopPropagation();
-      coordinateAction.onClick();
+      action.onClick();
     });
     content.append(button);
     const overlay = engine.createOverlay(
       map,
       {
         id: 'coordinate-action',
-        label: coordinateAction.label,
-        latitude: coordinateAction.latitude,
-        longitude: coordinateAction.longitude,
+        label: action.label,
+        latitude: action.latitude,
+        longitude: action.longitude,
       },
       content,
-      COORDINATE_ACTION_Z_INDEX,
+      zIndex,
     );
     return () => {
       if (isNaverSdkAvailable()) overlay.setMap(null);
     };
+  };
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!liveMode || !overlayReady || map === null || !coordinateAction || !isNaverSdkAvailable()) return;
+    return mountCoordinateAction(map, coordinateAction, COORDINATE_ACTION_Z_INDEX);
   }, [coordinateAction, engine, liveMode, overlayReady]);
+
+  // 눌러 고정한 카드와 함께 마우스를 올린 동네의 카드를 하나 더 띄운다. 호버 카드가 위에 오고,
+  // 두 앵커가 가까워 카드가 겹치면 고정 카드의 반대쪽(위아래)으로 보낸다.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!liveMode || !overlayReady || map === null || !hoverAction || !isNaverSdkAvailable()) return;
+    return mountCoordinateAction(
+      map,
+      hoverAction,
+      COORDINATE_ACTION_Z_INDEX + 1,
+      coordinateAction?.card
+        ? hoverCardFlipBelow(
+            hoverAction,
+            coordinateAction,
+            cardFlipsBelowOf(map, coordinateAction),
+            engine.getBounds(map),
+            {
+              width: containerRef.current?.clientWidth ?? 0,
+              height: containerHeight(),
+            },
+          )
+        : undefined,
+    );
+  }, [coordinateAction, hoverAction, engine, liveMode, overlayReady]);
 
   useEffect(() => {
     const map = mapRef.current;

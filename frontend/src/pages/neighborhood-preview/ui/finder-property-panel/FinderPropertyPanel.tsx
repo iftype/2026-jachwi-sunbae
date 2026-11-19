@@ -3,6 +3,8 @@ import { css } from '@emotion/css';
 import RecordCardMenu from '@/pages/design-records/ui/record-list/RecordCardMenu';
 import PropertyCard from '@/features/property/ui/property-card/PropertyCard';
 import { NEIGHBORHOODS_PATH } from '@/shared/lib/navigation/appPaths';
+import Icon from '@/shared/ui/icon/Icon';
+import { useMapModeSwitch } from '@/shared/ui/map-mode-tile/MapModeContext';
 
 import type { NeighborhoodPreviewContext } from '../../hooks/useNeighborhoodPreview';
 import type usePropertyRoute from '../../hooks/usePropertyRoute';
@@ -24,7 +26,7 @@ type Props = {
 
 /**
  * 동네 찾기 결과 지도에서 누른 내 매물. 위에는 내 기록 리스트와 같은 매물 카드(요약), 아래에는 출퇴근 장소와 그 집에서 출퇴근 장소까지의 노선을 둔다.
- * 위는 고정이고 아래만 길면 스크롤한다. `split`은 위 1, 아래 3 비율(데스크탑 옆 칸), `stack`은 휴대폰 시트처럼 위아래로 쌓는다.
+ * 위는 카드 높이만큼만 차지하고 아래가 나머지를 쓰며 길면 스크롤한다. `split`은 데스크탑 옆 칸, `stack`은 휴대폰 시트처럼 위아래로 쌓는다.
  * 예시 매물은 서버에 없어 노선을 부르지 않고 안내만 보인다.
  */
 const FinderPropertyPanel = ({
@@ -37,9 +39,24 @@ const FinderPropertyPanel = ({
   layout = 'stack',
 }: Props) => {
   const { commute, isPreview } = property;
+  const mode = useMapModeSwitch();
   return (
     <div className={styles.root} data-layout={layout}>
       <section className={styles.summary} aria-label="매물 요약">
+        {/* 통합 지도 안에서만 둔다. 내 기록 모드로 돌아가는 기존 전환 핸들러를 그대로 쓴다. */}
+        {mode?.target === 'records' && (
+          <div className={styles.head}>
+            <button
+              type="button"
+              className={styles.listLink}
+              aria-label="내 기록 전체 리스트 보기"
+              onClick={mode.onSwitch}
+            >
+              전체 리스트 보기
+              <Icon name="chevron-right" size={14} />
+            </button>
+          </div>
+        )}
         <PropertyCard
           property={property.summary}
           returnTo={NEIGHBORHOODS_PATH}
@@ -48,13 +65,12 @@ const FinderPropertyPanel = ({
         />
       </section>
       <section className={styles.body} aria-label="동네 찾기 상세">
-        <h3 className={styles.heading}>출퇴근 장소</h3>
-        <p className={styles.destination}>
+        <div className={styles.destination} role="group" aria-label="출퇴근 장소">
           <strong>{destination.name}</strong>
           {destination.address !== '' && destination.address !== destination.name && (
             <small>{destination.address}</small>
           )}
-        </p>
+        </div>
         {isPreview ? (
           <p className={styles.notice}>예시 매물이라 통근 시간을 계산하지 않아요</p>
         ) : commute === null ? (
@@ -83,10 +99,10 @@ const styles = {
     min-height: 0;
     gap: 0.5rem;
 
-    /* 옆 칸: 위 요약 1, 아래 노선 3. 아래만 스크롤한다. */
+    /* 옆 칸: 위 요약은 카드 높이만큼, 아래 노선이 나머지를 쓰고 길면 스크롤한다. */
     &[data-layout='split'] {
       height: 100%;
-      grid-template-rows: minmax(0, 1fr) minmax(0, 3fr);
+      grid-template-rows: auto minmax(0, 1fr);
       gap: 0;
     }
   `,
@@ -100,6 +116,28 @@ const styles = {
       padding: 0.5rem 1rem;
       border-bottom: 1px solid var(--color-border);
     }
+  `,
+
+  head: css`
+    label: FinderPropertyPanel-head;
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 0.25rem;
+  `,
+
+  listLink: css`
+    label: FinderPropertyPanel-listLink;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.15rem 0;
+    border: 0;
+    background: none;
+    color: var(--color-brand-blue-ink);
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
   `,
 
   body: css`

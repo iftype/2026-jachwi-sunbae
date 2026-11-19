@@ -1,5 +1,4 @@
 import type { MapBounds, MapMarker } from '../model/Map';
-import type { MapRoute } from '../model/MapCanvas';
 import { clampToSouthKorea, SOUTH_KOREA_BOUNDS } from './mapLocation';
 import { markerAnchorTransform } from './mapMarkerPresentation';
 const clamp = (value: number, min: number, max: number): number => Math.min(Math.max(value, min), max);
@@ -123,7 +122,6 @@ export type LiveEngine = {
   removeListener: (listener: unknown) => void;
   createOverlay: (map: LiveMap, marker: MapMarker, content: HTMLElement, zIndex: number) => LiveOverlay;
   createCircle: (map: LiveMap, center: LiveLatLng, radius: number) => LiveOverlay;
-  createPolyline: (map: LiveMap, route: MapRoute) => LiveOverlay;
 };
 
 type LiveLatLng = NaverLatLng;
@@ -236,21 +234,6 @@ export const naverEngine = (clientId: string, customStyleId?: string): LiveEngin
       strokeOpacity: 0.9,
       fillColor: '#3f6fc4',
       fillOpacity: 0.06,
-    });
-  },
-  createPolyline: (map, route) => {
-    const { Polyline, LatLng } = naverMaps();
-    return new Polyline({
-      map: map as NaverMap,
-      path: route.points.map((point) => new LatLng(point.latitude, point.longitude)),
-      strokeWeight: route.dashed ? 4 : 6,
-      strokeColor: route.color,
-      strokeOpacity: 0.95,
-      strokeStyle: route.dashed ? 'shortdash' : 'solid',
-      strokeLineCap: 'round',
-      strokeLineJoin: 'round',
-      // 동 영역(Polygon)보다 위에 긋는다. 마커는 DOM 오버레이라 늘 선보다 위에 온다.
-      zIndex: 50,
     });
   },
 });

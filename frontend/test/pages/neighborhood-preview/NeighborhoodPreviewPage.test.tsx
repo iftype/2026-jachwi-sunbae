@@ -1238,6 +1238,51 @@ it('데스크탑 통합 지도는 왼쪽 조건 칸과 지도 위 찾은 동네 
   }
 });
 
+it('데스크탑은 지도 위 칩으로도 출퇴근 장소 선택 모드를 켜고, 켜 둔 동안에는 칩을 숨긴다', async () => {
+  const viewport = useDesktopViewport();
+  try {
+    show(false, undefined, true);
+    const user = userEvent.setup();
+    // 선택 모드로 들어온 첫 화면에서는 안내 띠가 같은 일을 하므로 칩이 없다.
+    await user.click(await screen.findByRole('button', { name: '취소' }));
+    expect(screen.queryByText('지도에서 출퇴근 장소를 눌러 주세요')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '지도에서 출퇴근 장소 선택' }));
+    expect(screen.getByText('지도에서 출퇴근 장소를 눌러 주세요')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '지도에서 출퇴근 장소 선택' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '취소' }));
+    expect(screen.getByRole('button', { name: '지도에서 출퇴근 장소 선택' })).toBeInTheDocument();
+  } finally {
+    viewport.mockRestore();
+  }
+});
+
+it('데스크탑 동네 찾기는 처음 진입에서도 내 매물을 그리고, 선택 모드와 주소 검색 중에만 숨긴다', async () => {
+  const viewport = useDesktopViewport();
+  useOneRecordedProperty();
+  try {
+    show(false, undefined, true);
+    const user = userEvent.setup();
+    const shown = () => markerList().map((marker) => marker.id);
+    // 선택 모드로 들어온 직후에는 위치만 보인다.
+    await screen.findByText('지도에서 출퇴근 장소를 눌러 주세요');
+    expect(shown()).not.toContain('my-property:10');
+    // 선택 모드를 끈 처음 진입(조건 입력) 상태에서는 내 매물을 그린다.
+    await user.click(screen.getByRole('button', { name: '취소' }));
+    await waitFor(() => expect(shown()).toContain('my-property:10'));
+    // 주소를 입력하며 검색하는 동안에는 숨기고, 입력을 지우면 다시 그린다.
+    const search = screen.getByRole('textbox', { name: '출퇴근 장소' });
+    await user.type(search, '서울시청');
+    expect(shown()).not.toContain('my-property:10');
+    await user.clear(search);
+    await waitFor(() => expect(shown()).toContain('my-property:10'));
+    // 선택 모드를 다시 켜면 숨긴다.
+    await user.click(screen.getByRole('button', { name: '지도에서 선택' }));
+    expect(shown()).not.toContain('my-property:10');
+  } finally {
+    viewport.mockRestore();
+  }
+});
+
 /** 기록한 매물 하나(신림역 원룸, id 10)와 그 매물의 통근 시간(25분)을 돌려준다. */
 const useOneRecordedProperty = () =>
   server.use(
@@ -1262,9 +1307,8 @@ it('동네 찾기 지도에도 내 기록과 같은 매물 마커를 올리고, 
   try {
     show(false, undefined, true);
     const user = await choosePoint();
-    // 출퇴근 장소를 고르는 동안에는 선택한 위치만 보이고 매물은 그리지 않는다.
-    expect(markerList().map((marker) => marker.id)).not.toContain('my-property:10');
-    expect(screen.queryByRole('button', { name: '마커 신림역 원룸' })).not.toBeInTheDocument();
+    // 장소를 고른 뒤 조건을 입력하는 화면에서도 내 매물을 그린다.
+    await waitFor(() => expect(markerList().map((marker) => marker.id)).toContain('my-property:10'));
     await submitCurrentSearch(user);
     await screen.findByRole('region', { name: '행정동 프리셋 지도' });
     const property = markerList().find((marker) => marker.id === 'my-property:10');

@@ -22,7 +22,6 @@ import useDebouncedValue from '@/shared/lib/hooks/useDebouncedValue';
 import useHoverIntent from '@/shared/lib/hooks/useHoverIntent';
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
 
-import { commuteRouteLines } from '../model/commuteRouteLines';
 import { formatRentPair } from '../model/criteriaLabels';
 import {
   cameFromFinderSummary,
@@ -33,7 +32,6 @@ import {
   parseFinderPropertyId,
 } from '../model/finderPropertyUrl';
 import type { MyPropertyRow } from '../model/myProperty';
-import { regionCardCode } from '../model/regionCardCode';
 import useNeighborhoodPlaces, { MY_PROPERTY_PREFIX, type NeighborhoodPlace } from './useNeighborhoodPlaces';
 import type { NeighborhoodPreviewContext } from './useNeighborhoodPreview';
 import usePropertyRoute from './usePropertyRoute';
@@ -222,15 +220,6 @@ const useNeighborhoodMapView = (
       ? selectedProperty.propertyId
       : null;
   const propertyRoute = usePropertyRoute(preview, routePropertyId);
-  // 받은 동선은 결과 지도에 구간마다 선으로 긋는다. 매물을 닫으면 선도 지운다.
-  const routeData = propertyRoute.route;
-  const routeLines = useMemo(
-    () =>
-      routeData === undefined || routePropertyId === null
-        ? undefined
-        : commuteRouteLines(routeData, `property-route:${routePropertyId}`),
-    [routeData, routePropertyId],
-  );
   const hasOpenLayer = selectedPlace !== null;
   const closeLayers = () => {
     places.closePlace();
@@ -307,6 +296,10 @@ const useNeighborhoodMapView = (
     () => (groupedMyMarkers.length === 0 ? facilityMarkers : [...facilityMarkers, ...groupedMyMarkers]),
     [facilityMarkers, groupedMyMarkers],
   );
+  // 처음 들어온 조건 입력 화면에서도 내 매물을 늘 그린다. 지도에서 위치를 고르는 선택 모드와 주소를 검색하는 동안, 분석 중(이 지도가 아님)에만 숨긴다.
+  const isSearchingPlace = preview.isSearching || (preview.query.trim() !== '' && !preview.hasChosenMapPoint);
+  const pickingMyMarkers =
+    preview.isSelectingOnMap && !preview.isMapSelectionEnabled && !isSearchingPlace ? groupedMyMarkers : NO_MARKERS;
   const destinationMarkers = useMemo(
     () => [
       ...railMarkers,
@@ -355,13 +348,55 @@ const useNeighborhoodMapView = (
     if (isHovered) regionHover.enter(id);
     else regionHover.leave();
   };
-  // 누른 동네의 카드는 마우스를 치워도, 다른 동네에 마우스를 올려도 그 동네 중심에 그대로 둔다.
-  // 누른 동네가 없을 때만 마우스를 올린 동네 카드를 잠깐 보여 준다.
+  // 누른 동네의 카드는 마우스를 치워도 그 동네 중심에 그대로 둔다. 다른 동네에 마우스를 올리면 그 카드가 함께 떠, 카드는 최대 둘(고정 하나, 호버 하나)이다.
+  // 마우스를 올린 동네가 누른 동네와 같으면 카드는 하나만 둔다.
   const selectedCode = preview.selected?.adminDongCode ?? null;
   const pinnedCode = showAreaAction && selectedCode !== dismissedCode ? selectedCode : null;
-  const cardCode = regionCardCode(pinnedCode, hoveredCode);
-  const hoveredArea =
-    cardCode === null ? undefined : preview.resultAreas.find((area) => area.adminDongCode === cardCode);
+  const hoverCardCode = hoveredCode !== pinnedCode ? hoveredCode : null;
+  const areaOf = (code: string | null) =>
+    code === null ? undefined : preview.resultAreas.find((area) => area.adminDongCode === code);
+  const pinnedArea = areaOf(pinnedCode);
+  const hoveredArea = areaOf(hoverCardCode);
+  /** 동네의 정보 카드. 동 라벨(알약)은 좌표가 가운데라 높이의 절반만큼 위에서 꼬리가 닿는다. */
+  const areaCardAction = (
+    area: NonNullable<typeof pinnedArea>,
+    onHoverChange?: (isHovered: boolean) => void,
+  ): NonNullable<MapCanvasProps['coordinateAction']> => ({
+    ...area.center,
+    placement: 'above' as const,
+    label: area.name,
+    onClick: () => undefined,
+    onHoverChange,
+    card: {
+      markerAbove: REGION_LABEL_HALF_HEIGHT,
+      markerBelow: REGION_LABEL_HALF_HEIGHT,
+      title: area.name,
+      // 북마크는 로그인한 회원만 쓴다. 공개 탐색은 별을 숨긴다.
+      bookmark: preview.isPublicExplore
+        ? undefined
+        : {
+            isOn: bookmarks.isBookmarked(area.adminDongCode),
+            onToggle: () => bookmarks.toggle(area.adminDongCode),
+          },
+      rows: [
+        { label: '소요시간', value: `${area.commuteMinutes}분`, tone: 'primary' as const },
+        area.rent
+          ? { label: '월세 시세', value: formatRentPair(area.rent) }
+          : { label: '월세 시세', value: '정보 없음', isEmpty: true },
+      ],
+    },
+  });
+  // 찜한 동네는 월세 라벨에 표시한다(별과 연한 파랑). 찜 목록을 아는 이 자리에서 한 번만 붙인다.
+  const bookmarkedCodes = bookmarks.codes;
+  const savedAwareRegions = useMemo(() => {
+    if (bookmarkedCodes.length === 0) return preview.regions;
+    const saved = new Set(bookmarkedCodes);
+    return preview.regions.map((region) =>
+      region.rentLabel && saved.has(region.id)
+        ? { ...region, rentLabel: { ...region.rentLabel, isBookmarked: true } }
+        : region,
+    );
+  }, [bookmarkedCodes, preview.regions]);
   // 위쪽 지도 검색에서 고른 위치는 핀을 누르면 출퇴근 장소로 설정된다.
   const searchPinMarker: MapMarker[] = preview.searchPin
     ? [
@@ -384,7 +419,6 @@ const useNeighborhoodMapView = (
         center: preview.center,
         level: preview.resultLevel,
         markers: [...destinationMarkers, ...searchPinMarker],
-        routes: routeLines,
         onCenterChange: preview.rememberResultCenter,
         onLevelChange: (level: number) => {
           preview.rememberResultLevel(level);
@@ -399,39 +433,15 @@ const useNeighborhoodMapView = (
           else selectMarker(marker);
         },
         onSelectLocation: tapMap,
-        regions: preview.regions,
+        regions: savedAwareRegions,
         selectedRegionId: preview.selected?.adminDongCode,
         onSelectRegion: selectRegion,
         // 데스크탑: 동 라벨이나 구역에 마우스를 올리면 동 이름, 소요시간, 월세 시세 카드가 그 자리에 뜬다. 모바일은 아래 시트가 같은 내용을 맡는다.
         onHoverRegion: showAreaAction ? hoverRegion : undefined,
-        coordinateAction:
+        coordinateAction: showAreaAction && pinnedArea && !hasOpenLayer ? areaCardAction(pinnedArea) : undefined,
+        hoverAction:
           showAreaAction && hoveredArea && !hasOpenLayer
-            ? {
-                ...hoveredArea.center,
-                placement: 'above' as const,
-                label: hoveredArea.name,
-                onClick: () => undefined,
-                onHoverChange: (isHovered: boolean) => (isHovered ? holdCard() : releaseCard()),
-                card: {
-                  // 동 라벨(알약)은 좌표가 가운데라 높이의 절반만큼 위에서 꼬리가 닿는다.
-                  markerAbove: REGION_LABEL_HALF_HEIGHT,
-                  markerBelow: REGION_LABEL_HALF_HEIGHT,
-                  title: hoveredArea.name,
-                  // 북마크는 로그인한 회원만 쓴다. 공개 탐색은 별을 숨긴다.
-                  bookmark: preview.isPublicExplore
-                    ? undefined
-                    : {
-                        isOn: bookmarks.isBookmarked(hoveredArea.adminDongCode),
-                        onToggle: () => bookmarks.toggle(hoveredArea.adminDongCode),
-                      },
-                  rows: [
-                    { label: '소요시간', value: `${hoveredArea.commuteMinutes}분`, tone: 'primary' as const },
-                    hoveredArea.rent
-                      ? { label: '월세 시세', value: formatRentPair(hoveredArea.rent) }
-                      : { label: '월세 시세', value: '정보 없음', isEmpty: true },
-                  ],
-                },
-              }
+            ? areaCardAction(hoveredArea, (isHovered) => (isHovered ? holdCard() : releaseCard()))
             : undefined,
       }
     : {
@@ -440,7 +450,7 @@ const useNeighborhoodMapView = (
         // 확대·축소 버튼이 지금 보이는 자리에서 옮기도록 움직인 시점을 기억한다.
         onCenterChange: preview.rememberSelectionCenter,
         onLevelChange: preview.rememberSelectionLevel,
-        markers: [...candidateMarkers, ...searchPinMarker],
+        markers: [...candidateMarkers, ...searchPinMarker, ...pickingMyMarkers],
         // 출퇴근 장소를 다시 고르는 동안에는 이전 결과의 동 영역을 지운다. 새로 찾아야 다시 그려지고, 이전 결과 보기로 돌아오면 그대로 복원된다.
         regions: NO_REGIONS,
         // 분석 중이거나 실패 화면이 지도를 덮고 있을 때는 위치 찍기를 끈다.
@@ -486,6 +496,7 @@ const useNeighborhoodMapView = (
           : (mapProps.regions ?? []),
         selectedRegionId: showsBookmarkOnly ? null : mapProps.selectedRegionId,
         onHoverRegion: showsBookmarkOnly ? undefined : mapProps.onHoverRegion,
+        hoverAction: showsBookmarkOnly ? undefined : mapProps.hoverAction,
         // 동네 찾기에서는 지도를 눌러도 메모 남기기, 본 방 기록하기 메뉴를 띄우지 않는다.
         coordinateMenu: undefined,
         onSelectLocation: mapProps.onSelectLocation

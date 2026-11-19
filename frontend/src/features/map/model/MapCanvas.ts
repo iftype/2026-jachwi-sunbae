@@ -75,13 +75,18 @@ export type MapRailExtraItem = {
   isMuted?: boolean;
 };
 
-/** 지도 위에 긋는 선 하나. 매물에서 출퇴근 장소까지 동선처럼 구간마다 색을 달리해 여러 개를 넘긴다. */
-export type MapRoute = {
-  id: string;
-  points: { latitude: number; longitude: number }[];
-  color: string;
-  /** 걷는 구간처럼 점선으로 긋는다. */
-  dashed?: boolean;
+/** 지도 좌표에 붙는 버튼이나 정보 카드 하나. */
+export type MapCoordinateAction = {
+  latitude: number;
+  longitude: number;
+  label: string;
+  disabled?: boolean;
+  placement?: 'above';
+  onClick: () => void;
+  /** 있으면 버튼 대신 정보 카드(동 이름과 별, 값이 있는 줄)로 그린다. */
+  card?: MapRegionCard;
+  /** 카드 위로 마우스가 들어오고 나갈 때. 마우스가 동 라벨에서 카드로 옮겨 가도 닫히지 않게 한다. */
+  onHoverChange?: (hovered: boolean) => void;
 };
 
 export type MapCanvasProps = {
@@ -89,18 +94,9 @@ export type MapCanvasProps = {
   onRetry?: () => void;
   /** 지도가 처음 그려져 쓸 수 있게 되면 부른다. 데모 지도는 바로 부른다. 급하지 않은 요청을 이 뒤로 미룰 때 쓴다. */
   onReady?: () => void;
-  coordinateAction?: {
-    latitude: number;
-    longitude: number;
-    label: string;
-    disabled?: boolean;
-    placement?: 'above';
-    onClick: () => void;
-    /** 있으면 버튼 대신 정보 카드(동 이름과 별, 값이 있는 줄)로 그린다. */
-    card?: MapRegionCard;
-    /** 카드 위로 마우스가 들어오고 나갈 때. 마우스가 동 라벨에서 카드로 옮겨 가도 닫히지 않게 한다. */
-    onHoverChange?: (hovered: boolean) => void;
-  };
+  coordinateAction?: MapCoordinateAction;
+  /** 눌러 고정한 `coordinateAction` 카드와 함께 띄우는 호버 카드. 위에 그려지고, 고정 카드와 겹치면 반대쪽으로 간다. */
+  hoverAction?: MapCoordinateAction;
   bookmarkControl?: { count: number; isOn: boolean; isDisabled?: boolean; onToggle: () => void };
   /** 처음 한 번 보이는 안내 말풍선. 지도 좌표에 붙어 있다. */
   tip?: MapTip;
@@ -109,8 +105,6 @@ export type MapCanvasProps = {
   center: { latitude: number; longitude: number };
   markers?: MapMarker[];
   circles?: MapRadiusCircle[];
-  /** 지도 위에 긋는 선. 동 영역 위, 마커 아래에 그린다. */
-  routes?: MapRoute[];
   level?: number;
   /** 발행된 네이버 스타일 ID. 지정한 지도만 GL 렌더링을 사용한다. */
   customStyleId?: string;
@@ -172,6 +166,8 @@ export type MapRegionRentLabel = {
   sparse: boolean;
   /** 월세 조건 밖이라 지도에서 회색으로 깐 동네. 라벨도 함께 흐리게 한다. */
   filteredOut: boolean;
+  /** 내가 찜한 동네. 라벨 앞에 채운 별을 붙이고 연한 파랑으로 칠해 구분한다. */
+  isBookmarked?: boolean;
   /** 출퇴근 장소까지 걸리는 시간 글자(예: `25분`). 월세 자료가 없는 동네도 이 글자로 라벨을 둔다. */
   commute?: string;
 };

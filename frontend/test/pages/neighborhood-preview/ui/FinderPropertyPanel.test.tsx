@@ -10,6 +10,7 @@ import usePropertyRoute from '@/pages/neighborhood-preview/hooks/usePropertyRout
 import type { MyPropertyRow } from '@/pages/neighborhood-preview/model/myProperty';
 import FinderPropertyPanel from '@/pages/neighborhood-preview/ui/finder-property-panel/FinderPropertyPanel';
 import { PublicConfigProvider } from '@/shared/config/PublicConfigContext';
+import { MapModeProvider } from '@/shared/ui/map-mode-tile/MapModeContext';
 
 import { server } from '../../../server';
 
@@ -176,6 +177,8 @@ it('위는 매물 요약, 아래는 출퇴근 장소와 노선이고, 요약을 
   const detail = within(screen.getByRole('region', { name: '동네 찾기 상세' }));
   expect(detail.getByText('회사')).toBeInTheDocument();
   expect(detail.getByText('서울 중구')).toBeInTheDocument();
+  expect(detail.getByRole('group', { name: '출퇴근 장소' })).toBeInTheDocument();
+  expect(detail.queryByRole('heading', { name: '출퇴근 장소' })).not.toBeInTheDocument();
   await user.click(screen.getByRole('link', { name: '역삼동 원룸' }));
   expect(onOpenDetail).toHaveBeenCalledTimes(1);
 });
@@ -196,4 +199,39 @@ it('예시 매물은 요약만 보이고 노선을 부르지 않으며 안내를
 
   expect(screen.getByText('예시 매물이라 통근 시간을 계산하지 않아요')).toBeInTheDocument();
   expect(calls).toBe(0);
+});
+
+it('통합 지도 안에서는 요약 위에 `내 기록 전체 리스트 보기`를 두고, 누르면 내 기록 모드로 전환한다', async () => {
+  const user = userEvent.setup();
+  const onSwitch = vi.fn();
+  render(
+    <PublicConfigProvider config={{ apiBaseUrl: 'http://localhost:8080', commuteDataSource: 'mock' }}>
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })}>
+        <MemoryRouter>
+          <MapModeProvider value={{ target: 'records', onSwitch }}>
+            <Panel
+              row={property({
+                propertyId: 7,
+                propertyName: '역삼동 원룸',
+                status: 'UNREACHABLE',
+                commuteMinutes: null,
+              })}
+            />
+          </MapModeProvider>
+        </MemoryRouter>
+      </QueryClientProvider>
+    </PublicConfigProvider>,
+  );
+
+  const link = within(screen.getByRole('region', { name: '매물 요약' })).getByRole('button', {
+    name: '내 기록 전체 리스트 보기',
+  });
+  await user.click(link);
+  expect(onSwitch).toHaveBeenCalledTimes(1);
+});
+
+it('통합 지도 밖에서는 전체 리스트 보기 버튼을 두지 않는다', () => {
+  renderDetails(property({ propertyId: 7, propertyName: '역삼동 원룸', status: 'UNREACHABLE', commuteMinutes: null }));
+
+  expect(screen.queryByRole('button', { name: '내 기록 전체 리스트 보기' })).not.toBeInTheDocument();
 });

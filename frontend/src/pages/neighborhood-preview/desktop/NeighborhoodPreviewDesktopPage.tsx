@@ -29,6 +29,7 @@ import ConditionPanel from '../ui/condition-panel/ConditionPanel';
 import FinderPropertyPanel from '../ui/finder-property-panel/FinderPropertyPanel';
 import LocationControls from '../ui/location-controls/LocationControls';
 import MapInfo, { type MapInfoSubject, mapInfoTitle } from '../ui/map-info/MapInfo';
+import MapSelectionChip from '../ui/map-selection-chip/MapSelectionChip';
 import MapSelectionHint from '../ui/map-selection-hint/MapSelectionHint';
 import RentSlider from '../ui/rent-slider/RentSlider';
 
@@ -288,6 +289,10 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
             ) : (
               editor
             ))}
+          {/* 선택 모드 중에는 안내 띠의 취소가 같은 일을 하므로 칩을 숨긴다. 분석 중에도 숨긴다. */}
+          {(isResultMap || preview.isSelectingOnMap) && !preview.isMapSelectionEnabled && !preview.isAnalyzing && (
+            <MapSelectionChip onSelect={preview.openMapSelection} />
+          )}
           {preview.isSelectingOnMap && preview.isMapSelectionEnabled && (
             <MapSelectionHint onCancel={preview.cancelMapSelection} />
           )}
