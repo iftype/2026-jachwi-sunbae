@@ -71,13 +71,21 @@ type Props = {
   /** 통합 지도처럼 화면이 마지막 주소를 기억하면, 탭을 눌렀을 때 갈 주소를 직접 정한다. */
   recordsTo?: string;
   neighborhoodsTo?: string;
+  /** 내 기록 화면의 보기 방식과 바꾸는 함수. 둘 다 주면 내 기록 화면에서 내 기록 탭을 다시 눌러 지도와 리스트를 오간다. */
+  recordsView?: 'list' | 'map';
+  onRecordsViewChange?: (view: 'list' | 'map') => void;
 };
 
 /**
  * 휴대폰 하단 탭. 위쪽 네비 목록(`navRailItems`)에서 `MOBILE_BOTTOM_TAB_KEYS`가 고른 칸(내 기록, 동네 찾기, 마이)만 같은 그림과 글자로 쓴다.
  * 보이는 동안 `<html>`에 `--mobile-tab-space`를 걸어, 지도의 아래 요소들이 탭 높이만큼 함께 올라가게 한다.
  */
-const MobileBottomTabs = ({ recordsTo = RECORDS_PATH, neighborhoodsTo = NEIGHBORHOODS_PATH }: Props) => {
+const MobileBottomTabs = ({
+  recordsTo = RECORDS_PATH,
+  neighborhoodsTo = NEIGHBORHOODS_PATH,
+  recordsView,
+  onRecordsViewChange,
+}: Props) => {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const isDesktop = useIsDesktop();
@@ -105,13 +113,18 @@ const MobileBottomTabs = ({ recordsTo = RECORDS_PATH, neighborhoodsTo = NEIGHBOR
   const tabs = TAB_KEYS.flatMap((key) => {
     const item = NAV_RAIL_ITEMS.find((entry) => entry.key === key);
     if (!item) return [];
+    const isActive = key === 'neighborhoods' ? pathname.startsWith(activeBase[key]) : pathname === activeBase[key];
+    // 내 기록 화면에서 내 기록 탭을 다시 누르면 지도와 리스트를 오간다. 다른 화면에서는 마지막 보기로 이동만 한다.
+    const togglesView = key === 'records' && isActive && recordsView !== undefined && onRecordsViewChange !== undefined;
+    const nextView = recordsView === 'map' ? 'list' : 'map';
     return [
       {
         key,
         label: item.label,
         icon: TAB_ICONS[key],
-        isActive: key === 'neighborhoods' ? pathname.startsWith(activeBase[key]) : pathname === activeBase[key],
-        onSelect: () => navigate(targets[key]),
+        isActive,
+        ariaLabel: togglesView ? `${item.label}, ${nextView === 'map' ? '지도' : '리스트'}로 보기` : undefined,
+        onSelect: () => (togglesView ? onRecordsViewChange(nextView) : navigate(targets[key])),
       },
     ];
   });

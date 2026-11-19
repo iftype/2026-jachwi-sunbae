@@ -1,18 +1,31 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { useState } from 'react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import MobileBottomTabs from '@/shared/ui/bottom-tab-bar/MobileBottomTabs';
 
+const Where = () => {
+  const { pathname, search } = useLocation();
+  return <output aria-label="주소">{pathname + search}</output>;
+};
+
+const Tabs = () => {
+  const [view, setView] = useState<'list' | 'map'>('map');
+  return <MobileBottomTabs recordsView={view} onRecordsViewChange={setView} />;
+};
+
 const renderAt = (path: string) =>
   render(
     <MemoryRouter initialEntries={[path]}>
-      <MobileBottomTabs />
+      <Tabs />
+      <Where />
       <input aria-label="입력창" />
     </MemoryRouter>,
   );
 
 afterEach(() => {
+  window.localStorage.clear();
   delete window.__JACHWI_NATIVE_APP__;
 });
 
@@ -68,5 +81,19 @@ describe('휴대폰 하단 탭', () => {
     fireEvent.focusIn(screen.getByLabelText('입력창'));
     expect(document.querySelector('nav[aria-label="하단 탭"]')).toHaveAttribute('data-hidden', 'true');
     expect(document.documentElement.style.getPropertyValue('--mobile-tab-space')).toBe('');
+  });
+
+  it('내 기록 화면에서 내 기록 탭을 다시 누르면 지도와 리스트를 오가고, 이름에 다음 동작을 알린다', () => {
+    renderAt('/');
+    fireEvent.click(screen.getByRole('button', { name: '내 기록, 리스트로 보기' }));
+    fireEvent.click(screen.getByRole('button', { name: '내 기록, 지도로 보기' }));
+    expect(screen.getByRole('button', { name: '내 기록, 리스트로 보기' })).toBeInTheDocument();
+    expect(screen.getByLabelText('주소')).toHaveTextContent(/^\/$/);
+  });
+
+  it('다른 화면에서 내 기록 탭을 누르면 보기는 바꾸지 않고 이동만 한다', () => {
+    renderAt('/neighborhoods');
+    fireEvent.click(screen.getByRole('button', { name: '내 기록' }));
+    expect(screen.getByLabelText('주소')).toHaveTextContent(/^\/$/);
   });
 });
