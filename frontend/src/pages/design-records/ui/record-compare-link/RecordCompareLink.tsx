@@ -18,7 +18,10 @@ const styles = {
     display: flex;
     flex: none;
     justify-content: flex-end;
-    padding: 0.6rem 1.25rem 0;
+    /* 고른 매물 카드 뒤 바탕(0.5rem)이 바로 아래 줄을 덮지 않도록 아래 여백을 두고 한 겹 위에 둔다. */
+    position: relative;
+    z-index: 1;
+    padding: 0.6rem 1.25rem 1rem;
 
     & a {
       color: var(--color-brand-blue-ink);
