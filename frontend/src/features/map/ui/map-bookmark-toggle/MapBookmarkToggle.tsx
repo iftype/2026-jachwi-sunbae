@@ -1,5 +1,6 @@
 import { css } from '@emotion/css';
 
+import { MOBILE_MAP_CONTROLS_RIGHT, MOBILE_MAP_CONTROLS_TOP } from '../../lib/mapControlsLayout';
 import type { MapCanvasProps } from '../../model/MapCanvas';
 
 const MapBookmarkToggle = ({
@@ -82,8 +83,8 @@ const styles = {
     }
 
     @media (max-width: 1023px) {
-      top: calc(max(0.85rem, env(safe-area-inset-top)) + 16.95rem);
-      right: 0.95rem;
+      top: ${MOBILE_MAP_CONTROLS_TOP};
+      right: ${MOBILE_MAP_CONTROLS_RIGHT};
     }
   `,
   count: css`
