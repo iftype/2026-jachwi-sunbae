@@ -464,7 +464,12 @@ it('모바일에서 동네 시트가 열려 있어도 출퇴근 장소 다시 �
 
   await user.click(screen.getByRole('button', { name: '역삼1동' }));
   const sheet = await screen.findByRole('region', { name: /역삼1동/ });
-  const reselect = within(sheet).getByRole('button', { name: '출퇴근 장소 다시 선택' });
+  // 시트 바로 앞 형제인 띄운 버튼 줄에 있어 시트와 함께 오르내리되, 지도 위 카드보다 아래층이다.
+  expect(within(sheet).queryByRole('button', { name: '출퇴근 장소 다시 선택' })).toBeNull();
+  const floatingRow = sheet.previousElementSibling;
+  expect(floatingRow).toBeInstanceOf(HTMLElement);
+  if (!(floatingRow instanceof HTMLElement)) return;
+  const reselect = within(floatingRow).getByRole('button', { name: '출퇴근 장소 다시 선택' });
   expect(screen.getAllByRole('button', { name: '출퇴근 장소 다시 선택' })).toHaveLength(1);
   await user.click(reselect);
   expect(screen.getByRole('textbox', { name: '출퇴근 장소' })).toBeInTheDocument();

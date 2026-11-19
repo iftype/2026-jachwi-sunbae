@@ -2,6 +2,7 @@ import { css } from '@emotion/css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
+import { MAP_LAYER } from '@/shared/lib/map-layers/mapLayers';
 
 import useInfrastructureLayer from '../../hooks/useInfrastructureLayer';
 import {
@@ -192,7 +193,7 @@ const styles = {
     && {
       top: ${DESKTOP_MAP_RAIL_TOP};
       right: ${DESKTOP_MAP_CONTROLS_RIGHT};
-      z-index: 35;
+      z-index: ${MAP_LAYER.categoryRail};
     }
     [data-desktop='false'] && {
       top: ${MOBILE_MAP_RAIL_TOP};

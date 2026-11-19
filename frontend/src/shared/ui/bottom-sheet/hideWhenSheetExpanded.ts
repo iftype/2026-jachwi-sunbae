@@ -10,7 +10,7 @@ export const hideWhenSheetExpanded = css`
     opacity 120ms ease,
     visibility 120ms;
 
-  .BottomSheet-sheet[data-mode='expanded'] & {
+  .BottomSheet-floating[data-mode='expanded'] & {
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
