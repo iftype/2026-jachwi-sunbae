@@ -17,6 +17,7 @@ import { rememberMovedProperty, resetMovedPropertyForTests } from '@/features/pr
 import { SAMPLE_PROPERTIES } from '@/features/property/model/sampleProperties';
 import { queryClient } from '@/shared/api/queryClient';
 import { PublicConfigProvider } from '@/shared/config/PublicConfigContext';
+import { setDetailCollapsed } from '@/shared/ui/list-detail-layout/detailCollapse';
 
 import { server } from '../../server';
 
@@ -393,6 +394,35 @@ it('데스크탑 리스트에서 방을 누르면 옆 칸에 상세를 열고 �
       }),
     ).toBeInTheDocument();
   } finally {
+    matchMedia.mockRestore();
+  }
+});
+
+it('데스크탑에서 지도의 방 마커를 누르면 접어 둔 상세를 펼치고, 확대 단계는 그대로 둔 채 지도 중심만 그 방 자리로 옮긴다', async () => {
+  const matchMedia = useDesktopViewport();
+  const user = userEvent.setup();
+  try {
+    renderRecords();
+    await screen.findByRole('heading', { name: '모든 기록' });
+    const map = within(screen.getByLabelText('예시 지도'));
+    const target = getMockProperties().find((property) => property.name === '신림역 원룸');
+    const level = map.getByLabelText('지도 배율').textContent;
+    await user.click(screen.getByRole('link', { name: /망원동 투룸/ }));
+    await user.click(await screen.findByRole('button', { name: '상세 접기' }));
+    expect(screen.queryByRole('complementary', { name: '선택한 매물 상세' })).not.toBeInTheDocument();
+
+    await user.click(map.getByRole('button', { name: '신림역 원룸' }));
+
+    expect(
+      await within(screen.getByRole('complementary', { name: '선택한 매물 상세' })).findByRole('heading', {
+        level: 1,
+        name: '신림역 원룸',
+      }),
+    ).toBeInTheDocument();
+    expect(map.getByLabelText('지도 중심')).toHaveTextContent(`${target?.latitude},${target?.longitude}`);
+    expect(map.getByLabelText('지도 배율')).toHaveTextContent(level ?? '');
+  } finally {
+    setDetailCollapsed(false);
     matchMedia.mockRestore();
   }
 });
