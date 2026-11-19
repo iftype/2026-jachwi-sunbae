@@ -25,6 +25,9 @@ it('상세를 목록 옆에 붙여 열고 본문 위 닫기 버튼으로 닫는�
   expect(screen.getByText('목록')).toBeInTheDocument();
   expect(screen.getByText('상세')).toBeInTheDocument();
   expect(container.firstElementChild).toHaveAttribute('data-detail-open', 'true');
+  // 지도 시점을 맞추는 쪽이 이 표시로 틀과 상세 칸을 찾아 패널이 가리는 폭을 잰다.
+  expect(container.firstElementChild).toHaveAttribute('data-floating', 'true');
+  expect(container.querySelector('[data-list-detail-detail]')).toHaveTextContent('상세');
   await userEvent.click(screen.getByRole('button', { name: '체크리스트 닫기' }));
   expect(onClose).toHaveBeenCalledOnce();
 });
