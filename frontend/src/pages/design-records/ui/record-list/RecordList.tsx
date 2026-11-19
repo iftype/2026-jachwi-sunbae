@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 
-import PropertyCard from '@/features/property/ui/property-card/PropertyCard';
 import { isPreviewProperty } from '@/features/property/model/sampleProperties';
+import PropertyCard from '@/features/property/ui/property-card/PropertyCard';
 import { RECORDS_PATH } from '@/shared/lib/navigation/appPaths';
 import EmptyState from '@/shared/ui/empty-state/EmptyState';
 
