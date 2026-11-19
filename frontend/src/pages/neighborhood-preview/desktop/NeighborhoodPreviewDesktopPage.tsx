@@ -364,7 +364,6 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
                   />
                 </div>
               )}
-              {mapView.needsZoomForFacilities && <p className={styles.zoomHint}>확대하면 주변 시설이 보여요</p>}
               {/* 동네만 고른 주소(`areas/:code`)는 화면을 그리지 않고, 저장된 검색이 없을 때의 안내만 맡는다. */}
               {isRoutePage && !isDetailPage && <Outlet context={preview} />}
             </>
@@ -591,24 +590,6 @@ const styles = {
       font-weight: 600;
       font-variant-numeric: tabular-nums;
     }
-  `,
-
-  zoomHint: css`
-    label: NeighborhoodPreviewDesktopPage-zoomHint;
-    position: absolute;
-    bottom: 5rem;
-    /* 떠 있는 패널을 뺀 보이는 지도 칸의 가운데. */
-    left: calc(50% + var(--map-panel-width, 0px) / 2);
-    z-index: 31;
-    margin: 0;
-    padding: 0.5rem 0.9rem;
-    border-radius: 99px;
-    background: var(--color-surface);
-    box-shadow: var(--shadow-floating);
-    color: var(--color-ink-soft);
-    font-size: 0.8rem;
-    transform: translateX(-50%);
-    pointer-events: none;
   `,
 
   /* 데스크탑 동네 찾기. 공용 틀(NeighborhoodPreviewPage.module.css) 위에 덧씌운다. */
