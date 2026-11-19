@@ -26,6 +26,7 @@ import * as actionStyles from '../ui/map-canvas/MapCanvas.styles';
 const EMPTY_MARKERS: NonNullable<MapCanvasProps['markers']> = [];
 const EMPTY_CIRCLES: NonNullable<MapCanvasProps['circles']> = [];
 const EMPTY_REGIONS: NonNullable<MapCanvasProps['regions']> = [];
+const EMPTY_ROUTES: NonNullable<MapCanvasProps['routes']> = [];
 /** 시점 옮기기(morph 180ms)가 끝났다고 보는 최대 시간. 이 안에 목표에 못 닿은 idle은 중간 시점으로 본다. */
 /** 정보 카드의 대략 높이(px). 위쪽 가장자리 근처에서 뒤집을지 가늠할 때 쓴다. */
 const CARD_ESTIMATED_HEIGHT = 130;
@@ -42,6 +43,7 @@ type LiveMapProps = Pick<
   | 'customStyleId'
   | 'markers'
   | 'circles'
+  | 'routes'
   | 'radiusCenter'
   | 'selectedMarkerId'
   | 'onSelectLocation'
@@ -67,6 +69,7 @@ const useNaverMap = ({
   customStyleId,
   markers = EMPTY_MARKERS,
   circles = EMPTY_CIRCLES,
+  routes = EMPTY_ROUTES,
   radiusCenter = center,
   selectedMarkerId = null,
   onSelectLocation,
@@ -443,6 +446,16 @@ const useNaverMap = ({
       engine.createCircle(map, engine.latLng(radiusCenter.latitude, radiusCenter.longitude), radius),
     );
   }, [circleRadii, engine, liveMode, mapReady, radiusCenter.latitude, radiusCenter.longitude, settledVersion]);
+
+  // 선은 넘긴 배열이 바뀔 때만 다시 긋는다. 지도를 새로 만들면(SDK 인증 실패 뒤 다시 시도 등) 처음부터 긋는다.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!liveMode || !mapReady || map === null || routes.length === 0 || !isNaverSdkAvailable()) return;
+    const lines = routes.map((route) => engine.createPolyline(map, route));
+    return () => {
+      if (isNaverSdkAvailable()) lines.forEach((line) => line.setMap(null));
+    };
+  }, [engine, liveMode, mapReady, routes]);
 
   useEffect(() => {
     const map = mapRef.current;

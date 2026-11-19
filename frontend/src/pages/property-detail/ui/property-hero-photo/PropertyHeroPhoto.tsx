@@ -1,10 +1,10 @@
 import { css } from '@emotion/css';
 import { Link } from 'react-router-dom';
 
+import { propertyBackLabel } from '@/features/property/lib/propertyNavigation';
 import type { PropertyPhotoPreview } from '@/features/property/model/Property';
 import AuthenticatedPhoto from '@/features/property/ui/authenticated-photo/AuthenticatedPhoto';
 import PropertyPlaceholderPhoto from '@/features/property/ui/property-placeholder-photo/PropertyPlaceholderPhoto';
-import { RECORDS_PATH } from '@/shared/lib/navigation/appPaths';
 import Icon from '@/shared/ui/icon/Icon';
 
 type PropertyHeroPhotoProps = {
@@ -49,12 +49,7 @@ const PropertyHeroPhoto = ({
       </div>
     )}
     {showBackButton && (
-      <Link
-        className={styles.backButton}
-        to={backTo}
-        state={backState}
-        aria-label={backTo === RECORDS_PATH ? '기록 화면으로 돌아가기' : '홈으로 돌아가기'}
-      >
+      <Link className={styles.backButton} to={backTo} state={backState} aria-label={propertyBackLabel(backTo)}>
         <Icon name="chevron-left" size={24} />
       </Link>
     )}

@@ -12,6 +12,7 @@ import {
   getPropertyReturnPath,
   getPropertyReturnState,
   hasPropertyReturnPath,
+  propertyBackLabel,
   type PropertyReturnPath,
 } from '@/features/property/lib/propertyNavigation';
 import type { PropertyDetail } from '@/features/property/model/Property';
@@ -21,7 +22,7 @@ import PropertyPhotoViewer from '@/features/property/ui/property-photo-viewer/Pr
 import { LogScreen } from '@/shared/lib/analytics/logging';
 import useDocumentTitle from '@/shared/lib/hooks/useDocumentTitle';
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
-import { MAP_SELECT_LOCATION_PATH, PROPERTY_DETAIL_TAB_PARAM, RECORDS_PATH } from '@/shared/lib/navigation/appPaths';
+import { MAP_SELECT_LOCATION_PATH, PROPERTY_DETAIL_TAB_PARAM } from '@/shared/lib/navigation/appPaths';
 import useReturnNavigation from '@/shared/lib/navigation/useReturnNavigation';
 import ContentState from '@/shared/ui/content-state/ContentState';
 import DetailHeader from '@/shared/ui/detail-header/DetailHeader';
@@ -75,7 +76,7 @@ const PropertyDetailPage = ({ panel, returnTo }: PropertyDetailPageProps) => {
   if (propertyId === null) {
     return (
       <ContentState title="올바른 매물 주소가 아니에요.">
-        <Link to={backTo}>{backTo === RECORDS_PATH ? '기록 화면으로 돌아가기' : '홈으로 돌아가기'}</Link>
+        <Link to={backTo}>{propertyBackLabel(backTo)}</Link>
       </ContentState>
     );
   }
@@ -101,7 +102,7 @@ const ResolvedPropertyDetailPage = ({
       // 옆 칸으로 열었을 때는 이전, 다음으로 매물을 넘기며 다시 불러오므로, 빠른 응답에는 뼈대를 띄우지 않는다.
       delayLoading={panel !== undefined}
       describeError={describeError}
-      errorAction={<Link to={backTo}>{backTo === RECORDS_PATH ? '기록 화면으로 돌아가기' : '홈으로 돌아가기'}</Link>}
+      errorAction={<Link to={backTo}>{propertyBackLabel(backTo)}</Link>}
     >
       {/* 상세를 불러온 뒤 매물마다 한 번 진입 로그를 남긴다. 다른 매물로 바뀌면 key가 바뀌어 다시 남긴다. */}
       {(detail) => (
@@ -238,7 +239,7 @@ const PropertyDetailView = ({ propertyId, detail, backTo, panel }: PropertyDetai
                 event.preventDefault();
                 goBack();
               }}
-              aria-label={backTo === RECORDS_PATH ? '기록 화면으로 돌아가기' : '홈으로 돌아가기'}
+              aria-label={propertyBackLabel(backTo)}
             >
               <Icon name="chevron-left" size={24} />
             </Link>

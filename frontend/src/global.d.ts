@@ -83,6 +83,17 @@ type NaverMapsNamespace = {
       zIndex?: number;
     }) => void;
   };
+  Polyline: new (options: {
+    map: NaverMap;
+    path: NaverLatLng[];
+    strokeWeight: number;
+    strokeColor: string;
+    strokeOpacity?: number;
+    strokeStyle?: string;
+    strokeLineCap?: string;
+    strokeLineJoin?: string;
+    zIndex?: number;
+  }) => NaverOverlay;
   Circle: new (options: {
     map: NaverMap;
     center: NaverLatLng;

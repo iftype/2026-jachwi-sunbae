@@ -106,7 +106,8 @@ it('내 매물로 지도·리스트와 주소 필터를 구성하고 홈으로 �
   expect(
     within(screen.getByRole('navigation', { name: '기록 보기 방식' })).getByRole('button', { name: /지도/ }),
   ).toHaveAttribute('aria-pressed', 'true');
-  expect(screen.getByRole('link', { name: '마이페이지' })).toHaveAttribute('href', '/me');
+  // 휴대폰 폭에서는 하단 탭에 마이가 있어 머리에는 마이페이지 링크를 두지 않는다.
+  expect(screen.queryByRole('link', { name: '마이페이지' })).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: /리스트/ }));
   expect(screen.getByRole('heading', { name: '모든 기록' })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /망원동 투룸/ })).toHaveAttribute(
@@ -872,6 +873,7 @@ it('모바일 헤더에는 동네 찾기 타일 대신 로고를 두고 떠 있�
   expect(screen.queryByRole('link', { name: '주소 검색' })).not.toBeInTheDocument();
   expect(screen.getByLabelText('생활 날씨 안내')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: '기록 비교하고 PDF로 받기' })).toHaveAttribute('href', '/compare');
+  expect(screen.getByRole('heading', { name: /^최근 기록한 방/ })).toBeInTheDocument();
 });
 
 it('예시 매물에도 삭제 메뉴를 두고 서버 요청 없이 숨기며 다시 열어도 유지한다', async () => {

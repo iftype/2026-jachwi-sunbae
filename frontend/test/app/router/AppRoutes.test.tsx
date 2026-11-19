@@ -411,7 +411,7 @@ describe('익명 자동 인증 흐름', () => {
     const user = userEvent.setup();
     renderRoutes('/');
 
-    await user.click(await screen.findByRole('link', { name: '마이페이지' }));
+    await user.click(await screen.findByRole('button', { name: '마이' }));
 
     expect(await screen.findByRole('heading', { name: '마이페이지' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '목록으로 돌아가기' })).not.toBeInTheDocument();

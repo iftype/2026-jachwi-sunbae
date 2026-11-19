@@ -63,7 +63,7 @@ const UnifiedMapPage = () => {
   const { pathname, search } = useLocation();
   const navigate = useNavigate();
   const isDesktop = useIsDesktop();
-  const [recordsView] = useRecordsView();
+  const [recordsView, setRecordsView] = useRecordsView();
   const params = useParams();
   const isMy = pathname === MY_PATH;
   const [lastFinding, setLastFinding] = useState(pathname.startsWith(NEIGHBORHOODS_PATH));
@@ -145,7 +145,14 @@ const UnifiedMapPage = () => {
                 </div>
               )}
             </div>
-            {!isDesktop && <MobileBottomTabs recordsTo={recordsUrl} neighborhoodsTo={findingUrl} />}
+            {!isDesktop && (
+              <MobileBottomTabs
+                recordsTo={recordsUrl}
+                neighborhoodsTo={findingUrl}
+                recordsView={recordsView}
+                onRecordsViewChange={setRecordsView}
+              />
+            )}
           </div>
         </SharedMapCanvasProvider>
       </RecordsMapProvider>
