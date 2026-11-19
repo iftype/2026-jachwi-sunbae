@@ -30,7 +30,7 @@ const CompareDesktopPage = () => {
   const preview = visibleItems.find((item) => item.propertyId === previewId);
 
   return (
-    <main className={shared.page}>
+    <main className={cx(shared.page, preview && styles.wideMain)}>
       <h1 className="sr-only">비교할 매물 선택</h1>
       <CompareLoadState properties={properties}>
         {() => (
@@ -85,9 +85,28 @@ const styles = {
     align-items: start;
     gap: 1rem;
   `,
+  /*
+   * 공용 데스크탑 셸은 화면 내용을 48rem 가운데 열에 가둔다. 상세 카드가 열리면 표가 찌그러지므로
+   * 이 화면만 셸이 비워 둔 양옆 공간까지 넓힌다. 셸 규칙보다 우선하도록 선택자를 겹쳐 쓴다.
+   */
+  wideMain: css`
+    label: CompareDesktopPage-wideMain;
+
+    @media (min-width: 67rem) {
+      &&&&&&&& {
+        width: min(100%, 90rem);
+      }
+    }
+  `,
+  /* 표는 필요한 폭을 지키고 상세 카드는 고정 폭으로 따라다닌다. 좁은 창에서는 표만 가로로 민다. */
   withPreview: css`
     @media (min-width: 67rem) {
-      grid-template-columns: minmax(0, 1fr) minmax(16rem, 28%);
+      grid-template-columns: minmax(0, 1fr) 20rem;
+
+      & > aside {
+        position: sticky;
+        top: 1rem;
+      }
     }
   `,
   /* 리스트 바로 위 줄: 왼쪽에 선택 개수, 오른쪽에 필터. */
