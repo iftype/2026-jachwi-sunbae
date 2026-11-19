@@ -55,7 +55,6 @@ const styles = {
     display: grid;
     gap: 0.45rem;
     padding: 0.65rem 1rem 0.85rem;
-    border-top: 1px solid var(--color-border);
     background: color-mix(in srgb, var(--color-canvas) 94%, transparent);
     backdrop-filter: blur(10px);
 
@@ -67,6 +66,7 @@ const styles = {
       justify-items: center;
       gap: 0.3rem;
       padding: 0.5rem 1rem 0.65rem;
+      border-top: 1px solid var(--color-border);
     }
 
     & p {

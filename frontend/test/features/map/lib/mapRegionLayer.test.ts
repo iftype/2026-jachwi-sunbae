@@ -324,6 +324,27 @@ describe('경계 레이어', () => {
     expect(overlays.every((overlay) => overlay.setMap.mock.calls.some(([value]) => value === null))).toBe(true);
   });
 
+  it('휴대폰에서는 동 이름과 요약, 월세 라벨을 그리지 않고 영역과 누르기는 그대로 둔다', () => {
+    const { layer, polygons, overlays, onSelect, fire } = setup();
+    const rentLabel = { price: null, count: 0, sparse: false, filteredOut: false, commute: '12분' };
+    const regions = [
+      region('summary', { center: { latitude: 37.5, longitude: 127 }, summary: { price: '50만원' } }),
+      region('rent', { center: { latitude: 37.5, longitude: 127.01 }, rentLabel }),
+      region('name', { center: { latitude: 37.5, longitude: 127.02 }, showsName: true }),
+    ];
+    layer.sync(regions, null, true);
+    expect(overlays).toHaveLength(0);
+    expect(polygons).toHaveLength(3);
+    fire(polygons[0], 'click');
+    expect(onSelect).toHaveBeenCalledWith('summary', undefined);
+    // 데스크탑 기준으로 다시 맞추면 라벨이 돌아온다.
+    layer.sync(regions, null, false);
+    expect(overlays).toHaveLength(3);
+    // 다시 휴대폰 기준이 되면 이미 그린 라벨도 거둔다.
+    layer.sync(regions, null, true);
+    expect(overlays.every((overlay) => overlay.setMap.mock.calls.some(([value]) => value === null))).toBe(true);
+  });
+
   it('점선으로 표시하는 색(월세 정보 없음)은 테두리를 점선으로 그리고, 고르면 실선으로 강조한다', () => {
     const { layer, polygons } = setup();
     const appearance = { fillColor: '#868B94', strokeColor: '#868B94', dashed: true };

@@ -39,7 +39,7 @@ const ListingLink = ({ areaName, center, className, onOpen, variant = 'card' }: 
     );
   return (
     <AreaActionCard
-      icon={<img src={dabangIcon} alt="" width={44} height={44} />}
+      icon={<img src={dabangIcon} alt="" width={36} height={36} />}
       title="현재 매물 확인하기"
       description={`다방에서 ${areaName} 원·투룸 보기`}
       link={{ href }}

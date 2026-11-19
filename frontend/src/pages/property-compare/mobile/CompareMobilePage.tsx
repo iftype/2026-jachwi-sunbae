@@ -85,7 +85,7 @@ const styles = {
       font-size: 1rem;
     }
   `,
-  /* 매물은 따로 떨어진 카드 대신 한 상자 안에 이어진 리스트로 두고, 항목 사이는 얇은 줄로 나눈다. */
+  /* 매물은 따로 떨어진 카드 대신 한 상자 안에 이어진 리스트로 두고, 항목 사이는 줄 없이 바탕색 틈으로 나눈다. */
   propertyList: css`
     label: CompareMobilePage-propertyList;
     display: grid;
@@ -93,13 +93,13 @@ const styles = {
     margin: 0;
     padding: 0;
     overflow: hidden;
-    border: 1px solid var(--color-border-strong);
     border-radius: var(--radius-md);
-    background: var(--color-canvas);
+    background: var(--color-surface-muted);
     list-style: none;
 
+    /* 항목 사이는 줄 대신 옅은 바탕 사이의 얇은 틈으로 나눈다. */
     & > li + li {
-      border-top: 1px solid #e4e6ea;
+      margin-top: 2px;
     }
   `,
 };

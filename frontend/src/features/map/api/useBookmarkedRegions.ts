@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
 import { usePublicConfig } from '@/shared/config/PublicConfigContext';
@@ -28,6 +28,8 @@ export const useBookmarkedRegions = (codes: string[], enabled: boolean): MapRegi
     enabled: enabled && codes.length > 0,
     staleTime: Infinity,
     retry: false,
+    // 찜한 동네가 바뀌어 새 경계를 받는 동안에도 이미 받은 경계로 그대로 그린다(키가 바뀌며 지도의 영역이 모두 사라졌다 돌아오지 않게).
+    placeholderData: keepPreviousData,
     queryFn: async ({ signal }): Promise<AdminBoundaries> => {
       const manifest = await fetchBoundaryManifest(config.boundaryBaseUrl, signal);
       const chunks = await Promise.all(

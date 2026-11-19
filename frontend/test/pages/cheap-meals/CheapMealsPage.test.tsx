@@ -662,14 +662,61 @@ it('위치 확인 중 다른 탭으로 떠났다가 돌아와도 위치 버튼�
   }
 });
 
-it('기준 바꾸기 시트와 칩은 없고 기록 매물이 있어도 줄줄이 나열하지 않는다', async () => {
+it('기록한 매물을 기준 매물 뱃지 줄로 보여 주고 뱃지를 고르면 그 매물이 기준이 된다', async () => {
   useTwoSameNamedRecords();
+  const user = setup('/cheap-meals/restaurant');
+  await screen.findByRole('list', { name: '가게 목록' });
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  const rail = await screen.findByRole('navigation', { name: '기준 매물' });
+  // 처음 기준은 가장 최근 기록 매물(시청 근처)이라 그 뱃지가 골라져 있다.
+  expect(within(rail).getByRole('button', { name: /세종대로 110/ })).toHaveAttribute('aria-pressed', 'true');
+  expect(within(rail).getByRole('button', { name: /테헤란로 1/ })).toHaveAttribute('aria-pressed', 'false');
+  await user.click(within(rail).getByRole('button', { name: /테헤란로 1/ }));
+  expect(screen.getByLabelText('기준 마커')).toHaveTextContent('37.5,127.03');
+  await waitFor(() => expect(calls.stores).toHaveBeenLastCalledWith('2000', '37.5', '127.03'));
+  expect(within(rail).getByRole('button', { name: /테헤란로 1/ })).toHaveAttribute('aria-pressed', 'true');
+});
+
+it('기록이 없으면 내 기록 화면과 같은 미리보기 예시 매물이 뱃지와 지도 마커로 나온다', async () => {
+  server.use(http.get('http://localhost:8080/api/properties', () => success({ totalCount: 0, items: [] })));
   setup('/cheap-meals/restaurant');
   await screen.findByRole('list', { name: '가게 목록' });
-  expect(screen.queryByRole('button', { name: /바꾸기/ })).not.toBeInTheDocument();
-  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-  expect(screen.queryByText(/매물 기준$/)).not.toBeInTheDocument();
-  expect(screen.queryByText('어느 동네를 둘러볼까요?')).not.toBeInTheDocument();
+  const rail = await screen.findByRole('navigation', { name: '기준 매물' });
+  expect(within(rail).getByRole('button', { name: /\(미리보기\) 코엑스 근처/ })).toBeInTheDocument();
+});
+
+it('데스크탑 편의점과 배달 탭은 지도를 걷고 목록이 전체 폭을 쓰며, 식당 탭으로 돌아오면 지도를 다시 붙인다', async () => {
+  const viewport = vi.spyOn(window, 'matchMedia').mockImplementation(
+    (query) =>
+      ({
+        matches: query === '(min-width: 1024px)',
+        media: query,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+      }) as unknown as MediaQueryList,
+  );
+  try {
+    const user = setup('/cheap-meals/restaurant');
+    expect(await screen.findByRole('button', { name: '지도 이동 테스트' })).toBeInTheDocument();
+    await user.click(tab('편의점'));
+    expect(screen.queryByRole('button', { name: '지도 이동 테스트' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: '주변 착한가격업소' })).not.toBeInTheDocument();
+    await user.click(tab('배달'));
+    expect(screen.queryByRole('button', { name: '지도 이동 테스트' })).not.toBeInTheDocument();
+    await user.click(tab('식당'));
+    expect(await screen.findByRole('button', { name: '지도 이동 테스트' })).toBeInTheDocument();
+    expect(screen.getByRole('list', { name: '가게 목록' })).toBeInTheDocument();
+  } finally {
+    viewport.mockRestore();
+  }
+});
+
+it('휴대폰 편의점과 배달 탭에는 지도가 없다', async () => {
+  const user = setup('/cheap-meals/restaurant');
+  expect(await screen.findByRole('button', { name: '지도 이동 테스트' })).toBeInTheDocument();
+  await user.click(tab('편의점'));
+  const panel = screen.getByRole('tabpanel', { name: '편의점' });
+  expect(within(panel).queryByRole('button', { name: '지도 이동 테스트' })).not.toBeInTheDocument();
 });
 
 it('휴대폰 식당 탭은 기준을 바꾸는 검색창 없이 공용 현재 위치 버튼을 지도 위에 띄우고 위치 오류를 버튼 옆에 알린다', async () => {

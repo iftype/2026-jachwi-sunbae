@@ -8,9 +8,11 @@ import { beforeEach, expect, it, vi } from 'vitest';
 
 import { commuteBoundaryFixtures } from '@/app/mocks/fixtures/commuteBoundaryFixtures';
 import { propertyPageFixture, propertySummaryFixture, successEnvelope } from '@/app/mocks/fixtures/propertyFixtures';
+import { adminDongBookmarkHandlers } from '@/app/mocks/handlers/adminDongBookmarkHandlers';
 import { createCommuteAreaHandlers } from '@/app/mocks/handlers/commuteAreaHandlers';
 import { mapHandlers } from '@/app/mocks/handlers/mapHandlers';
 import { createStreetMemoHandlers } from '@/app/mocks/handlers/streetMemoHandlers';
+import { writeBookmarkedAdminDongs } from '@/app/mocks/mockStore';
 import { RecordsMapProvider } from '@/pages/design-records/RecordsMapProvider';
 import NeighborhoodPreviewPage from '@/pages/neighborhood-preview/NeighborhoodPreviewPage';
 import NeighborhoodRoutePage from '@/pages/neighborhood-preview/NeighborhoodRoutePage';
@@ -120,6 +122,11 @@ vi.mock('@/features/map/ui/map-canvas/MapCanvas', async () => {
               {`마커 ${marker.label}`}
             </button>
           ))}
+        {props.bookmarkControl && (
+          <button onClick={props.bookmarkControl.onToggle} aria-pressed={props.bookmarkControl.isOn}>
+            찜한 동네 토글
+          </button>
+        )}
         {props.regions?.map((region) => (
           <button key={region.id} onClick={() => props.onSelectRegion?.(region.id)}>
             {region.name}
@@ -408,17 +415,43 @@ it('지도를 한 번 누르면 출퇴근 장소로 쓴다', async () => {
   expect(screen.getByRole('button', { name: /에서 찾기$/ })).toBeEnabled();
 });
 
-it('색 기준표를 닫아도 검색 조건은 남고 표를 다시 열 수 있다', async () => {
+it('모바일 색 기준표는 접거나 펴는 버튼 없이 통근 시간 세 줄만 늘 보여 준다', async () => {
   show(true);
   const user = await choosePoint();
   await submitCurrentSearch(user);
 
-  await user.click(await screen.findByRole('button', { name: '표 닫기' }));
-  expect(screen.getByLabelText(/선택한 탐색 조건 통근 40분/)).toBeInTheDocument();
+  const legend = await screen.findByLabelText('통근 시간 색상 기준');
+  expect(legend).toHaveTextContent('15분 이하');
+  expect(legend).toHaveTextContent('16~30분');
+  expect(legend).toHaveTextContent('31~40분');
+  expect(legend).not.toHaveTextContent('월세 정보 없음');
   expect(screen.queryByRole('button', { name: '표 닫기' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: '색 기준표 보기' })).not.toBeInTheDocument();
+});
 
-  await user.click(screen.getByRole('button', { name: '색 기준표 보기' }));
-  expect(screen.getByRole('button', { name: '표 닫기' })).toBeInTheDocument();
+it('모바일에서 동네 시트가 열려 있어도 출퇴근 장소 다시 선택 버튼은 시트 위에 떠서 보인다', async () => {
+  show();
+  const user = await choosePoint();
+  await submitCurrentSearch(user);
+  await screen.findByRole('region', { name: '행정동 프리셋 지도' });
+  expect(screen.getAllByRole('button', { name: '출퇴근 장소 다시 선택' })).toHaveLength(1);
+
+  await user.click(screen.getByRole('button', { name: '역삼1동' }));
+  const sheet = await screen.findByRole('region', { name: /역삼1동/ });
+  const reselect = within(sheet).getByRole('button', { name: '출퇴근 장소 다시 선택' });
+  expect(screen.getAllByRole('button', { name: '출퇴근 장소 다시 선택' })).toHaveLength(1);
+  await user.click(reselect);
+  expect(screen.getByRole('textbox', { name: '출퇴근 장소' })).toBeInTheDocument();
+});
+
+it('모바일 결과 머리에는 추천 동네 뱃지를 두지 않는다', async () => {
+  show();
+  const user = await choosePoint();
+  await submitCurrentSearch(user);
+  await screen.findByRole('region', { name: '행정동 프리셋 지도' });
+
+  expect(screen.queryByLabelText('추천 동네')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /^추천 동네 / })).not.toBeInTheDocument();
 });
 
 it('첫 진입은 지도이며 위치 권한을 묻지 않고 직접 선택 입구, 하단 확인 화면이 없다', async () => {
@@ -1129,6 +1162,26 @@ it('동네 찾기 지도에서는 행정동 안을 눌러도 메모 남기기나
   expect(screen.queryByRole('button', { name: '말풍선 여기에 본 방 기록하기' })).not.toBeInTheDocument();
 });
 
+it('모바일 지역 상세에서 찜한 동네 토글을 켜면 찜한 행정동 영역이 뒤 지도에 더해진다', async () => {
+  writeBookmarkedAdminDongs(['11210690']);
+  localStorage.setItem('jachwi:records-bookmark-layer-rail', 'off');
+  server.use(...adminDongBookmarkHandlers);
+  try {
+    show(false, undefined, true);
+    const user = await choosePoint();
+    await submitCurrentSearch(user);
+    await screen.findByRole('region', { name: '행정동 프리셋 지도' });
+    await user.click(screen.getByRole('button', { name: '역삼1동' }));
+    await screen.findByRole('region', { name: /역삼1동/ });
+    const before = screen.getAllByRole('button', { name: '신림동' }).length;
+    await user.click(await screen.findByRole('button', { name: '찜한 동네 토글' }));
+    await waitFor(() => expect(screen.getAllByRole('button', { name: '신림동' })).toHaveLength(before + 1));
+  } finally {
+    writeBookmarkedAdminDongs([]);
+    localStorage.removeItem('jachwi:records-bookmark-layer-rail');
+  }
+});
+
 it('모바일 결과에서 월세는 상단 슬라이더로, 통근은 조건을 다시 선택해 바꾼다', async () => {
   show();
   const user = await choosePoint();
@@ -1164,6 +1217,8 @@ it('데스크탑 통합 지도는 왼쪽 조건 칸과 지도 위 찾은 동네 
     // 로그인한 회원의 왼쪽 칸은 조건 카드만 두고, 찾은 동네는 지도 위 배지로 본다.
     expect(await screen.findByRole('complementary', { name: '동네 찾기 결과' })).toBeInTheDocument();
     expect(screen.queryByRole('list', { name: '찾은 동네 목록' })).not.toBeInTheDocument();
+    // 데스크탑 색 기준표는 월세 정보 없음 줄까지 둔다.
+    expect(screen.getByLabelText('통근 시간 색상 기준')).toHaveTextContent('월세 정보 없음');
     const badges = await screen.findByRole('navigation', { name: '찾은 동네' });
     expect(badges.closest('section')).toHaveAttribute('aria-label', '행정동 프리셋 지도');
     // 출퇴근 장소를 다시 고르는 칩이 배지 줄 앞에 따로 있다.

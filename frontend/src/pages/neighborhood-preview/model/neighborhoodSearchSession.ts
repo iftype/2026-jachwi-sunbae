@@ -71,23 +71,3 @@ export const writeNeighborhoodSearch = (key: string, value: NeighborhoodSearchSe
     /* 저장소가 차단되어도 지도 탐색은 계속할 수 있다. */
   }
 };
-
-const CRITERIA_COLLAPSED_KEY = 'jachwi.neighborhood-criteria-collapsed';
-
-/** 결과 지도 위 조건 칩 줄과 범례를 접어 두었는지. 같은 탭(세션) 동안만 기억한다. */
-export const readCriteriaCollapsed = (): boolean => {
-  try {
-    return window.sessionStorage.getItem(CRITERIA_COLLAPSED_KEY) === 'true';
-  } catch {
-    return false;
-  }
-};
-
-export const writeCriteriaCollapsed = (collapsed: boolean) => {
-  try {
-    if (collapsed) window.sessionStorage.setItem(CRITERIA_COLLAPSED_KEY, 'true');
-    else window.sessionStorage.removeItem(CRITERIA_COLLAPSED_KEY);
-  } catch {
-    /* 기억하지 못해도 이번 화면에서는 접힌 채로 둔다. */
-  }
-};

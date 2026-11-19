@@ -30,6 +30,8 @@ vi.mock('@/features/map/ui/map-canvas/MapCanvas', () => ({
     onBoundsChange,
     onCenterChange,
     coordinateMenu,
+    regions,
+    bookmarkControl,
     interactive = false,
   }: MapCanvasProps) => (
     <div aria-label="예시 지도">
@@ -56,6 +58,14 @@ vi.mock('@/features/map/ui/map-canvas/MapCanvas', () => ({
         <button key={action.id} type="button" onClick={action.onSelect}>
           {`말풍선 ${action.label}`}
         </button>
+      ))}
+      {bookmarkControl && (
+        <button type="button" aria-pressed={bookmarkControl.isOn} onClick={bookmarkControl.onToggle}>
+          찜한 동네 토글
+        </button>
+      )}
+      {regions?.map((region) => (
+        <span key={region.id} role="img" aria-label={`찜한 영역 ${region.name}`} />
       ))}
     </div>
   ),
@@ -886,4 +896,56 @@ it('예시 매물에도 삭제 메뉴를 두고 서버 요청 없이 숨기며 �
   } finally {
     server.events.removeListener('request:start', track);
   }
+});
+
+it('찜한 동네 토글을 켜면 찜한 행정동 영역이 지도에 나타나고, 끄면 사라진다', async () => {
+  const bookmarkHandlers = (await import('@/app/mocks/handlers/adminDongBookmarkHandlers')).adminDongBookmarkHandlers;
+  const { writeBookmarkedAdminDongs } = await import('@/app/mocks/mockStore');
+  writeBookmarkedAdminDongs(['11230640']);
+  localStorage.setItem('jachwi:records-bookmark-layer-rail', 'off');
+  server.use(
+    ...bookmarkHandlers,
+    http.get('*/boundaries/manifest.json', () =>
+      HttpResponse.json({ version: '20250630', file: 'admin-dongs.20250630.123456abcdef.geojson' }),
+    ),
+    http.get('*/boundaries/:filename', () =>
+      HttpResponse.json({
+        type: 'FeatureCollection',
+        features: [
+          {
+            type: 'Feature',
+            properties: {
+              code: '11230640',
+              name: '역삼1동',
+              fullName: '서울특별시 강남구 역삼1동',
+              baseDate: '20250630',
+            },
+            geometry: {
+              type: 'MultiPolygon',
+              coordinates: [
+                [
+                  [
+                    [127, 37.5],
+                    [127, 37.51],
+                    [127.01, 37.5],
+                    [127, 37.5],
+                  ],
+                ],
+              ],
+            },
+          },
+        ],
+      }),
+    ),
+  );
+  renderRecords();
+  const toggle = await screen.findByRole('button', { name: '찜한 동네 토글' });
+  await waitFor(() => expect(toggle).toHaveAttribute('aria-pressed', 'false'));
+  expect(screen.queryByRole('img', { name: '찜한 영역 역삼1동' })).not.toBeInTheDocument();
+  await userEvent.click(toggle);
+  expect(await screen.findByRole('img', { name: '찜한 영역 역삼1동' })).toBeInTheDocument();
+  await userEvent.click(toggle);
+  await waitFor(() => expect(screen.queryByRole('img', { name: '찜한 영역 역삼1동' })).not.toBeInTheDocument());
+  localStorage.removeItem('jachwi:records-bookmark-layer-rail');
+  writeBookmarkedAdminDongs([]);
 });
