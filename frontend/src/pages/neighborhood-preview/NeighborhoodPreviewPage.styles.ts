@@ -997,6 +997,8 @@ export const mapOverlay = css`
   position: absolute;
   inset: 0;
   z-index: 40;
+  /* 데스크탑은 지도가 떠 있는 패널 아래까지 깔리므로, 안내 글은 패널을 뺀 칸의 가운데에 둔다. */
+  padding-left: calc(var(--map-panel-width, 0px) + 1.25rem);
   background: rgb(255 255 255 / 78%);
   backdrop-filter: blur(2px);
 `;

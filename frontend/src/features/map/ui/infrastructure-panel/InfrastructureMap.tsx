@@ -168,7 +168,8 @@ const styles = {
     position: absolute;
     z-index: 35;
     bottom: 5rem;
-    left: 50%;
+    /* 데스크탑은 떠 있는 패널을 뺀 보이는 지도 칸의 가운데에 둔다. */
+    left: calc(50% + var(--map-panel-width, 0px) / 2);
     transform: translateX(-50%);
     white-space: nowrap;
     margin: 0;

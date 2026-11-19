@@ -41,7 +41,6 @@ const RecordsDesktopPage = ({ records, layers }: Props) => {
   const params = useParams();
   const isReplacingChecklist = params.stage !== undefined;
   const { selected, setSelectedId, setNotice } = records;
-  const closeDetail = () => setSelectedId(null);
 
   // 처음 여는 화면이라 남겨 둘 목록이 없다. 늦추지 않고 바로 뼈대를 보여, 화면 코드를 받는 동안의 뼈대(`RecordsPageSkeleton`)에서 이어지게 한다.
   const list = records.properties.isPending ? (
@@ -137,8 +136,8 @@ const RecordsDesktopPage = ({ records, layers }: Props) => {
               </>
             }
             detail={panel ? undefined : detail}
-            onCloseDetail={closeDetail}
-            closeLabel="매물 상세 칸 닫기"
+            // 옆 버튼은 상세를 접기만 한다. 선택 해제는 상세 머리의 뒤로가기가 맡는다.
+            collapsible
           >
             {/* 기록을 받는 동안 지도 칸도 화면 코드를 받는 동안의 뼈대와 같은 지도 영역 뼈대로 채운다. 알림은 목록 영역이 맡는다. */}
             {records.properties.isPending && <AreaSkeleton area="map" />}

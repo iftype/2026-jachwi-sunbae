@@ -48,13 +48,21 @@ const hasLocationPermission = async (): Promise<boolean> => {
  * 식당 탭의 기준 위치. 기준 마커 하나가 검색 반경(원)과 거리 정렬의 중심이다.
  * 현재 위치가 기본이고(권한이 있을 때), 지도의 기록 매물 마커를 누르면 그 매물이 기준이 된다. 마커를 끌어 옮기지는 않는다.
  */
-const useRestaurantMap = (isActive: boolean) => {
+const useRestaurantMap = (
+  isActive: boolean,
+  /** 기준이나 가게로 지도를 옮길 때 지도 중심을 정한다. 데스크탑은 떠 있는 목록 패널을 뺀 칸의 가운데에 오게 옮긴다. */
+  focusCenter?: (point: MapCoordinate, level: number) => MapCoordinate,
+) => {
   const overlay = useRestaurantOverlay();
   // 새로고침하면 이 탭에서 마지막으로 고른 기준으로 돌아와, 주소에 남은 가게(`?store=`)를 같은 목록에서 다시 연다.
   const hadStoredArea = useRef(readRestaurantArea() !== null);
   const [area, setArea] = useState<RestaurantArea>(() => readRestaurantArea() ?? DEFAULT_AREA);
   const [viewport, setViewport] = useState<MapCoordinate>(area);
   const [level, setLevel] = useState(7);
+  const focus = (point: MapCoordinate) => {
+    const { latitude, longitude } = focusCenter?.(point, level) ?? point;
+    setViewport({ latitude, longitude });
+  };
   const [isListOpen, setIsListOpen] = useState(() => overlay.selectedStoreId !== null || readRestaurantListOpen());
   const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -126,7 +134,7 @@ const useRestaurantMap = (isActive: boolean) => {
     hasAppliedBase.current = true;
     const base = { latitude: first.latitude, longitude: first.longitude, label: first.label };
     setArea(base);
-    setViewport(base);
+    focus(base);
   }, [recorded]);
   const query = useGoodPriceStores(area, RESTAURANT_SEARCH_RADIUS, isActive);
   const selectedStore = query.data?.stores.find((store) => String(store.id) === overlay.selectedStoreId) ?? null;
@@ -202,7 +210,7 @@ const useRestaurantMap = (isActive: boolean) => {
     setIsLocating(false);
     setLocationError(null);
     setArea(next);
-    setViewport(next);
+    focus(next);
     setIsListOpen(true);
     overlay.closeOverlay();
   };
@@ -245,7 +253,7 @@ const useRestaurantMap = (isActive: boolean) => {
           if (isCancelled || hasChosen.current || !isInSouthKorea(coordinate)) return;
           hasChosen.current = true;
           setArea({ ...coordinate, label: '현재 위치' });
-          setViewport(coordinate);
+          focus(coordinate);
         })
         .catch(() => undefined);
     });
@@ -293,14 +301,14 @@ const useRestaurantMap = (isActive: boolean) => {
       }
       const store = query.data?.stores.find((candidate) => String(candidate.id) === markerId);
       if (!store) return;
-      setViewport(store);
+      focus(store);
       setIsListOpen(true);
       overlay.openStore(store.id);
     },
     openStore: (id: number) => {
       const store = query.data?.stores.find((store) => store.id === id);
       if (!store) return;
-      setViewport(store);
+      focus(store);
       setIsListOpen(true);
       overlay.openStore(id);
     },
