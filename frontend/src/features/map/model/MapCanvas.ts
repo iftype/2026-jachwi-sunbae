@@ -75,15 +75,6 @@ export type MapRailExtraItem = {
   isMuted?: boolean;
 };
 
-/** 지도 위에 긋는 선 하나. 매물에서 출퇴근 장소까지 동선처럼 구간마다 색을 달리해 여러 개를 넘긴다. */
-export type MapRoute = {
-  id: string;
-  points: { latitude: number; longitude: number }[];
-  color: string;
-  /** 걷는 구간처럼 점선으로 긋는다. */
-  dashed?: boolean;
-};
-
 export type MapCanvasProps = {
   animateView?: boolean;
   onRetry?: () => void;
@@ -109,8 +100,6 @@ export type MapCanvasProps = {
   center: { latitude: number; longitude: number };
   markers?: MapMarker[];
   circles?: MapRadiusCircle[];
-  /** 지도 위에 긋는 선. 동 영역 위, 마커 아래에 그린다. */
-  routes?: MapRoute[];
   level?: number;
   /** 발행된 네이버 스타일 ID. 지정한 지도만 GL 렌더링을 사용한다. */
   customStyleId?: string;

@@ -22,7 +22,6 @@ import useDebouncedValue from '@/shared/lib/hooks/useDebouncedValue';
 import useHoverIntent from '@/shared/lib/hooks/useHoverIntent';
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
 
-import { commuteRouteLines } from '../model/commuteRouteLines';
 import { formatRentPair } from '../model/criteriaLabels';
 import {
   cameFromFinderSummary,
@@ -222,15 +221,6 @@ const useNeighborhoodMapView = (
       ? selectedProperty.propertyId
       : null;
   const propertyRoute = usePropertyRoute(preview, routePropertyId);
-  // 받은 동선은 결과 지도에 구간마다 선으로 긋는다. 매물을 닫으면 선도 지운다.
-  const routeData = propertyRoute.route;
-  const routeLines = useMemo(
-    () =>
-      routeData === undefined || routePropertyId === null
-        ? undefined
-        : commuteRouteLines(routeData, `property-route:${routePropertyId}`),
-    [routeData, routePropertyId],
-  );
   const hasOpenLayer = selectedPlace !== null;
   const closeLayers = () => {
     places.closePlace();
@@ -384,7 +374,6 @@ const useNeighborhoodMapView = (
         center: preview.center,
         level: preview.resultLevel,
         markers: [...destinationMarkers, ...searchPinMarker],
-        routes: routeLines,
         onCenterChange: preview.rememberResultCenter,
         onLevelChange: (level: number) => {
           preview.rememberResultLevel(level);
