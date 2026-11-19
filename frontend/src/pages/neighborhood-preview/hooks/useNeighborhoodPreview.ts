@@ -43,6 +43,9 @@ import { PREVIEW_DESTINATION } from '../model/preview';
 import { type MapViewport, routeFocusView } from '../model/resultMapView';
 import useNeighborhoodAnalytics from './useNeighborhoodAnalytics';
 
+/** 첫 안내(배너, 칩)로 동네 찾기에 들어올 때 다가가는 확대 단계. 첫 화면 단계보다 두 단계 가깝다. */
+const FIRST_TIP_FOCUS_LEVEL = Math.max(MIN_MAP_LEVEL, INTRO_MAP_LEVEL - 2);
+
 const describeError = (error: unknown) => {
   if (error instanceof ApiError) {
     if (error.code === 'COMMUTE_DESTINATION_UNREACHABLE')
@@ -276,6 +279,16 @@ const useNeighborhoodPreview = () => {
     const level = Math.max(MIN_MAP_LEVEL, Math.min(MAX_MAP_LEVEL, mapView.current.level + delta));
     moveMapView({ ...mapView.current, level });
   };
+  /**
+   * 내 기록의 동네 찾기 첫 안내(배너, 칩)로 들어올 때만 쓰는 예외. 그 밖에서는 지도 확대 단계를 바꾸지 않는다.
+   * 첫 안내 말풍선 자리로 옮기고 `FIRST_TIP_FOCUS_LEVEL`까지 확대한다. 이미 더 가까이 보고 있으면 단계는 그대로 둔다.
+   */
+  const focusFirstTip = (point: { latitude: number; longitude: number }) =>
+    moveMapView({
+      latitude: point.latitude,
+      longitude: point.longitude,
+      level: Math.min(mapView.current.level, FIRST_TIP_FOCUS_LEVEL),
+    });
   /** 지금 보이는 지도 범위. 두 지도(위치를 고르는 지도, 결과 지도)가 멈출 때마다 알려 준다. */
   const mapBounds = useRef<MapBounds | null>(null);
   /**
@@ -590,6 +603,7 @@ const useNeighborhoodPreview = () => {
     },
     /** 주소 검색 결과처럼 고른 자리로 지도를 옮긴다. 조건을 고르는 중이든 결과를 보는 중이든 같은 자리로 가고, 확대 단계는 그대로 둔다. */
     moveMapTo: centerOnPoint,
+    focusFirstTip,
     /** 점들이 가려지지 않은 지도 칸에 모두 들어오게 옮긴다(`My`를 켰을 때 내 매물 전체). 한 점이면 동네를 볼 때의 가까운 단계로 둔다. */
     fitPoints: (points: { latitude: number; longitude: number }[]) => {
       if (!points.length) return;

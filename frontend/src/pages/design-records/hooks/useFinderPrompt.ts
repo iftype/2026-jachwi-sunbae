@@ -15,6 +15,6 @@ export const useFinderPrompt = (): (() => void) | null => {
   if (HIDE_FINDER_BANNER_AFTER_USE && (hasUsedFinder() || bookmarks.codes.length > 0)) return null;
   return () => {
     markFinderUsed();
-    mode.onSwitch();
+    mode.onSwitch('first-prompt');
   };
 };

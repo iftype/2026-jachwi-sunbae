@@ -157,6 +157,7 @@ const preview: NeighborhoodPreviewContext = {
   toggleMapCategory: () => true,
   focusPoint: noop,
   moveMapTo: noop,
+  focusFirstTip: noop,
   fitPoints: noop,
   rememberMapBounds: noop,
   rememberSelectionCenter: noop,

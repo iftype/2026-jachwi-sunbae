@@ -5,6 +5,7 @@ import { Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
 import DesignRecordsPage from '@/pages/design-records/DesignRecordsPage';
 import useRecordsView from '@/pages/design-records/hooks/useRecordsView';
 import { RecordsMapProvider } from '@/pages/design-records/RecordsMapProvider';
+import { FIRST_PROMPT_ENTRY_STATE } from '@/pages/neighborhood-preview/model/firstPromptEntry';
 import NeighborhoodPreviewPage from '@/pages/neighborhood-preview/NeighborhoodPreviewPage';
 import { FacilityFocusProvider } from '@/features/map/hooks/useFacilityFocus';
 import { MapCanvasMode, SharedMapCanvasProvider } from '@/features/map/ui/map-canvas/SharedMapCanvas';
@@ -95,9 +96,11 @@ const UnifiedMapPage = () => {
   const closeMy = () => navigate(isFinding ? findingUrl : recordsUrl);
   // 동네 찾기로 넘어갈 때는 지난 검색(목적지, 조건, 결과)이 있으면 그 화면으로, 처음이면 동네 찾기 지도로 바로 간다.
   // 따로 검색 화면을 거치지 않고, 지도에서 출퇴근 장소를 고르거나 검색하게 한다.
+  // 첫 안내(배너, 칩)로 넘어갈 때만 표시를 실어, 동네 찾기가 첫 안내 말풍선 자리로 지도를 옮기고 확대하게 한다.
   const toFinding: MapModeSwitch = {
     target: 'neighborhoods',
-    onSwitch: () => navigate(findingUrl),
+    onSwitch: (entry) =>
+      navigate(findingUrl, entry === 'first-prompt' ? { state: FIRST_PROMPT_ENTRY_STATE } : undefined),
   };
   const toRecords: MapModeSwitch = { target: 'records', onSwitch: () => navigate(recordsUrl) };
   const panel = isMy

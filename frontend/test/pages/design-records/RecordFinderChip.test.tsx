@@ -39,7 +39,8 @@ describe('RecordFinderChip (휴대폰 머리 줄)', () => {
   it('누르면 동네 찾기로 넘어가고 다시 띄우지 않는다', async () => {
     const onSwitch = renderHeader();
     await userEvent.click(screen.getByRole('button', CHIP));
-    expect(onSwitch).toHaveBeenCalledOnce();
+    // 첫 안내로 넘어간다고 알려, 동네 찾기가 첫 안내 말풍선 자리로 지도를 옮기고 확대하게 한다.
+    expect(onSwitch).toHaveBeenCalledExactlyOnceWith('first-prompt');
     expect(hasUsedFinder()).toBe(true);
   });
 
