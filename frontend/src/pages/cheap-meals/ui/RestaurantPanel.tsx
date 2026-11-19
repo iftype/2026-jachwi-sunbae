@@ -1,8 +1,9 @@
 import { css, cx } from '@emotion/css';
-import { type ReactNode, useEffect } from 'react';
+import { type ReactNode, useEffect, useRef } from 'react';
 
 import { useRecordsMapController } from '@/pages/design-records/RecordsMapProvider';
 import { formatStoreDistance } from '@/features/good-price/model/GoodPriceStore';
+import { centerWithInsets } from '@/features/map/lib/mapCamera';
 import MapCanvas from '@/features/map/ui/map-canvas/MapCanvas';
 import MapCurrentLocationButton from '@/features/map/ui/map-current-location-button/MapCurrentLocationButton';
 import MapZoomControl from '@/features/map/ui/map-zoom-control/MapZoomControl';
@@ -39,7 +40,15 @@ type RestaurantPanelProps = {
 const RestaurantPanel = ({ isActive, layout, listHeader, listOverride }: RestaurantPanelProps) => {
   const isMapActive = isActive || layout === 'desktop';
   const sharedMap = useRecordsMapController()?.layers.canvasProps;
-  const map = useRestaurantMap(isMapActive);
+  const desktopMapRef = useRef<HTMLDivElement>(null);
+  // 데스크탑 지도는 목록 패널 아래까지 깔리므로, 기준과 가게는 패널을 뺀 칸의 가운데에 오게 지도 중심을 옮긴다.
+  const map = useRestaurantMap(isMapActive, (point, level) => {
+    const frame = desktopMapRef.current?.closest('[data-floating="true"]');
+    const rect = frame?.getBoundingClientRect();
+    const list = frame?.firstElementChild?.getBoundingClientRect();
+    if (!rect?.width || !list) return point;
+    return centerWithInsets(point, level, { left: list.right - rect.left + 24, right: 80, top: 0, bottom: 0 });
+  });
   // 식당 탭을 처음 열어 보여 줄 목록이 없을 때는 찾는 중 문구를 바로 보여 준다.
   // 지도를 옮겨 다시 찾을 때는 이전 목록을 둔 채 기다리고, 응답이 늦을 때만 찾는 중 문구로 바꾼다.
   const isDelayedLoadingVisible = useDelayedLoading(map.query.isPlaceholderData);
@@ -223,7 +232,7 @@ const RestaurantPanel = ({ isActive, layout, listHeader, listOverride }: Restaur
             </div>
           }
         >
-          <div className={cx(styles.map, styles.desktopMap)}>
+          <div ref={desktopMapRef} className={cx(styles.map, styles.desktopMap)}>
             {mapView}
             {/* 내 기록, 동네 찾기와 같은 자리: 오른쪽 위에 줌, 그 아래에 내 위치 버튼. */}
             <MapZoomControl className={styles.zoomDesktop} level={map.level} onChange={map.changeLevel} />

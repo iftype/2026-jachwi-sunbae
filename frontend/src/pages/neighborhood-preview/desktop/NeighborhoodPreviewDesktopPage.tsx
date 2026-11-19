@@ -53,16 +53,16 @@ const NeighborhoodPreviewDesktopPage = ({ preview }: Props) => {
     showAreaAction: true,
   });
   const { isResultMap, mapProps, places, closeLayers } = mapView;
-  // 지도 칸은 목록, 상세 칸 오른쪽에 있다. 상세 칸이 아직 닫혀 있으면 고른 뒤 열릴 폭을 미리 빼고 시점을 맞춘다.
+  // 지도 칸은 목록과 상세 패널 아래까지 깔린다. 패널이 가리는 폭을 왼쪽 여백으로 빼고 시점을 맞춘다.
   const mapSectionRef = useResultMapViewport<HTMLElement>(preview, (section) => {
     const layout = section.parentElement?.parentElement;
-    if (!preview.isPublicExplore && layout) {
+    if (layout) {
       const rect = section.getBoundingClientRect();
       const info = section.querySelector('[data-map-info]')?.getBoundingClientRect();
       const editor = section.querySelector('[data-map-editor]')?.getBoundingClientRect();
       const panelWidth = getComputedStyle(layout).getPropertyValue('--map-panel-width');
       const panel = layout.firstElementChild?.getBoundingClientRect();
-      const detail = layout.dataset.detailOpen === 'true' ? layout.children[1]?.getBoundingClientRect() : null;
+      const detail = layout.querySelector('[data-list-detail-detail]')?.getBoundingClientRect();
       if (panelWidth && panel)
         return {
           width: rect.width,

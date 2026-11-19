@@ -49,7 +49,9 @@ export const RecordsMapProvider = ({ children }: { children: ReactNode }) => {
       const rect = layout?.getBoundingClientRect();
       const list = layout?.firstElementChild?.getBoundingClientRect();
       if (!isDesktop || !rect?.width || !list) return point;
-      const detailWidth = opensDetail ? Math.max(352, Math.min(416, rect.width * 0.28)) : 0;
+      // 이미 열린 상세는 그 폭을 재고, 이번에 열릴 상세는 `ListDetailLayout`의 상세 폭(clamp(22rem, 28%, 26rem))을 미리 뺀다.
+      const openDetail = layout?.querySelector('[data-list-detail-detail]')?.getBoundingClientRect();
+      const detailWidth = openDetail?.width ?? (opensDetail ? Math.max(352, Math.min(416, rect.width * 0.28)) : 0);
       return centerWithInsets(point, level, {
         left: list.right - rect.left + detailWidth + 24,
         right: 80,
