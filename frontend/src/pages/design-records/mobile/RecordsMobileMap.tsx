@@ -1,10 +1,10 @@
 import { css, cx } from '@emotion/css';
-import { useState } from 'react';
 
 import MapCanvas from '@/features/map/ui/map-canvas/MapCanvas';
 import StreetMemoImpressionLog from '@/features/street-memo/ui/street-memo-impression-log/StreetMemoImpressionLog';
 import StreetMemoSheet from '@/features/street-memo/ui/street-memo-sheet/StreetMemoSheet';
 import { hideWhenSheetExpanded } from '@/shared/ui/bottom-sheet/hideWhenSheetExpanded';
+import { setSheetCollapsed, useSheetCollapsed } from '@/shared/ui/bottom-sheet/sheetCollapse';
 import Icon from '@/shared/ui/icon/Icon';
 
 import type { RecordsState } from '../hooks/useRecords';
@@ -27,8 +27,8 @@ type Props = {
  */
 const RecordsMobileMap = ({ records, layers }: Props) => {
   const { selected } = records;
-  // 매물 시트를 접어 둔 선호. 접힌 채로 다른 마커를 눌러도, 선택을 풀었다 다시 골라도 이어진다(세션 상태).
-  const [isSheetCollapsed, setIsSheetCollapsed] = useState(false);
+  // 매물 시트를 접어 둔 선호. 접힌 채로 다른 마커를 눌러도, 선택을 풀었다 다시 골라도 이어진다(세션 상태, 동네 찾기 지도와 공유).
+  const isSheetCollapsed = useSheetCollapsed();
   const sheetRecords = layers.groupRecords.length > 0 ? layers.groupRecords : selected ? [selected] : [];
   // 겹친 매물 묶음을 볼 때는 넘길 기준이 하나가 아니라 화살표를 두지 않는다.
   const neighbors = layers.groupRecords.length === 0 && selected ? recordNeighbors(records.records, selected.id) : null;
@@ -57,7 +57,7 @@ const RecordsMobileMap = ({ records, layers }: Props) => {
         stepper={neighbors && <RecordStepper neighbors={neighbors} onStep={records.showRecordOnMap} />}
         onNotice={records.setNotice}
         collapsed={isSheetCollapsed}
-        onCollapsedChange={setIsSheetCollapsed}
+        onCollapsedChange={setSheetCollapsed}
         floating={layers.memo.mode === null ? sheetLocate : undefined}
       />
       <StreetMemoSheet layer={layers.memo} floating={sheetLocate} />
