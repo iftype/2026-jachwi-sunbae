@@ -14,7 +14,6 @@ export const markerSignature = (marker: MapMarker, selectedMarkerId: string | nu
     marker.label,
     marker.caption ?? '',
     marker.summary?.amount ?? '',
-    marker.image?.src ?? '',
     marker.photo ?? '',
     marker.actionable === true ? '1' : '0',
     selectedMarkerId === marker.id ? '1' : '0',
@@ -22,7 +21,6 @@ export const markerSignature = (marker: MapMarker, selectedMarkerId: string | nu
 
 /** 매물과 시설 마커는 아래 꼭짓점이 좌표를 가리키는 핀 이미지로 그린다. */
 export const isPinMarker = (marker: MapMarker): boolean =>
-  marker.image !== undefined ||
   marker.tone === 'property' ||
   marker.tone === 'selected' ||
   marker.tone === 'propertyCluster' ||

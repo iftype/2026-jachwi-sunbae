@@ -1,14 +1,3 @@
-import type { MapCategory } from '@/features/map/model/Map';
-
-/** 지도 점, 고리 조각, 범례 점이 함께 쓰는 시설별 색. */
-export const NEARBY_CATEGORY_COLOR: Partial<Record<MapCategory, string>> = {
-  TRANSPORT: '#3b82f6',
-  CONVENIENCE: '#22c55e',
-  HOSPITAL: '#ef4444',
-  SCHOOL: '#ec4899',
-  AGENCY: '#f59e0b',
-};
-
 /**
  * 매물 자리에 꽂는 기본 파란 핀. 그림이나 글자 없이 물방울 모양에 흰 점 하나만 둔다.
  * 지도 마커 칸(약 2.6rem)을 다 채우면 점들을 가려서, 칸 아래 가운데에 작게 그린다. 핀 끝이 칸 아래 가운데에 온다.

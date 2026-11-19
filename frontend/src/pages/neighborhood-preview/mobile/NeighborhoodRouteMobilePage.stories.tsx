@@ -88,6 +88,7 @@ const preview: NeighborhoodPreviewContext = {
   clearSearchPin: noop,
   setCommuteFromSearchPin: noop,
   cancelEditing: () => undefined,
+  canPickDestination: false,
   editSearch: () => undefined,
   isPublicExplore: false,
   mapPath: '/neighborhoods',

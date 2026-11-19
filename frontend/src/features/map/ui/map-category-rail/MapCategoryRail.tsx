@@ -15,10 +15,6 @@ type MapCategoryRailProps = {
   showIcons?: boolean;
   /** 이 화면에서 빼는 카테고리. 본 방 기록 지도는 동네 찾기에서 따로 보는 `중개`를 뺀다. */
   hiddenCategories?: MapCategory[];
-  /** 칸 순서. 주면 이 순서의 분류만 둔다(동네 찾기는 중개사부터). 없으면 기본 순서다. */
-  order?: MapCategory[];
-  /** 칸 글자를 바꿀 분류(동네 찾기는 `중개` 대신 `중개사`). */
-  labels?: Partial<Record<MapCategory, string>>;
   /** 시설 분류 아래에 이어 붙일 칸(동네 찾기의 `My` 등). 모양은 시설 칸과 같다. */
   extraItems?: MapRailExtraItem[];
   className?: string;
@@ -32,8 +28,6 @@ const MapCategoryRail = ({
   showMemo = false,
   showIcons = true,
   hiddenCategories = [],
-  order,
-  labels = {},
   extraItems = [],
   className,
 }: MapCategoryRailProps) => (
@@ -42,29 +36,26 @@ const MapCategoryRail = ({
     aria-label="지도 시설 카테고리"
     data-icons={showIcons || undefined}
   >
-    {(order
-      ? order.flatMap((value) => MAP_CATEGORY_OPTIONS.filter((option) => option.value === value))
-      : MAP_CATEGORY_OPTIONS
-    )
-      .filter((option) => (showMemo || option.value !== 'MEMO') && !hiddenCategories.includes(option.value))
-      .map((option) => {
-        const selected = selectedCategories.includes(option.value);
-        const count = counts?.[option.value];
-        return (
-          <button
-            key={option.value}
-            type="button"
-            className={styles.categoryButton}
-            data-category={option.value}
-            aria-pressed={selected}
-            aria-label={`${option.label} ${selected ? '숨기기' : '표시하기'}${count === undefined ? '' : `, ${count}개`}`}
-            onClick={() => onToggle(option.value)}
-          >
-            {showIcons && <MapCategoryIcon category={option.value} className={styles.icon} />}
-            {labels[option.value] ?? option.shortLabel}
-          </button>
-        );
-      })}
+    {MAP_CATEGORY_OPTIONS.filter(
+      (option) => (showMemo || option.value !== 'MEMO') && !hiddenCategories.includes(option.value),
+    ).map((option) => {
+      const selected = selectedCategories.includes(option.value);
+      const count = counts?.[option.value];
+      return (
+        <button
+          key={option.value}
+          type="button"
+          className={styles.categoryButton}
+          data-category={option.value}
+          aria-pressed={selected}
+          aria-label={`${option.label} ${selected ? '숨기기' : '표시하기'}${count === undefined ? '' : `, ${count}개`}`}
+          onClick={() => onToggle(option.value)}
+        >
+          {showIcons && <MapCategoryIcon category={option.value} className={styles.icon} />}
+          {option.shortLabel}
+        </button>
+      );
+    })}
     {extraItems.map((item) => (
       <button
         key={item.key}

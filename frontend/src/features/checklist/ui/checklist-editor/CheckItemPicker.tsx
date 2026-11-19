@@ -58,6 +58,7 @@ const CheckItemPicker = ({ stage, existingSourceIds, disabled, onCancel, onAdd }
         <div className={styles.checkItemSearch}>
           <SearchField
             label="제공 항목 검색"
+            variant="filled"
             value={input}
             placeholder="예: 채광, 관리비, 소음"
             disabled={disabled}

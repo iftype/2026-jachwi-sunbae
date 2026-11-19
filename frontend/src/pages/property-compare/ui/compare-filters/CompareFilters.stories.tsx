@@ -15,8 +15,7 @@ const meta = {
   argTypes: {
     filters: {
       control: 'object',
-      description:
-        '이름 검색어(query)·월세 상한(rentLimit: 50 | 70 | 100 | null)·체크리스트(checklist: all | started | notStarted)',
+      description: '월세 상한(rentLimit: 50 | 70 | 100 | null)·체크리스트(checklist: all | started | notStarted)',
     },
     resultCount: {
       control: { type: 'range', min: 0, max: 20, step: 1 },
@@ -37,14 +36,14 @@ export const Default: Story = {};
 
 export const Filtered: Story = {
   args: {
-    filters: { query: '역삼', rentLimit: 70, checklist: 'started' },
+    filters: { rentLimit: 70, checklist: 'started' },
     resultCount: 2,
   },
 };
 
 export const NoResult: Story = {
   args: {
-    filters: { query: '없는 매물', rentLimit: 50, checklist: 'notStarted' },
+    filters: { rentLimit: 50, checklist: 'notStarted' },
     resultCount: 0,
   },
 };

@@ -86,7 +86,6 @@ export const RecordsMapProvider = ({ children }: { children: ReactNode }) => {
     keepSelectionOnMapTap: isDesktop,
     memoLevelBoost: isDesktop ? 1 : 0,
     // 추천받을 자리는 주소를 찾아 검색창에 맞추지 않고, 찍은 좌표 그대로 동네 찾기 조건 칸을 연다.
-    onFindBookmarks: () => navigate(NEIGHBORHOODS_PATH),
     onRecommend: (location) => {
       navigate(NEIGHBORHOODS_PATH, { state: { searchedAddress: location, openRecommendationFilters: true } });
     },

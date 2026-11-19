@@ -1,16 +1,17 @@
 import { css } from '@emotion/css';
 import type { CSSProperties } from 'react';
 
-import { getMapCategoryLabel } from '@/features/map/lib/mapPresentation';
+import {
+  FACILITY_CATEGORY_COLOR,
+  type FacilityCategory,
+  getMapCategoryLabel,
+} from '@/features/map/lib/mapPresentation';
 import type { NearbyCategorySummary } from '@/features/map/lib/nearbySummary';
-import type { MapCategory } from '@/features/map/model/Map';
-
-import { NEARBY_CATEGORY_COLOR } from './nearbyColors';
 
 type NearbyRingProps = {
   summary: NearbyCategorySummary[];
-  focused: MapCategory | null;
-  onFocus: (category: MapCategory) => void;
+  focused: FacilityCategory | null;
+  onFocus: (category: FacilityCategory) => void;
 };
 
 const SIZE = 76;
@@ -46,7 +47,7 @@ const NearbyRing = ({ summary, focused, onFocus }: NearbyRingProps) => {
               cy={SIZE / 2}
               r={RADIUS}
               strokeWidth={STROKE}
-              stroke={NEARBY_CATEGORY_COLOR[item.category]}
+              stroke={FACILITY_CATEGORY_COLOR[item.category]}
               {...(segments.length > 1 && {
                 strokeLinecap: 'round' as const,
                 strokeDasharray: `${Math.max(length - GAP - STROKE, 0.01)} ${CIRCUMFERENCE}`,
@@ -65,7 +66,7 @@ const NearbyRing = ({ summary, focused, onFocus }: NearbyRingProps) => {
             key={item.category}
             data-dimmed={(focused !== null && focused !== item.category) || undefined}
             data-empty={item.count === 0 || undefined}
-            style={{ '--dot': NEARBY_CATEGORY_COLOR[item.category] } as CSSProperties}
+            style={{ '--dot': FACILITY_CATEGORY_COLOR[item.category] } as CSSProperties}
           >
             <button
               type="button"

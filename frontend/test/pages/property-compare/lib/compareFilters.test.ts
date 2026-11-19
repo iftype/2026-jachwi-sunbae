@@ -23,12 +23,9 @@ describe('filterCompareProperties', () => {
     expect(ids(filterCompareProperties(properties, DEFAULT_COMPARE_FILTERS))).toEqual([1, 2, 3]);
   });
 
-  it('이름·월세 상한·체크리스트 시작 여부로 좁힌다', () => {
-    expect(ids(filterCompareProperties(properties, { ...DEFAULT_COMPARE_FILTERS, query: ' 신림 ' }))).toEqual([1, 3]);
+  it('월세 상한과 체크리스트 시작 여부로 좁힌다', () => {
     expect(ids(filterCompareProperties(properties, { ...DEFAULT_COMPARE_FILTERS, rentLimit: 100 }))).toEqual([1, 2]);
     expect(ids(filterCompareProperties(properties, { ...DEFAULT_COMPARE_FILTERS, checklist: 'started' }))).toEqual([1]);
-    expect(
-      ids(filterCompareProperties(properties, { query: '신림', rentLimit: 100, checklist: 'notStarted' })),
-    ).toEqual([]);
+    expect(ids(filterCompareProperties(properties, { rentLimit: 100, checklist: 'notStarted' }))).toEqual([2]);
   });
 });

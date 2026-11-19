@@ -13,6 +13,8 @@ type SearchFieldProps = {
   autoFocus?: boolean;
   className?: string;
   shape?: 'rounded' | 'pill';
+  /** `filled`는 테두리 없이 옅은 회색 바탕에 돋보기를 왼쪽에 둔다. */
+  variant?: 'outline' | 'filled';
   onBack?: () => void;
   onValueChange: (value: string) => void;
   onSubmit: () => void;
@@ -31,6 +33,7 @@ const SearchField = ({
   autoFocus = false,
   className,
   shape = 'rounded',
+  variant = 'outline',
   onBack,
   onValueChange,
   onSubmit,
@@ -117,7 +120,7 @@ const SearchField = ({
     </>
   );
 
-  const classNames = `${styles.search} ${shape === 'pill' ? styles.pill : ''} ${className ?? ''}`;
+  const classNames = `${styles.search} ${shape === 'pill' ? styles.pill : ''} ${variant === 'filled' ? styles.filled : ''} ${className ?? ''}`;
   if (renderAsForm) {
     return (
       <form className={classNames} role="search" onSubmit={submit}>
@@ -199,6 +202,31 @@ const styles = {
     label: SearchField-pill;
     /* 알약이 아니라 약간만 둥글게. */
     border-radius: 10px;
+  `,
+
+  filled: css`
+    label: SearchField-filled;
+    border: 0;
+    border-radius: 14px;
+    background: var(--color-card-surface);
+
+    &:focus-within {
+      box-shadow: inset 0 0 0 2px var(--color-brand-blue-ink) !important;
+    }
+
+    & input {
+      padding-left: 2.9rem;
+    }
+
+    /* 돋보기는 왼쪽, 지우기 x는 그대로 오른쪽에 둔다. */
+    & [data-role='submit'] {
+      right: auto;
+      left: 0;
+    }
+
+    & input::placeholder {
+      color: var(--color-muted);
+    }
   `,
 
   backButton: css`

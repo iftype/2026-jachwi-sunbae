@@ -9,7 +9,6 @@ const summary: NearbyCategorySummary[] = [
   { category: 'TRANSPORT', count: 6, capped: false, nearestMeters: 90 },
   { category: 'CONVENIENCE', count: 9, capped: false, nearestMeters: 120 },
   { category: 'HOSPITAL', count: 4, capped: false, nearestMeters: 250 },
-  { category: 'SCHOOL', count: 1, capped: false, nearestMeters: 340 },
   { category: 'AGENCY', count: 45, capped: true, nearestMeters: 60 },
 ];
 
@@ -25,7 +24,7 @@ const meta = {
     summary: { control: 'object', description: '시설마다 개수, 잘림 여부, 가장 가까운 거리. 정해 둔 순서로 넘긴다.' },
     focused: {
       control: 'select',
-      options: [null, 'TRANSPORT', 'CONVENIENCE', 'HOSPITAL', 'SCHOOL', 'AGENCY'],
+      options: [null, 'TRANSPORT', 'CONVENIENCE', 'HOSPITAL', 'AGENCY'],
       description: '범례에서 고른 시설. 고르면 나머지 줄을 흐리게 한다.',
     },
   },

@@ -30,6 +30,8 @@ vi.mock('@/features/map/ui/map-canvas/MapCanvas', () => ({
     onBoundsChange,
     onCenterChange,
     coordinateMenu,
+    regions,
+    bookmarkControl,
     interactive = false,
   }: MapCanvasProps) => (
     <div aria-label="예시 지도">
@@ -56,6 +58,14 @@ vi.mock('@/features/map/ui/map-canvas/MapCanvas', () => ({
         <button key={action.id} type="button" onClick={action.onSelect}>
           {`말풍선 ${action.label}`}
         </button>
+      ))}
+      {bookmarkControl && (
+        <button type="button" aria-pressed={bookmarkControl.isOn} onClick={bookmarkControl.onToggle}>
+          찜한 동네 토글
+        </button>
+      )}
+      {regions?.map((region) => (
+        <span key={region.id} role="img" aria-label={`찜한 영역 ${region.name}`} />
       ))}
     </div>
   ),
@@ -344,7 +354,7 @@ it('데스크탑에서 지도나 리스트의 방을 누르면 리스트 옆 칸
   matchMedia.mockRestore();
 });
 
-it('데스크탑 리스트에서 방을 누르면 옆 칸에 상세를 열고 지도는 그대로 둔다', async () => {
+it('데스크탑 리스트에서 방을 누르면 옆 칸에 상세를 열고 지도를 그 방 자리로 옮긴다', async () => {
   const matchMedia = useDesktopViewport();
   const user = userEvent.setup();
   try {
@@ -357,8 +367,8 @@ it('데스크탑 리스트에서 방을 누르면 옆 칸에 상세를 열고 �
     const level = map.getByLabelText('지도 배율').textContent;
 
     await user.click(screen.getByRole('link', { name: /신림역 원룸/ }));
-    // 상세는 지도 위에 얹히므로 열어도 지도를 옮기거나 확대하지 않는다.
-    expect(map.getByLabelText('지도 중심')).not.toHaveTextContent(`${target?.latitude},${target?.longitude}`);
+    // 카드를 누르면 지도 중심이 그 방 자리로 옮겨 가고, 확대 단계는 그대로다.
+    expect(map.getByLabelText('지도 중심')).toHaveTextContent(`${target?.latitude},${target?.longitude}`);
     expect(map.getByLabelText('지도 배율')).toHaveTextContent(level ?? '');
     expect(
       await within(screen.getByRole('complementary', { name: '선택한 매물 상세' })).findByRole('heading', {
@@ -886,4 +896,56 @@ it('예시 매물에도 삭제 메뉴를 두고 서버 요청 없이 숨기며 �
   } finally {
     server.events.removeListener('request:start', track);
   }
+});
+
+it('찜한 동네 토글을 켜면 찜한 행정동 영역이 지도에 나타나고, 끄면 사라진다', async () => {
+  const bookmarkHandlers = (await import('@/app/mocks/handlers/adminDongBookmarkHandlers')).adminDongBookmarkHandlers;
+  const { writeBookmarkedAdminDongs } = await import('@/app/mocks/mockStore');
+  writeBookmarkedAdminDongs(['11230640']);
+  localStorage.setItem('jachwi:records-bookmark-layer-rail', 'off');
+  server.use(
+    ...bookmarkHandlers,
+    http.get('*/boundaries/manifest.json', () =>
+      HttpResponse.json({ version: '20250630', file: 'admin-dongs.20250630.123456abcdef.geojson' }),
+    ),
+    http.get('*/boundaries/:filename', () =>
+      HttpResponse.json({
+        type: 'FeatureCollection',
+        features: [
+          {
+            type: 'Feature',
+            properties: {
+              code: '11230640',
+              name: '역삼1동',
+              fullName: '서울특별시 강남구 역삼1동',
+              baseDate: '20250630',
+            },
+            geometry: {
+              type: 'MultiPolygon',
+              coordinates: [
+                [
+                  [
+                    [127, 37.5],
+                    [127, 37.51],
+                    [127.01, 37.5],
+                    [127, 37.5],
+                  ],
+                ],
+              ],
+            },
+          },
+        ],
+      }),
+    ),
+  );
+  renderRecords();
+  const toggle = await screen.findByRole('button', { name: '찜한 동네 토글' });
+  await waitFor(() => expect(toggle).toHaveAttribute('aria-pressed', 'false'));
+  expect(screen.queryByRole('img', { name: '찜한 영역 역삼1동' })).not.toBeInTheDocument();
+  await userEvent.click(toggle);
+  expect(await screen.findByRole('img', { name: '찜한 영역 역삼1동' })).toBeInTheDocument();
+  await userEvent.click(toggle);
+  await waitFor(() => expect(screen.queryByRole('img', { name: '찜한 영역 역삼1동' })).not.toBeInTheDocument());
+  localStorage.removeItem('jachwi:records-bookmark-layer-rail');
+  writeBookmarkedAdminDongs([]);
 });

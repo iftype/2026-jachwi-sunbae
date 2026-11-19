@@ -56,7 +56,7 @@ export type MapRegionCard = {
   markerBelow?: number;
 };
 
-/** 오른쪽 위 레이어 칸(중개사, 병원, 교통, 편의)에 이어 붙이는 켜고 끄는 항목. 찜한 동네 등. */
+/** 오른쪽 위 레이어 칸(교통, 편의점, 병원, 중개사)에 이어 붙이는 켜고 끄는 항목. 찜한 동네 등. */
 export type MapRailExtraItem = {
   key: string;
   label: string;
@@ -88,7 +88,7 @@ export type MapCanvasProps = {
     /** 카드 위로 마우스가 들어오고 나갈 때. 마우스가 동 라벨에서 카드로 옮겨 가도 닫히지 않게 한다. */
     onHoverChange?: (hovered: boolean) => void;
   };
-  bookmarkControl?: { count: number; isOn: boolean; onToggle: () => void };
+  bookmarkControl?: { count: number; isOn: boolean; isDisabled?: boolean; onToggle: () => void };
   /** 처음 한 번 보이는 안내 말풍선. 지도 좌표에 붙어 있다. */
   tip?: MapTip;
   /** 찍은 좌표에 고정된 동작 말풍선. 꼬리 끝이 좌표를 가리킨다. */

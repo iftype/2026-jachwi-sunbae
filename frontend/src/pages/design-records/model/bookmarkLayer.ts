@@ -1,11 +1,12 @@
 const BOOKMARK_LAYER_KEY = 'jachwi:records-bookmark-layer-rail';
 
-/** 내 기록 지도에 북마크한 동네를 칠할지. 한 번 켜면 다음에 열어도 켜진 채로 둔다. */
-export const readBookmarkLayerOn = (): boolean => {
+/** 내 기록 지도에 북마크한 동네를 칠할지. 켜고 끈 값을 다음에 열어도 따르고, 고른 적이 없으면 `null`(기본 켬)이다. */
+export const readBookmarkLayerOn = (): boolean | null => {
   try {
-    return localStorage.getItem(BOOKMARK_LAYER_KEY) === 'on';
+    const stored = localStorage.getItem(BOOKMARK_LAYER_KEY);
+    return stored === null ? null : stored === 'on';
   } catch {
-    return false;
+    return null;
   }
 };
 

@@ -62,6 +62,8 @@ export const RESULT_RAIL_LABELS: Partial<Record<MapCategory, string>> = { AGENCY
 const REGION_LABEL_HALF_HEIGHT = 18;
 const SEARCH_PIN_ID = 'search-pin';
 const BOOKMARK_REGION_PREFIX = 'bookmark:';
+/** 출퇴근 장소 핀과 검색 핀. 찜한 동네만 보여 줄 때도 지우지 않는다. */
+const isCommutePin = (marker: MapMarker) => marker.id === 'destination' || marker.id.startsWith(SEARCH_PIN_ID);
 
 const useNeighborhoodMapView = (
   preview: NeighborhoodPreviewContext,
@@ -170,7 +172,8 @@ const useNeighborhoodMapView = (
     else if (hasOpenLayer) closeLayers();
   };
   const tapMap = (latitude: number, longitude: number) => {
-    if (isResultMap && (hasOpenLayer || preview.selected)) {
+    // 결과 지도에서는 열린 정보만 닫고 출퇴근 장소는 건드리지 않는다.
+    if (!preview.canPickDestination) {
       tapEmpty();
       return;
     }
@@ -353,7 +356,8 @@ const useNeighborhoodMapView = (
         onCenterChange: preview.rememberSelectionCenter,
         onLevelChange: preview.rememberSelectionLevel,
         markers: [...candidateMarkers, ...searchPinMarker],
-        regions: preview.hasSubmittedSearch ? preview.regions : NO_REGIONS,
+        // 출퇴근 장소를 다시 고르는 동안에는 이전 결과의 동 영역을 지운다. 새로 찾아야 다시 그려지고, 이전 결과 보기로 돌아오면 그대로 복원된다.
+        regions: NO_REGIONS,
         tip,
         // 분석 중이거나 실패 화면이 지도를 덮고 있을 때는 위치 찍기를 끈다.
         onSelectLocation: preview.isSelectingOnMap ? tapMap : undefined,
@@ -371,10 +375,13 @@ const useNeighborhoodMapView = (
     ? {
         ...mapProps,
         bookmarkControl: registration.canvasProps.bookmarkControl,
-        markers: [
-          ...(mapProps.markers ?? []),
-          ...(registration.canvasProps.markers ?? []).filter((marker) => marker.category === 'MEMO'),
-        ],
+        // 찜한 동네를 켜 두면 찜한 영역만 또렷하게 보이도록 시설, 매물, 메모 같은 주변 마커를 걷고 출퇴근 장소 핀만 남긴다.
+        markers: registration.canvasProps.bookmarkControl.isOn
+          ? (mapProps.markers ?? []).filter(isCommutePin)
+          : [
+              ...(mapProps.markers ?? []),
+              ...(registration.canvasProps.markers ?? []).filter((marker) => marker.category === 'MEMO'),
+            ],
         // 찜한 동네는 행정동 경계 안쪽을 칠해 두 지도에 같은 모양으로 보인다. 통근 결과 구역과 id가 겹치지 않게 접두어를 붙이고, 눌러도 고르지 않는다.
         regions: [
           ...(mapProps.regions ?? []),
@@ -386,9 +393,14 @@ const useNeighborhoodMapView = (
         // 동네 찾기에서는 지도를 눌러도 메모 남기기, 본 방 기록하기 메뉴를 띄우지 않는다.
         coordinateMenu: undefined,
         onSelectRegion: (id, point) => {
-          if (id.startsWith(BOOKMARK_REGION_PREFIX)) return;
+          // 찜한 동네를 누르면 내 기록 지도와 같은 카드(동 이름과 별)를 띄워 거기서 찜을 해제한다.
+          if (id.startsWith(BOOKMARK_REGION_PREFIX)) {
+            registration.canvasProps.onSelectRegion(id.slice(BOOKMARK_REGION_PREFIX.length), point);
+            return;
+          }
           mapProps.onSelectRegion?.(id, point);
         },
+        coordinateAction: mapProps.coordinateAction ?? registration.canvasProps.coordinateAction,
         onSelectMarker: (marker) => {
           if (marker.category === 'MEMO') registration.canvasProps.onSelectMarker?.(marker);
           else baseSelectMarker?.(marker);

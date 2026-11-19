@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
 import { useGoodPriceStores } from '@/features/good-price/api/goodPriceApi';
 import {
@@ -10,6 +10,12 @@ import {
 } from '@/features/map/lib/mapLocation';
 import type { MapMarker } from '@/features/map/model/Map';
 import { usePropertyList } from '@/features/property/api/useProperties';
+import {
+  hiddenPreviewSnapshot,
+  parseHiddenPreviewIds,
+  subscribeHiddenPreviews,
+} from '@/features/property/model/previewPropertyDismissal';
+import { withPreviewProperties } from '@/features/property/model/sampleProperties';
 
 import { countBusinessTypes, filterByBusinessType } from '../model/businessTypeFilter';
 import {
@@ -19,7 +25,6 @@ import {
   writeRestaurantListOpen,
 } from '../model/restaurantAreaSession';
 import { RESTAURANT_SEARCH_RADIUS, type RestaurantArea } from '../model/RestaurantMap';
-import storePin from '../ui/store-pin.svg';
 import useRestaurantOverlay from './useRestaurantOverlay';
 
 const DEFAULT_AREA: RestaurantArea = { ...DEFAULT_MAP_CENTER, label: '판교 주변' };
@@ -56,9 +61,16 @@ const useRestaurantMap = (isActive: boolean) => {
   // 고른 업종. null이면 모든 업종을 보여 준다. 기준을 바꿔도 그대로 두어 같은 업종을 이어서 찾는다.
   const [businessType, setBusinessType] = useState<string | null>(null);
   const properties = usePropertyList(isActive);
+  // 기록이 하나도 없으면 내 기록 화면과 같은 미리보기(예시) 매물을 대신 쓰고, 이 기기에서 숨긴 예시는 뺀다.
+  const hiddenPreviewValue = useSyncExternalStore(subscribeHiddenPreviews, hiddenPreviewSnapshot);
+  const hiddenPreviewIds = useMemo(() => parseHiddenPreviewIds(hiddenPreviewValue), [hiddenPreviewValue]);
   /** 위치가 있는 기록 매물. 목록 순서(최근 기록 먼저)를 따른다. 이름이 같으면 주소로 구분한다. */
   const recorded = useMemo(() => {
-    const located = (properties.data?.pages.flatMap((page) => page.content) ?? []).flatMap((property) =>
+    const listed = withPreviewProperties(
+      properties.data?.pages.flatMap((page) => page.content) ?? [],
+      properties.isSuccess,
+    ).properties.filter((property) => !hiddenPreviewIds.includes(property.propertyId));
+    const located = listed.flatMap((property) =>
       property.location.latitude === null || property.location.longitude === null
         ? []
         : [
@@ -80,7 +92,7 @@ const useRestaurantMap = (isActive: boolean) => {
           ? `${property.name}(${property.address})`
           : property.name,
     }));
-  }, [properties.data]);
+  }, [properties.data, properties.isSuccess, hiddenPreviewIds]);
   const requestId = useRef(0);
   // 사용자가 기준을 직접 고르면 뒤늦게 도착한 현재 위치나 기록 매물이 그 기준을 덮지 않는다.
   const hasChosen = useRef(false);
@@ -152,8 +164,8 @@ const useRestaurantMap = (isActive: boolean) => {
         id: String(store.id),
         latitude: store.latitude,
         longitude: store.longitude,
-        label: `${store.name} 상세 보기`,
-        image: { src: storePin },
+        label: store.name,
+        tone: 'destination' as const,
         actionable: true,
       })),
       // 기준 마커. 진한 파란 핀에 작은 `기준` 라벨. 가게와 매물 마커보다 위에 그려지지만 눌리지는 않는다.
@@ -224,9 +236,12 @@ const useRestaurantMap = (isActive: boolean) => {
       isCancelled = true;
     };
   }, [isActive]);
+  /** 지금 기준과 같은 자리의 기록 매물. 기록 매물 줄에서 고른 칸으로 보여 준다. */
+  const baseProperty = recorded.find((property) => coordinatesAreClose(property, area)) ?? null;
   return {
     area,
     recorded,
+    baseProperty,
     notice,
     closeNotice: () => setNotice(null),
     viewport,

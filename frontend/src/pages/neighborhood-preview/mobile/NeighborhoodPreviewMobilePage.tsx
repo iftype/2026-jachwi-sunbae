@@ -18,7 +18,6 @@ import useNeighborhoodMapView from '../hooks/useNeighborhoodMapView';
 import type { NeighborhoodPreviewContext } from '../hooks/useNeighborhoodPreview';
 import useResultMapViewport from '../hooks/useResultMapViewport';
 import { rentLabel, RESELECT_COMMUTE_LABEL, transferLabel } from '../model/criteriaLabels';
-import { readCriteriaCollapsed, writeCriteriaCollapsed } from '../model/neighborhoodSearchSession';
 import { MOBILE_AREA_SHEET_PERCENT, mobileMapViewport } from '../model/resultMapView';
 import type { NeighborhoodFilterField } from '../NeighborhoodFilters';
 import { NeighborhoodFilterPicker } from '../NeighborhoodFilters';
@@ -55,12 +54,6 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
   // 지도 빈 곳을 찍으면 시트를 닫지 않고 제목만 보이게 내린다.
   const [peekSignal, setPeekSignal] = useState(0);
   const [isRentOpen, setIsRentOpen] = useState(false);
-  // 색 기준표만 접어 둘 수 있다. 접은 상태는 같은 세션 동안 남는다.
-  const [isLegendCollapsed, setIsLegendCollapsed] = useState(readCriteriaCollapsed);
-  const toggleLegend = () => {
-    writeCriteriaCollapsed(!isLegendCollapsed);
-    setIsLegendCollapsed(!isLegendCollapsed);
-  };
   const reselectCommute = () => {
     closeLayers();
     preview.selectRegion(null);
@@ -108,6 +101,13 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
   };
   // `My` 목록에서 고른 매물이면 시트에 이전과 다음 이동, 목록으로 돌아가는 뒤로가기를 둔다.
   const myPager = useMyPropertyPager(infoSubject, mapView);
+  // 시트가 없으면 지도 아래 가운데에 두고, 시트가 있으면 시트 바로 위에 띄워(BottomSheet `floating`) 시트 높이와 하단 탭을 그대로 따라가게 한다.
+  const reselectButton = (className: string) => (
+    <Button className={className} onClick={reselectCommute} data-public={preview.isPublicExplore || undefined}>
+      <Icon name="replace" size={18} />
+      {RESELECT_COMMUTE_LABEL}
+    </Button>
+  );
   // 지도는 화면 전체를 쓰고, 위 결과 머리와 아래 시트가 가리는 만큼 비우고 시점을 맞춘다.
   const mapSectionRef = useResultMapViewport<HTMLElement>(preview, (section) => {
     const rect = section.getBoundingClientRect();
@@ -277,53 +277,13 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
               {isRentOpen && <RentSlider preview={preview} bare className={styles.headerSlider} />}
               <div className={styles.filterRow}>
                 <div className={styles.legendSlot}>
-                  {isLegendCollapsed ? (
-                    <button className={styles.criteriaToggle} type="button" onClick={toggleLegend}>
-                      색 기준표 보기
-                    </button>
-                  ) : (
-                    <CommuteLegend maxMinutes={preview.maxMinutes} className={styles.legend}>
-                      <button className={styles.regionToggle} type="button" onClick={toggleLegend}>
-                        표 닫기
-                      </button>
-                    </CommuteLegend>
-                  )}
-                </div>
-                <div className={styles.resultActions}>
-                  {preview.topAreas.length > 0 && (
-                    <div className={styles.areaBadges} aria-label="추천 동네">
-                      {preview.topAreas.map((area) => (
-                        <button
-                          key={area.adminDongCode}
-                          type="button"
-                          aria-label={`추천 동네 ${area.name}`}
-                          aria-pressed={selectedAreaCode === area.adminDongCode}
-                          onClick={() => {
-                            closeLayers();
-                            setDismissedAreaCode(null);
-                            preview.selectRegion(area.adminDongCode, { focus: 'none', openDetails: false });
-                          }}
-                        >
-                          {area.name}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  <CommuteLegend maxMinutes={preview.maxMinutes} className={styles.legend} showsNoRent={false} />
                 </div>
               </div>
             </header>
             {resultControls}
 
-            {!infoSubject && (
-              <Button
-                className={styles.reselect}
-                onClick={reselectCommute}
-                data-public={preview.isPublicExplore || undefined}
-              >
-                <Icon name="replace" size={18} />
-                {RESELECT_COMMUTE_LABEL}
-              </Button>
-            )}
+            {!infoSubject && reselectButton(styles.reselect)}
             {preview.isPublicExplore && recordArea && (
               <div className={shared.recordAction}>
                 <ExplorationRecordAction
@@ -364,6 +324,7 @@ const NeighborhoodPreviewMobilePage = ({ preview }: Props) => {
                   )
                 }
                 peekSignal={peekSignal}
+                floating={reselectButton(styles.reselectFloating)}
                 onClose={() => {
                   if (infoSubject.kind === 'place') closeLayers();
                   else if (infoSubject.kind === 'area') setDismissedAreaCode(infoSubject.area.adminDongCode);
@@ -397,6 +358,15 @@ const styles = {
     transform: translateX(-50%);
     box-shadow: var(--shadow-floating);
     white-space: nowrap;
+    /* 흰 지도와 시트 위에서도 눈에 띄게 진한 파랑 바탕에 굵은 테두리를 둔다. */
+    border: 2px solid var(--color-surface);
+    background: var(--color-brand-blue-ink);
+    color: var(--color-on-primary);
+    font-size: 0.875rem;
+
+    &:hover:not(:disabled) {
+      background: var(--color-brand-blue-ink);
+    }
 
     &[data-public='true'] {
       bottom: calc(env(safe-area-inset-bottom) + 4.5rem);
@@ -406,6 +376,16 @@ const styles = {
       display: flex;
       align-items: center;
       gap: 0.4rem;
+    }
+  `,
+  /* 시트 위 `floating` 칸 안에서는 위치를 시트가 정하므로 고정 배치만 푼다. */
+  reselectFloating: css`
+    label: NeighborhoodPreviewMobilePage-reselectFloating;
+    position: static;
+    transform: none;
+
+    &[data-public='true'] {
+      bottom: auto;
     }
   `,
   conditionCard: css`
@@ -431,38 +411,6 @@ const styles = {
   `,
   legend: css`
     box-sizing: border-box;
-  `,
-  resultActions: css`
-    display: grid;
-    justify-items: start;
-    gap: 0.35rem;
-    min-width: 0;
-  `,
-  areaBadges: css`
-    pointer-events: auto;
-    display: flex;
-    width: 100%;
-    gap: 0.25rem;
-    overflow-x: auto;
-    scrollbar-width: none;
-
-    & button {
-      flex: none;
-      min-height: 2rem;
-      padding-inline: 0.65rem;
-      border: 1px solid var(--color-border);
-      border-radius: 999px;
-      background: var(--color-surface);
-      color: var(--color-ink);
-      font: inherit;
-      font-size: 0.82rem;
-      font-weight: 700;
-    }
-    & button[aria-pressed='true'] {
-      border-color: var(--color-brand-blue-ink);
-      background: var(--color-brand-blue-ink);
-      color: var(--color-on-primary);
-    }
   `,
   bookmark: css`
     padding: 0;
@@ -502,20 +450,6 @@ const styles = {
     }
   `,
 
-  regionToggle: css`
-    label: NeighborhoodPreviewMobilePage-regionToggle;
-    width: 6.5rem;
-    white-space: nowrap;
-    margin-top: 0.2rem;
-    padding: 0.25rem 0;
-    border: 0;
-    border-top: 1px solid var(--color-border);
-    background: transparent;
-    color: var(--color-brand-blue-ink);
-    font: inherit;
-    font-size: 0.68rem;
-    cursor: pointer;
-  `,
   filterRow: css`
     label: NeighborhoodPreviewMobilePage-filterRow;
     pointer-events: none;
@@ -523,31 +457,6 @@ const styles = {
     justify-content: flex-start;
     align-items: flex-start;
     gap: 0.45rem;
-  `,
-
-  criteriaToggle: css`
-    label: NeighborhoodPreviewMobilePage-criteriaToggle;
-    pointer-events: auto;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.2rem;
-    min-width: 1.9rem;
-    height: 1.9rem;
-    justify-content: center;
-    padding: 0 0.5rem;
-    border: 1px solid var(--color-border);
-    border-radius: 99px;
-    background: var(--color-surface);
-    box-shadow: 0 1px 6px rgb(0 0 0 / 8%);
-    color: var(--color-ink-soft);
-    font: inherit;
-    font-size: 0.7rem;
-    font-weight: 700;
-    cursor: pointer;
-    &:focus-visible {
-      outline: 2px solid var(--color-focus);
-      outline-offset: 2px;
-    }
   `,
 
   resetButton: css`

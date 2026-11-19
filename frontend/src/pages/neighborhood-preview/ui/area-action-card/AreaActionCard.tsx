@@ -2,8 +2,6 @@ import { css } from '@emotion/css';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
-import Icon from '@/shared/ui/icon/Icon';
-
 type AreaActionCardProps = {
   icon: ReactNode;
   title: string;
@@ -14,19 +12,16 @@ type AreaActionCardProps = {
   onOpen?: () => void;
 };
 
-/** 동네 하나에 대한 다음 행동을 아이콘·제목·설명 카드로 보여준다. */
+/** 동네 하나에 대한 다음 행동을 글(제목과 설명)을 왼쪽에, 작은 아이콘을 오른쪽에 둔 한 줄 카드로 보여준다. */
 const AreaActionCard = ({ icon, title, description, link, className, onOpen }: AreaActionCardProps) => {
   const cardClassName = [styles.card, className].filter(Boolean).join(' ');
   const content = (
     <>
-      <span className={styles.icon}>{icon}</span>
       <span className={styles.text}>
         <strong>{title}</strong>
         <small>{description}</small>
       </span>
-      <span className={styles.trailing} aria-hidden="true">
-        <Icon name={'href' in link ? 'external-link' : 'chevron-right'} size={20} />
-      </span>
+      <span className={styles.icon}>{icon}</span>
     </>
   );
   return 'href' in link ? (
@@ -45,10 +40,10 @@ const styles = {
     label: AreaActionCard-card;
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    padding: 0.7rem 0.9rem;
+    gap: 0.6rem;
+    padding: 0.4rem 0.5rem 0.4rem 0.8rem;
     border: 1px solid var(--color-border-strong);
-    border-radius: 1rem;
+    border-radius: 0.85rem;
     background: var(--color-surface);
     color: var(--color-ink);
     text-decoration: none;
@@ -64,10 +59,10 @@ const styles = {
     flex-shrink: 0;
     align-items: center;
     justify-content: center;
-    width: 2.75rem;
-    height: 2.75rem;
+    width: 2.25rem;
+    height: 2.25rem;
     overflow: hidden;
-    border-radius: 0.75rem;
+    border-radius: 0.6rem;
     background: var(--color-surface-muted);
     color: var(--color-primary);
 
@@ -95,14 +90,10 @@ const styles = {
       font-size: 0.72rem;
       line-height: 1.3;
       color: var(--color-ink-soft);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
-  `,
-
-  trailing: css`
-    label: AreaActionCard-trailing;
-    display: inline-flex;
-    flex-shrink: 0;
-    color: var(--color-ink-soft);
   `,
 };
 

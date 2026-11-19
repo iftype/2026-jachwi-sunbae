@@ -1,17 +1,16 @@
 import { css, cx } from '@emotion/css';
-import type { ReactNode } from 'react';
 
 import { COMMUTE_COLORS, commuteLegend, NO_RENT_COLOR, NO_RENT_LEGEND_LABEL } from '../../model/commuteColors';
 
 type Props = {
   maxMinutes: number;
-  /** 항목 아래에 덧붙일 것(휴대폰의 `표 닫기` 버튼). */
-  children?: ReactNode;
+  /** 거짓이면 `월세 정보 없음` 줄을 뺀다. 휴대폰은 통근 시간 구간만 보여 준다. */
+  showsNoRent?: boolean;
   className?: string;
 };
 
-/** 지도 색 기준 카드. 통근 시간 구간 색과 월세 정보 없음 항목을 세로로 쌓는다. 데스크탑과 휴대폰이 함께 쓴다. */
-const CommuteLegend = ({ maxMinutes, children, className }: Props) => (
+/** 지도 색 기준 카드. 통근 시간 구간 색과 월세 정보 없음 항목을 세로로 쌓는다(휴대폰은 월세 정보 없음 줄을 뺀다). 데스크탑과 휴대폰이 함께 쓴다. */
+const CommuteLegend = ({ maxMinutes, showsNoRent = true, className }: Props) => (
   <div className={cx(styles.card, className)} aria-label="통근 시간 색상 기준">
     {commuteLegend(maxMinutes).map(([group, label]) => (
       <span key={group}>
@@ -19,11 +18,12 @@ const CommuteLegend = ({ maxMinutes, children, className }: Props) => (
         {label}
       </span>
     ))}
-    <span>
-      <i className={styles.noRentSwatch} style={{ borderColor: NO_RENT_COLOR.strokeColor }} />
-      {NO_RENT_LEGEND_LABEL}
-    </span>
-    {children}
+    {showsNoRent && (
+      <span>
+        <i className={styles.noRentSwatch} style={{ borderColor: NO_RENT_COLOR.strokeColor }} />
+        {NO_RENT_LEGEND_LABEL}
+      </span>
+    )}
   </div>
 );
 

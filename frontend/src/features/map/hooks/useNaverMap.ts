@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { usePublicConfig } from '@/shared/config/PublicConfigContext';
+import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
 
 import { clampToSouthKorea } from '../lib/mapLocation';
 import { createMapMarkerLayer } from '../lib/mapMarkerLayer';
@@ -80,6 +81,7 @@ const useNaverMap = ({
   onHoverRegion,
 }: LiveMapProps) => {
   const config = usePublicConfig();
+  const isDesktop = useIsDesktop();
   const [tapGuard] = useState(() => createMapTapGuard());
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LiveMap | null>(null);
@@ -560,8 +562,8 @@ const useNaverMap = ({
   }, [engine, liveMode, mapReady]);
 
   useEffect(() => {
-    regionLayerRef.current?.sync(regions, selectedRegionId);
-  }, [engine, liveMode, mapReady, regions, selectedRegionId, settledVersion]);
+    regionLayerRef.current?.sync(regions, selectedRegionId, !isDesktop);
+  }, [engine, isDesktop, liveMode, mapReady, regions, selectedRegionId, settledVersion]);
 
   useEffect(() => {
     const element = canvasRef.current;

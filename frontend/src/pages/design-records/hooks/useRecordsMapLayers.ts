@@ -21,6 +21,7 @@ import { useLogger } from '@/shared/lib/analytics/logging';
 
 import { readBookmarkLayerOn, writeBookmarkLayerOn } from '../model/bookmarkLayer';
 import { FIRST_PROPERTY_TIP_KEY, RECORDS_TAP_TIP_KEY, SHOW_FIRST_PROPERTY_TIP } from '../model/mapTapTipKey';
+import { nearestMarkerAt } from '../model/nearestMarker';
 import { SEARCHED_PIN_IMAGE } from '../model/searchedPin';
 import type { RecordsState } from './useRecords';
 
@@ -33,8 +34,6 @@ type MapPoint = { latitude: number; longitude: number };
 
 type Options = {
   interactionLevel?: number;
-  /** 찜한 동네가 하나도 없을 때 레이어 칸의 `찜한 동네`를 누르면 동네 찾기로 보낸다. */
-  onFindBookmarks?: () => void;
   onRecommend?: (location: MapAddress) => void;
   /**
    * 찍은 위치에서 매물 등록을 고르면 주소 응답을 기다린 뒤에 넘긴다. 등록 화면을 여는 방식은 화면이 정한다.
@@ -71,7 +70,6 @@ const useRecordsMapLayers = (
     onRegister,
     onRecommend,
     interactionLevel,
-    onFindBookmarks,
     registeringAt = null,
     groupAction = 'list',
     keepSelectionOnMapTap = false,
@@ -81,8 +79,13 @@ const useRecordsMapLayers = (
   const config = usePublicConfig();
   // 동네 찾기에서 북마크한 동네를 지도에 칠하는 층. 버튼으로 켜고 끈다.
   const bookmarkStore = useAdminDongBookmarks();
-  const [isBookmarkLayerOn, setIsBookmarkLayerOn] = useState(readBookmarkLayerOn);
+  // 저장한 값이 없으면 찜한 동네가 있을 때 기본으로 칠한다.
+  const [storedBookmarkLayerOn, setStoredBookmarkLayerOn] = useState(readBookmarkLayerOn);
+  const isBookmarkLayerOn = storedBookmarkLayerOn ?? true;
   const bookmarkRegions = useBookmarkedRegions(bookmarkStore.codes, isBookmarkLayerOn);
+  // 칠한 찜한 동네를 누르면 그 자리에 동 이름과 별 카드를 띄워 거기서 찜을 해제한다.
+  const [openBookmarkCode, setOpenBookmarkCode] = useState<string | null>(null);
+  const openBookmarkRegion = bookmarkRegions.find((region) => region.id === openBookmarkCode);
   // 매물 상세에서 주소를 바꿀 때, 옆의 큰 지도를 눌러 새 자리를 고르는 모드. 상세는 저장 함수를 맡기고, 고른 자리와 저장은 이 겹이 맡는다.
   const [pickRequest, setPickRequest] = useState<{ onSave: (address: MapAddress) => Promise<void> } | null>(null);
   const [picked, setPicked] = useState<{ status: 'geocoding' | 'ready' | 'error'; address: MapAddress } | null>(null);
@@ -296,6 +299,7 @@ const useRecordsMapLayers = (
    * 무언가를 닫으려고 찍었는데 바로 새 동작이 뜨면 다시 닫아야 해서 두 단계로 나눈다.
    */
   const tapLocation = (latitude: number, longitude: number) => {
+    setOpenBookmarkCode(null);
     // 주소를 바꾸는 중에는 지도를 눌러 새 자리를 고르기만 한다.
     if (pickRequest !== null) {
       pickAt(latitude, longitude);
@@ -360,6 +364,19 @@ const useRecordsMapLayers = (
     enabled: SHOW_FIRST_PROPERTY_TIP && createdMarker !== undefined && realRecordCount === 1,
   });
   const allMarkers = useMemo(() => [...recordMarkers, ...markers], [recordMarkers, markers]);
+  /** 메모 마커와 겹친 매물 묶음이 아니면 기록한 방 하나의 마커다. */
+  const selectMapMarker = (marker: MapMarker) => {
+    // 검색한 곳의 라벨(×)을 누르면 그 표시를 지운다.
+    if (marker.id === SEARCHED_MARKER_ID) {
+      records.clearSearchedPoint();
+      return;
+    }
+    if (selectMarker(marker)) return;
+    memo.close();
+    setTapPoint(null);
+    setGroupIds([]);
+    records.showRecord(marker.id);
+  };
   /** 두 화면의 지도가 그대로 넘기는 MapCanvas 설정. 찍은 자리 말풍선(coordinateMenu)은 데스크탑만 더한다. */
   const canvasProps = {
     // 동네 뱃지, 현재 위치, 매물 넘기기로 지도를 옮길 때 부드럽게 이동한다.
@@ -369,35 +386,51 @@ const useRecordsMapLayers = (
     level: records.level,
     markers: allMarkers,
     selectedMarkerId: selectedRecordMarkerId ?? memo.selectedMarkerId,
-    // 메모 마커와 겹친 매물 묶음이 아니면 기록한 방 하나의 마커다.
-    onSelectMarker: (marker: MapMarker) => {
-      // 검색한 곳의 라벨(×)을 누르면 그 표시를 지운다.
-      if (marker.id === SEARCHED_MARKER_ID) {
-        records.clearSearchedPoint();
-        return;
-      }
-      if (selectMarker(marker)) return;
-      memo.close();
-      setTapPoint(null);
-      setGroupIds([]);
-      records.showRecord(marker.id);
-    },
+    onSelectMarker: selectMapMarker,
     onSelectLocation: tapLocation,
     onCenterChange: (latitude: number, longitude: number) => records.setCenter({ latitude, longitude }),
     onLevelChange: records.setLevel,
     onBoundsChange: rememberBounds,
     tip: firstPropertyTip ?? tip,
     regions: bookmarkRegions,
+    // 찜한 동네 위의 기록과 메모를 눌러도 구역이 먼저 눌릴 수 있어, 누른 자리 아래 마커가 있으면 그 마커의 말풍선을 연다.
+    onSelectRegion: (id: string, point?: MapPoint) => {
+      const marker = point ? nearestMarkerAt(allMarkers, point, bounds) : null;
+      if (marker) {
+        setOpenBookmarkCode(null);
+        selectMapMarker(marker);
+        return;
+      }
+      setOpenBookmarkCode((current) => (current === id ? null : id));
+    },
+    coordinateAction:
+      openBookmarkRegion?.center === undefined
+        ? undefined
+        : {
+            ...openBookmarkRegion.center,
+            placement: 'above' as const,
+            label: openBookmarkRegion.name,
+            onClick: () => undefined,
+            card: {
+              title: openBookmarkRegion.name,
+              bookmark: {
+                isOn: bookmarkStore.isBookmarked(openBookmarkRegion.id),
+                onToggle: () => {
+                  bookmarkStore.toggle(openBookmarkRegion.id);
+                  setOpenBookmarkCode(null);
+                },
+              },
+              rows: [],
+            },
+          },
     bookmarkControl: {
       count: bookmarkStore.codes.length,
       isOn: isBookmarkLayerOn && bookmarkStore.codes.length > 0,
+      isDisabled: bookmarkStore.codes.length === 0,
       onToggle: () => {
-        if (bookmarkStore.codes.length === 0) {
-          onFindBookmarks?.();
-          return;
-        }
+        if (bookmarkStore.codes.length === 0) return;
         writeBookmarkLayerOn(!isBookmarkLayerOn);
-        setIsBookmarkLayerOn(!isBookmarkLayerOn);
+        setStoredBookmarkLayerOn(!isBookmarkLayerOn);
       },
     },
   } satisfies MapCanvasProps;
