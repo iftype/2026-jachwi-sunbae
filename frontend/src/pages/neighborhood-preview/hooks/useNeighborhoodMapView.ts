@@ -386,9 +386,14 @@ const useNeighborhoodMapView = (
         // 동네 찾기에서는 지도를 눌러도 메모 남기기, 본 방 기록하기 메뉴를 띄우지 않는다.
         coordinateMenu: undefined,
         onSelectRegion: (id, point) => {
-          if (id.startsWith(BOOKMARK_REGION_PREFIX)) return;
+          // 찜한 동네를 누르면 내 기록 지도와 같은 카드(동 이름과 별)를 띄워 거기서 찜을 해제한다.
+          if (id.startsWith(BOOKMARK_REGION_PREFIX)) {
+            registration.canvasProps.onSelectRegion(id.slice(BOOKMARK_REGION_PREFIX.length));
+            return;
+          }
           mapProps.onSelectRegion?.(id, point);
         },
+        coordinateAction: mapProps.coordinateAction ?? registration.canvasProps.coordinateAction,
         onSelectMarker: (marker) => {
           if (marker.category === 'MEMO') registration.canvasProps.onSelectMarker?.(marker);
           else baseSelectMarker?.(marker);

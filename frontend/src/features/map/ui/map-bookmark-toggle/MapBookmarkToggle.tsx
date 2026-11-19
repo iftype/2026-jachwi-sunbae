@@ -2,14 +2,19 @@ import { css } from '@emotion/css';
 
 import type { MapCanvasProps } from '../../model/MapCanvas';
 
-const MapBookmarkToggle = ({ count, isOn, onToggle }: NonNullable<MapCanvasProps['bookmarkControl']>) => {
-  const label =
-    count === 0 ? '찜한 동네가 없어요. 동네 찾기로 가서 찜하기' : `찜한 동네 ${isOn ? '숨기기' : '보기'}, ${count}곳`;
+const MapBookmarkToggle = ({
+  count,
+  isOn,
+  isDisabled = false,
+  onToggle,
+}: NonNullable<MapCanvasProps['bookmarkControl']>) => {
+  const label = count === 0 ? '찜한 동네가 없어요' : `찜한 동네 ${isOn ? '숨기기' : '보기'}, ${count}곳`;
   return (
     <button
       className={styles.button}
       type="button"
       aria-pressed={isOn}
+      disabled={isDisabled}
       aria-label={label}
       title={label}
       onClick={onToggle}
@@ -62,6 +67,11 @@ const styles = {
     &[aria-pressed='true'] {
       border-color: var(--color-brand-blue-ink);
       color: var(--color-brand-blue-ink);
+    }
+
+    &:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
     }
 
     &:focus-visible {

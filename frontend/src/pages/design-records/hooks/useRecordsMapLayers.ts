@@ -33,8 +33,6 @@ type MapPoint = { latitude: number; longitude: number };
 
 type Options = {
   interactionLevel?: number;
-  /** 찜한 동네가 하나도 없을 때 레이어 칸의 `찜한 동네`를 누르면 동네 찾기로 보낸다. */
-  onFindBookmarks?: () => void;
   onRecommend?: (location: MapAddress) => void;
   /**
    * 찍은 위치에서 매물 등록을 고르면 주소 응답을 기다린 뒤에 넘긴다. 등록 화면을 여는 방식은 화면이 정한다.
@@ -71,7 +69,6 @@ const useRecordsMapLayers = (
     onRegister,
     onRecommend,
     interactionLevel,
-    onFindBookmarks,
     registeringAt = null,
     groupAction = 'list',
     keepSelectionOnMapTap = false,
@@ -81,8 +78,13 @@ const useRecordsMapLayers = (
   const config = usePublicConfig();
   // 동네 찾기에서 북마크한 동네를 지도에 칠하는 층. 버튼으로 켜고 끈다.
   const bookmarkStore = useAdminDongBookmarks();
-  const [isBookmarkLayerOn, setIsBookmarkLayerOn] = useState(readBookmarkLayerOn);
+  // 저장한 값이 없으면 찜한 동네가 있을 때 기본으로 칠한다.
+  const [storedBookmarkLayerOn, setStoredBookmarkLayerOn] = useState(readBookmarkLayerOn);
+  const isBookmarkLayerOn = storedBookmarkLayerOn ?? true;
   const bookmarkRegions = useBookmarkedRegions(bookmarkStore.codes, isBookmarkLayerOn);
+  // 칠한 찜한 동네를 누르면 그 자리에 동 이름과 별 카드를 띄워 거기서 찜을 해제한다.
+  const [openBookmarkCode, setOpenBookmarkCode] = useState<string | null>(null);
+  const openBookmarkRegion = bookmarkRegions.find((region) => region.id === openBookmarkCode);
   // 매물 상세에서 주소를 바꿀 때, 옆의 큰 지도를 눌러 새 자리를 고르는 모드. 상세는 저장 함수를 맡기고, 고른 자리와 저장은 이 겹이 맡는다.
   const [pickRequest, setPickRequest] = useState<{ onSave: (address: MapAddress) => Promise<void> } | null>(null);
   const [picked, setPicked] = useState<{ status: 'geocoding' | 'ready' | 'error'; address: MapAddress } | null>(null);
@@ -296,6 +298,7 @@ const useRecordsMapLayers = (
    * 무언가를 닫으려고 찍었는데 바로 새 동작이 뜨면 다시 닫아야 해서 두 단계로 나눈다.
    */
   const tapLocation = (latitude: number, longitude: number) => {
+    setOpenBookmarkCode(null);
     // 주소를 바꾸는 중에는 지도를 눌러 새 자리를 고르기만 한다.
     if (pickRequest !== null) {
       pickAt(latitude, longitude);
@@ -388,16 +391,35 @@ const useRecordsMapLayers = (
     onBoundsChange: rememberBounds,
     tip: firstPropertyTip ?? tip,
     regions: bookmarkRegions,
+    onSelectRegion: (id: string) => setOpenBookmarkCode((current) => (current === id ? null : id)),
+    coordinateAction:
+      openBookmarkRegion?.center === undefined
+        ? undefined
+        : {
+            ...openBookmarkRegion.center,
+            placement: 'above' as const,
+            label: openBookmarkRegion.name,
+            onClick: () => undefined,
+            card: {
+              title: openBookmarkRegion.name,
+              bookmark: {
+                isOn: bookmarkStore.isBookmarked(openBookmarkRegion.id),
+                onToggle: () => {
+                  bookmarkStore.toggle(openBookmarkRegion.id);
+                  setOpenBookmarkCode(null);
+                },
+              },
+              rows: [],
+            },
+          },
     bookmarkControl: {
       count: bookmarkStore.codes.length,
       isOn: isBookmarkLayerOn && bookmarkStore.codes.length > 0,
+      isDisabled: bookmarkStore.codes.length === 0,
       onToggle: () => {
-        if (bookmarkStore.codes.length === 0) {
-          onFindBookmarks?.();
-          return;
-        }
+        if (bookmarkStore.codes.length === 0) return;
         writeBookmarkLayerOn(!isBookmarkLayerOn);
-        setIsBookmarkLayerOn(!isBookmarkLayerOn);
+        setStoredBookmarkLayerOn(!isBookmarkLayerOn);
       },
     },
   } satisfies MapCanvasProps;
