@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { centerWithInsets } from '@/features/map/lib/mapCamera';
+import type { MapCoordinate } from '@/features/map/lib/mapLocation';
 import type { MapAddress } from '@/features/map/model/Map';
 import useIsDesktop from '@/shared/lib/hooks/useIsDesktop';
 import {
@@ -24,6 +25,8 @@ type RecordsMapController = {
   records: RecordsState;
   layers: RecordsMapLayers;
   setInteractionLevel: (level: number) => void;
+  /** 패널에 가리지 않는 남은 지도 영역의 가운데에 좌표가 오도록 옮긴 지도 중심. */
+  centerBesidePanels: (point: MapCoordinate, level: number, opensDetail: boolean) => MapCoordinate;
 };
 const Context = createContext<RecordsMapController | null>(null);
 export const useRecordsMapController = () => useContext(Context);
@@ -43,26 +46,33 @@ export const RecordsMapProvider = ({ children }: { children: ReactNode }) => {
     setLastRecordPath(pathname);
     setLastPropertyId(params.propertyId ?? null);
   }
+  /**
+   * 목록과 상세 패널에 가린 폭을 뺀 남은 지도 영역의 가운데에 좌표가 오도록 지도 중심을 옮긴다. 내 기록과 동네 찾기가 함께 쓴다.
+   * 화면에 보이는 패널 틀만 재므로, 숨겨 둔 다른 화면의 틀은 건너뛴다.
+   */
+  const centerBesidePanels = (point: MapCoordinate, level: number, opensDetail: boolean): MapCoordinate => {
+    const layout = Array.from(pageRef.current?.querySelectorAll('[data-floating="true"]') ?? []).find(
+      (element) => element.getBoundingClientRect().width > 0,
+    );
+    const rect = layout?.getBoundingClientRect();
+    const list = layout?.firstElementChild?.getBoundingClientRect();
+    if (!isDesktop || !rect?.width || !list) return point;
+    // 이미 열린 상세는 그 폭을 재고, 이번에 열릴 상세는 `ListDetailLayout`의 상세 폭(clamp(22rem, 28%, 26rem))을 미리 뺀다.
+    // 상세를 접어 두었으면 열리지 않으므로 빼지 않는다.
+    const openDetail = layout?.querySelector('[data-list-detail-detail]')?.getBoundingClientRect();
+    const detailWidth = isDetailCollapsed()
+      ? 0
+      : openDetail?.width || (opensDetail ? Math.max(352, Math.min(416, rect.width * 0.28)) : 0);
+    return centerWithInsets(point, level, {
+      left: list.right - rect.left + detailWidth + 24,
+      right: 80,
+      top: 100,
+      bottom: 60,
+    });
+  };
   const records = useRecords({
     selectedId: lastPropertyId,
-    focusCenter: (point, level, opensDetail) => {
-      const layout = pageRef.current?.querySelector('[data-floating="true"]');
-      const rect = layout?.getBoundingClientRect();
-      const list = layout?.firstElementChild?.getBoundingClientRect();
-      if (!isDesktop || !rect?.width || !list) return point;
-      // 이미 열린 상세는 그 폭을 재고, 이번에 열릴 상세는 `ListDetailLayout`의 상세 폭(clamp(22rem, 28%, 26rem))을 미리 뺀다.
-      // 상세를 접어 두었으면 열리지 않으므로 빼지 않는다.
-      const openDetail = layout?.querySelector('[data-list-detail-detail]')?.getBoundingClientRect();
-      const detailWidth = isDetailCollapsed()
-        ? 0
-        : (openDetail?.width ?? (opensDetail ? Math.max(352, Math.min(416, rect.width * 0.28)) : 0));
-      return centerWithInsets(point, level, {
-        left: list.right - rect.left + detailWidth + 24,
-        right: 80,
-        top: 100,
-        bottom: 60,
-      });
-    },
+    focusCenter: centerBesidePanels,
     setSelectedId: (id) => {
       setLastPropertyId(id);
       if (isDesktop && (id !== null || !pathname.startsWith(NEIGHBORHOODS_PATH)))
@@ -111,7 +121,7 @@ export const RecordsMapProvider = ({ children }: { children: ReactNode }) => {
     return () => window.removeEventListener('keydown', cancel);
   }, [layers]);
   return (
-    <Context.Provider value={{ records, layers, setInteractionLevel }}>
+    <Context.Provider value={{ records, layers, setInteractionLevel, centerBesidePanels }}>
       <div ref={pageRef} style={{ height: '100%' }}>
         {children}
       </div>

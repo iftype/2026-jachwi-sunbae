@@ -54,7 +54,7 @@ const RecordsMobileMap = ({ records, layers }: Props) => {
       <RecordsSelectedSheet
         records={sheetRecords}
         onClose={layers.closeAll}
-        stepper={neighbors && <RecordStepper neighbors={neighbors} onStep={records.showRecord} />}
+        stepper={neighbors && <RecordStepper neighbors={neighbors} onStep={records.showRecordOnMap} />}
         onNotice={records.setNotice}
         collapsed={isSheetCollapsed}
         onCollapsedChange={setIsSheetCollapsed}

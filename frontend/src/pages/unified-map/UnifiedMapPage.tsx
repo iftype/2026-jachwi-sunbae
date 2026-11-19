@@ -134,7 +134,8 @@ const UnifiedMapPage = () => {
         <SharedMapCanvasProvider
           preserveZoomOnModeChange
           infrastructure={{
-            open: !isFinding && !isMeals && (isDesktop || recordsView === 'map'),
+            // 동네 찾기는 결과 지도에서 매물을 골랐을 때만 분류 카드가 선다(고른 매물이 없으면 `InfrastructureMap`이 카드를 두지 않는다).
+            open: !isMeals && (isFinding || isDesktop || recordsView === 'map'),
             onClose: () => undefined,
           }}
         >
