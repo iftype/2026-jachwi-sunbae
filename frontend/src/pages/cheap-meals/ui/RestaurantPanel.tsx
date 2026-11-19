@@ -13,6 +13,7 @@ import ContentState from '@/shared/ui/content-state/ContentState';
 import Icon from '@/shared/ui/icon/Icon';
 import InlineNotice from '@/shared/ui/inline-notice/InlineNotice';
 import ListDetailLayout from '@/shared/ui/list-detail-layout/ListDetailLayout';
+import MapBadgeRail from '@/shared/ui/map-badge-rail/MapBadgeRail';
 import ProgressCircle from '@/shared/ui/progress-circle/ProgressCircle';
 import Toast from '@/shared/ui/toast/Toast';
 
@@ -53,6 +54,16 @@ const RestaurantPanel = ({ isActive, layout, listHeader, listOverride }: Restaur
         {map.area.label} 기준, 반경 {map.radius / 1000}km
       </span>
     </p>
+  );
+  // 내 기록, 동네 찾기처럼 기준이 되는 내 매물을 뱃지 줄로 보여 주고, 고르면 그 매물을 기준으로 삼는다. 기록이 없으면 예시 매물이 나온다.
+  const propertyRail = map.recorded.length > 0 && (
+    <MapBadgeRail
+      items={map.recorded.map((property) => ({ id: String(property.id), label: property.label }))}
+      selectedId={map.baseProperty === null ? null : String(map.baseProperty.id)}
+      onSelect={(id) => map.chooseProperty(Number(id))}
+      label="기준 매물"
+      overMap={layout === 'mobile'}
+    />
   );
   const chips = (
     <BusinessTypeChips
@@ -198,6 +209,7 @@ const RestaurantPanel = ({ isActive, layout, listHeader, listOverride }: Restaur
                 <>
                   <div className={styles.desktopControls}>
                     {baseCaption}
+                    {propertyRail}
                     {chips}
                   </div>
                   <div className={styles.desktopStores}>
@@ -227,6 +239,7 @@ const RestaurantPanel = ({ isActive, layout, listHeader, listOverride }: Restaur
         {mapView}
         {/* 검색창과 업종 칩은 흰 띠 없이 지도 위에 띄운다. */}
         <div className={styles.overlay}>
+          {propertyRail}
           {chips}
           {locationControl}
         </div>
