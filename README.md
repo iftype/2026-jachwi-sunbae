@@ -2,17 +2,15 @@
 
 <img width="1293" height="544" alt="image" src="https://github.com/user-attachments/assets/930a33a9-0dac-4cfb-9f29-78fd61ba10d1" />
 
-
-자취선배는 여러 플랫폼에서 찾은 매물 후보를 한곳에 모으고,    
+자취선배는 여러 플랫폼에서 찾은 매물 후보를 한곳에 모으고,  
 방문 전/현장/계약 전 확인 내용을 사진과 메모로 기록해 비교하도록 돕는 임차인용 집 선택 도구입니다.
 
-방을 보러 다니면 사진은 갤러리에, 메모는 메모장에, 나머지는 머릿속에 흩어집니다.    
+방을 보러 다니면 사진은 갤러리에, 메모는 메모장에, 나머지는 머릿속에 흩어집니다.  
 자취선배에서는 살 동네를 찾고, 방을 보러 가서 체크리스트로 기록하고, 본 방들을 한 화면에서 비교할 수 있습니다.
 
 <p align="center">
   <img width="774" height="436" alt="흩어진 사진·메모(BEFORE)와 자취선배 매물 목록(AFTER) 비교" src="https://github.com/user-attachments/assets/70cb7504-25b2-4e25-8ee0-9e7344c92ed8" />
 </p>
-
 
 🏠 [자취선배 바로가기](https://www.jachwi-sunbae.kr)
 
@@ -47,25 +45,22 @@
 
 <img width="2880" height="2386" alt="자취선배 서버 아키텍처" src="https://github.com/user-attachments/assets/ae32f3cd-0073-4eef-a965-23dcb9695f42" />
 
-
 ### Frontend
 
 <img width="2400" height="1440" alt="자취선배 프론트엔드 아키텍처" src="https://github.com/user-attachments/assets/4cc4023c-0f1e-4180-842a-b5993bce154b" />
 
-
-
 ## 기술 스택
 
-| 분야 | 기술 |
-| --- | --- |
-| Backend | Java 21, Spring Boot 3.5, Spring JDBC, Flyway, Caffeine, Springdoc OpenAPI, Thymeleaf·OpenHTMLtoPDF, Firebase Admin |
-| Frontend | React 19, TypeScript, Webpack, React Router, TanStack Query, Emotion |
-| Mobile | React Native, React Native WebView, Firebase Cloud Messaging, Notifee |
-| Database | MySQL(Amazon RDS) |
-| Infra | AWS VPC, ALB, EC2·Auto Scaling Group, S3, CloudFront, Bedrock |
-| Monitoring | Prometheus, Grafana, Micrometer, Amazon CloudWatch, Amazon SNS, PostHog, Discord |
-| CI/CD | GitHub Actions, AWS CodePipeline, AWS CodeDeploy |
-| Test·QA | JUnit, Testcontainers, ArchUnit, Vitest, Testing Library, MSW, Storybook, Stryker, Playwright |
+| 분야       | 기술                                                                                                                |
+| ---------- | ------------------------------------------------------------------------------------------------------------------- |
+| Backend    | Java 21, Spring Boot 3.5, Spring JDBC, Flyway, Caffeine, Springdoc OpenAPI, Thymeleaf·OpenHTMLtoPDF, Firebase Admin |
+| Frontend   | React 19, TypeScript, Webpack, React Router, TanStack Query, Emotion                                                |
+| Mobile     | React Native, React Native WebView, Firebase Cloud Messaging, Notifee                                               |
+| Database   | MySQL(Amazon RDS)                                                                                                   |
+| Infra      | AWS VPC, ALB, EC2·Auto Scaling Group, S3, CloudFront, Bedrock                                                       |
+| Monitoring | Prometheus, Grafana, Micrometer, Amazon CloudWatch, Amazon SNS, PostHog, Discord                                    |
+| CI/CD      | GitHub Actions, AWS CodePipeline, AWS CodeDeploy                                                                    |
+| Test·QA    | JUnit, Testcontainers, ArchUnit, Vitest, Testing Library, MSW, Storybook, Stryker, Playwright                       |
 
 ## 팀원 소개
 
