@@ -4,7 +4,10 @@ import type { CSSProperties } from 'react';
 import { LOGO_DUCK } from '@/shared/assets/imageAssets';
 
 import introVideo from '../assets/landing-intro.mp4';
+import introPoster from '../assets/landing-intro-poster.webp';
 import {
+  CLOSING_LEAD,
+  CLOSING_TITLE,
   HERO_LEAD,
   HERO_TITLE,
   STORIES,
@@ -14,6 +17,7 @@ import {
   VIDEO_SIZE,
   WHY_LEAD,
 } from '../model/landingContent';
+import { openVideoFullscreen } from '../model/openVideoFullscreen';
 import LandingGetStarted from '../ui/LandingGetStarted';
 import LandingTech from '../ui/LandingTech';
 import LandingWhy from '../ui/LandingWhy';
@@ -47,6 +51,7 @@ const LandingDesktopPage = ({ search, returnTo }: LandingDesktopPageProps) => (
         <figure className={styles.heroVideo}>
           <video
             src={introVideo}
+            poster={introPoster}
             width={VIDEO_SIZE.width}
             height={VIDEO_SIZE.height}
             autoPlay
@@ -55,6 +60,8 @@ const LandingDesktopPage = ({ search, returnTo }: LandingDesktopPageProps) => (
             playsInline
             preload="metadata"
             aria-label={VIDEO_LABEL}
+            title="누르면 전체 화면으로 봐요"
+            onClick={(event) => openVideoFullscreen(event.currentTarget)}
           />
         </figure>
       </div>
@@ -63,7 +70,7 @@ const LandingDesktopPage = ({ search, returnTo }: LandingDesktopPageProps) => (
     {STORIES.map((story, index) => (
       <section
         key={story.id}
-        className={`${styles.screen} ${index % 2 === 1 ? styles.tinted : ''}`}
+        className={`${styles.screen} ${styles.compact} ${index % 2 === 1 ? styles.tinted : ''}`}
         aria-labelledby={`landing-${story.id}-title`}
       >
         <div className={`${styles.story} ${index % 2 === 1 ? styles.reversed : ''}`}>
@@ -98,7 +105,7 @@ const LandingDesktopPage = ({ search, returnTo }: LandingDesktopPageProps) => (
       </section>
     ))}
 
-    <section className={`${styles.screen} ${styles.tinted}`} aria-labelledby="landing-why-title">
+    <section className={`${styles.screen} ${styles.compact} ${styles.tinted}`} aria-labelledby="landing-why-title">
       <div className={styles.tech}>
         <h2
           id="landing-why-title"
@@ -112,7 +119,7 @@ const LandingDesktopPage = ({ search, returnTo }: LandingDesktopPageProps) => (
       </div>
     </section>
 
-    <section className={styles.screen} aria-labelledby="landing-tech-title">
+    <section className={`${styles.screen} ${styles.compact}`} aria-labelledby="landing-tech-title">
       <div className={styles.tech}>
         <h2
           id="landing-tech-title"
@@ -126,8 +133,14 @@ const LandingDesktopPage = ({ search, returnTo }: LandingDesktopPageProps) => (
       </div>
     </section>
 
-    <section className={`${styles.screen} ${styles.tinted} ${styles.closing}`} aria-labelledby="landing-closing-title">
-      <h2 id="landing-closing-title">내 출퇴근 동네부터 찾아볼까요?</h2>
+    <section
+      className={`${styles.screen} ${styles.compact} ${styles.tinted} ${styles.closing}`}
+      aria-labelledby="landing-closing-title"
+    >
+      <h2 id="landing-closing-title">
+        {CLOSING_TITLE[0]} {CLOSING_TITLE[1]}
+      </h2>
+      <p className={styles.closingLead}>{CLOSING_LEAD}</p>
       <LandingGetStarted search={search} returnTo={returnTo} position="bottom" layout="row" />
       <p className={styles.footer}>우아한테크코스 8기 팀 프로젝트</p>
     </section>
@@ -157,6 +170,13 @@ const styles = {
     justify-content: center;
     min-height: 100vh;
     padding: 5rem 4rem;
+  `,
+
+  /* 첫 화면 아래 섹션은 화면 높이를 다 채우지 않아 섹션 사이 빈 공간이 줄어든다. */
+  compact: css`
+    label: LandingDesktopPage-compact;
+    min-height: auto;
+    padding-block: 3.5rem;
   `,
 
   tinted: css`
@@ -223,6 +243,13 @@ const styles = {
       height: auto;
       aspect-ratio: ${VIDEO_SIZE.width} / ${VIDEO_SIZE.height};
       object-fit: cover;
+      cursor: zoom-in;
+
+      &:fullscreen {
+        object-fit: contain;
+        background: #fff;
+        cursor: auto;
+      }
     }
   `,
 
@@ -353,11 +380,19 @@ const styles = {
     text-align: center;
 
     & h2 {
-      margin: 0 0 2rem;
+      margin: 0 0 1rem;
       font-size: 2.25rem;
       font-weight: 800;
       letter-spacing: -0.02em;
     }
+  `,
+
+  closingLead: css`
+    label: LandingDesktopPage-closingLead;
+    margin: 0 0 2rem;
+    color: var(--color-ink-soft);
+    font-size: 1.125rem;
+    line-height: 1.6;
   `,
 
   footer: css`
