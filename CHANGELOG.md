@@ -6,6 +6,15 @@
 
 아직 릴리스하지 않은 변경을 기록한다.
 
+## [4.5.1] - 2026-11-20
+
+### Changed
+
+- 랜딩 소개 영상을 자취선배가 만들어진 과정과 쓰는 법을 담은 새 영상으로 바꾸고, 영상을 누르면 전체 화면으로 연다. 랜딩 화면 캡처 6장과 영상 포스터를 지금 화면으로 바꾸고, 첫 화면 아래 섹션 사이 빈 공간을 줄인다.
+- 거리 메모가 나만 보는 메모로 바뀐 것에 맞춰 랜딩 소개 문구와 메모 작성 폼 안내를 `나만 볼 수 있어요`로 고친다.
+- README를 지금 서비스 소개에 맞게 고친다.
+- 백엔드, 프론트엔드 제품 버전을 `4.5.1`로 맞춘다. 백엔드 코드와 Flyway 마이그레이션 변경은 없다.
+
 ## [4.5.0] - 2026-11-19
 
 ### Added
@@ -372,7 +381,8 @@
 - WebView 지도 마커 위치 갱신을 `transform` 기반으로 최적화한다.
 - 매물 사진 Object URL을 재사용해 지도 확대·이동 중 불필요한 재생성을 줄인다.
 
-[Unreleased]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/compare/v4.5.0...HEAD
+[Unreleased]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/compare/v4.5.1...HEAD
+[4.5.1]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/releases/tag/v4.5.1
 [4.5.0]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/releases/tag/v4.5.0
 [4.4.0]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/releases/tag/v4.4.0
 [4.3.0]: https://github.com/woowacourse-teams/2026-jachwi-sunbae/releases/tag/v4.3.0
