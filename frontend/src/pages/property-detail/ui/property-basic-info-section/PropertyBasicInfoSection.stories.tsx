@@ -34,6 +34,7 @@ const meta = {
     onSaved: fn(),
     onCancel: fn(),
     onEditLocation: fn(),
+    onSaveLocation: fn(async () => undefined),
     editingField: null,
     savedField: null,
   },
@@ -56,4 +57,9 @@ export const WithoutAddress: Story = {
       location: { address: null, latitude: null, longitude: null },
     },
   },
+};
+
+/** 주소를 누르면 그 줄 안에서 검색 칸이 열린다. 바깥을 누르면 닫고 직전 주소가 그대로 보인다. */
+export const EditingAddress: Story = {
+  args: { editingField: 'location' },
 };

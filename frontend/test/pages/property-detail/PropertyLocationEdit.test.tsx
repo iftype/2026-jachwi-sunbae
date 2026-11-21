@@ -1,5 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http } from 'msw';
 import { createMemoryRouter, RouterProvider, useLocation } from 'react-router-dom';
@@ -85,6 +85,7 @@ const captureUpdates = () => {
 const openLocationEditor = async () => {
   const user = userEvent.setup();
   await user.click(await screen.findByRole('button', { name: /^주소 .*수정$/ }));
+  await user.click(screen.getByRole('button', { name: '지도에서 고르기' }));
   await screen.findByText('지도를 눌러 새 위치를 고르세요.');
   return user;
 };
@@ -131,7 +132,7 @@ it('누른 자리의 주소를 찾지 못하면 다른 곳을 누르라고 안�
   }
 });
 
-it('좌표가 없는 매물은 주소 수정을 누르면 위치 선택 화면으로 간다', async () => {
+it('좌표가 없는 매물은 주소 검색 칸의 지도에서 고르기를 누르면 위치 선택 화면으로 간다', async () => {
   setMockProperties(
     getMockProperties().map((property) =>
       property.id === 10 ? { ...property, latitude: null, longitude: null } : property,
@@ -140,8 +141,69 @@ it('좌표가 없는 매물은 주소 수정을 누르면 위치 선택 화면�
   renderDetail();
   const user = userEvent.setup();
   await user.click(await screen.findByRole('button', { name: /^주소 .*수정$/ }));
+  await user.click(screen.getByRole('button', { name: '지도에서 고르기' }));
 
   const state = await screen.findByLabelText('위치 선택 화면');
   expect(JSON.parse(state.textContent ?? 'null')).toEqual({ returnTo: '/properties/10?tab=details', propertyId: 10 });
   expect(screen.queryByRole('button', { name: '지도 누르기' })).not.toBeInTheDocument();
+});
+
+it('주소를 누르면 그 줄에서 검색하고, 고른 결과의 주소와 좌표로 바로 저장한다', async () => {
+  renderDetail();
+  const user = userEvent.setup();
+  const updates = captureUpdates();
+  try {
+    await user.click(await screen.findByRole('button', { name: /^주소 .*수정$/ }));
+    const search = screen.getByRole('textbox', { name: '주소 검색' });
+    // 지금 주소를 채워 열어 조금만 고쳐 다시 검색할 수 있다.
+    expect(search).toHaveFocus();
+    expect(search).not.toHaveValue('');
+    await user.clear(search);
+    await user.type(search, '서울역{Enter}');
+    const results = await screen.findByRole('list', { name: '주소 검색 결과' });
+    const [first] = within(results).getAllByRole('button');
+    if (first === undefined) throw new Error('검색 결과가 없습니다.');
+    await user.click(first);
+
+    await waitFor(() => expect(updates.bodies).toHaveLength(1));
+    expect(updates.bodies[0]).toEqual(expect.objectContaining({ latitude: expect.any(Number) }));
+    await waitFor(() => expect(screen.queryByRole('textbox', { name: '주소 검색' })).not.toBeInTheDocument());
+    expect(await screen.findByText('✓ 저장했어요')).toBeInTheDocument();
+  } finally {
+    updates.stop();
+  }
+});
+
+it('주소 검색 중 바깥을 누르면 저장하지 않고 닫아 직전 주소를 그대로 보인다', async () => {
+  renderDetail();
+  const user = userEvent.setup();
+  const updates = captureUpdates();
+  try {
+    const address = await screen.findByRole('button', { name: /^주소 .*수정$/ });
+    const before = address.textContent;
+    await user.click(address);
+    const search = screen.getByRole('textbox', { name: '주소 검색' });
+    await user.clear(search);
+    await user.type(search, '다른 동네');
+    await user.click(screen.getByRole('heading', { level: 1 }));
+
+    expect(screen.queryByRole('textbox', { name: '주소 검색' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^주소 .*수정$/ })).toHaveTextContent(before ?? '');
+    expect(updates.bodies).toEqual([]);
+  } finally {
+    updates.stop();
+  }
+});
+
+it('주소 검색 중 Esc를 누르면 저장하지 않고 직전 주소로 돌아간다', async () => {
+  renderDetail();
+  const user = userEvent.setup();
+  const address = await screen.findByRole('button', { name: /^주소 .*수정$/ });
+  const before = address.textContent;
+  await user.click(address);
+  await user.type(screen.getByRole('textbox', { name: '주소 검색' }), ' 바꾸는 중');
+  await user.keyboard('{Escape}');
+
+  expect(screen.queryByRole('textbox', { name: '주소 검색' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /^주소 .*수정$/ })).toHaveTextContent(before ?? '');
 });
