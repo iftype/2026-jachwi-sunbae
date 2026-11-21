@@ -103,10 +103,23 @@ it('항목 바로 아래 메모를 입력하고 벗어나면 저장하며 다시
   expect(await screen.findByRole('textbox', { name: '주차가 가능한가요? 메모' })).toHaveValue('기계식 주차 1대');
 });
 
-it('정보 탭의 값 버튼은 라벨과 화면에 보이는 값을 함께 읽고, 이름이 정해진 매물은 이름을 바꾸는 버튼을 두지 않는다', async () => {
+it('정보 탭의 값 버튼은 라벨과 화면에 보이는 값을 함께 읽는다', async () => {
   renderDetail('?tab=info');
   expect(await screen.findByRole('button', { name: /^보증금 \/ 월세 .+, 수정$/ })).toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: '매물 이름 신림역 원룸, 수정' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '매물 이름 신림역 원룸, 수정' })).toBeInTheDocument();
+});
+
+it('이름을 정한 매물도 이름을 다시 눌러 바꾸고, 바꾼 뒤에도 또 바꿀 수 있다', async () => {
+  const user = userEvent.setup();
+  renderDetail('?tab=info');
+  await user.click(await screen.findByRole('button', { name: '매물 이름 신림역 원룸, 수정' }));
+  const input = screen.getByRole('textbox', { name: '매물 이름' });
+  expect(input).toHaveValue('신림역 원룸');
+  await user.clear(input);
+  await user.type(input, '봉천동 투룸{Enter}');
+  expect(await screen.findByRole('button', { name: '매물 이름 봉천동 투룸, 수정' })).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: '매물 이름 봉천동 투룸, 수정' }));
+  expect(screen.getByRole('textbox', { name: '매물 이름' })).toHaveValue('봉천동 투룸');
 });
 
 it('메모 저장 실패 시 입력을 유지하고 다시 저장하면 다음 조회에도 반영한다', async () => {
@@ -154,7 +167,6 @@ it('사진 아래에는 중복 이름이 없고 더보기 메뉴는 상단 헤�
   const menu = screen.getByLabelText('매물 정보 메뉴 열기');
   expect(heading.closest('header')).toContainElement(menu);
   expect(screen.queryByText('신림역 원룸', { selector: 'p' })).not.toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: '매물 이름 신림역 원룸, 수정' })).not.toBeInTheDocument();
 });
 
 const capture = (name: string, type = 'image/png', size = 1_024) => new File([new Uint8Array(size)], name, { type });

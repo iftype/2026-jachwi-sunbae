@@ -89,7 +89,9 @@ const styles = {
     box-sizing: border-box;
     width: 100%;
     min-width: 0;
-    padding: 0.5rem 0.75rem;
+    /* 안쪽 여백만큼 바깥을 당겨, 칸이 열려도 줄 높이는 글자 한 줄 그대로다. */
+    margin-block: calc(-0.3rem - 1px);
+    padding: 0.3rem 0.6rem;
     border: 1px solid var(--color-border, #e3e5e9);
     border-radius: 0.6rem;
     background: #fff;

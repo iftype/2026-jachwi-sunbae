@@ -307,6 +307,7 @@ const PropertyDetailView = ({ propertyId, detail, backTo, panel }: PropertyDetai
                 property={detail}
                 {...inlineEdit}
                 onEditLocation={editLocation}
+                onSaveLocation={saveLocation}
                 afterAddress={
                   detail.location.latitude !== null && detail.location.longitude !== null ? (
                     <PropertyNearbyPreview

@@ -36,6 +36,7 @@ const show = () =>
           onSaved={() => undefined}
           onCancel={() => undefined}
           onEditLocation={() => undefined}
+          onSaveLocation={async () => undefined}
           savedField={null}
         />
       </QueryClientProvider>
