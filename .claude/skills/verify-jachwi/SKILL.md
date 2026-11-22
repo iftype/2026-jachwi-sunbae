@@ -17,7 +17,7 @@ description: 자취선배 웹 프론트(React, webpack dev)를 로컬에서 dev 
 - `frontend/node_modules`가 없으면 `npm ci`를 먼저 한다. Node 22.23.x가 기준이고 22.22 에서도 돌아간다(경고만).
 - 준비됨은 로그의 `compiled successfully`다. 이어서 doctor가 익명 로그인까지 확인한다.
 - 포트가 이미 쓰이면 스크립트가 실패한다. 3100과 3000은 다른 작업 서버가 잡고 있을 수 있으니 죽이지 말고 포트를 옮긴다. 다른 앱이 포트를 잡으면 API 호출이 HTML을 받는다.
-- 네이버 지도 키(`NAVER_MAP_CLIENT_ID`)가 없으면 지도는 `DEMO MAP`(구역 경계 시안)이다. 이 모드로 충분히 검증되는 것은 흐름, 목록, 네트워크 호출이다. 실제 지도 타일과 마커 모양은 키가 있는 `.env.local`에서만 본다.
+- 네이버 지도 키(`NAVER_MAP_CLIENT_ID`)는 `frontend/.env.local`에 있다(`MAP_PROVIDER_MODE=naver`). 이 파일은 커밋하지 않는다. 키가 없으면 지도는 `DEMO MAP`(구역 경계 시안)이다. DEMO에서 검증되는 것은 흐름, 목록, 네트워크 호출이고, 실제 지도 타일과 마커 모양은 키가 있어야 본다. 스냅샷에 `NAVER` 링크가 보이면 실제 지도다. 실제 지도에는 `구역 경계 시안` 같은 클릭 대상이 없어 주소 검색이나 좌표 클릭([지도](features/map.md))으로 조작한다.
 - 상태 폴더 `${TMPDIR:-/tmp}/verify-jachwi-<포트>/`에 pid와 `dev.log`를 둔다.
 
 ## Auth
@@ -38,10 +38,11 @@ description: 자취선배 웹 프론트(React, webpack dev)를 로컬에서 dev 
 
 1. `new_page`로 `http://localhost:3217/<경로>`를 연다. 이 MCP는 탭을 계속 쓰니 `list_pages`로 pageId를 확인한다.
 2. `take_snapshot`으로 uid를 얻고 `click`, `fill`, `wait_for`로 조작한다. uid는 스냅샷마다 바뀌니 직전 스냅샷만 쓴다.
-3. 동네 찾기 스냅샷은 동네 수백 개를 나열한다. 결과 화면 스냅샷은 반드시 `filePath`로 파일에 저장하고 `grep`으로 본다. 그냥 받으면 컨텍스트를 채운다.
+3. `isolatedContext`를 주면 새 익명 회원이다. 기능마다 컨텍스트 이름을 다르게 준다. 동네 찾기 스냅샷은 동네 수백 개를 나열한다. 결과 화면 스냅샷은 반드시 `filePath`로 파일에 저장하고 `grep`으로 본다. 그냥 받으면 컨텍스트를 채운다.
 4. 안내 다이얼로그가 뜨면 `확인` 버튼을 먼저 누른다(첫 방문 가이드).
-5. 휴대폰 화면은 `resize_page`나 `emulate`로 맞춘다. 데스크탑과 휴대폰은 다른 컴포넌트(`desktop/`, `mobile/`)다.
-6. 선택자는 ARIA 이름이 기준이다(`이 조건으로 동네 찾기`, `지도 확대`, `체크 항목 카테고리`). 좌표와 탭 순서는 쓰지 않는다.
+5. 지도 빈 곳 클릭은 MCP `click`이 못 한다. `evaluate_script`로 좌표의 요소에 포인터와 마우스 이벤트를 디스패치한다(스니펫은 [지도](features/map.md)).
+6. 휴대폰 화면은 `resize_page`나 `emulate`로 맞춘다. 데스크탑과 휴대폰은 다른 컴포넌트(`desktop/`, `mobile/`)다.
+7. 선택자는 ARIA 이름이 기준이다(`이 조건으로 동네 찾기`, `지도 확대`, `메모 남기기`). 좌표와 탭 순서는 쓰지 않는다.
 
 기존 Playwright 스모크(`qa/tests/finder-map-smoke.spec.ts`는 `refactor/remove-ai-slop-finder-map` 브랜치에 있다)는 같은 경로를 Pixel 7 모바일로 돌린다. `qa/`의 Playwright는 `QA_BASE_URL=http://localhost:3217`로 로컬에 붙일 수 있다(운영 도메인은 설정이 막는다). 회원 픽스처 없이 `page.goto('/explore')`로 시작한다.
 
@@ -65,6 +66,22 @@ result.md                       경로, 판정, 부수효과, 조건이 붙은 �
 - 로딩 성능은 DevTools 트레이스와 네트워크 기록으로 남긴다. 조건을 숫자와 함께 적는다: 화면, 캐시 무시 여부, 스로틀(`CPU throttling`, `Network throttling`), 빌드(webpack dev는 비압축이라 운영보다 느리다), 지도 모드(DEMO). 순서: `navigate_page`로 대상 주소를 연다, `performance_start_trace`(`reload: true`, `ignoreCache: true`, `filePath`), 요약의 LCP, TTFB, 렌더 지연, CLS를 `result.md`에 표로 적는다. 더 파려면 `performance_analyze_insight`. 전후 비교는 같은 조건으로 두 번 돌려 한 표에 둔다.
 - 네트워크 헤더에는 Bearer 토큰이 들어 있다. `get_network_request`의 헤더 출력을 증거 파일이나 PR 본문에 옮기지 않는다(본문 파일만 저장).
 - 화면 변경 PR이면 전후 GIF를 `~/.claude/skills/pr-media`로 만든다.
+
+## 주인 Mac에서 돌리기
+
+Linux 노트북에서 만든 스킬이다. Mac에서는 아래 순서로 돌리고, 표시한 곳은 Mac에서 확인한다.
+
+1. 체크아웃: 이 브랜치를 받아 `frontend`에 `npm ci`를 한다. Node는 22.x. 설치 위치는 **주인 Mac에서 확인 필요**.
+2. `.env.local`: `frontend/.env.local`(저장소 루트 기준 `frontend/` 아래)에 `MAP_PROVIDER_MODE=naver`와 네이버 키(`NAVER_MAP_CLIENT_ID`, `NAVER_SEARCH_CLIENT_ID`)가 있어야 실제 지도가 나온다. 이 파일은 커밋하지 않는다. Mac 쪽 키 보관 위치는 **주인 Mac에서 확인 필요**. 노트북에서는 `~/Projects/2026-jachwi-sunbae/frontend/.env.local`을 새 worktree에 복사해 쓴다.
+3. 네이버 지도 키는 허용 도메인(Web 서비스 URL)에 `http://localhost:<포트>`가 등록돼 있어야 지도가 뜬다. 노트북에서는 `localhost:3217`로 떴다. 포트를 바꿔 쓰면 등록 여부를 **주인 Mac에서 확인 필요**.
+4. 서버: 레포 루트에서 `.claude/skills/verify-jachwi/scripts/launch.sh 3217`, 이어서 `doctor.sh 3217`. 스크립트는 `ss`가 없으면 `lsof`, `setsid`가 없으면 `nohup`을 쓰게 고쳤지만 macOS에서 돌려 본 적은 없다(**주인 Mac에서 확인 필요**). 3000, 3100은 다른 작업 서버가 쓸 수 있으니 3217을 쓴다.
+5. 드라이버, 방법 하나를 고른다.
+   - Chrome DevTools MCP: Mac의 Claude Code에 `chrome-devtools` MCP를 붙이고 headless로 쓴다(Chrome 경로와 등록 명령은 **주인 Mac에서 확인 필요**). 노트북의 `--isolated --headless`, 1440x900 설정과 같게 맞춘다.
+   - Playwright: `qa/`의 Playwright를 로컬에 붙인다. `cd qa && npm ci && QA_BASE_URL=http://localhost:3217 npx playwright test ...`(운영 도메인은 설정이 막는다). 빈 곳 클릭은 `page.mouse.click(x, y)`.
+6. 구동: 기능 파일(`features/*.md`)의 Drive 절을 그대로 따른다. 증거는 `qa/runs/verify-jachwi/<기능>-<날짜>/`(git 제외).
+7. 끝나면 `cleanup.sh 3217`. 검증용 매물과 메모는 각 기능 파일의 정리 단계로 지운다.
+
+Mac에서 보는 결과는 노트북 증거(`qa/runs/verify-jachwi/*-20261122/`)와 같은 기준이다. 스냅샷 uid와 HTML 구조는 같아도 글꼴 때문에 스크린샷 픽셀은 다르다.
 
 ## Cleanup
 
