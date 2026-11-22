@@ -65,7 +65,7 @@ node $S/baseline.mjs --base http://localhost:4302 --out qa/runs/verify-jachwi/<�
 node $S/compare.mjs qa/runs/verify-jachwi/<이름>/baseline-before qa/runs/verify-jachwi/<이름>/baseline-after qa/runs/verify-jachwi/<이름>/baseline-side
 ```
 
-- `serve.mjs --api mock`은 레포의 MSW 핸들러(`frontend/src/app/mocks/handlers`)를 Node에서 돌려 모든 `/api` 응답을 `--delay` ms 뒤에 준다. 서비스 워커가 아니라 진짜 HTTP 응답이라 회선 제한이 API에도 걸리고, 전과 후가 같은 데이터를 받는다. `--api dev`는 dev API로 중계한다.
+- `serve.mjs --api mock`은 레포의 MSW 핸들러(`frontend/src/app/mocks/handlers`)를 Node에서 돌려 모든 `/api` 응답을 `--delay` ms 뒤에 준다. 서비스 워커가 아니라 진짜 HTTP 응답이라 회선 제한이 API에도 걸리고, 전과 후가 같은 데이터를 받는다. `--api dev`(와 `VERIFY_ALLOW_DEV_API=1`)는 dev API로 중계하는 모드이고 dev 서버에 기록이 남는다.
 - 운영 빌드는 늘 실제 네이버 지도라 `frontend/.env.local`에 지도 키가 있어야 한다. `build-variant.sh`가 이 파일을 복사한다(커밋하지 않는다).
 - 화면 목록은 `screens.mjs`의 `SCREENS`다(CI 판정과 같이 쓴다). 찍기 전에 `reachable-routes`로 확인해 갈 수 없는 화면은 빼고 `screens.md`에 그렇게 적는다. 판정 범위를 좁힐 때는 `--only`에 `npm run verify:pr`이 낸 라우트를 쉼표로 준다.
 - 비교: `compare.mjs`가 화면마다 다른 픽셀 비율(채널 차이 24 초과)과 전, 후, 다른 픽셀을 나란히 붙인 `<화면>.side.png`를 만든다. 같은 빌드를 두 번 찍어도 지도 타일과 랜딩 영상 때문에 몇 % 다를 수 있다. 비율이 0이 아닌 화면은 `side.png`를 직접 열어 무엇이 다른지 적는다.
@@ -107,13 +107,27 @@ node $S/compare.mjs qa/runs/verify-jachwi/<이름>/baseline-before qa/runs/verif
 
 드라이버는 `qa/`의 Playwright다(`cd qa && npm ci`). Playwright 브라우저가 없으면 `npx playwright install chromium`을 하거나 `CHROME_PATH`에 Chrome 경로를 준다.
 
+## API 모드: 기본은 mock
+
+기능 검증의 기본 경로는 mock(MSW)이다. dev 서버에는 아무것도 남지 않고 전과 후가 같은 데이터를 받는다. 스크립트(`launch.sh`, `doctor.sh`, `serve.mjs`)는 옵션 없이 부르면 mock으로 돈다.
+
+| 모드 | 켜는 법 | 남는 것 |
+| --- | --- | --- |
+| mock(기본) | 옵션 없음 | 없음. `/api`를 레포의 MSW 핸들러가 답한다 |
+| dev API | `--api dev`와 환경 변수 `VERIFY_ALLOW_DEV_API=1`을 둘 다 | dev 서버에 익명 회원과 기록이 남는다 |
+
+- dev API 모드는 실제 서버 동작을 꼭 봐야 할 때만 쓴다(예: 백엔드 응답 모양, 인증, 저장 뒤 새로고침). 화면 흐름, 목록, 전후 판정은 mock으로 본다.
+- `--api dev`만 주거나 환경 변수만 주면 스크립트가 바로 실패하고 이유를 출력한다. 규칙은 `scripts/api-mode.mjs`에 한 곳이고 `frontend/test/scripts/api-mode.test.ts`가 고정한다.
+- mock에 핸들러가 없는 요청은 501이다. 그 요청이 검증 대상이면 핸들러를 먼저 더하거나, 정말 실제 서버가 필요하면 dev API 모드로 옮기고 `result.md`에 이유를 적는다.
+
 ## Launch
 
 ```sh
 .claude/skills/verify-jachwi/scripts/launch.sh 3217
 ```
 
-- 레포 루트의 `frontend`에서 `npm run dev`를 `PORT=3217`, `DEV_API_PROXY_TARGET=https://dev-api.jachwi-sunbae.kr`로 띄운다. `/api`만 dev API로 중계되고 Origin 헤더는 제거된다. 직접 부르면 dev API의 CORS에 막힌다.
+- 레포 루트의 `frontend`에서 `npm run dev:mock`을 `PORT=3217`로 띄운다. `/api`는 MSW가 답한다.
+- dev API로 붙이려면(dev 서버에 익명 회원과 기록이 남는다) `VERIFY_ALLOW_DEV_API=1 launch.sh 3217 --api dev`로 부른다. 이때 `npm run dev`를 `DEV_API_PROXY_TARGET=https://dev-api.jachwi-sunbae.kr`로 띄운다. `/api`만 dev API로 중계되고 Origin 헤더는 제거된다. 직접 부르면 dev API의 CORS에 막힌다.
 - `frontend/node_modules`가 없으면 `npm ci`를 먼저 한다. Node 22.23.x가 기준이고 22.22 에서도 돌아간다(경고만).
 - 준비됨은 로그의 `compiled successfully`다. 이어서 doctor가 익명 로그인까지 확인한다.
 - 포트가 이미 쓰이면 스크립트가 실패한다. 3100과 3000은 다른 작업 서버가 잡고 있을 수 있으니 죽이지 말고 포트를 옮긴다. 다른 앱이 포트를 잡으면 API 호출이 HTML을 받는다.
@@ -122,7 +136,7 @@ node $S/compare.mjs qa/runs/verify-jachwi/<이름>/baseline-before qa/runs/verif
 
 ## Auth
 
-`/login`은 없다(`/`로 리다이렉트). 앱은 처음 열면 `POST /api/auth/login`으로 익명 회원을 자동 생성한다. 브라우저 컨텍스트마다 새 익명 회원이고, 새 회원에게는 샘플 매물 `(미리보기) 코엑스 근처`(`/properties/-1`)가 보인다. 기존 qa 픽스처(`qa/src/member.ts`의 `/login` 닉네임 폼)는 깨져 있으니 쓰지 않는다. 동네 찾기(`/explore`)는 공개 화면이지만 접속하면 같은 익명 로그인이 일어난다. 이 검증은 dev DB에 익명 회원을 만든다. 매물과 메모를 저장하는 레시피는 그 회원 안에서만 쓴다.
+`/login`은 없다(`/`로 리다이렉트). 앱은 처음 열면 `POST /api/auth/login`으로 익명 회원을 자동 생성한다(mock에서는 MSW가 답해 아무것도 남지 않는다). 브라우저 컨텍스트마다 새 익명 회원이고, 새 회원에게는 샘플 매물 `(미리보기) 코엑스 근처`(`/properties/-1`)가 보인다. 기존 qa 픽스처(`qa/src/member.ts`의 `/login` 닉네임 폼)는 깨져 있으니 쓰지 않는다. 동네 찾기(`/explore`)는 공개 화면이지만 접속하면 같은 익명 로그인이 일어난다. dev API 모드에서는 이 검증이 dev DB에 익명 회원을 만든다. 매물과 메모를 저장하는 레시피는 그 회원 안에서만 쓴다.
 
 ## Doctor
 
@@ -130,7 +144,7 @@ node $S/compare.mjs qa/runs/verify-jachwi/<이름>/baseline-before qa/runs/verif
 .claude/skills/verify-jachwi/scripts/doctor.sh 3217
 ```
 
-읽기 전용. 우리가 띄운 프로세스인지, 프론트 200, dev API 커밋, 프록시 경유 익명 로그인 200을 본다. 하나라도 FAIL이면 구동하지 말고 원인부터 고친다.
+읽기 전용. 기본(mock)은 우리가 띄운 프로세스인지와 프론트 200만 보고 dev API를 부르지 않는다. `VERIFY_ALLOW_DEV_API=1 doctor.sh 3217 --api dev`일 때만 dev API 커밋과 프록시 경유 익명 로그인 200을 더 본다(이 로그인은 dev 서버에 회원을 만든다). 하나라도 FAIL이면 구동하지 말고 원인부터 고친다.
 
 ## Drive
 
@@ -186,11 +200,11 @@ launch가 띄운 프로세스만 종료하고 상태 폴더를 지운다. 이름
 
 | 스크립트                    | 호출                                                                | 하는 일                                               |
 | --------------------------- | ------------------------------------------------------------------- | ----------------------------------------------------- |
-| `scripts/launch.sh [포트]`  | `.claude/skills/verify-jachwi/scripts/launch.sh 3217`               | 프론트를 dev API에 붙여 띄우고 준비될 때까지 기다린다 |
+| `scripts/launch.sh [포트]`  | `.claude/skills/verify-jachwi/scripts/launch.sh 3217`               | 프론트를 mock(MSW)으로 띄우고 준비될 때까지 기다린다 |
 | `scripts/doctor.sh [포트]`  | 위와 같은 경로                                                      | 읽기 전용 점검                                        |
 | `scripts/cleanup.sh [포트]` | 위와 같은 경로                                                      | 우리가 띄운 서버만 종료                               |
 | `scripts/build-variant.sh`  | `build-variant.sh <이름> <ref> <포트>`                              | 비교할 커밋을 따로 꺼내 운영 빌드                     |
-| `scripts/serve.mjs`         | `node serve.mjs --dist <dist> --port <포트> --api mock --delay 300` | 빌드를 내보내고 `/api`를 목(고정 지연)이나 dev로 답함 |
+| `scripts/serve.mjs`         | `node serve.mjs --dist <dist> --port <포트> --api mock --delay 300` | 빌드를 내보내고 `/api`를 목(고정 지연)으로 답함 |
 | `scripts/baseline.mjs`      | `node baseline.mjs --base <주소> --out <폴더>`                      | 주요 화면 기준 스크린샷(데스크탑, 휴대폰)             |
 | `scripts/compare.mjs`       | `node compare.mjs <전> <후> <출력>`                                 | 다른 픽셀 비율과 나란히 보기 그림                     |
 | `scripts/measure.mjs`       | `node measure.mjs --before <주소> --after <주소> ...`               | 사용자 순간을 전후로 재고 verdict.md 초안             |
