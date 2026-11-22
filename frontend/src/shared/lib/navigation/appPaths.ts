@@ -32,8 +32,6 @@ export const CHEAP_MEALS_PATH = '/cheap-meals';
 export const GUIDE_PATH = '/guide';
 export const PRIVACY_PATH = '/privacy';
 export const MAP_SELECT_LOCATION_PATH = '/map/select-location';
-export const EXPORT_PATH = '/export';
-export const TIPS_PATH = '/tips';
 /** 동네 찾기(회원). */
 export const NEIGHBORHOODS_PATH = '/neighborhoods';
 export const NEIGHBORHOODS_NEARBY_PATH = '/neighborhoods/nearby';
