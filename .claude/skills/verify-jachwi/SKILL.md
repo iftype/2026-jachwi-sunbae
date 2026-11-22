@@ -73,9 +73,9 @@ node $S/compare.mjs qa/runs/verify-jachwi/<이름>/baseline-before qa/runs/verif
 
 ## 전후 판정(로컬)
 
-1. 사용자가 기다리는 순간을 먼저 정한다. 홈은 첫 매물 카드(`--moment card`), 다른 화면은 결과 목록이나 경계 표시처럼 사용자가 기다리는 요소의 CSS 선택자(`--selector`)다. 지도 배경, LCP는 보조 지표다.
+1. 사용자가 기다리는 순간을 먼저 정한다. 홈은 첫 매물 카드(`--moment card`), 다른 화면은 결과 목록처럼 사용자가 기다리는 요소의 CSS 선택자(`--selector`)다. 지도 배경, LCP는 보조 지표다. 지도 위 마커나 경계 도형은 아래 "지도 순간"으로 잰다.
 2. 위 `build-variant.sh`와 `serve.mjs`로 전과 후를 띄운다(전은 `upstream/develop`, 후는 PR 머리).
-3. 잰다. 전후를 번갈아 각 3회 이상(기본 5회), 빈 캐시 첫 방문이다. 회선 기본은 보통 4G(`fast4g`: 지연 70ms, 내려받기 9Mbps, CPU 4배)다.
+3. 잰다. 전후를 번갈아(전 후, 후 전, 전 후 ...) 각 3회 이상(기본 5회), 빈 캐시 첫 방문이다. 번갈아 재야 회선이나 CDN이 중간에 느려져도 양쪽에 같이 걸린다. `--order blocked`(전을 다 잰 뒤 후)는 흩어짐을 견주는 시험에만 쓴다. 회선 기본은 보통 4G(`fast4g`: 지연 70ms, 내려받기 9Mbps, CPU 4배)다.
 
    ```sh
    node $S/measure.mjs --before http://localhost:4301 --after http://localhost:4302 \
@@ -91,8 +91,19 @@ node $S/compare.mjs qa/runs/verify-jachwi/<이름>/baseline-before qa/runs/verif
 
    `side/<N>s.side.png`를 보고 `verdict.md`의 표에 시각마다 늦게 뜨는 요소를 적는다.
 
-6. 로컬 판정은 CI 판정이 이상할 때 다시 재 보는 용도다. PR 본문에는 판정을 손으로 적지 않고 CI 댓글을 가리킨다. CI와 같게 재려면 `--screen <화면 이름> --viewport desktop --map-sdk stub`을 주고 `map-sdk-stub.mjs --port 4443`을 띄운다. 키가 있으면 `--map-sdk real`로 지도 순간(`--moment card`)도 잴 수 있다.
+6. 로컬 판정은 CI 판정이 이상할 때 다시 재 보는 용도다. PR 본문에는 판정을 손으로 적지 않고 CI 댓글을 가리킨다. CI와 같게 재려면 `--screen <화면 이름> --viewport desktop --map-sdk stub`을 주고 `map-sdk-stub.mjs --port 4443`을 띄운다. 키가 있으면 `--map-sdk real`(기본)로 실제 타일을 받아 아래 "지도 순간과 실제 타일 흔들림"대로 잰다.
 7. 끝나면 `serve.mjs` 프로세스를 끄고 `git worktree remove --force "${TMPDIR:-/tmp}/verify-jachwi-variants/<이름>"`로 빌드 폴더를 지운다.
+
+### 지도 순간과 실제 타일 흔들림
+
+네이버 지도 타일과 SDK는 받을 때마다 속도가 달라 우리 코드와 무관하게 판정을 흔든다. 그래서 지도 화면은 "타일이 다 그려진 시각"을 쓰지 않는다.
+
+- `--moment map-overlay`: 앱이 남기는 User Timing(`frontend/src/features/map/lib/mapTiming.ts`)으로 지도 SDK 준비(`jachwi:map-sdk-ready`, SDK 완료 콜백)부터 우리 오버레이가 지도에 붙은 시각(`jachwi:map-overlay-attached`, 마커 `OverlayView`의 첫 `draw`나 경계 `Polygon` 생성)까지를 잰다. `--screen`과 같이 줄 수 있다. 지도 SDK 내부는 건드리지 않는다.
+- SDK 준비까지 걸린 시간(`sdkReady`)은 `verdict.md`에 "지도 SDK 준비(참고, 판정에 안 씀)"로 따로 적는다. 우리 코드가 SDK 받기를 늦추는 변경은 이 줄로만 보이니 크게 벌어졌으면 직접 본다.
+- 첫 매물 카드처럼 지도와 무관한 순간은 지금처럼 선택자로 잰다.
+- 실제 SDK(`--map-sdk real`)로 잴 때는 흩어짐 상한(`--max-spread`, 기본 0.25초)이 있다. 넘으면 `판정 불가(흔들림 큼)`로 내고 `같음`으로 뭉개지 않는다. `verdict.md`의 "다시 재기"대로 `--runs`를 늘려 다시 잰다. 지도 목(`stub`, CI)은 상한이 꺼져 있다.
+- 타일 응답을 녹화해 다시 쓰는 방식은 이용 약관 문제로 레포에 넣지 않는다.
+- 두 빌드 모두 `mapTiming.ts`가 들어간 커밋이어야 지도 순간이 잡힌다. 그 전 커밋은 순간을 못 봐 `판정 못 함`이 된다.
 
 드라이버는 `qa/`의 Playwright다(`cd qa && npm ci`). Playwright 브라우저가 없으면 `npx playwright install chromium`을 하거나 `CHROME_PATH`에 Chrome 경로를 준다.
 
