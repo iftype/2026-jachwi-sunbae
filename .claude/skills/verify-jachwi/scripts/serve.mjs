@@ -1,8 +1,8 @@
 // 운영 빌드(dist)를 정적으로 내보내고 /api 를 MSW 목이나 dev API로 답하는 서버다. 전후 판정과 기준 스크린샷에 쓴다.
-// 사용: node .claude/skills/verify-jachwi/scripts/serve.mjs --dist <dist 폴더> --port 4301 [--api mock|dev] [--delay 300]
+// 사용: node .claude/skills/verify-jachwi/scripts/serve.mjs --dist <dist 폴더> --port 4301 [--api mock] (dev는 --api dev 와 VERIFY_ALLOW_DEV_API=1 이 둘 다 있어야 한다) [--delay 300]
 // - mock: 이 레포 frontend/src/app/mocks/handlers 를 Node에서 그대로 돌리고, 모든 /api 응답을 --delay ms 뒤에 보낸다.
 //   서비스 워커가 아니라 진짜 HTTP 응답이라 DevTools 회선 제한이 API에도 걸린다. 전과 후가 같은 목 데이터를 받는다.
-// - dev: /api 를 https://dev-api.jachwi-sunbae.kr 로 중계하고 Origin 헤더를 지운다(dev 서버의 프록시와 같다).
+// - dev: dev 서버에 익명 회원과 기록이 남는다. 옵션과 환경 변수가 둘 다 있을 때만 켜진다. /api 를 https://dev-api.jachwi-sunbae.kr 로 중계하고 Origin 헤더를 지운다(dev 서버의 프록시와 같다).
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
@@ -10,15 +10,18 @@ import { dirname, extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 
+import { resolveApiMode } from './api-mode.mjs';
+
 const { values: args } = parseArgs({
   options: {
     dist: { type: 'string' },
     port: { type: 'string', default: '4301' },
-    api: { type: 'string', default: 'mock' },
+    api: { type: 'string' },
     delay: { type: 'string', default: '300' },
   },
 });
 if (!args.dist) throw new Error('--dist 가 필요하다');
+const apiMode = resolveApiMode(args.api);
 const dist = resolve(args.dist);
 const port = Number(args.port);
 const delayMs = Number(args.delay);
@@ -38,7 +41,7 @@ const loadMockHandlers = async () => {
   return { handlers: module.handlers, getResponse: msw.getResponse };
 };
 
-const mock = args.api === 'mock' ? await loadMockHandlers() : undefined;
+const mock = apiMode === 'mock' ? await loadMockHandlers() : undefined;
 
 const types = {
   '.html': 'text/html; charset=utf-8',
@@ -111,4 +114,4 @@ createServer((req, res) => {
     if (!res.headersSent) res.writeHead(502);
     res.end();
   });
-}).listen(port, () => console.log(`ready http://localhost:${port} dist=${dist} api=${args.api} delay=${delayMs}ms`));
+}).listen(port, () => console.log(`ready http://localhost:${port} dist=${dist} api=${apiMode} delay=${delayMs}ms`));

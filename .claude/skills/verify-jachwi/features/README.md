@@ -4,7 +4,7 @@
 
 ## 기준 상태
 
-- `scripts/launch.sh 3217`로 로컬 프론트를 띄우고 `scripts/doctor.sh 3217`이 통과한다.
+- `scripts/launch.sh 3217`로 로컬 프론트를 mock으로 띄우고 `scripts/doctor.sh 3217`이 통과한다.
 - 드라이버는 Chrome DevTools MCP다. 지도는 `frontend/.env.local`에 네이버 키가 있으면 실제 지도, 없으면 `DEMO MAP`이다.
 - 새 브라우저 컨텍스트(`new_page`의 `isolatedContext`)는 새 익명 회원이다. 샘플 매물 `(미리보기) 코엑스 근처`(`/properties/-1`)가 있다.
 - 우리가 띄운 인스턴스가 아니면 구동하지 않는다.
