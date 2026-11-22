@@ -7,6 +7,7 @@ import {
   createRegionSummaryElement,
   regionLabelPosition,
 } from './mapRegionSummary';
+import { MAP_TIMING, markMapTiming } from './mapTiming';
 import type { LiveMap, LiveOverlay, naverEngine } from './naverMapEngine';
 
 type Engine = Pick<ReturnType<typeof naverEngine>, 'latLng' | 'createOverlay' | 'removeListener'> &
@@ -146,6 +147,7 @@ export const createMapRegionLayer = (
             clickable: true,
           }),
       );
+    if (polygons.length > 0) markMapTiming(MAP_TIMING.overlayAttached);
     const entry: Entry = {
       id: region.id,
       geometry: region.polygons ?? region.paths,

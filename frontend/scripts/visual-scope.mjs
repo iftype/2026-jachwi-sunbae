@@ -250,6 +250,9 @@ export const checkVerdict = ({ title, verdict }) => {
   if (/\[Refactor\]/i.test(title ?? '') && verdict === '판정 못 함') {
     problems.push('리팩터링 PR인데 사용자 기준 순간을 전이나 후에서 보지 못했다.');
   }
+  if (/\[Refactor\]/i.test(title ?? '') && verdict === '판정 불가(흔들림 큼)') {
+    problems.push('리팩터링 PR인데 흩어짐이 커서 판정하지 못했다. 회수를 늘려 다시 잰다.');
+  }
   return problems;
 };
 

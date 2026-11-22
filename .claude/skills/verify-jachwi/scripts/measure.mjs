@@ -8,6 +8,12 @@
 // --map-sdk stub: 네이버 지도 SDK 주소를 map-sdk-stub.mjs(--map-sdk-port)로 돌린다. 키가 없는 CI에서 쓴다. 지도는 뜨지 않으니
 //   지도와 무관한 순간만 잰다. real(기본)은 실제 SDK라 빌드에 쓸 수 있는 키가 있어야 한다.
 // 스크린샷은 시간을 재는 회차와 따로 한 번 더 열어 찍는다. 찍는 일이 시간 측정을 흔들지 않게 하려는 것이다.
+// --order alternate(기본): 전, 후, 후, 전, 전, 후 처럼 번갈아 잰다. 재는 중에 회선이나 CDN이 느려져도 양쪽에 같이 걸린다.
+//   blocked 는 전을 모두 잰 뒤 후를 잰다. 번갈아 재기와 흩어짐을 견주는 시험에만 쓴다.
+// --moment map-overlay: 지도 화면의 순간이다. 타일이 다 그려진 시각은 쓰지 않는다. 앱이 남기는 User Timing
+//   (frontend/src/features/map/lib/mapTiming.ts)으로 지도 SDK 준비부터 우리 오버레이(마커, 경계 도형)가 지도에 붙은 시각까지를
+//   재고, SDK 준비까지 걸린 시간(sdkReady)은 따로 적되 판정에 쓰지 않는다. 실제 SDK(--map-sdk real)에서만 잴 수 있다.
+// --max-spread: 흩어짐이 이 값(ms)을 넘으면 "판정 불가(흔들림 큼)"로 낸다. 실제 지도(real)는 기본 250, 목(stub)은 끔(0).
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { loadavg } from 'node:os';
@@ -41,6 +47,8 @@ const { values: args } = parseArgs({
     chrome: { type: 'string', default: process.env.CHROME_PATH },
     'map-sdk': { type: 'string', default: 'real' },
     'map-sdk-port': { type: 'string', default: '4443' },
+    order: { type: 'string', default: 'alternate' },
+    'max-spread': { type: 'string' },
   },
 });
 if (!args.before || !args.after || !args.out) throw new Error('--before, --after, --out 이 필요하다');
@@ -72,6 +80,10 @@ export const MOMENTS = {
     selector: 'article img',
     mapFree: true,
   },
+  'map-overlay': {
+    label: '지도 SDK 준비부터 우리 오버레이(마커, 경계 도형)가 지도에 붙을 때까지(타일 그리기와 SDK 받기는 빼고 잰다)',
+    mapTiming: true,
+  },
   'area-chips': {
     label: '기록한 동네 칩(매물 수가 보인 칩)',
     selector: 'nav[aria-label="기록한 동네"] button span',
@@ -88,17 +100,29 @@ const VIEWPORTS = {
 const screen = args.screen ? findScreen(args.screen) : undefined;
 if (args.screen && !screen?.moment) throw new Error(`순간이 정해지지 않은 화면: ${args.screen}. screens.mjs 에 더한다`);
 const path = screen ? screen.url : args.path;
-const moment = screen
-  ? screen.moment
-  : args.selector
-    ? { label: args.text ? `${args.selector} (${args.text})` : args.selector, selector: args.selector, text: args.text }
-    : MOMENTS[args.moment];
+// 지도 순간은 화면과 상관없이 같은 User Timing 을 읽으니 --screen 과 같이 줄 수 있다.
+const moment =
+  args.moment === 'map-overlay'
+    ? MOMENTS['map-overlay']
+    : screen
+      ? screen.moment
+      : args.selector
+        ? {
+            label: args.text ? `${args.selector} (${args.text})` : args.selector,
+            selector: args.selector,
+            text: args.text,
+          }
+        : MOMENTS[args.moment];
 if (!moment) throw new Error(`모르는 순간: ${args.moment}. --selector 로 CSS 선택자를 준다`);
 const condition = NETWORKS[args.net];
 if (!condition) throw new Error(`모르는 회선: ${args.net}`);
 if (!['real', 'stub'].includes(args['map-sdk']))
   throw new Error(`--map-sdk 는 real 이나 stub 이다: ${args['map-sdk']}`);
 const stubMapSdk = args['map-sdk'] === 'stub';
+if (moment.mapTiming && stubMapSdk) throw new Error('지도 순간(map-overlay)은 실제 SDK(--map-sdk real)에서만 잰다');
+if (!['alternate', 'blocked'].includes(args.order))
+  throw new Error(`--order 는 alternate 나 blocked 다: ${args.order}`);
+const maxSpread = Number(args['max-spread'] ?? (stubMapSdk ? '0' : '250'));
 const shotTimes = args.shots.split(',').map(Number);
 const out = resolve(args.out);
 mkdirSync(join(out, 'shots', 'before'), { recursive: true });
@@ -106,13 +130,34 @@ mkdirSync(join(out, 'shots', 'after'), { recursive: true });
 const runsFile = join(out, 'runs.jsonl');
 writeFileSync(runsFile, '');
 
-const watchMoment = ({ selector, text }) => {
+const MAP_MARKS = {
+  sdkReady: 'jachwi:map-sdk-ready',
+  mapCreated: 'jachwi:map-created',
+  overlay: 'jachwi:map-overlay-attached',
+};
+
+const watchMoment = ({ selector, text, mapTiming, marks }) => {
   const textPattern = text ? new RegExp(text) : null;
   const m = { at: null, what: null, lcp: null };
   window.__verify = m;
   new PerformanceObserver((list) => {
     for (const entry of list.getEntries()) m.lcp = entry.startTime;
   }).observe({ type: 'largest-contentful-paint', buffered: true });
+  if (mapTiming) {
+    // 앱이 남기는 User Timing 표시만 읽는다. 지도 SDK 와 타일은 건드리지 않는다.
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        if (entry.name === marks.sdkReady) m.sdkReady = entry.startTime;
+        if (entry.name === marks.mapCreated) m.mapCreated = entry.startTime;
+        if (entry.name === marks.overlay && m.at === null) {
+          m.overlayAt = entry.startTime;
+          m.at = entry.startTime;
+          m.what = 'map overlay attached';
+        }
+      }
+    }).observe({ type: 'mark', buffered: true });
+    return;
+  }
   const inView = (element) => {
     const r = element.getBoundingClientRect();
     return r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth;
@@ -148,7 +193,12 @@ const waitForQuietMachine = async () => {
 
 const openOnce = async (browser, baseUrl, { shotsPrefix } = {}) => {
   const context = await browser.newContext({ ...VIEWPORTS[args.viewport], ignoreHTTPSErrors: stubMapSdk });
-  await context.addInitScript(watchMoment, { selector: moment.selector, text: moment.text });
+  await context.addInitScript(watchMoment, {
+    selector: moment.selector,
+    text: moment.text,
+    mapTiming: moment.mapTiming === true,
+    marks: MAP_MARKS,
+  });
   const page = await context.newPage();
   const consoleErrors = [];
   const failedRequests = [];
@@ -185,8 +235,18 @@ const openOnce = async (browser, baseUrl, { shotsPrefix } = {}) => {
   await page.waitForTimeout(1500);
   const final = await page.evaluate(() => window.__verify).catch(() => result);
   await context.close();
+  // 지도 순간은 SDK 준비부터 잰다. SDK 준비까지(받기, 실행, 인증)는 sdkReady 로 따로 둔다.
+  const mapMoment =
+    moment.mapTiming && final?.at > 0 && final?.sdkReady !== undefined ? Math.round(final.at - final.sdkReady) : null;
   return {
-    moment: final?.at > 0 ? Math.round(final.at) : null,
+    moment: moment.mapTiming ? mapMoment : final?.at > 0 ? Math.round(final.at) : null,
+    ...(moment.mapTiming
+      ? {
+          sdkReady: final?.sdkReady !== undefined ? Math.round(final.sdkReady) : null,
+          mapCreated: final?.mapCreated !== undefined ? Math.round(final.mapCreated) : null,
+          overlayAt: final?.overlayAt !== undefined ? Math.round(final.overlayAt) : null,
+        }
+      : {}),
     what: final?.what ?? null,
     lcp: final?.lcp ? Math.round(final.lcp) : null,
     consoleErrors,
@@ -207,28 +267,33 @@ const runs = Number(args.runs);
 for (let warm = 0; warm < Number(args.warmup); warm += 1) {
   for (const [, baseUrl] of variants) await openOnce(browser, baseUrl);
 }
-for (let run = 1; run <= runs; run += 1) {
-  // 앞뒤 순서를 회차마다 바꾼다. 늘 먼저 여는 쪽이 손해나 이득을 보지 않게 한다.
-  const order = run % 2 === 1 ? variants : [...variants].reverse();
-  for (const [variant, baseUrl] of order) {
-    await waitForQuietMachine();
-    const load = loadavg()[0];
-    const measured = await openOnce(browser, baseUrl);
-    const row = { variant, run, load: Number(load.toFixed(2)), ...measured };
-    appendFileSync(runsFile, `${JSON.stringify(row)}\n`);
-    console.log(
-      variant,
-      run,
-      'moment',
-      measured.moment,
-      'lcp',
-      measured.lcp,
-      'errors',
-      measured.consoleErrors.length,
-      'failed',
-      measured.failedRequests.length,
-    );
-  }
+// 잴 순서. 번갈아 재면 회선이나 CDN이 중간에 느려져도 전과 후에 같이 걸린다.
+// 짝마다 앞뒤를 바꿔(전 후, 후 전) 늘 먼저 여는 쪽이 손해나 이득을 보지 않게 한다.
+const schedule =
+  args.order === 'blocked'
+    ? variants.flatMap((variant) => Array.from({ length: runs }, (_, index) => [index + 1, variant]))
+    : Array.from({ length: runs }, (_, index) => index + 1).flatMap((run) =>
+        (run % 2 === 1 ? variants : [...variants].reverse()).map((variant) => [run, variant]),
+      );
+for (const [run, [variant, baseUrl]] of schedule) {
+  await waitForQuietMachine();
+  const load = loadavg()[0];
+  const measured = await openOnce(browser, baseUrl);
+  const row = { variant, run, load: Number(load.toFixed(2)), ...measured };
+  appendFileSync(runsFile, `${JSON.stringify(row)}\n`);
+  console.log(
+    variant,
+    run,
+    'moment',
+    measured.moment,
+    ...(moment.mapTiming ? ['sdkReady', measured.sdkReady] : []),
+    'lcp',
+    measured.lcp,
+    'errors',
+    measured.consoleErrors.length,
+    'failed',
+    measured.failedRequests.length,
+  );
 }
 for (const [variant, baseUrl] of variants) await openOnce(browser, baseUrl, { shotsPrefix: variant });
 await browser.close();
@@ -252,8 +317,10 @@ const setup = {
   shotTimes,
   mapSdk: args['map-sdk'],
   warmup: Number(args.warmup),
+  order: args.order,
+  maxSpread,
 };
-const result = judge(rows, { spreadFactor: setup.spreadFactor, minDiff: setup.minDiff });
+const result = judge(rows, { spreadFactor: setup.spreadFactor, minDiff: setup.minDiff, maxSpread });
 writeFileSync(join(out, 'verdict.md'), renderVerdict(setup, result));
 writeFileSync(
   join(out, 'result.json'),

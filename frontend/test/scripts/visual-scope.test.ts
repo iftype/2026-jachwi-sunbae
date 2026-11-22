@@ -1,12 +1,18 @@
 // @vitest-environment node
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
+import { compareMetric, JITTER_VERDICT } from '../../../.claude/skills/verify-jachwi/scripts/verdict.mjs';
 import {
   checkVerdict,
   classifyChangedFiles,
   findVisualScope,
   renderVerdictTemplate,
 } from '../../scripts/visual-scope.mjs';
+
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../../..');
 
 describe('화면 검증을 돌릴 변경 고르기', () => {
   it('실행되는 프론트 코드, 스타일, 에셋은 대상이다', () => {
@@ -106,6 +112,7 @@ describe('CI 자동 판정 결과로 통과 정하기', () => {
   it('리팩터링 PR은 같음이 아니면 실패한다', () => {
     expect(checkVerdict({ title: '[FE][Refactor] 무엇', verdict: '좋아짐' })).toHaveLength(1);
     expect(checkVerdict({ title: '[FE][Refactor] 무엇', verdict: '판정 못 함' })).toHaveLength(1);
+    expect(checkVerdict({ title: '[FE][Refactor] 무엇', verdict: '판정 불가(흔들림 큼)' })).toHaveLength(1);
     expect(checkVerdict({ title: '[FE][Refactor] 무엇', verdict: '같음' })).toEqual([]);
   });
 
@@ -128,5 +135,43 @@ describe('PR 올리기 전 안내', () => {
 
     expect(template).toContain('- 영향 라우트: /properties/:propertyId/photos');
     expect(template).toContain('CI 댓글');
+  });
+});
+
+describe('흔들림이 큰 측정', () => {
+  it('흩어짐이 상한을 넘으면 같음으로 뭉개지 않고 판정 불가를 낸다', () => {
+    const metric = compareMetric([1000, 1400, 1100], [1050, 1500, 1000], { maxSpread: 250 });
+
+    expect(metric.verdict).toBe(JITTER_VERDICT);
+  });
+
+  it('상한 안이면 지금처럼 문턱으로 판정한다', () => {
+    expect(compareMetric([1000, 1100], [1050, 1120], { maxSpread: 250 }).verdict).toBe('같음');
+    expect(compareMetric([1000, 1100], [1500, 1550], { maxSpread: 250 }).verdict).toBe('나빠짐');
+  });
+
+  it('상한이 0이면(지도 SDK 목, CI) 흩어짐이 커도 문턱으로만 판정한다', () => {
+    expect(compareMetric([1000, 1400], [1050, 1450]).verdict).toBe('같음');
+  });
+});
+
+describe('develop 필수 검사 Check visual verdict', () => {
+  const workflow = readFileSync(join(repoRoot, '.github/workflows/visual-verdict.yml'), 'utf8');
+
+  it('모든 PR에서 결과를 남기도록 paths 필터 없이 develop PR에 돈다', () => {
+    expect(workflow).not.toMatch(/^\s*paths(-ignore)?:/m);
+    expect(workflow).toMatch(/^\s*types: \[opened, synchronize, reopened\]$/m);
+    expect(workflow).toMatch(/^\s*- develop$/m);
+  });
+
+  it('체크 이름은 Check visual verdict 이고 잡 전체를 건너뛰는 조건이 없다', () => {
+    expect(workflow).toMatch(/^ {4}name: Check visual verdict$/m);
+    expect(workflow).not.toMatch(/^ {4}if:/m);
+  });
+
+  it('전 화면 판정은 PR 라벨로 돌지 않는다', () => {
+    const full = readFileSync(join(repoRoot, '.github/workflows/visual-verdict-full.yml'), 'utf8');
+
+    expect(full).not.toMatch(/pull_request|labeled/);
   });
 });

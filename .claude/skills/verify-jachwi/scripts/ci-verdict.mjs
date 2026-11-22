@@ -4,7 +4,7 @@
 //   node .claude/skills/verify-jachwi/scripts/ci-verdict.mjs --scope <visual-scope --json 결과 파일> \
 //     --before http://localhost:4301 --after http://localhost:4302 --out <폴더> [--mode pr|all] [--title "<PR 제목>"] \
 //     [--runs 5] [--spread-factor 1.5] [--min-diff 100] [--before-label <커밋>] [--after-label <커밋>] [--run-url <실행 주소>]
-// - pr: 영향 라우트 중 screens.mjs 순서로 가장 앞선 화면 하나만 잰다(PR마다 5분 안). all: 영향 화면 전부(visual 라벨, 주 1회).
+// - pr: 영향 라우트 중 screens.mjs 순서로 가장 앞선 화면 하나만 잰다(PR마다 5분 안). all: 영향 화면 전부(visual-verdict-full.yml, 주 1회와 수동 실행).
 // - 결과: <out>/<화면>/(verdict.md, runs.jsonl, result.json, shots, side), <out>/comment.md(PR 댓글), <out>/summary.json
 // - 끝 코드: frontend/scripts/visual-scope.mjs 의 checkVerdict 가 실패를 내면 1(나빠짐, 같음이 아닌 리팩터링), 그 밖은 0.
 import { execFileSync } from 'node:child_process';
@@ -102,7 +102,7 @@ if (!scope.runs) {
       const { result, verdict } = JSON.parse(readFileSync(join(dir, 'result.json'), 'utf8'));
       return { screen, result, verdict };
     });
-    const order = ['나빠짐', '판정 못 함', '좋아짐', '같음'];
+    const order = ['나빠짐', '판정 불가(흔들림 큼)', '판정 못 함', '좋아짐', '같음'];
     const overall = order.find((verdict) => results.some((item) => item.verdict === verdict)) ?? '같음';
     const failures = checkVerdict({ title: args.title, verdict: overall });
     const skipped = candidates.length - screens.length;
@@ -125,7 +125,7 @@ if (!scope.runs) {
         '',
         ...(skipped > 0
           ? [
-              `- PR마다는 가장 중요한 화면 하나만 잰다. 영향 화면 ${skipped}개는 더 재지 않았다. 다 재려면 \`visual\` 라벨을 단다.`,
+              `- PR마다는 가장 중요한 화면 하나만 잰다. 영향 화면 ${skipped}개는 더 재지 않았다. 화면 전부는 주 1회 \`Visual Verdict Full\`이 develop에서 잰다. 이 PR에서 더 보려면 로컬에서 \`measure.mjs --screen <화면>\`으로 잰다.`,
             ]
           : []),
         ...(isRefactor ? ['- 리팩터링 PR이라 "같음"이어야 통과다.'] : []),

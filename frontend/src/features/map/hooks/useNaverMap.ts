@@ -10,6 +10,7 @@ import { pinchLevelDelta } from '../lib/mapPinchZoom';
 import { cardFlipsBelow } from '../lib/mapRegionCardPlacement';
 import { createMapRegionLayer, READY_TIMEOUT_MS } from '../lib/mapRegionLayer';
 import { createMapTapGuard } from '../lib/mapTapGuard';
+import { MAP_TIMING, markMapTiming } from '../lib/mapTiming';
 import {
   isNaverSdkAvailable,
   type LiveMap,
@@ -189,9 +190,11 @@ const useNaverMap = ({
     void engine
       .load()
       .then(() => {
+        markMapTiming(MAP_TIMING.sdkReady);
         if (disposed || containerRef.current === null) return;
         map = engine.createMap(containerRef.current, initialViewRef.current.center, initialViewRef.current.level);
         mapRef.current = map;
+        markMapTiming(MAP_TIMING.mapCreated);
 
         const handleIdle = () => {
           // 앞서 미뤄 둔 확인은 이 idle이 대신한다.
