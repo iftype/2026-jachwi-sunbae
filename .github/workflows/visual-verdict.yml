@@ -13,6 +13,8 @@ on:
     branches:
       - main
       - develop
+      # 여러 PR을 모으는 통합 브랜치(예: chore/verification-integration)로 가는 PR도 판정한다. 머지 기준 커밋이 전이다.
+      - '**-integration'
 
 permissions:
   contents: read
