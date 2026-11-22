@@ -44,7 +44,7 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           echo "before=$(git merge-base "${BASE_SHA}" "${HEAD_SHA}")" >> "${GITHUB_OUTPUT}"
-          echo "after=$(git merge-base "${BASE_SHA}" "${HEAD_SHA}")" >> "${GITHUB_OUTPUT}" # 임시: develop 대 develop
+          echo "after=d18eea4784d533068ffeca9261176483e6148aa0" >> "${GITHUB_OUTPUT}" # 임시: #784 대 develop
 
       - name: Set up frontend
         uses: ./.github/actions/setup-frontend
@@ -56,7 +56,8 @@ jobs:
           BEFORE_SHA: ${{ steps.commits.outputs.before }}
           AFTER_SHA: ${{ steps.commits.outputs.after }}
         run: |
-          echo '{"runs":true,"scope":"all","why":"임시: develop 대 develop","routes":[]}' > "${RUNNER_TEMP}/scope.json"
+          git diff --name-only "${BEFORE_SHA}" "${AFTER_SHA}" \
+            | node scripts/visual-scope.mjs --files-from - --base "${BEFORE_SHA}" --json > "${RUNNER_TEMP}/scope.json"
           RUNS="$(jq -r '.runs' "${RUNNER_TEMP}/scope.json")"
           echo "runs=${RUNS}" >> "${GITHUB_OUTPUT}"
           jq -r '"범위: \(.scope) (\(.why)) \(.routes | join(", "))"' "${RUNNER_TEMP}/scope.json"
