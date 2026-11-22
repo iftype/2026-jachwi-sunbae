@@ -83,18 +83,9 @@ if (!scope.runs) {
         [
           join(here, 'measure.mjs'),
           ...['--before', args.before, '--after', args.after, '--screen', screen.name],
-          ...[
-            '--runs',
-            args.runs,
-            '--net',
-            'fast4g',
-            '--viewport',
-            'desktop',
-            '--map-sdk',
-            args['map-sdk'],
-            '--timeout',
-            '15',
-          ],
+          ...['--runs', args.runs, '--net', 'fast4g', '--viewport', 'desktop', '--map-sdk', args['map-sdk']],
+          // 순간을 못 보는 회차가 5분을 넘기지 않게 15초에 끊는다. CI 러너는 전용이라 부하를 기다리지 않는다.
+          ...['--timeout', '15', '--max-load', '0'],
           ...['--spread-factor', args['spread-factor'], '--min-diff', args['min-diff'], '--out', dir],
         ],
         { stdio: 'inherit' },

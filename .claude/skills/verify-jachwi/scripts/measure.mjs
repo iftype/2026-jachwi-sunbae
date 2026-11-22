@@ -29,6 +29,8 @@ const { values: args } = parseArgs({
     screen: { type: 'string' },
     'spread-factor': { type: 'string', default: '1' },
     'min-diff': { type: 'string', default: '0' },
+    // 1분 평균 부하가 이 값을 넘으면 내려올 때까지 기다린다(다른 일을 하는 노트북용). 0이면 기다리지 않는다(CI 전용 러너).
+    'max-load': { type: 'string', default: '3' },
     runs: { type: 'string', default: '5' },
     net: { type: 'string', default: 'fast4g' },
     viewport: { type: 'string', default: 'mobile' },
@@ -138,7 +140,9 @@ const watchMoment = ({ selector, text }) => {
 };
 
 const waitForQuietMachine = async () => {
-  for (let i = 0; i < 40 && loadavg()[0] > 3; i += 1) await new Promise((done) => setTimeout(done, 3000));
+  const maxLoad = Number(args['max-load']);
+  if (maxLoad <= 0) return;
+  for (let i = 0; i < 40 && loadavg()[0] > maxLoad; i += 1) await new Promise((done) => setTimeout(done, 3000));
 };
 
 const openOnce = async (browser, baseUrl, { shotsPrefix } = {}) => {
