@@ -5,7 +5,7 @@ import type { ClassifiedRoute } from '../../scripts/reachable-routes.mjs';
 import { classifyRoutes, findReachableRoute, knownUnreachable } from '../../scripts/reachable-routes.mjs';
 
 // 알고 남겨 둔 갈 수 없는 라우트 수의 상한이다. 목록은 줄기만 해야 하므로, 항목을 빼면 이 숫자도 같이 낮춘다.
-const KNOWN_UNREACHABLE_LIMIT = 6;
+const KNOWN_UNREACHABLE_LIMIT = 4;
 
 let routes: ClassifiedRoute[] = [];
 

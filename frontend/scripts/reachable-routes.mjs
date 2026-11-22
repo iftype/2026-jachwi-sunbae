@@ -150,8 +150,6 @@ export const knownUnreachable = {
   '/neighborhoods/nearby': '위와 같은 주변 분석 화면의 로그인 주소다.',
   '/properties/:propertyId/memo': '매물 메모 화면. 상세 화면 안 메모로 옮긴 뒤 들어오는 링크가 없다.',
   '/properties/:propertyId/nearby': '매물 주변 분석 화면. 들어오는 링크가 없다.',
-  '/export': '기록 내보내기 화면. 들어오는 링크가 없다.',
-  '/tips': '선배 팁 화면. 들어오는 링크가 없다.',
 };
 
 // appPaths.ts를 자바스크립트로 바꿔 값만 읽는다. Node의 타입 지우기나 번들러 없이 돈다.
