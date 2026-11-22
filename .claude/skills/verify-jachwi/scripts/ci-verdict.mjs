@@ -86,6 +86,8 @@ if (!scope.runs) {
           ...['--runs', args.runs, '--net', 'fast4g', '--viewport', 'desktop', '--map-sdk', args['map-sdk']],
           // 순간을 못 보는 회차가 5분을 넘기지 않게 15초에 끊는다. CI 러너는 전용이라 부하를 기다리지 않는다.
           ...['--timeout', '15', '--max-load', '0'],
+          // 순간이 1~3초 사이라 그 앞뒤를 촘촘히 찍는다.
+          ...['--shots', '1,1.5,2,2.5,3,4'],
           ...['--spread-factor', args['spread-factor'], '--min-diff', args['min-diff'], '--out', dir],
         ],
         { stdio: 'inherit' },
