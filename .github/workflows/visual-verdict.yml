@@ -44,7 +44,7 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           echo "before=$(git merge-base "${BASE_SHA}" "${HEAD_SHA}")" >> "${GITHUB_OUTPUT}"
-          echo "after=d18eea4784d533068ffeca9261176483e6148aa0" >> "${GITHUB_OUTPUT}" # 임시: #784 대 develop
+          echo "after=${HEAD_SHA}" >> "${GITHUB_OUTPUT}"
 
       - name: Set up frontend
         uses: ./.github/actions/setup-frontend
