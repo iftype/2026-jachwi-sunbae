@@ -130,12 +130,21 @@ assets/jachwi-sunbae-logo.2e4dac46707736dbc407.png
 4. `/index.html` 무효화를 만들고 `invalidation-completed`까지 기다린다.
 5. 서비스 URL에서 `index.html`을 다시 받는다.
 6. 로컬 `dist/index.html`이 참조하는 모든 JS·CSS 파일명이 서비스 응답에도 있는지 비교한다.
+7. 응답 `Cache-Control` 헤더를 확인한다. `index.html`, `version.json`, 경계 manifest는 `no-cache,max-age=0,must-revalidate`, 해시가 붙은 main JS와 해시 경계 파일은 `public,max-age=31536000,immutable`이어야 한다.
 
 옛 `index.html`이 응답하면 새 번들 파일명이 없으므로 Commands 액션이 실패한다. 검증만 다시 실행할 때는 다음 명령을 쓴다.
 
 ```bash
 ./frontend/deploy/verify-deployment.sh frontend/dist/index.html https://dev.jachwi-sunbae.kr/index.html
 ./frontend/deploy/verify-deployment.sh frontend/dist/index.html https://www.jachwi-sunbae.kr/index.html
+```
+
+헤더 기대값은 `deploy/cache-headers.sh`에 한 번만 적고 `publish.sh`(업로드)와 `verify-deployment.sh`(검증)가 같이 읽는다. 값을 바꾸면 두 스크립트가 함께 바뀐다. 헤더가 다르면 무엇이 달랐는지 출력하고 종료 코드 1로 끝난다. CloudFront 전파가 늦을 수 있어 헤더도 12번, 5초 간격으로 다시 받고(`VERIFY_HEADER_RETRIES`, `VERIFY_HEADER_RETRY_DELAY`로 조정), 그래도 다르면 실패한다.
+
+경계 파일을 brotli로 올리면(#783) `VERIFY_BOUNDARY_BROTLI=1`을 주어 `Accept-Encoding: br` 요청의 경계 파일이 `Content-Encoding: br`인지도 확인한다. 기본은 끈다.
+
+```bash
+VERIFY_BOUNDARY_BROTLI=1 ./frontend/deploy/verify-deployment.sh frontend/dist/index.html https://dev.jachwi-sunbae.kr/index.html
 ```
 
 ## SPA 폴백
