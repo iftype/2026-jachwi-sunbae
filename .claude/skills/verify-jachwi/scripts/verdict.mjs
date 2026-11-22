@@ -4,6 +4,8 @@
 // - 문턱 = max(흩어짐 x 배수, 최소 차이). 로컬 기본은 배수 1, 최소 차이 0이다. CI는 develop 대 develop 시험으로 정한 값을 준다.
 // - 후 중앙값 - 전 중앙값의 크기가 문턱 이하면 "같음", 그보다 작아졌으면 "좋아짐", 커졌으면 "나빠짐".
 // - 순간을 못 본 회차(시간 초과)가 후에서 더 많으면 값과 상관없이 "나빠짐".
+// - 흩어짐 상한(maxSpread, 0이면 끔)을 넘으면 "판정 불가(흔들림 큼)". 실제 지도 타일로 잴 때 회선이나 CDN 흔들림이
+//   문턱을 키워 차이를 "같음"으로 뭉개지 않게 한다. 회수를 늘려(--runs) 다시 잰다.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -15,7 +17,9 @@ const median = (values) => {
 
 const range = (values) => Math.max(...values) - Math.min(...values);
 
-export const compareMetric = (beforeValues, afterValues, { spreadFactor = 1, minDiff = 0 } = {}) => {
+export const JITTER_VERDICT = '판정 불가(흔들림 큼)';
+
+export const compareMetric = (beforeValues, afterValues, { spreadFactor = 1, minDiff = 0, maxSpread = 0 } = {}) => {
   const before = beforeValues.filter((value) => value !== null);
   const after = afterValues.filter((value) => value !== null);
   const missingBefore = beforeValues.length - before.length;
@@ -34,6 +38,7 @@ export const compareMetric = (beforeValues, afterValues, { spreadFactor = 1, min
   const threshold = Math.max(spread * spreadFactor, minDiff);
   let verdict = '같음';
   if (missingAfter > missingBefore) verdict = '나빠짐';
+  else if (maxSpread > 0 && spread > maxSpread) verdict = JITTER_VERDICT;
   else if (Math.abs(diff) > threshold) verdict = diff < 0 ? '좋아짐' : '나빠짐';
   return {
     before,
@@ -55,7 +60,11 @@ export const judge = (rows, options = {}) => {
   const count = (variant, key) => side(variant).map((row) => row[key].length);
   return {
     moment: compareMetric(pick('before', 'moment'), pick('after', 'moment'), options),
-    lcp: compareMetric(pick('before', 'lcp'), pick('after', 'lcp'), options),
+    lcp: compareMetric(pick('before', 'lcp'), pick('after', 'lcp'), { ...options, maxSpread: 0 }),
+    // 지도 SDK 준비까지 걸린 시간. 네이버 CDN과 회선이 정하는 몫이라 판정에 쓰지 않고 적기만 한다.
+    sdkReady: rows.some((row) => row.sdkReady !== undefined)
+      ? compareMetric(pick('before', 'sdkReady'), pick('after', 'sdkReady'), { ...options, maxSpread: 0 })
+      : null,
     consoleErrors: { before: count('before', 'consoleErrors'), after: count('after', 'consoleErrors') },
     failedRequests: { before: count('before', 'failedRequests'), after: count('after', 'failedRequests') },
     samples: {
@@ -90,7 +99,7 @@ export const renderVerdict = (setup, result) => {
 - 화면: \`${setup.path}\` (${setup.viewport})
 - 사용자가 기다리는 순간: ${setup.moment}
 - 문턱: 흩어짐의 ${setup.spreadFactor ?? 1}배, ${seconds(setup.minDiff ?? 0)} 중 큰 값. 차이가 문턱 이하면 같음이다.
-- 조건: 회선 ${setup.net}, CPU ${setup.cpu}배, 빈 캐시 첫 방문, 전후를 번갈아 각 ${setup.runs}회(세지 않는 데우기 ${setup.warmup ?? 0}회 뒤)${setup.mapSdk === 'stub' ? ', 지도 SDK는 무게만 같은 목(지도는 뜨지 않음)' : ''}
+- 조건: 회선 ${setup.net}, CPU ${setup.cpu}배, 빈 캐시 첫 방문, ${setup.order === 'blocked' ? '전을 모두 잰 뒤 후를' : '전후를 번갈아'} 각 ${setup.runs}회(세지 않는 데우기 ${setup.warmup ?? 0}회 뒤)${setup.mapSdk === 'stub' ? ', 지도 SDK는 무게만 같은 목(지도는 뜨지 않음)' : ', 실제 네이버 지도 SDK와 타일'}${setup.maxSpread > 0 ? `\n- 흩어짐 상한: ${seconds(setup.maxSpread)}. 넘으면 ${JITTER_VERDICT}이다.` : ''}
 - 전: ${setup.before}, 후: ${setup.after}
 
 ## 판정: ${verdict}
@@ -101,9 +110,9 @@ export const renderVerdict = (setup, result) => {
 | --- | --- | --- | --- | --- | --- | --- |
 ${metricRow('사용자 순간', result.moment)}
 ${metricRow('LCP(보조)', result.lcp)}
-
+${result.sdkReady ? `${metricRow('지도 SDK 준비(참고, 판정에 안 씀)', result.sdkReady)}\n` : ''}
 - 사용자 순간 회차별(초): 전 ${list(result.moment.before)}, 후 ${list(result.moment.after)}${result.moment.missingBefore + result.moment.missingAfter > 0 ? `, 못 본 회차 전 ${result.moment.missingBefore} 후 ${result.moment.missingAfter}` : ''}
-- 콘솔 오류 수(회차별): 전 ${result.consoleErrors.before.join(', ')}, 후 ${result.consoleErrors.after.join(', ')}
+${result.sdkReady ? `- 지도 SDK 준비 회차별(초, 참고): 전 ${list(result.sdkReady.before)}, 후 ${list(result.sdkReady.after)}\n` : ''}- 콘솔 오류 수(회차별): 전 ${result.consoleErrors.before.join(', ')}, 후 ${result.consoleErrors.after.join(', ')}
 - 실패한 요청 수(회차별, 4xx와 5xx 포함): 전 ${result.failedRequests.before.join(', ')}, 후 ${result.failedRequests.after.join(', ')}
 ${[...result.samples.consoleErrors.map((text) => `  - 콘솔: ${text}`), ...result.samples.failedRequests.map((text) => `  - 요청: ${text}`)].join('\n')}
 
@@ -115,7 +124,7 @@ ${[...result.samples.consoleErrors.map((text) => `  - 콘솔: ${text}`), ...resu
 | --- | --- | --- |
 ${setup.shotTimes.map((time) => `| ${time}초 | (직접 보고 적는다) | (직접 보고 적는다) |`).join('\n')}
 
-## PR 본문에 쓸 수 있는 말
+${result.moment.verdict === JITTER_VERDICT ? `## 다시 재기\n\n흩어짐 ${seconds(result.moment.spread)}이 상한 ${seconds(setup.maxSpread)}보다 커서 판정하지 않았다. 같음으로 보지 않는다. \`--runs\`를 ${Math.max(10, setup.runs * 2)} 이상으로 늘려 다시 잰다. 다시 재도 크면 회선이 조용할 때 재거나 지도 SDK 목(\`--map-sdk stub\`)으로 지도와 무관한 순간을 잰다.\n\n` : ''}## PR 본문에 쓸 수 있는 말
 
 ${verdict === '좋아짐' ? '- 사용자 순간이 흩어짐보다 크게 빨라졌다. "개선"이라고 써도 된다.' : '- "개선"이라고 쓰지 않는다. 사용자 기준 순간이 좋아지지 않았다.'}
 - 리팩터링 PR은 판정이 "같음"이어야 통과다.

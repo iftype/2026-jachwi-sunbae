@@ -1,6 +1,7 @@
 import type { MapBounds, MapMarker } from '../model/Map';
 import { clampToSouthKorea, SOUTH_KOREA_BOUNDS } from './mapLocation';
 import { markerAnchorTransform } from './mapMarkerPresentation';
+import { MAP_TIMING, markMapTiming } from './mapTiming';
 const clamp = (value: number, min: number, max: number): number => Math.min(Math.max(value, min), max);
 const NAVER_ZOOM_BASE = 20;
 const MIN_NAVER_ZOOM = 6;
@@ -216,6 +217,7 @@ export const naverEngine = (clientId: string, customStyleId?: string): LiveEngin
         // 확대·이동 중 left/top을 바꾸면 WebView가 마커마다 레이아웃을 다시 계산한다.
         // 합성 단계에서 처리되는 transform으로 옮겨 지도 제스처의 메인 스레드 부담을 줄인다.
         element.style.transform = `translate3d(${pixel.x}px, ${pixel.y}px, 0)`;
+        if (element.isConnected) markMapTiming(MAP_TIMING.overlayAttached);
       }
     };
     overlay.onRemove = () => element.remove();

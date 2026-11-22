@@ -6,7 +6,10 @@ name: Visual Verdict
 #   영향 화면 중 가장 중요한 하나의 사용자 기준 순간을 번갈아 잰다. 숫자는 .claude/skills/verify-jachwi/scripts 가 낸다(LLM 없음).
 # - 결과: verdict.md와 같은 시각 전후 스크린샷은 아티팩트로, 요약은 PR 댓글 하나로 올리고 커밋마다 고친다.
 #   나빠짐이면 실패, 제목이 [Refactor]인데 같음이 아니면 실패.
-# - 영향 화면 전부는 visual 라벨이나 주 1회 develop 실행(visual-verdict-full.yml)이 잰다. PR마다는 5분 안에 끝나야 한다.
+# - 화면 전부는 주 1회와 수동 실행(visual-verdict-full.yml)만 잰다. PR마다는 5분 안에 끝나야 한다.
+# - `Check visual verdict`는 develop 필수 검사다. 백엔드만, 문서만 바뀐 PR에도 결과가 남아야 하니 paths 필터를 두지 않는다.
+#   범위 밖이면 잡 안에서 visual-scope 가 정하고 측정 없이 성공한다. 잡 이름을 바꾸면 필수 검사가 영원히 기다린다.
+#   (frontend/test/scripts/visual-scope.test.ts 가 이 두 가지를 검사한다)
 on:
   pull_request:
     types: [opened, synchronize, reopened]
