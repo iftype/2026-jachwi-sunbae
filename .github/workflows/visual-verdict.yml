@@ -1,0 +1,50 @@
+name: Visual Verdict
+
+# 실행되는 프론트 코드가 바뀐 PR이 본문에 화면 판정 절("## 화면 판정")을 갖췄는지 본다.
+# 범위 규칙은 frontend/scripts/visual-scope.mjs 한 곳에 있다. 이 잡은 판정을 직접 돌리지 않고(에이전트, 브라우저 없음)
+# 증거가 적혀 있는지만 강제한다. 본문을 고치면 다시 돌도록 edited 이벤트도 받는다.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+
+concurrency:
+  group: visual-verdict-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  check-verdict:
+    name: Check visual verdict
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up frontend
+        uses: ./.github/actions/setup-frontend
+
+      - name: Check verdict section
+        working-directory: frontend
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          printf '%s' "${PR_BODY}" > "${RUNNER_TEMP}/pr-body.md"
+          git diff --name-only "${BASE_SHA}...${HEAD_SHA}" > "${RUNNER_TEMP}/changed-files.txt"
+          node scripts/visual-scope.mjs \
+            --files-from "${RUNNER_TEMP}/changed-files.txt" \
+            --base "${BASE_SHA}" \
+            --check-pr \
+            --title "${PR_TITLE}" \
+            --body-file "${RUNNER_TEMP}/pr-body.md"

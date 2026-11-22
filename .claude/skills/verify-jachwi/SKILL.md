@@ -1,11 +1,74 @@
 ---
 name: verify-jachwi
-description: 자취선배 웹 프론트(React, webpack dev)를 로컬에서 dev API에 붙여 띄우고 Chrome DevTools MCP로 사용자처럼 구동해 증거(스크린샷, ARIA 스냅샷, 네트워크, 성능 트레이스)를 남긴다. 동네 찾기, 지도, 매물 상세, 체크리스트, 거리 메모가 동작하는지 증명하거나 화면 변경과 로딩 성능 PR의 증거가 필요할 때 쓴다.
+description: 자취선배 웹 프론트를 로컬에서 띄워 사용자처럼 구동하고 증거를 남기며, 실행되는 프론트 코드가 바뀐 PR(리팩터링 포함)의 화면 전후 판정을 한다. 갈 수 있는 화면인지 먼저 확인하고, MSW 목과 고정 응답 시간으로 기준 스크린샷과 사용자 기준 순간을 전후로 재서 verdict.md를 남긴다. 동네 찾기, 지도, 매물 상세, 체크리스트, 거리 메모 동작 증명, 화면 변경, 로딩 성능, 리팩터링 PR의 증거가 필요할 때 쓴다.
 ---
 
 # verify-jachwi
 
 자취선배 프론트를 실제로 띄워 사용자 경로로 구동하고 증거를 남기는 검증 스킬이다. 기능별 레시피는 [features/README.md](features/README.md)에서 시작한다. 운영 사이트(jachwi-sunbae.kr)는 쓰지 않는다.
+
+## 언제 도는가와 통과 기준
+
+- 도는 경우는 `frontend/scripts/visual-scope.mjs`가 정한다. 규칙은 그 파일 한 곳에만 있고 여기에 옮겨 적지 않는다. "UI를 바꾸려는 PR"이 아니라 "실행되는 프론트 코드가 바뀐 PR"이 대상이라 리팩터링도 들어간다.
+- PR을 올리기 전에 `frontend`에서 `npm run verify:pr`(기준이 다르면 `-- --base upstream/develop`)를 돌린다. 판정이 필요한지, 볼 화면(영향 라우트), PR 본문에 붙일 `## 화면 판정` 빈 틀을 낸다. 범위 밖이면 `화면 판정 필요 없음`을 내고 여기서 끝난다.
+- 판정은 올리는 쪽(사람이나 에이전트)이 로컬에서 한다. CI(`.github/workflows/visual-verdict.yml`)는 본문의 `## 화면 판정` 절에 결과, 영향 라우트, 증거 링크가 있는지만 본다. 결과가 `나빠짐`이면 실패, 제목이 `[Refactor]`인데 `같음`이 아니면 실패다.
+- 판정 기준: 사용자가 기다리는 순간(첫 매물 카드, 결과 목록, 경계 표시 등)이 정한다. 지도 배경이나 LCP 같은 보조 지표만으로 판정하지 않는다. 리팩터링 PR은 `같음`이어야 통과다. `나빠짐`이거나 사용자 기준 순간이 좋아지지 않았으면 PR 본문에 "개선"이라고 쓰지 않는다.
+
+## 녹화와 검증 전에: 갈 수 있는 화면인가
+
+```sh
+cd frontend && node scripts/reachable-routes.mjs --check /explore/nearby
+```
+
+- 녹화, 스크린샷, 성능 기록, 전후 판정을 하기 전에 대상 주소마다 돌린다. 1로 끝나면 "갈 수 없는 화면이라 증거로 쓰지 않는다"고 적고 멈춘다. 사용자가 실제로 들어오는 화면에서 다시 찍거나, 그 화면으로 오는 링크부터 만든다.
+- 전체 목록은 `npm run routes:reachable`이다. 라우터 정의와 앱 안 링크(Link, navigate, 하단 탭 등)를 읽어 만든다. 밖에서만 들어오는 화면(`/explore`, `/landing` 등)은 이유와 함께 예외로 들어 있다.
+- 알고 남겨 둔 갈 수 없는 라우트(`knownUnreachable`)는 줄기만 한다. 새로 생긴 갈 수 없는 라우트는 `test/scripts/reachable-routes.test.ts`가 CI에서 잡는다.
+
+## 화면별 기준 스크린샷
+
+MSW 목 데이터와 고정 응답 시간으로 운영 빌드를 띄워, 갈 수 있는 주요 화면마다 데스크탑(1440x900)과 휴대폰(390x844) 폭으로 찍는다. 기준 이미지는 레포에 커밋하지 않는다(`qa/runs/`는 git 제외). 찍는 방법과 비교 방법만 여기 둔다.
+
+```sh
+S=.claude/skills/verify-jachwi/scripts
+$S/build-variant.sh before upstream/develop 4301      # 비교할 커밋을 따로 꺼내 운영 빌드
+$S/build-variant.sh after HEAD 4302
+node $S/serve.mjs --dist "${TMPDIR:-/tmp}/verify-jachwi-variants/before/frontend/dist" --port 4301 --api mock --delay 300 &
+node $S/serve.mjs --dist "${TMPDIR:-/tmp}/verify-jachwi-variants/after/frontend/dist" --port 4302 --api mock --delay 300 &
+node $S/baseline.mjs --base http://localhost:4301 --out qa/runs/verify-jachwi/<이름>/baseline-before
+node $S/baseline.mjs --base http://localhost:4302 --out qa/runs/verify-jachwi/<이름>/baseline-after
+node $S/compare.mjs qa/runs/verify-jachwi/<이름>/baseline-before qa/runs/verify-jachwi/<이름>/baseline-after qa/runs/verify-jachwi/<이름>/baseline-side
+```
+
+- `serve.mjs --api mock`은 레포의 MSW 핸들러(`frontend/src/app/mocks/handlers`)를 Node에서 돌려 모든 `/api` 응답을 `--delay` ms 뒤에 준다. 서비스 워커가 아니라 진짜 HTTP 응답이라 회선 제한이 API에도 걸리고, 전과 후가 같은 데이터를 받는다. `--api dev`는 dev API로 중계한다.
+- 운영 빌드는 늘 실제 네이버 지도라 `frontend/.env.local`에 지도 키가 있어야 한다. `build-variant.sh`가 이 파일을 복사한다(커밋하지 않는다).
+- 화면 목록은 `baseline.mjs`의 `SCREENS`다. 찍기 전에 `reachable-routes`로 확인해 갈 수 없는 화면은 빼고 `screens.md`에 그렇게 적는다. 판정 범위를 좁힐 때는 `--only`에 `npm run verify:pr`이 낸 라우트를 쉼표로 준다.
+- 비교: `compare.mjs`가 화면마다 다른 픽셀 비율(채널 차이 24 초과)과 전, 후, 다른 픽셀을 나란히 붙인 `<화면>.side.png`를 만든다. 같은 빌드를 두 번 찍어도 지도 타일과 랜딩 영상 때문에 몇 % 다를 수 있다. 비율이 0이 아닌 화면은 `side.png`를 직접 열어 무엇이 다른지 적는다.
+- 목에 핸들러가 없는 요청(예: 저렴한 한 끼의 `/api/maps/good-price-stores` 501)은 `screens.md`에 오류로 남는다. 전과 후가 같으면 판정에 쓰지 않는다.
+
+## 전후 판정
+
+1. 사용자가 기다리는 순간을 먼저 정한다. 홈은 첫 매물 카드(`--moment card`), 다른 화면은 결과 목록이나 경계 표시처럼 사용자가 기다리는 요소의 CSS 선택자(`--selector`)다. 지도 배경, LCP는 보조 지표다.
+2. 위 `build-variant.sh`와 `serve.mjs`로 전과 후를 띄운다(전은 `upstream/develop`, 후는 PR 머리).
+3. 잰다. 전후를 번갈아 각 3회 이상(기본 5회), 빈 캐시 첫 방문이다. 회선 기본은 보통 4G(`fast4g`: 지연 70ms, 내려받기 9Mbps, CPU 4배)다.
+
+   ```sh
+   node $S/measure.mjs --before http://localhost:4301 --after http://localhost:4302 \
+     --path / --moment card --runs 5 --net fast4g --viewport mobile --out qa/runs/verify-jachwi/<이름>/verdict
+   ```
+
+4. `verdict.md` 초안이 나온다. 중앙값 차이와 흩어짐(전, 후 각각의 최대 - 최소 중 큰 값)을 적고, 차이가 흩어짐 이하면 `같음`이다. 순간을 못 본 회차가 후에서 늘거나 콘솔 오류, 실패한 요청(4xx, 5xx, 끊김)이 후에서 늘면 `나빠짐`이다.
+5. 같은 시각 스크린샷(기본 2, 4, 6, 8초. 순간이 그 사이면 `--shots 2,3,4,6,8`)을 나란히 붙여 직접 연다. 스크린샷은 시간을 재는 회차와 따로 한 번 더 열어 찍는다.
+
+   ```sh
+   node $S/compare.mjs qa/runs/verify-jachwi/<이름>/verdict/shots/before qa/runs/verify-jachwi/<이름>/verdict/shots/after qa/runs/verify-jachwi/<이름>/verdict/side
+   ```
+
+   `side/<N>s.side.png`를 보고 `verdict.md`의 표에 시각마다 늦게 뜨는 요소를 적는다.
+
+6. `npm run verify:pr`이 낸 `## 화면 판정` 틀에 결과, 영향 라우트, 증거 링크(verdict.md와 나란히 보기 그림)를 채워 PR 본문에 붙인다. 리팩터링 PR은 `같음`이어야 한다. `나빠짐`이거나 사용자 기준 순간이 좋아지지 않았으면 "개선"이라고 쓰지 않는다.
+7. 끝나면 `serve.mjs` 프로세스를 끄고 `git worktree remove --force "${TMPDIR:-/tmp}/verify-jachwi-variants/<이름>"`로 빌드 폴더를 지운다.
+
+드라이버는 `qa/`의 Playwright다(`cd qa && npm ci`). Playwright 브라우저가 없으면 `npx playwright install chromium`을 하거나 `CHROME_PATH`에 Chrome 경로를 준다.
 
 ## Launch
 
@@ -65,23 +128,14 @@ result.md                       경로, 판정, 부수효과, 조건이 붙은 �
 - 화면에 보이는 것과 함께 부수효과를 본다. 동네 찾기는 `GET /api/commute-areas/with-rents` 200과 쿼리 값, 매물 저장은 저장 뒤 새로고침해서 다시 보이는지.
 - 로딩 성능은 DevTools 트레이스와 네트워크 기록으로 남긴다. 조건을 숫자와 함께 적는다: 화면, 캐시 무시 여부, 스로틀(`CPU throttling`, `Network throttling`), 빌드(webpack dev는 비압축이라 운영보다 느리다), 지도 모드(DEMO). 순서: `navigate_page`로 대상 주소를 연다, `performance_start_trace`(`reload: true`, `ignoreCache: true`, `filePath`), 요약의 LCP, TTFB, 렌더 지연, CLS를 `result.md`에 표로 적는다. 더 파려면 `performance_analyze_insight`. 전후 비교는 같은 조건으로 두 번 돌려 한 표에 둔다.
 - 네트워크 헤더에는 Bearer 토큰이 들어 있다. `get_network_request`의 헤더 출력을 증거 파일이나 PR 본문에 옮기지 않는다(본문 파일만 저장).
-- 화면 변경 PR이면 전후 GIF를 `~/.claude/skills/pr-media`로 만든다.
+- 화면 변경 PR이면 전후 GIF를 남긴다. 만드는 도구와 올리는 곳은 각자 환경에 둔다(이 스킬에 넣지 않는다).
 
-## 주인 Mac에서 돌리기
+## 다른 기기에서 돌리기
 
-Linux 노트북에서 만든 스킬이다. Mac에서는 아래 순서로 돌리고, 표시한 곳은 Mac에서 확인한다.
-
-1. 체크아웃: 이 브랜치를 받아 `frontend`에 `npm ci`를 한다. Node는 22.x. 설치 위치는 **주인 Mac에서 확인 필요**.
-2. `.env.local`: `frontend/.env.local`(저장소 루트 기준 `frontend/` 아래)에 `MAP_PROVIDER_MODE=naver`와 네이버 키(`NAVER_MAP_CLIENT_ID`, `NAVER_SEARCH_CLIENT_ID`)가 있어야 실제 지도가 나온다. 이 파일은 커밋하지 않는다. Mac 쪽 키 보관 위치는 **주인 Mac에서 확인 필요**. 노트북에서는 `~/Projects/2026-jachwi-sunbae/frontend/.env.local`을 새 worktree에 복사해 쓴다.
-3. 네이버 지도 키는 허용 도메인(Web 서비스 URL)에 `http://localhost:<포트>`가 등록돼 있어야 지도가 뜬다. 노트북에서는 `localhost:3217`로 떴다. 포트를 바꿔 쓰면 등록 여부를 **주인 Mac에서 확인 필요**.
-4. 서버: 레포 루트에서 `.claude/skills/verify-jachwi/scripts/launch.sh 3217`, 이어서 `doctor.sh 3217`. 스크립트는 `ss`가 없으면 `lsof`, `setsid`가 없으면 `nohup`을 쓰게 고쳤지만 macOS에서 돌려 본 적은 없다(**주인 Mac에서 확인 필요**). 3000, 3100은 다른 작업 서버가 쓸 수 있으니 3217을 쓴다.
-5. 드라이버, 방법 하나를 고른다.
-   - Chrome DevTools MCP: Mac의 Claude Code에 `chrome-devtools` MCP를 붙이고 headless로 쓴다(Chrome 경로와 등록 명령은 **주인 Mac에서 확인 필요**). 노트북의 `--isolated --headless`, 1440x900 설정과 같게 맞춘다.
-   - Playwright: `qa/`의 Playwright를 로컬에 붙인다. `cd qa && npm ci && QA_BASE_URL=http://localhost:3217 npx playwright test ...`(운영 도메인은 설정이 막는다). 빈 곳 클릭은 `page.mouse.click(x, y)`.
-6. 구동: 기능 파일(`features/*.md`)의 Drive 절을 그대로 따른다. 증거는 `qa/runs/verify-jachwi/<기능>-<날짜>/`(git 제외).
-7. 끝나면 `cleanup.sh 3217`. 검증용 매물과 메모는 각 기능 파일의 정리 단계로 지운다.
-
-Mac에서 보는 결과는 노트북 증거(`qa/runs/verify-jachwi/*-20261122/`)와 같은 기준이다. 스냅샷 uid와 HTML 구조는 같아도 글꼴 때문에 스크린샷 픽셀은 다르다.
+- Node 22.x로 `frontend`, `qa`에서 `npm ci`를 한다.
+- `frontend/.env.local`에 `MAP_PROVIDER_MODE=naver`와 네이버 키(`NAVER_MAP_CLIENT_ID`, `NAVER_SEARCH_CLIENT_ID`)가 있어야 실제 지도가 나온다. 키의 허용 도메인에 `http://localhost:<포트>`가 있어야 한다. 이 파일은 커밋하지 않는다.
+- 스크립트는 `ss`가 없으면 `lsof`, `setsid`가 없으면 `nohup`을 쓴다(macOS).
+- 스냅샷 uid와 HTML 구조는 기기가 달라도 같지만 글꼴 때문에 스크린샷 픽셀은 다르다. 기준 스크린샷은 같은 기기에서 찍은 것끼리만 견준다.
 
 ## Cleanup
 
@@ -93,11 +147,17 @@ launch가 띄운 프로세스만 종료하고 상태 폴더를 지운다. 이름
 
 ## Helpers
 
-| 스크립트                    | 호출                                                  | 하는 일                                               |
-| --------------------------- | ----------------------------------------------------- | ----------------------------------------------------- |
-| `scripts/launch.sh [포트]`  | `.claude/skills/verify-jachwi/scripts/launch.sh 3217` | 프론트를 dev API에 붙여 띄우고 준비될 때까지 기다린다 |
-| `scripts/doctor.sh [포트]`  | 위와 같은 경로                                        | 읽기 전용 점검                                        |
-| `scripts/cleanup.sh [포트]` | 위와 같은 경로                                        | 우리가 띄운 서버만 종료                               |
+| 스크립트                    | 호출                                                                | 하는 일                                               |
+| --------------------------- | ------------------------------------------------------------------- | ----------------------------------------------------- |
+| `scripts/launch.sh [포트]`  | `.claude/skills/verify-jachwi/scripts/launch.sh 3217`               | 프론트를 dev API에 붙여 띄우고 준비될 때까지 기다린다 |
+| `scripts/doctor.sh [포트]`  | 위와 같은 경로                                                      | 읽기 전용 점검                                        |
+| `scripts/cleanup.sh [포트]` | 위와 같은 경로                                                      | 우리가 띄운 서버만 종료                               |
+| `scripts/build-variant.sh`  | `build-variant.sh <이름> <ref> <포트>`                              | 비교할 커밋을 따로 꺼내 운영 빌드                     |
+| `scripts/serve.mjs`         | `node serve.mjs --dist <dist> --port <포트> --api mock --delay 300` | 빌드를 내보내고 `/api`를 목(고정 지연)이나 dev로 답함 |
+| `scripts/baseline.mjs`      | `node baseline.mjs --base <주소> --out <폴더>`                      | 주요 화면 기준 스크린샷(데스크탑, 휴대폰)             |
+| `scripts/compare.mjs`       | `node compare.mjs <전> <후> <출력>`                                 | 다른 픽셀 비율과 나란히 보기 그림                     |
+| `scripts/measure.mjs`       | `node measure.mjs --before <주소> --after <주소> ...`               | 사용자 순간을 전후로 재고 verdict.md 초안             |
+| `scripts/verdict.mjs`       | `node verdict.mjs <runs.jsonl>`                                     | 판정 다시 계산                                        |
 
 ## 유지
 

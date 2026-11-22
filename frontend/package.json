@@ -22,7 +22,9 @@
     "format": "prettier . --write --ignore-unknown",
     "format:check": "prettier . --check --ignore-unknown",
     "test:mutation": "stryker run",
-    "test:mutation:changed": "node scripts/mutation-changed.mjs"
+    "test:mutation:changed": "node scripts/mutation-changed.mjs",
+    "routes:reachable": "node scripts/reachable-routes.mjs",
+    "verify:pr": "node scripts/visual-scope.mjs --template"
   },
   "keywords": [],
   "author": "",
