@@ -58,8 +58,6 @@ const routeByScenario: Record<string, string> = {
   'active-checklist': '/properties/10/active-checklists/ON_SITE',
   my: '/me',
   'todo-compare': '/compare',
-  'todo-export': '/export',
-  'todo-tips': '/tips',
 };
 
 window.history.replaceState(null, '', routeByScenario[scenario] ?? '/');

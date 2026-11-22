@@ -418,18 +418,6 @@ describe('익명 자동 인증 흐름', () => {
     expect(screen.queryByRole('button', { name: '로그아웃' })).not.toBeInTheDocument();
   });
 
-  it.each([
-    ['/export', '기록 내보내기는 준비 중이에요'],
-    ['/tips', '선배 팁은 준비 중이에요'],
-  ])('%s는 공통 준비 중 안내를 표시한다', async (path, heading) => {
-    setAuthentication({ accessToken: 'valid-token', tokenType: 'Bearer', expiresIn: 60 });
-    server.use(http.get(`${config.apiBaseUrl}/api/members/me`, () => HttpResponse.json(successEnvelope(member))));
-
-    renderRoutes(path);
-
-    expect(await screen.findByRole('heading', { name: heading, level: 1 })).toBeInTheDocument();
-  });
-
   it('알 수 없는 경로에 fallback을 표시한다', async () => {
     renderRoutes('/does-not-exist');
     expect(await screen.findByText('페이지를 찾을 수 없어요')).toBeInTheDocument();

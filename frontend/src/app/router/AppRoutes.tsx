@@ -15,7 +15,6 @@ import {
   COMPARE_PATH,
   EXPLORE_NEARBY_PATH,
   EXPLORE_PATH,
-  EXPORT_PATH,
   GUIDE_PATH,
   HOME_PATH,
   LANDING_PATH,
@@ -34,7 +33,6 @@ import {
   RECORDS_MAP_PATH,
   RECORDS_PATH,
   ROUTE_PATTERNS,
-  TIPS_PATH,
 } from '@/shared/lib/navigation/appPaths';
 
 import LazyRouteBoundary from './LazyRouteBoundary';
@@ -64,7 +62,6 @@ const PropertyChecklistPage = lazy(() => import('@/pages/property-checklist/Prop
 const MapLocationSelectPage = lazy(() => import('@/pages/map-location-select/MapLocationSelectPage'));
 const NearbyAnalysisPage = lazy(() => import('@/pages/nearby-analysis/NearbyAnalysisPage'));
 const PropertyComparePage = lazy(() => import('@/pages/property-compare/PropertyComparePage'));
-const UpcomingFeaturePage = lazy(() => import('@/pages/upcoming-feature/UpcomingFeaturePage'));
 
 const lazyPage = (page: ReactNode, fallback?: ReactNode) => (
   <LazyRouteBoundary fallback={fallback}>{page}</LazyRouteBoundary>
@@ -171,8 +168,6 @@ const AppRoutes = () => (
         <Route path={MAP_SELECT_LOCATION_PATH} element={lazyPage(<MapLocationSelectPage />)} />
         <Route path={ADDRESS_SEARCH_PATH} element={lazyPage(<AddressSearchPage />)} />
         <Route path={COMPARE_PATH} element={lazyPage(<PropertyComparePage />)} />
-        <Route path={EXPORT_PATH} element={lazyPage(<UpcomingFeaturePage feature="export" />)} />
-        <Route path={TIPS_PATH} element={lazyPage(<UpcomingFeaturePage feature="tips" />)} />
       </Route>
     </Route>
     <Route path={ROUTE_PATTERNS.notFound} element={lazyPage(<NotFoundPage />)} />
