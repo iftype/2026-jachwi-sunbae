@@ -44,8 +44,7 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           echo "before=$(git merge-base "${BASE_SHA}" "${HEAD_SHA}")" >> "${GITHUB_OUTPUT}"
-          git fetch --quiet origin perf/home-map-sdk-preload
-          echo "after=d18eea4784d533068ffeca9261176483e6148aa0" >> "${GITHUB_OUTPUT}" # 임시: #784 대 develop 시험
+          echo "after=${HEAD_SHA}" >> "${GITHUB_OUTPUT}"
 
       - name: Set up frontend
         uses: ./.github/actions/setup-frontend
@@ -76,7 +75,7 @@ jobs:
           mode: pr
           title: ${{ github.event.pull_request.title }}
           runs: '5'
-          # develop 대 develop을 CI에서 여러 번 돌려 정했다(PR 본문 참고). 같은 코드의 중앙값 차이는 0.05초 안이었다.
+          # 문턱 = max(흩어짐, 0.1초). develop 대 develop을 CI에서 5번 돌렸을 때(데우기 1회 뒤 5회씩) 중앙값 차이는 0.03초 안, 흩어짐은 0.07초 안이었다.
           spread-factor: '1'
           min-diff: '100'
           out: ${{ runner.temp }}/visual-verdict
