@@ -90,7 +90,7 @@ export const renderVerdict = (setup, result) => {
 - 화면: \`${setup.path}\` (${setup.viewport})
 - 사용자가 기다리는 순간: ${setup.moment}
 - 문턱: 흩어짐의 ${setup.spreadFactor ?? 1}배, ${seconds(setup.minDiff ?? 0)} 중 큰 값. 차이가 문턱 이하면 같음이다.
-- 조건: 회선 ${setup.net}, CPU ${setup.cpu}배, 빈 캐시 첫 방문, 전후를 번갈아 각 ${setup.runs}회${setup.mapSdk === 'stub' ? ', 지도 SDK는 무게만 같은 목(지도는 뜨지 않음)' : ''}
+- 조건: 회선 ${setup.net}, CPU ${setup.cpu}배, 빈 캐시 첫 방문, 전후를 번갈아 각 ${setup.runs}회(세지 않는 데우기 ${setup.warmup ?? 0}회 뒤)${setup.mapSdk === 'stub' ? ', 지도 SDK는 무게만 같은 목(지도는 뜨지 않음)' : ''}
 - 전: ${setup.before}, 후: ${setup.after}
 
 ## 판정: ${verdict}

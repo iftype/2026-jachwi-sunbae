@@ -74,8 +74,9 @@ jobs:
           mode: pr
           title: ${{ github.event.pull_request.title }}
           runs: '5'
+          # develop 대 develop을 CI에서 여러 번 돌려 정했다(PR 본문 참고). 같은 코드의 중앙값 차이는 0.05초 안이었다.
           spread-factor: '1'
-          min-diff: '0'
+          min-diff: '100'
           out: ${{ runner.temp }}/visual-verdict
 
       - name: Upload verdict

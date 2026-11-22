@@ -31,6 +31,7 @@ const { values: args } = parseArgs({
     'min-diff': { type: 'string', default: '0' },
     // 1분 평균 부하가 이 값을 넘으면 내려올 때까지 기다린다(다른 일을 하는 노트북용). 0이면 기다리지 않는다(CI 전용 러너).
     'max-load': { type: 'string', default: '3' },
+    warmup: { type: 'string', default: '1' },
     runs: { type: 'string', default: '5' },
     net: { type: 'string', default: 'fast4g' },
     viewport: { type: 'string', default: 'mobile' },
@@ -202,6 +203,10 @@ const variants = [
   ['after', args.after],
 ];
 const runs = Number(args.runs);
+// 데우기: 브라우저, 서버, 디스크 캐시가 처음 한 번은 느리다(CI에서 첫 회차만 0.3~0.6초 늦었다). 세지 않고 한 번씩 연다.
+for (let warm = 0; warm < Number(args.warmup); warm += 1) {
+  for (const [, baseUrl] of variants) await openOnce(browser, baseUrl);
+}
 for (let run = 1; run <= runs; run += 1) {
   // 앞뒤 순서를 회차마다 바꾼다. 늘 먼저 여는 쪽이 손해나 이득을 보지 않게 한다.
   const order = run % 2 === 1 ? variants : [...variants].reverse();
@@ -246,6 +251,7 @@ const setup = {
   after: args.after,
   shotTimes,
   mapSdk: args['map-sdk'],
+  warmup: Number(args.warmup),
 };
 const result = judge(rows, { spreadFactor: setup.spreadFactor, minDiff: setup.minDiff });
 writeFileSync(join(out, 'verdict.md'), renderVerdict(setup, result));

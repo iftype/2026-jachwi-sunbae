@@ -81,7 +81,7 @@ jobs:
           title: ${{ github.event.pull_request.title }}
           runs: '5'
           spread-factor: '1'
-          min-diff: '0'
+          min-diff: '100'
           out: ${{ runner.temp }}/visual-verdict
 
       - name: Summarize
