@@ -1,11 +1,9 @@
 // 화면 판정 범위 규칙의 유일한 출처다. 바뀐 파일로 화면 판정(verify-jachwi 스킬)이 필요한지와, 전후 판정할 화면(라우트)을 고른다.
 // 스킬과 CI(.github/workflows/visual-verdict.yml)가 모두 이 스크립트를 부른다. 규칙을 다른 곳에 옮겨 적지 않는다.
 // 사용법(frontend 폴더에서):
-//   npm run verify:pr [-- --base upstream/develop]   PR 올리기 전에: 판정이 필요한지, 볼 화면, "## 화면 판정" 빈 틀을 낸다
+//   npm run verify:pr [-- --base upstream/develop]   PR 올리기 전에: 판정이 필요한지와 볼 화면을 낸다(판정은 CI가 잰다)
 //   node scripts/visual-scope.mjs [--base origin/develop] [--json]        기준 ref 이후 바뀐 파일로 판정
-//   git diff --name-only A...B | node scripts/visual-scope.mjs --files-from -   바뀐 파일 목록을 받아 판정
-//   node scripts/visual-scope.mjs --files-from <목록> --check-pr --title "<PR 제목>" --body-file <본문 파일>
-//     판정이 필요한 PR인데 본문의 "## 화면 판정" 절이 없거나 모자라면 1로 끝난다(CI가 쓴다)
+//   git diff --name-only A...B | node scripts/visual-scope.mjs --files-from - --json   바뀐 파일 목록을 받아 판정(CI가 쓴다)
 // - 대상: frontend/src 아래 실행 코드, 스타일, 에셋, 라우트와 번들, 로딩에 닿는 설정(webpack, package.json 의존성, index.html, public).
 // - 제외: 테스트, 스토리, 타입 선언, MSW 목, 문서, CI, 스크립트만 바뀐 경우.
 // - 바뀐 파일을 import하는 파일을 거슬러 올라가 라우트 화면까지 닿는지 보고, 갈 수 있는 화면 목록(reachable-routes.mjs)과 겹치는 것만 낸다.
@@ -238,59 +236,35 @@ export const changedFilesSince = (base) => {
   return { mergeBase, changed: [...new Set(changed)].filter(Boolean) };
 };
 
-export const VERDICT_HEADING = '## 화면 판정';
 export const VERDICTS = ['같음', '좋아짐', '나빠짐'];
 
-// PR 본문의 "## 화면 판정" 절을 읽는다. 절은 다음 줄로 쓴다(순서 무관).
-//   - 결과: 같음 | 좋아짐 | 나빠짐
-//   - 영향 라우트: /, /properties/:propertyId   (범위가 전체면 "주요 화면 전체")
-//   - 증거: https://... (verdict.md, 나란히 보기 그림 등 링크)
-export const readVerdictSection = (body) => {
-  const lines = (body ?? '').replace(/\r/g, '').split('\n');
-  const start = lines.findIndex((line) => line.trim() === VERDICT_HEADING);
-  if (start === -1) return undefined;
-  const end = lines.findIndex((line, index) => index > start && /^#{1,2} /.test(line));
-  const section = lines.slice(start + 1, end === -1 ? undefined : end).join('\n');
-  const field = (name) => new RegExp(`^\\s*[-*]\\s*${name}\\s*:\\s*(.+)$`, 'm').exec(section)?.[1].trim();
-  return { result: field('결과'), routes: field('영향 라우트'), evidence: field('증거'), text: section };
-};
-
-// 판정이 필요한 PR의 본문이 판정 절을 갖췄는지 본다. 고칠 것을 한 줄씩 돌려준다(빈 배열이면 통과).
-export const checkPrBody = ({ scope, title, body }) => {
-  if (!scope.runs) return [];
-  const section = readVerdictSection(body);
-  if (!section) return [`실행되는 프론트 코드가 바뀐 PR이다(${scope.why}). 본문에 "${VERDICT_HEADING}" 절을 쓴다.`];
+// CI 자동 판정(.claude/skills/verify-jachwi/scripts/ci-verdict.mjs)의 결과로 PR을 통과시킬지 정한다.
+// 고칠 것을 한 줄씩 돌려준다(빈 배열이면 통과). 나빠짐이면 실패, 제목이 [Refactor]인데 같음이 아니면 실패다.
+export const checkVerdict = ({ title, verdict }) => {
   const problems = [];
-  if (!VERDICTS.includes(section.result ?? '')) problems.push(`"- 결과:" 줄은 ${VERDICTS.join(', ')} 중 하나다.`);
-  if (!section.evidence || !/https?:\/\//.test(section.evidence))
-    problems.push('"- 증거:" 줄에 증거 링크(http로 시작)를 단다.');
-  if (!section.routes) problems.push('"- 영향 라우트:" 줄을 쓴다.');
-  else if (scope.scope === 'all' && !section.routes.includes('주요 화면 전체')) {
-    problems.push(`범위를 좁힐 수 없는 변경이다(${scope.why}). "- 영향 라우트: 주요 화면 전체"로 쓴다.`);
-  } else if (scope.scope === 'routes') {
-    const missing = scope.routes.filter((route) => !section.routes.split(/[,\s]+/).includes(route));
-    if (missing.length > 0) problems.push(`영향 라우트에 빠진 화면이 있다: ${missing.join(', ')}`);
+  if (verdict === '나빠짐')
+    problems.push('화면 판정이 나빠짐이다. 사용자 기준 순간이 늦어졌거나 오류, 실패한 요청이 늘었다.');
+  if (/\[Refactor\]/i.test(title ?? '') && VERDICTS.includes(verdict) && verdict !== '같음') {
+    problems.push(`리팩터링 PR은 판정이 "같음"이어야 한다(지금 ${verdict}).`);
   }
-  if (section.result === '나빠짐') problems.push('판정이 "나빠짐"이다. 고친 뒤 다시 잰다.');
-  if (/\[Refactor\]/i.test(title ?? '') && section.result !== '같음') {
-    problems.push('리팩터링 PR은 판정이 "같음"이어야 한다.');
+  if (/\[Refactor\]/i.test(title ?? '') && verdict === '판정 못 함') {
+    problems.push('리팩터링 PR인데 사용자 기준 순간을 전이나 후에서 보지 못했다.');
   }
   return problems;
 };
 
-// PR 본문에 붙일 "## 화면 판정" 절의 빈 틀. 결과와 증거는 verify-jachwi 스킬로 로컬에서 판정한 뒤 채운다.
+// PR 올리기 전에 보는 안내. 판정은 CI(Visual Verdict)가 직접 재서 PR 댓글로 단다. 본문에 판정 절을 손으로 쓰지 않는다.
 export const renderVerdictTemplate = (scope) => {
   if (!scope.runs) return `화면 판정 필요 없음(${scope.why}).`;
   const routes = scope.scope === 'all' ? '주요 화면 전체' : scope.routes.join(', ');
   return [
     `화면 판정이 필요하다(${scope.why}). 볼 화면: ${routes}`,
-    '.claude/skills/verify-jachwi 의 "전후 판정"으로 로컬에서 재고, 아래 절을 채워 PR 본문에 붙인다.',
+    'CI(Visual Verdict)가 전후 빌드를 직접 재서 PR 댓글 "화면 판정 (CI 자동)"으로 단다. PR 본문에는 아래 절만 붙인다.',
     '',
-    VERDICT_HEADING,
+    '## 화면 판정',
     '',
-    '- 결과: (같음, 좋아짐, 나빠짐 중 하나)',
+    '- CI 댓글 "화면 판정 (CI 자동)"을 본다.',
     `- 영향 라우트: ${routes}`,
-    '- 증거: (verdict.md와 같은 시각 나란히 보기 그림 링크)',
   ].join('\n');
 };
 
@@ -318,19 +292,6 @@ const main = async () => {
   }
   const scope = await findVisualScope(changed, { packageDependenciesChanged });
 
-  if (args.includes('--check-pr')) {
-    const bodyFile = readArg(args, '--body-file');
-    const body = bodyFile ? readFileSync(bodyFile, 'utf8') : '';
-    const problems = checkPrBody({ scope, title: readArg(args, '--title') ?? '', body });
-    console.log(
-      scope.runs
-        ? `화면 판정이 필요한 PR이다(${scope.why}). 영향 라우트: ${scope.scope === 'all' ? '주요 화면 전체' : scope.routes.join(', ')}`
-        : `화면 판정 대상이 아니다(${scope.why}).`,
-    );
-    problems.forEach((problem) => console.error(`실패: ${problem}`));
-    if (problems.length > 0) process.exitCode = 1;
-    return;
-  }
   if (args.includes('--template')) {
     console.log(renderVerdictTemplate(scope));
     return;

@@ -10,6 +10,8 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 
+import { SCREENS } from './screens.mjs';
+
 const { values: args } = parseArgs({
   options: {
     base: { type: 'string' },
@@ -27,27 +29,6 @@ const { chromium } = (await import(pathToFileURL(require.resolve('@playwright/te
 const { classifyRoutes, findReachableRoute } = await import(
   pathToFileURL(join(repoRoot, 'frontend/scripts/reachable-routes.mjs')).href
 );
-
-// 주요 화면. 주소의 id는 MSW 목 데이터(frontend/src/app/mocks/fixtures)에 있는 값이다.
-// 라우트가 바뀌면 여기를 고친다. 갈 수 없는 화면은 넣지 않는다(넣어도 아래 확인에서 빠진다).
-export const SCREENS = [
-  { name: 'home', url: '/' },
-  { name: 'neighborhoods', url: '/neighborhoods' },
-  { name: 'explore', url: '/explore' },
-  { name: 'property-detail', url: '/properties/11' },
-  { name: 'property-edit', url: '/properties/11/edit' },
-  { name: 'property-photos', url: '/properties/11/photos' },
-  { name: 'checklists', url: '/checklists' },
-  { name: 'checklist-detail', url: '/checklists/9' },
-  { name: 'checklist-new', url: '/checklists/new' },
-  { name: 'compare', url: '/compare' },
-  { name: 'cheap-meals', url: '/cheap-meals/restaurant' },
-  { name: 'me', url: '/me' },
-  { name: 'guide', url: '/guide' },
-  { name: 'search', url: '/search' },
-  { name: 'landing', url: '/landing' },
-  { name: 'privacy', url: '/privacy' },
-];
 
 const VIEWPORTS = {
   desktop: { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 },
@@ -72,13 +53,18 @@ for (const screen of SCREENS) {
     const page = await context.newPage();
     const errors = [];
     page.on('console', (message) => message.type() === 'error' && errors.push(message.text()));
-    page.on('response', (response) => response.status() >= 400 && errors.push(`${response.status()} ${response.url()}`));
+    page.on(
+      'response',
+      (response) => response.status() >= 400 && errors.push(`${response.status()} ${response.url()}`),
+    );
     await page.goto(new URL(screen.url, args.base).href, { waitUntil: 'load' });
     await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
     await page.waitForTimeout(Number(args.settle));
     const file = `${screen.name}-${viewportName}.png`;
     await page.screenshot({ path: join(out, file), animations: 'disabled', caret: 'hide' });
-    lines.push(`| ${screen.name} | ${screen.url} | ${file}, 오류 ${errors.length}${errors.length > 0 ? ` (${[...new Set(errors)].slice(0, 3).join('; ').slice(0, 300)})` : ''} |`);
+    lines.push(
+      `| ${screen.name} | ${screen.url} | ${file}, 오류 ${errors.length}${errors.length > 0 ? ` (${[...new Set(errors)].slice(0, 3).join('; ').slice(0, 300)})` : ''} |`,
+    );
     console.log(file, page.url().replace(args.base, ''), `오류 ${errors.length}`);
     await context.close();
   }

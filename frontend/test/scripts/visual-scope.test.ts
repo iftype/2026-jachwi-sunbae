@@ -1,9 +1,8 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
-import type { VisualScope } from '../../scripts/visual-scope.mjs';
 import {
-  checkPrBody,
+  checkVerdict,
   classifyChangedFiles,
   findVisualScope,
   renderVerdictTemplate,
@@ -94,69 +93,40 @@ describe('바뀐 파일로 판정 범위 정하기', () => {
   });
 });
 
-describe('PR 본문의 화면 판정 절 검사', () => {
-  const routesScope: VisualScope = {
-    runs: true,
-    scope: 'routes',
-    why: '바뀐 파일을 import하는 화면만 골랐다',
-    changed: [],
-    ignored: [],
-    routes: ['/', '/properties/:propertyId'],
-  };
-  const body = (result: string, routes = '/, /properties/:propertyId') =>
-    `## 작업 내용\n\n- 무엇\n\n## 화면 판정\n\n- 결과: ${result}\n- 영향 라우트: ${routes}\n- 증거: https://example.com/verdict.md\n\n## 테스트\n`;
-
-  it('판정이 필요 없는 PR은 절이 없어도 통과한다', () => {
-    expect(
-      checkPrBody({ scope: { ...routesScope, runs: false, scope: 'none', routes: [] }, title: '', body: '' }),
-    ).toEqual([]);
-  });
-
-  it('판정이 필요한데 절이 없으면 실패한다', () => {
-    expect(checkPrBody({ scope: routesScope, title: '[FE][Feat] 무엇', body: '## 작업 내용' })).toHaveLength(1);
-  });
-
-  it('결과, 영향 라우트, 증거 링크를 갖추면 통과한다', () => {
-    expect(checkPrBody({ scope: routesScope, title: '[FE][Feat] 무엇', body: body('좋아짐') })).toEqual([]);
-  });
-
-  it('영향 라우트가 빠지면 실패한다', () => {
-    expect(checkPrBody({ scope: routesScope, title: '[FE][Feat] 무엇', body: body('같음', '/') })).toEqual([
-      '영향 라우트에 빠진 화면이 있다: /properties/:propertyId',
-    ]);
+describe('CI 자동 판정 결과로 통과 정하기', () => {
+  it('같음, 좋아짐은 통과한다', () => {
+    expect(checkVerdict({ title: '[FE][Feat] 무엇', verdict: '같음' })).toEqual([]);
+    expect(checkVerdict({ title: '[FE][Perf] 무엇', verdict: '좋아짐' })).toEqual([]);
   });
 
   it('나빠짐이면 실패한다', () => {
-    expect(checkPrBody({ scope: routesScope, title: '[FE][Perf] 무엇', body: body('나빠짐') })).toHaveLength(1);
+    expect(checkVerdict({ title: '[FE][Perf] 무엇', verdict: '나빠짐' })).toHaveLength(1);
   });
 
   it('리팩터링 PR은 같음이 아니면 실패한다', () => {
-    expect(checkPrBody({ scope: routesScope, title: '[FE][Refactor] 무엇', body: body('좋아짐') })).toHaveLength(1);
-    expect(checkPrBody({ scope: routesScope, title: '[FE][Refactor] 무엇', body: body('같음') })).toEqual([]);
+    expect(checkVerdict({ title: '[FE][Refactor] 무엇', verdict: '좋아짐' })).toHaveLength(1);
+    expect(checkVerdict({ title: '[FE][Refactor] 무엇', verdict: '판정 못 함' })).toHaveLength(1);
+    expect(checkVerdict({ title: '[FE][Refactor] 무엇', verdict: '같음' })).toEqual([]);
   });
 
-  it('범위가 전체면 주요 화면 전체라고 쓴다', () => {
-    const allScope: VisualScope = { ...routesScope, scope: 'all', why: '번들 설정' };
-
-    expect(checkPrBody({ scope: allScope, title: '', body: body('같음', '/') })).toHaveLength(1);
-    expect(checkPrBody({ scope: allScope, title: '', body: body('같음', '주요 화면 전체') })).toEqual([]);
+  it('대상이 아니거나 잴 화면이 없으면 통과한다', () => {
+    expect(checkVerdict({ title: '[FE][Refactor] 무엇', verdict: '대상 아님' })).toEqual([]);
+    expect(checkVerdict({ title: '[FE][Refactor] 무엇', verdict: '잴 화면 없음' })).toEqual([]);
   });
 });
 
-describe('PR 올리기 전 판정 틀', () => {
+describe('PR 올리기 전 안내', () => {
   it('범위 밖이면 판정 필요 없음을 낸다', async () => {
     const scope = await findVisualScope(['frontend/docs/x.md']);
 
     expect(renderVerdictTemplate(scope)).toMatch(/^화면 판정 필요 없음/);
   });
 
-  it('범위 안이면 볼 화면을 채운 빈 틀을 내고, 그 틀은 결과와 증거를 채우면 검사를 통과한다', async () => {
+  it('범위 안이면 볼 화면과 CI 댓글을 가리키는 절을 낸다', async () => {
     const scope = await findVisualScope(['frontend/src/pages/property-photos/PropertyPhotosPage.tsx']);
-    const filled = renderVerdictTemplate(scope)
-      .replace('(같음, 좋아짐, 나빠짐 중 하나)', '같음')
-      .replace('(verdict.md와 같은 시각 나란히 보기 그림 링크)', 'https://example.com/verdict.md');
+    const template = renderVerdictTemplate(scope);
 
-    expect(renderVerdictTemplate(scope)).toContain('- 영향 라우트: /properties/:propertyId/photos');
-    expect(checkPrBody({ scope, title: '[FE][Refactor] x', body: filled })).toEqual([]);
+    expect(template).toContain('- 영향 라우트: /properties/:propertyId/photos');
+    expect(template).toContain('CI 댓글');
   });
 });

@@ -1,7 +1,8 @@
 // measure.mjs 결과(runs.jsonl)로 전후를 판정한다. 다시 계산만 할 때: node verdict.mjs <runs.jsonl>
 // 판정 규칙(SKILL.md의 "전후 판정"과 같다):
 // - 흩어짐 = 전과 후 각각의 범위(최대 - 최소) 중 큰 값.
-// - 후 중앙값 - 전 중앙값의 크기가 흩어짐 이하면 "같음", 그보다 작아졌으면 "좋아짐", 커졌으면 "나빠짐".
+// - 문턱 = max(흩어짐 x 배수, 최소 차이). 로컬 기본은 배수 1, 최소 차이 0이다. CI는 develop 대 develop 시험으로 정한 값을 준다.
+// - 후 중앙값 - 전 중앙값의 크기가 문턱 이하면 "같음", 그보다 작아졌으면 "좋아짐", 커졌으면 "나빠짐".
 // - 순간을 못 본 회차(시간 초과)가 후에서 더 많으면 값과 상관없이 "나빠짐".
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -14,7 +15,7 @@ const median = (values) => {
 
 const range = (values) => Math.max(...values) - Math.min(...values);
 
-export const compareMetric = (beforeValues, afterValues) => {
+export const compareMetric = (beforeValues, afterValues, { spreadFactor = 1, minDiff = 0 } = {}) => {
   const before = beforeValues.filter((value) => value !== null);
   const after = afterValues.filter((value) => value !== null);
   const missingBefore = beforeValues.length - before.length;
@@ -30,9 +31,10 @@ export const compareMetric = (beforeValues, afterValues) => {
   }
   const diff = median(after) - median(before);
   const spread = Math.max(range(before), range(after));
+  const threshold = Math.max(spread * spreadFactor, minDiff);
   let verdict = '같음';
   if (missingAfter > missingBefore) verdict = '나빠짐';
-  else if (Math.abs(diff) > spread) verdict = diff < 0 ? '좋아짐' : '나빠짐';
+  else if (Math.abs(diff) > threshold) verdict = diff < 0 ? '좋아짐' : '나빠짐';
   return {
     before,
     after,
@@ -42,17 +44,18 @@ export const compareMetric = (beforeValues, afterValues) => {
     afterMedian: median(after),
     diff,
     spread,
+    threshold,
     verdict,
   };
 };
 
-export const judge = (rows) => {
+export const judge = (rows, options = {}) => {
   const side = (variant) => rows.filter((row) => row.variant === variant);
   const pick = (variant, key) => side(variant).map((row) => row[key]);
   const count = (variant, key) => side(variant).map((row) => row[key].length);
   return {
-    moment: compareMetric(pick('before', 'moment'), pick('after', 'moment')),
-    lcp: compareMetric(pick('before', 'lcp'), pick('after', 'lcp')),
+    moment: compareMetric(pick('before', 'moment'), pick('after', 'moment'), options),
+    lcp: compareMetric(pick('before', 'lcp'), pick('after', 'lcp'), options),
     consoleErrors: { before: count('before', 'consoleErrors'), after: count('after', 'consoleErrors') },
     failedRequests: { before: count('before', 'failedRequests'), after: count('after', 'failedRequests') },
     samples: {
@@ -71,25 +74,31 @@ const signed = (ms) => (ms === undefined ? '-' : `${ms > 0 ? '+' : ''}${(ms / 10
 const list = (values) => values.map((value) => (value / 1000).toFixed(2)).join(', ');
 
 const metricRow = (name, metric) =>
-  `| ${name} | ${seconds(metric.beforeMedian)} | ${seconds(metric.afterMedian)} | ${signed(metric.diff)} | ${seconds(metric.spread)} | ${metric.verdict} |`;
+  `| ${name} | ${seconds(metric.beforeMedian)} | ${seconds(metric.afterMedian)} | ${signed(metric.diff)} | ${seconds(metric.spread)} | ${seconds(metric.threshold)} | ${metric.verdict} |`;
 
-export const renderVerdict = (setup, result) => {
+// 사용자 기준 판정. 콘솔 오류나 실패한 요청이 후에서 늘면 순간 값과 상관없이 나빠짐이다.
+export const userVerdict = (result) => {
   const errorsWorse = Math.max(...result.consoleErrors.after) > Math.max(...result.consoleErrors.before);
   const failedWorse = Math.max(...result.failedRequests.after) > Math.max(...result.failedRequests.before);
-  const userVerdict = errorsWorse || failedWorse ? '나빠짐' : result.moment.verdict;
+  return errorsWorse || failedWorse ? '나빠짐' : result.moment.verdict;
+};
+
+export const renderVerdict = (setup, result) => {
+  const verdict = userVerdict(result);
   return `# 전후 판정
 
 - 화면: \`${setup.path}\` (${setup.viewport})
 - 사용자가 기다리는 순간: ${setup.moment}
-- 조건: 회선 ${setup.net}, CPU ${setup.cpu}배, 빈 캐시 첫 방문, 전후를 번갈아 각 ${setup.runs}회
+- 문턱: 흩어짐의 ${setup.spreadFactor ?? 1}배, ${seconds(setup.minDiff ?? 0)} 중 큰 값. 차이가 문턱 이하면 같음이다.
+- 조건: 회선 ${setup.net}, CPU ${setup.cpu}배, 빈 캐시 첫 방문, 전후를 번갈아 각 ${setup.runs}회${setup.mapSdk === 'stub' ? ', 지도 SDK는 무게만 같은 목(지도는 뜨지 않음)' : ''}
 - 전: ${setup.before}, 후: ${setup.after}
 
-## 판정: ${userVerdict}
+## 판정: ${verdict}
 
 사용자 기준 순간이 판정을 정한다. LCP는 참고만 한다. 콘솔 오류나 실패한 요청이 후에서 늘면 순간 값과 상관없이 나빠짐이다.
 
-| 지표 | 전 중앙값 | 후 중앙값 | 차이 | 흩어짐 | 판정 |
-| --- | --- | --- | --- | --- | --- |
+| 지표 | 전 중앙값 | 후 중앙값 | 차이 | 흩어짐 | 문턱 | 판정 |
+| --- | --- | --- | --- | --- | --- | --- |
 ${metricRow('사용자 순간', result.moment)}
 ${metricRow('LCP(보조)', result.lcp)}
 
@@ -108,7 +117,7 @@ ${setup.shotTimes.map((time) => `| ${time}초 | (직접 보고 적는다) | (직
 
 ## PR 본문에 쓸 수 있는 말
 
-${userVerdict === '좋아짐' ? '- 사용자 순간이 흩어짐보다 크게 빨라졌다. "개선"이라고 써도 된다.' : '- "개선"이라고 쓰지 않는다. 사용자 기준 순간이 좋아지지 않았다.'}
+${verdict === '좋아짐' ? '- 사용자 순간이 흩어짐보다 크게 빨라졌다. "개선"이라고 써도 된다.' : '- "개선"이라고 쓰지 않는다. 사용자 기준 순간이 좋아지지 않았다.'}
 - 리팩터링 PR은 판정이 "같음"이어야 통과다.
 `;
 };

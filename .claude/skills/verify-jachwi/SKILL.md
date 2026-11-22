@@ -10,9 +10,34 @@ description: 자취선배 웹 프론트를 로컬에서 띄워 사용자처럼 �
 ## 언제 도는가와 통과 기준
 
 - 도는 경우는 `frontend/scripts/visual-scope.mjs`가 정한다. 규칙은 그 파일 한 곳에만 있고 여기에 옮겨 적지 않는다. "UI를 바꾸려는 PR"이 아니라 "실행되는 프론트 코드가 바뀐 PR"이 대상이라 리팩터링도 들어간다.
-- PR을 올리기 전에 `frontend`에서 `npm run verify:pr`(기준이 다르면 `-- --base upstream/develop`)를 돌린다. 판정이 필요한지, 볼 화면(영향 라우트), PR 본문에 붙일 `## 화면 판정` 빈 틀을 낸다. 범위 밖이면 `화면 판정 필요 없음`을 내고 여기서 끝난다.
-- 판정은 올리는 쪽(사람이나 에이전트)이 로컬에서 한다. CI(`.github/workflows/visual-verdict.yml`)는 본문의 `## 화면 판정` 절에 결과, 영향 라우트, 증거 링크가 있는지만 본다. 결과가 `나빠짐`이면 실패, 제목이 `[Refactor]`인데 `같음`이 아니면 실패다.
-- 판정 기준: 사용자가 기다리는 순간(첫 매물 카드, 결과 목록, 경계 표시 등)이 정한다. 지도 배경이나 LCP 같은 보조 지표만으로 판정하지 않는다. 리팩터링 PR은 `같음`이어야 통과다. `나빠짐`이거나 사용자 기준 순간이 좋아지지 않았으면 PR 본문에 "개선"이라고 쓰지 않는다.
+- 판정은 CI가 한다. 사람이나 PR 작성자가 재서 본문에 적지 않는다. 아래 "CI 자동 판정"을 본다. `npm run verify:pr`은 PR 전에 판정 대상인지와 볼 화면만 알려 준다.
+- 판정 기준: 사용자가 기다리는 순간(첫 매물 카드, 결과 목록 등)이 정한다. 지도 배경이나 LCP 같은 보조 지표만으로 판정하지 않는다. `나빠짐`이면 실패, 제목이 `[Refactor]`인데 `같음`이 아니면 실패다(`visual-scope.mjs`의 `checkVerdict`). 사용자 기준 순간이 좋아지지 않았으면 PR 본문에 "개선"이라고 쓰지 않는다.
+- 로컬에서 남는 일은 두 가지다. 의도적으로 모양을 바꾸는 UI PR의 같은 시각 나란히 보기(아래 "사람이 보는 증거")와, CI 판정이 이상할 때 같은 스크립트로 다시 재 보는 것(아래 "전후 판정").
+
+## CI 자동 판정
+
+`.github/workflows/visual-verdict.yml`(잡 이름 `Check visual verdict`)이 PR마다 돈다. 숫자는 스크립트가 내고 LLM은 쓰지 않는다.
+
+1. `visual-scope.mjs --json`으로 범위를 정한다. 범위 밖이면 여기서 통과한다(1분 안).
+2. 전(develop과의 머지 기준 커밋)과 후(그 실행의 head 커밋)를 따로 꺼내 운영 빌드한다(`.github/actions/visual-verdict`). 두 빌드는 병렬이고 전 빌드는 커밋으로 캐시한다. 커밋을 더 올리면 그 커밋으로 다시 잰다.
+3. `serve.mjs --api mock --delay 300`으로 띄우고, 네이버 지도 SDK 주소는 `map-sdk-stub.mjs`로 돌린다. 레포 시크릿에 지도 키가 없어서다. 목은 실제 SDK의 전송 크기만큼만 받고 `naver.maps`를 만들지 않으니 지도는 뜨지 않는다. 그래서 CI는 지도와 무관한 순간만 잰다(`screens.mjs`의 `moment`).
+4. `ci-verdict.mjs`가 영향 화면 중 `screens.mjs` 순서로 가장 앞선 하나를 `measure.mjs`(데스크탑, 보통 4G, CPU 4배, 전후 번갈아 각 5회)로 재고 `compare.mjs`로 같은 시각 전후를 붙인다. 결과(`verdict.md`, `runs.jsonl`, `shots`, `side`)는 아티팩트 `visual-verdict`로, 요약은 PR 댓글 `화면 판정 (CI 자동)` 하나로 올리고 실행마다 고친다.
+5. 영향 화면 전부는 `visual` 라벨(`visual-verdict-full.yml`)이 잰다. 이 파일은 주 1회 develop 대 develop으로 순간이 정해진 화면 전부를 재서 러너의 흩어짐을 본다. 같은 코드라 `같음`이어야 한다.
+
+- 문턱: 차이가 `max(흩어짐 x 배수, 최소 차이)` 이하면 `같음`이다. 배수와 최소 차이는 CI에서 develop 대 develop을 여러 번 돌려 정했고 워크플로 입력에 있다. 로컬 기본은 배수 1, 최소 차이 0이다.
+- 영향 라우트에 순간이 정해진 화면이 없으면 `잴 화면 없음`으로 통과하고 댓글에 그렇게 적는다. 새 화면이 생기면 `screens.mjs`에 순간을 더한다. 순간 요소의 선택자가 후에서 사라지면 "못 본 회차"가 늘어 `나빠짐`이 된다. 일부러 바꾼 것이면 같은 PR에서 `screens.mjs`를 고친다.
+
+## 사람이 보는 증거: 같은 시각 나란히 보기
+
+숫자가 `같음`이어도, 모양을 일부러 바꾸는 UI PR은 같은 시각 전후 프레임이 의도대로 바뀌었는지 눈으로 봐야 한다. 이 일은 PR 작성자(사람이나 그 작업을 한 에이전트 세션)가 하지 않는다. 코드 맥락이 없는 별도 에이전트를 새 세션으로 띄워 이 스킬로 보게 한다.
+
+- 그 에이전트에게는 PR 주소와 "무엇이 바뀌어야 하는지" 한 줄만 준다. 바뀐 코드, 작성자의 설명, 판정 결과를 미리 주지 않는다.
+- 그 에이전트가 하는 일:
+  1. PR 댓글 `화면 판정 (CI 자동)`의 실행 링크에서 아티팩트를 받는다: `gh run download <실행 번호> -n visual-verdict -D qa/runs/verify-jachwi/pr-<번호>`.
+  2. `<화면>/side/<N>s.side.png`(왼쪽 전, 가운데 후, 오른쪽 다른 픽셀)를 시각마다 직접 연다.
+  3. 시각마다 전에만 보이는 것, 후에만 보이는 것, 늦게 뜨는 요소를 적는다. 의도한 변화와 그 밖의 변화(깨진 배치, 사라진 요소, 늦어진 요소)를 나눈다.
+  4. 결과를 PR 리뷰 댓글로 남긴다. 의도 밖 변화가 있으면 "변경 요청"으로 남긴다.
+- 영향 화면이 CI가 잰 하나보다 많으면 `visual` 라벨을 달아 전부 잰 아티팩트(`visual-verdict-full`)로 본다.
 
 ## 녹화와 검증 전에: 갈 수 있는 화면인가
 
@@ -41,11 +66,11 @@ node $S/compare.mjs qa/runs/verify-jachwi/<이름>/baseline-before qa/runs/verif
 
 - `serve.mjs --api mock`은 레포의 MSW 핸들러(`frontend/src/app/mocks/handlers`)를 Node에서 돌려 모든 `/api` 응답을 `--delay` ms 뒤에 준다. 서비스 워커가 아니라 진짜 HTTP 응답이라 회선 제한이 API에도 걸리고, 전과 후가 같은 데이터를 받는다. `--api dev`는 dev API로 중계한다.
 - 운영 빌드는 늘 실제 네이버 지도라 `frontend/.env.local`에 지도 키가 있어야 한다. `build-variant.sh`가 이 파일을 복사한다(커밋하지 않는다).
-- 화면 목록은 `baseline.mjs`의 `SCREENS`다. 찍기 전에 `reachable-routes`로 확인해 갈 수 없는 화면은 빼고 `screens.md`에 그렇게 적는다. 판정 범위를 좁힐 때는 `--only`에 `npm run verify:pr`이 낸 라우트를 쉼표로 준다.
+- 화면 목록은 `screens.mjs`의 `SCREENS`다(CI 판정과 같이 쓴다). 찍기 전에 `reachable-routes`로 확인해 갈 수 없는 화면은 빼고 `screens.md`에 그렇게 적는다. 판정 범위를 좁힐 때는 `--only`에 `npm run verify:pr`이 낸 라우트를 쉼표로 준다.
 - 비교: `compare.mjs`가 화면마다 다른 픽셀 비율(채널 차이 24 초과)과 전, 후, 다른 픽셀을 나란히 붙인 `<화면>.side.png`를 만든다. 같은 빌드를 두 번 찍어도 지도 타일과 랜딩 영상 때문에 몇 % 다를 수 있다. 비율이 0이 아닌 화면은 `side.png`를 직접 열어 무엇이 다른지 적는다.
 - 목에 핸들러가 없는 요청(예: 저렴한 한 끼의 `/api/maps/good-price-stores` 501)은 `screens.md`에 오류로 남는다. 전과 후가 같으면 판정에 쓰지 않는다.
 
-## 전후 판정
+## 전후 판정(로컬)
 
 1. 사용자가 기다리는 순간을 먼저 정한다. 홈은 첫 매물 카드(`--moment card`), 다른 화면은 결과 목록이나 경계 표시처럼 사용자가 기다리는 요소의 CSS 선택자(`--selector`)다. 지도 배경, LCP는 보조 지표다.
 2. 위 `build-variant.sh`와 `serve.mjs`로 전과 후를 띄운다(전은 `upstream/develop`, 후는 PR 머리).
@@ -65,7 +90,7 @@ node $S/compare.mjs qa/runs/verify-jachwi/<이름>/baseline-before qa/runs/verif
 
    `side/<N>s.side.png`를 보고 `verdict.md`의 표에 시각마다 늦게 뜨는 요소를 적는다.
 
-6. `npm run verify:pr`이 낸 `## 화면 판정` 틀에 결과, 영향 라우트, 증거 링크(verdict.md와 나란히 보기 그림)를 채워 PR 본문에 붙인다. 리팩터링 PR은 `같음`이어야 한다. `나빠짐`이거나 사용자 기준 순간이 좋아지지 않았으면 "개선"이라고 쓰지 않는다.
+6. 로컬 판정은 CI 판정이 이상할 때 다시 재 보는 용도다. PR 본문에는 판정을 손으로 적지 않고 CI 댓글을 가리킨다. CI와 같게 재려면 `--screen <화면 이름> --viewport desktop --map-sdk stub`을 주고 `map-sdk-stub.mjs --port 4443`을 띄운다. 키가 있으면 `--map-sdk real`로 지도 순간(`--moment card`)도 잴 수 있다.
 7. 끝나면 `serve.mjs` 프로세스를 끄고 `git worktree remove --force "${TMPDIR:-/tmp}/verify-jachwi-variants/<이름>"`로 빌드 폴더를 지운다.
 
 드라이버는 `qa/`의 Playwright다(`cd qa && npm ci`). Playwright 브라우저가 없으면 `npx playwright install chromium`을 하거나 `CHROME_PATH`에 Chrome 경로를 준다.
@@ -158,6 +183,9 @@ launch가 띄운 프로세스만 종료하고 상태 폴더를 지운다. 이름
 | `scripts/compare.mjs`       | `node compare.mjs <전> <후> <출력>`                                 | 다른 픽셀 비율과 나란히 보기 그림                     |
 | `scripts/measure.mjs`       | `node measure.mjs --before <주소> --after <주소> ...`               | 사용자 순간을 전후로 재고 verdict.md 초안             |
 | `scripts/verdict.mjs`       | `node verdict.mjs <runs.jsonl>`                                     | 판정 다시 계산                                        |
+| `scripts/screens.mjs`       | (import)                                                            | 주요 화면, 라우트, 사용자 기준 순간, 우선순위         |
+| `scripts/map-sdk-stub.mjs`  | `node map-sdk-stub.mjs --port 4443`                                 | 키 없이 지도 SDK 자리를 같은 무게의 목으로 답함       |
+| `scripts/ci-verdict.mjs`    | `node ci-verdict.mjs --scope <json> --before <주소> --after <주소>` | CI 판정 묶음: 화면 고르기, 측정, 비교, PR 댓글        |
 
 ## 유지
 

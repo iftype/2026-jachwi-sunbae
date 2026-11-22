@@ -1,0 +1,98 @@
+name: Visual Verdict Full
+
+# PR마다 도는 Visual Verdict는 5분 안에 끝내려고 영향 화면 중 가장 중요한 하나만 잰다. 나머지는 여기서 잰다.
+# - PR: `visual` 라벨이 붙으면 영향 화면 전부를 잰다. 나빠짐이면 실패(PR 판정 잡과 같은 규칙).
+# - 주 1회: develop 대 develop으로 순간이 정해진 주요 화면 전부를 재서 공유 러너의 흩어짐을 본다. 같은 코드라 "같음"이어야 한다.
+# - 수동: workflow_dispatch(기본 브랜치에 이 파일이 있어야 보인다).
+# Visual Verdict와 파일을 나눈 이유는 라벨 이벤트의 건너뛴 실행이 PR 판정 결과를 덮지 않게 하려는 것이다.
+on:
+  pull_request:
+    types: [labeled]
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+  schedule:
+    # 매주 월요일 10:00 KST. schedule은 기본 브랜치(main)의 이 파일로 실행되므로 develop을 직접 체크아웃한다.
+    - cron: '0 1 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: >-
+    visual-verdict-full-${{ github.event.pull_request.number || github.ref }}-${{
+    (github.event.action == 'labeled' && github.event.label.name != 'visual') && github.run_id || 'run' }}
+  cancel-in-progress: true
+
+jobs:
+  verdict:
+    name: Visual verdict all screens
+    if: github.event_name != 'pull_request' || github.event.label.name == 'visual'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || 'develop' }}
+          fetch-depth: 0
+
+      - name: Find commits
+        id: commits
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [[ -n "${HEAD_SHA}" ]]; then
+            echo "before=$(git merge-base "${BASE_SHA}" "${HEAD_SHA}")" >> "${GITHUB_OUTPUT}"
+            echo "after=${HEAD_SHA}" >> "${GITHUB_OUTPUT}"
+          else
+            # develop 대 develop: 같은 커밋을 두 번 빌드해 잰다.
+            echo "before=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
+            echo "after=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Set up frontend
+        uses: ./.github/actions/setup-frontend
+
+      - name: Decide scope
+        working-directory: frontend
+        env:
+          BEFORE_SHA: ${{ steps.commits.outputs.before }}
+          AFTER_SHA: ${{ steps.commits.outputs.after }}
+        run: |
+          if [[ "${BEFORE_SHA}" == "${AFTER_SHA}" ]]; then
+            echo '{"runs":true,"scope":"all","why":"develop 대 develop 흩어짐 확인","routes":[]}' > "${RUNNER_TEMP}/scope.json"
+          else
+            git diff --name-only "${BEFORE_SHA}" "${AFTER_SHA}" \
+              | node scripts/visual-scope.mjs --files-from - --base "${BEFORE_SHA}" --json > "${RUNNER_TEMP}/scope.json"
+          fi
+          jq -r '"범위: \(.scope) (\(.why))"' "${RUNNER_TEMP}/scope.json"
+
+      - name: Measure before and after
+        uses: ./.github/actions/visual-verdict
+        with:
+          before-sha: ${{ steps.commits.outputs.before }}
+          after-sha: ${{ steps.commits.outputs.after }}
+          scope-file: ${{ runner.temp }}/scope.json
+          mode: all
+          title: ${{ github.event.pull_request.title }}
+          runs: '5'
+          spread-factor: '1'
+          min-diff: '0'
+          out: ${{ runner.temp }}/visual-verdict
+
+      - name: Summarize
+        if: always()
+        run: cat "${RUNNER_TEMP}/visual-verdict/comment.md" >> "${GITHUB_STEP_SUMMARY}" 2>/dev/null || true
+
+      - name: Upload verdict
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: visual-verdict-full
+          path: ${{ runner.temp }}/visual-verdict
+          retention-days: 14
+          if-no-files-found: ignore

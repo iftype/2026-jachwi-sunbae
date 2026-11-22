@@ -3,7 +3,10 @@
 //   node .claude/skills/verify-jachwi/scripts/measure.mjs \
 //     --before http://localhost:4301 --after http://localhost:4302 --path / --moment card \
 //     --runs 5 --net fast4g --viewport mobile --out qa/runs/verify-jachwi/verdict-<이름>
-// 결과: <out>/runs.jsonl(회차별 값), <out>/shots/<before|after>/<N>s.png(같은 시각 스크린샷), <out>/verdict.md(판정 초안)
+// 결과: <out>/runs.jsonl(회차별 값), <out>/shots/<before|after>/<N>s.png(같은 시각 스크린샷), <out>/verdict.md(판정 초안),
+//       <out>/result.json(조건과 판정, CI가 읽는다)
+// --map-sdk stub: 네이버 지도 SDK 주소를 map-sdk-stub.mjs(--map-sdk-port)로 돌린다. 키가 없는 CI에서 쓴다. 지도는 뜨지 않으니
+//   지도와 무관한 순간만 잰다. real(기본)은 실제 SDK라 빌드에 쓸 수 있는 키가 있어야 한다.
 // 스크린샷은 시간을 재는 회차와 따로 한 번 더 열어 찍는다. 찍는 일이 시간 측정을 흔들지 않게 하려는 것이다.
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -12,7 +15,8 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 
-import { judge, renderVerdict } from './verdict.mjs';
+import { findScreen } from './screens.mjs';
+import { judge, renderVerdict, userVerdict } from './verdict.mjs';
 
 const { values: args } = parseArgs({
   options: {
@@ -21,6 +25,10 @@ const { values: args } = parseArgs({
     path: { type: 'string', default: '/' },
     moment: { type: 'string', default: 'card' },
     selector: { type: 'string' },
+    text: { type: 'string' },
+    screen: { type: 'string' },
+    'spread-factor': { type: 'string', default: '1' },
+    'min-diff': { type: 'string', default: '0' },
     runs: { type: 'string', default: '5' },
     net: { type: 'string', default: 'fast4g' },
     viewport: { type: 'string', default: 'mobile' },
@@ -28,6 +36,8 @@ const { values: args } = parseArgs({
     timeout: { type: 'string', default: '30' },
     out: { type: 'string' },
     chrome: { type: 'string', default: process.env.CHROME_PATH },
+    'map-sdk': { type: 'string', default: 'real' },
+    'map-sdk-port': { type: 'string', default: '4443' },
   },
 });
 if (!args.before || !args.after || !args.out) throw new Error('--before, --after, --out 이 필요하다');
@@ -48,10 +58,21 @@ export const NETWORKS = {
 
 // 사용자가 기다리는 순간. 보이는 요소가 화면 안에 들어오고, 이미지면 디코딩까지 끝난 뒤 두 프레임 지난 시각을 잰다.
 // 새 화면을 판정할 때는 여기에 더하거나 --selector 로 준다. 지도 배경, LCP는 보조 지표라 순간으로 쓰지 않는다.
+// mapFree: 지도 SDK 없이도 뜨는 순간이다. 지도 목(--map-sdk stub)으로 재는 CI는 이것만 쓴다.
 export const MOMENTS = {
   card: {
     label: '첫 매물 카드(사진이 보인 매물 카드나 지도 매물 표시)',
     selector: '[data-tone="property"] img, article img',
+  },
+  'list-card': {
+    label: '목록의 첫 매물 카드(사진 자리까지 보인 카드)',
+    selector: 'article img',
+    mapFree: true,
+  },
+  'area-chips': {
+    label: '기록한 동네 칩(매물 수가 보인 칩)',
+    selector: 'nav[aria-label="기록한 동네"] button span',
+    mapFree: true,
   },
 };
 
@@ -60,10 +81,21 @@ const VIEWPORTS = {
   desktop: { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 },
 };
 
-const moment = args.selector ? { label: args.selector, selector: args.selector } : MOMENTS[args.moment];
+// --screen 은 screens.mjs 의 화면(이름이나 라우트)에서 주소와 순간을 가져온다. CI가 쓴다.
+const screen = args.screen ? findScreen(args.screen) : undefined;
+if (args.screen && !screen?.moment) throw new Error(`순간이 정해지지 않은 화면: ${args.screen}. screens.mjs 에 더한다`);
+const path = screen ? screen.url : args.path;
+const moment = screen
+  ? screen.moment
+  : args.selector
+    ? { label: args.text ? `${args.selector} (${args.text})` : args.selector, selector: args.selector, text: args.text }
+    : MOMENTS[args.moment];
 if (!moment) throw new Error(`모르는 순간: ${args.moment}. --selector 로 CSS 선택자를 준다`);
 const condition = NETWORKS[args.net];
 if (!condition) throw new Error(`모르는 회선: ${args.net}`);
+if (!['real', 'stub'].includes(args['map-sdk']))
+  throw new Error(`--map-sdk 는 real 이나 stub 이다: ${args['map-sdk']}`);
+const stubMapSdk = args['map-sdk'] === 'stub';
 const shotTimes = args.shots.split(',').map(Number);
 const out = resolve(args.out);
 mkdirSync(join(out, 'shots', 'before'), { recursive: true });
@@ -71,7 +103,8 @@ mkdirSync(join(out, 'shots', 'after'), { recursive: true });
 const runsFile = join(out, 'runs.jsonl');
 writeFileSync(runsFile, '');
 
-const watchMoment = (selector) => {
+const watchMoment = ({ selector, text }) => {
+  const textPattern = text ? new RegExp(text) : null;
   const m = { at: null, what: null, lcp: null };
   window.__verify = m;
   new PerformanceObserver((list) => {
@@ -85,6 +118,7 @@ const watchMoment = (selector) => {
     if (m.at !== null) return;
     for (const element of document.querySelectorAll(selector)) {
       if (!inView(element)) continue;
+      if (textPattern && !textPattern.test(element.textContent ?? '')) continue;
       if (element instanceof HTMLImageElement && !(element.complete && element.naturalWidth > 0)) continue;
       m.at = -1;
       const decoded = element instanceof HTMLImageElement ? element.decode().catch(() => {}) : Promise.resolve();
@@ -108,8 +142,8 @@ const waitForQuietMachine = async () => {
 };
 
 const openOnce = async (browser, baseUrl, { shotsPrefix } = {}) => {
-  const context = await browser.newContext(VIEWPORTS[args.viewport]);
-  await context.addInitScript(watchMoment, moment.selector);
+  const context = await browser.newContext({ ...VIEWPORTS[args.viewport], ignoreHTTPSErrors: stubMapSdk });
+  await context.addInitScript(watchMoment, { selector: moment.selector, text: moment.text });
   const page = await context.newPage();
   const consoleErrors = [];
   const failedRequests = [];
@@ -128,7 +162,7 @@ const openOnce = async (browser, baseUrl, { shotsPrefix } = {}) => {
   if (condition.net) await cdp.send('Network.emulateNetworkConditions', condition.net);
   if (condition.cpu > 1) await cdp.send('Emulation.setCPUThrottlingRate', { rate: condition.cpu });
   const started = Date.now();
-  page.goto(new URL(args.path, baseUrl).href, { waitUntil: 'commit' }).catch(() => {});
+  page.goto(new URL(path, baseUrl).href, { waitUntil: 'commit' }).catch(() => {});
   if (shotsPrefix) {
     for (const seconds of shotTimes) {
       const wait = started + seconds * 1000 - Date.now();
@@ -155,7 +189,10 @@ const openOnce = async (browser, baseUrl, { shotsPrefix } = {}) => {
   };
 };
 
-const browser = await chromium.launch(args.chrome ? { executablePath: args.chrome } : {});
+const browser = await chromium.launch({
+  ...(args.chrome ? { executablePath: args.chrome } : {}),
+  args: stubMapSdk ? [`--host-resolver-rules=MAP oapi.map.naver.com 127.0.0.1:${args['map-sdk-port']}`] : [],
+});
 const variants = [
   ['before', args.before],
   ['after', args.after],
@@ -192,7 +229,10 @@ const rows = readFileSync(runsFile, 'utf8')
   .split('\n')
   .map((line) => JSON.parse(line));
 const setup = {
-  path: args.path,
+  path,
+  screen: screen?.name,
+  spreadFactor: Number(args['spread-factor']),
+  minDiff: Number(args['min-diff']),
   moment: moment.label,
   net: args.net,
   cpu: condition.cpu,
@@ -201,6 +241,12 @@ const setup = {
   before: args.before,
   after: args.after,
   shotTimes,
+  mapSdk: args['map-sdk'],
 };
-writeFileSync(join(out, 'verdict.md'), renderVerdict(setup, judge(rows)));
+const result = judge(rows, { spreadFactor: setup.spreadFactor, minDiff: setup.minDiff });
+writeFileSync(join(out, 'verdict.md'), renderVerdict(setup, result));
+writeFileSync(
+  join(out, 'result.json'),
+  `${JSON.stringify({ setup, result, verdict: userVerdict(result) }, null, 2)}\n`,
+);
 console.log(`판정 초안: ${join(out, 'verdict.md')}`);
