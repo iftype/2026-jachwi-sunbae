@@ -1,0 +1,121 @@
+name: Visual Verdict
+
+# 실행되는 프론트 코드가 바뀐 PR의 화면 전후 판정을 CI가 직접 잰다. 사람이나 PR 작성자가 본문에 판정을 쓰지 않는다.
+# - 범위: frontend/scripts/visual-scope.mjs 한 곳이 정한다. 범위 밖 PR은 판정 없이 바로 통과한다.
+# - 판정: develop과의 머지 기준 커밋(전)과 그 실행의 head 커밋(후)을 운영 빌드해, MSW 목(응답 300ms 고정)과 지도 SDK 목으로
+#   영향 화면 중 가장 중요한 하나의 사용자 기준 순간을 번갈아 잰다. 숫자는 .claude/skills/verify-jachwi/scripts 가 낸다(LLM 없음).
+# - 결과: verdict.md와 같은 시각 전후 스크린샷은 아티팩트로, 요약은 PR 댓글 하나로 올리고 커밋마다 고친다.
+#   나빠짐이면 실패, 제목이 [Refactor]인데 같음이 아니면 실패.
+# - 영향 화면 전부는 visual 라벨이나 주 1회 develop 실행(visual-verdict-full.yml)이 잰다. PR마다는 5분 안에 끝나야 한다.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+      - develop
+      # 여러 PR을 모으는 통합 브랜치(예: chore/verification-integration)로 가는 PR도 판정한다. 머지 기준 커밋이 전이다.
+      - '**-integration'
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: visual-verdict-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  verdict:
+    name: Check visual verdict
+    runs-on: ubuntu-latest
+    # 판정이 필요한 PR도 5분 안에 끝낸다(빌드 병렬, develop 빌드 캐시, 화면 하나).
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Find commits
+        id: commits
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          echo "before=$(git merge-base "${BASE_SHA}" "${HEAD_SHA}")" >> "${GITHUB_OUTPUT}"
+          echo "after=${HEAD_SHA}" >> "${GITHUB_OUTPUT}"
+
+      - name: Set up frontend
+        uses: ./.github/actions/setup-frontend
+
+      - name: Decide scope
+        id: scope
+        working-directory: frontend
+        env:
+          BEFORE_SHA: ${{ steps.commits.outputs.before }}
+          AFTER_SHA: ${{ steps.commits.outputs.after }}
+        run: |
+          git diff --name-only "${BEFORE_SHA}" "${AFTER_SHA}" \
+            | node scripts/visual-scope.mjs --files-from - --base "${BEFORE_SHA}" --json > "${RUNNER_TEMP}/scope.json"
+          RUNS="$(jq -r '.runs' "${RUNNER_TEMP}/scope.json")"
+          echo "runs=${RUNS}" >> "${GITHUB_OUTPUT}"
+          jq -r '"범위: \(.scope) (\(.why)) \(.routes | join(", "))"' "${RUNNER_TEMP}/scope.json"
+          if [[ "${RUNS}" != 'true' ]]; then
+            echo "화면 판정 대상이 아니다: $(jq -r '.why' "${RUNNER_TEMP}/scope.json")" >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+      - name: Measure before and after
+        if: steps.scope.outputs.runs == 'true'
+        uses: ./.github/actions/visual-verdict
+        with:
+          before-sha: ${{ steps.commits.outputs.before }}
+          after-sha: ${{ steps.commits.outputs.after }}
+          scope-file: ${{ runner.temp }}/scope.json
+          mode: pr
+          title: ${{ github.event.pull_request.title }}
+          runs: '5'
+          # 문턱 = max(흩어짐, 0.1초). develop 대 develop을 CI에서 5번 돌렸을 때(데우기 1회 뒤 5회씩) 중앙값 차이는 0.03초 안, 흩어짐은 0.07초 안이었다.
+          spread-factor: '1'
+          min-diff: '100'
+          out: ${{ runner.temp }}/visual-verdict
+
+      - name: Upload verdict
+        if: always() && steps.scope.outputs.runs == 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: visual-verdict
+          path: ${{ runner.temp }}/visual-verdict
+          retention-days: 14
+          if-no-files-found: ignore
+
+      # 댓글은 PR마다 하나다. 범위 밖이 된 PR은 있던 댓글만 고친다.
+      - name: Comment on PR
+        if: always() && !cancelled()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          RUNS: ${{ steps.scope.outputs.runs }}
+          AFTER_SHA: ${{ steps.commits.outputs.after }}
+        run: |
+          COMMENT="${RUNNER_TEMP}/visual-verdict/comment.md"
+          if [[ ! -f "${COMMENT}" ]]; then
+            mkdir -p "$(dirname "${COMMENT}")"
+            if [[ "${RUNS}" == 'true' ]]; then
+              printf '<!-- visual-verdict -->\n## 화면 판정 (CI 자동)\n\n- 결과: 재지 못했다(`%s`). [실행 기록](%s/%s/actions/runs/%s)을 본다.\n' \
+                "${AFTER_SHA:0:8}" "${GITHUB_SERVER_URL}" "${GITHUB_REPOSITORY}" "${GITHUB_RUN_ID}" > "${COMMENT}"
+            else
+              printf '<!-- visual-verdict -->\n## 화면 판정 (CI 자동)\n\n- 결과: 화면 판정 대상 아님(`%s`, %s)\n' \
+                "${AFTER_SHA:0:8}" "$(jq -r '.why' "${RUNNER_TEMP}/scope.json" 2>/dev/null || echo '범위 밖')" > "${COMMENT}"
+            fi
+          fi
+          ID="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" --paginate \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- visual-verdict -->"))) | .id' | head -n 1)"
+          if [[ -n "${ID}" ]]; then
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${ID}" -F body=@"${COMMENT}" > /dev/null
+          elif [[ "${RUNS}" == 'true' ]]; then
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -F body=@"${COMMENT}" > /dev/null
+          fi
+          cat "${COMMENT}" >> "${GITHUB_STEP_SUMMARY}"

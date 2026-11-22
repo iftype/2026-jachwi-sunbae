@@ -1,0 +1,122 @@
+name: Visual verdict
+description: >-
+  전(before)과 후(after) 커밋을 운영 빌드해 MSW 목과 지도 SDK 목으로 띄우고, 사용자 기준 순간을 번갈아 재서 판정한다.
+  측정과 판정은 .claude/skills/verify-jachwi/scripts 의 스크립트가 한다(LLM 없음). 체크아웃과 setup-frontend 뒤에 부른다.
+
+inputs:
+  before-sha:
+    description: 전 커밋(PR이면 develop과의 머지 기준 커밋)
+    required: true
+  after-sha:
+    description: 후 커밋(PR이면 그 실행의 head 커밋)
+    required: true
+  scope-file:
+    description: visual-scope.mjs --json 결과 파일
+    required: true
+  mode:
+    description: 'pr: 가장 중요한 영향 화면 하나, all: 영향 화면 전부'
+    default: pr
+  title:
+    description: PR 제목([Refactor]면 같음이어야 통과)
+    default: ''
+  runs:
+    description: 전후 각각 잴 회수
+    default: '5'
+  spread-factor:
+    description: 문턱 = max(흩어짐 x 이 값, min-diff)
+    default: '1'
+  min-diff:
+    description: 문턱의 바닥(ms)
+    default: '0'
+  out:
+    description: 결과 폴더
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Prepare worktrees
+      shell: bash
+      env:
+        BEFORE_SHA: ${{ inputs.before-sha }}
+        AFTER_SHA: ${{ inputs.after-sha }}
+      run: |
+        # 전과 후를 따로 꺼낸다. lock 파일이 체크아웃과 같으면 node_modules를 나눠 쓴다(설치 생략).
+        # 패키지마다 링크하고 .cache 는 빼서, 동시에 도는 두 webpack 빌드가 파일 캐시를 따로 쓰게 한다.
+        for side in before after; do
+          sha_var="${side^^}_SHA"
+          dir="${RUNNER_TEMP}/visual-${side}"
+          git worktree add --detach "${dir}" "${!sha_var}"
+          if cmp -s frontend/package-lock.json "${dir}/frontend/package-lock.json"; then
+            mkdir "${dir}/frontend/node_modules"
+            find "${GITHUB_WORKSPACE}/frontend/node_modules" -mindepth 1 -maxdepth 1 ! -name .cache \
+              -exec ln -s {} "${dir}/frontend/node_modules/" \;
+          else
+            echo "${side}: package-lock.json이 달라 따로 설치한다."
+            npm ci --prefix "${dir}/frontend" --no-audit --no-fund --loglevel=error
+          fi
+        done
+
+    # develop 쪽(전)은 커밋마다 같은 빌드라 캐시한다. 포트가 빌드에 박히므로 키에 넣는다.
+    - name: Restore before build
+      id: before-dist
+      uses: actions/cache@v5
+      with:
+        path: ${{ runner.temp }}/visual-before/frontend/dist
+        key: visual-dist-v1-${{ inputs.before-sha }}-4301
+
+    - name: Restore QA dependencies
+      id: qa-modules
+      uses: actions/cache@v5
+      with:
+        path: qa/node_modules
+        key: qa-node-modules-${{ runner.os }}-${{ hashFiles('qa/package-lock.json') }}
+
+    - name: Build and install
+      shell: bash
+      env:
+        BEFORE_CACHED: ${{ steps.before-dist.outputs.cache-hit }}
+        QA_CACHED: ${{ steps.qa-modules.outputs.cache-hit }}
+        # 지도 키는 레포 시크릿에 없다. 운영 빌드는 늘 네이버 지도라 아무 키나 넣고, SDK 주소는 측정 때 목 서버로 돌린다.
+        NAVER_MAP_CLIENT_ID: ci-map-sdk-stub
+      run: |
+        build() {
+          (cd "${RUNNER_TEMP}/visual-$1/frontend" && API_BASE_URL="http://localhost:$2" npm run build:bundle --silent > "${RUNNER_TEMP}/visual-$1.build.log" 2>&1) \
+            || { echo "::error::$1 빌드 실패"; tail -40 "${RUNNER_TEMP}/visual-$1.build.log"; return 1; }
+        }
+        pids=()
+        if [[ "${BEFORE_CACHED}" != 'true' ]]; then build before 4301 & pids+=($!); fi
+        build after 4302 & pids+=($!)
+        if [[ "${QA_CACHED}" != 'true' ]]; then (cd qa && npm ci --no-audit --no-fund --loglevel=error) & pids+=($!); fi
+        # 러너에 한글 글꼴이 없어 스크린샷 글자가 네모로 나온다. 사람이 보는 증거라 글꼴을 넣는다(전후 같은 조건).
+        (sudo apt-get install -y -qq --no-install-recommends fonts-nanum > /dev/null 2>&1 \
+          || (sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends fonts-nanum > /dev/null)) & pids+=($!)
+        for pid in "${pids[@]}"; do wait "${pid}"; done
+
+    - name: Measure and judge
+      shell: bash
+      env:
+        SCOPE_FILE: ${{ inputs.scope-file }}
+        MODE: ${{ inputs.mode }}
+        PR_TITLE: ${{ inputs.title }}
+        RUNS: ${{ inputs.runs }}
+        SPREAD_FACTOR: ${{ inputs.spread-factor }}
+        MIN_DIFF: ${{ inputs.min-diff }}
+        OUT: ${{ inputs.out }}
+        BEFORE_SHA: ${{ inputs.before-sha }}
+        AFTER_SHA: ${{ inputs.after-sha }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: |
+        S=.claude/skills/verify-jachwi/scripts
+        export CHROME_PATH="$(command -v google-chrome || command -v google-chrome-stable)"
+        node "$S/serve.mjs" --dist "${RUNNER_TEMP}/visual-before/frontend/dist" --port 4301 --api mock --delay 300 > "${RUNNER_TEMP}/serve-before.log" 2>&1 &
+        node "$S/serve.mjs" --dist "${RUNNER_TEMP}/visual-after/frontend/dist" --port 4302 --api mock --delay 300 > "${RUNNER_TEMP}/serve-after.log" 2>&1 &
+        node "$S/map-sdk-stub.mjs" --port 4443 > "${RUNNER_TEMP}/map-sdk-stub.log" 2>&1 &
+        for port in 4301 4302; do
+          for _ in $(seq 60); do curl -sf "http://localhost:${port}/" > /dev/null && break; sleep 0.5; done
+        done
+        for _ in $(seq 60); do curl -skf "https://localhost:4443/openapi/v3/maps-gl.js" -o /dev/null && break; sleep 0.5; done
+        node "$S/ci-verdict.mjs" --scope "${SCOPE_FILE}" --before http://localhost:4301 --after http://localhost:4302 \
+          --out "${OUT}" --mode "${MODE}" --title "${PR_TITLE}" --runs "${RUNS}" \
+          --spread-factor "${SPREAD_FACTOR}" --min-diff "${MIN_DIFF}" \
+          --before-label "${BEFORE_SHA:0:8}" --after-label "${AFTER_SHA:0:8}" --run-url "${RUN_URL}"
