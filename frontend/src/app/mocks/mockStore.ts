@@ -132,6 +132,12 @@ export type MockProperty = {
   utilityOptions: string[];
 };
 
+/**
+ * 목은 회원별로 데이터를 나누지 않아 늘 기록이 있는 회원처럼 답한다. 이 쿠키가 `true`면 매물 목록만 비워
+ * 막 들어온 새 익명 회원(기록 없음, 미리보기 매물이 보임)을 흉내 낸다. 검증 스크립트(qa)가 쓴다.
+ */
+export const MOCK_NEW_MEMBER_COOKIE = 'jachwi-mock-new-member';
+
 let properties: MockProperty[] = [
   {
     id: 10,

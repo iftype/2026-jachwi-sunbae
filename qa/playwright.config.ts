@@ -30,7 +30,13 @@ export default defineConfig({
   projects: [
     {
       name: 'mobile',
+      testIgnore: 'iphone/**',
       use: { ...devices['Pixel 7'] }, // Playwright가 제공하는 기기별 브라우저 설정 모음.
     },
+    // 휴대폰 사용자 경로를 WebKit 엔진과 iPhone 기기 설정으로 돈다. 목 데이터를 전제로 해 로컬 운영 빌드와 목 API에만 붙으므로
+    // npm run test:iphone(scripts/iphone.mjs)이 QA_IPHONE=1 을 줄 때만 프로젝트에 넣는다. 그냥 npm test 는 dev에 이 경로를 돌리지 않는다.
+    ...(process.env.QA_IPHONE === '1'
+      ? [{ name: 'iphone', testDir: './tests/iphone', use: { ...devices['iPhone 15'] } }]
+      : []),
   ],
 });
