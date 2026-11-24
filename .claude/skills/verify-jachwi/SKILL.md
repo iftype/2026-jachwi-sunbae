@@ -158,7 +158,27 @@ node $S/compare.mjs qa/runs/verify-jachwi/<이름>/baseline-before qa/runs/verif
 6. 휴대폰 화면은 `resize_page`나 `emulate`로 맞춘다. 데스크탑과 휴대폰은 다른 컴포넌트(`desktop/`, `mobile/`)다.
 7. 선택자는 ARIA 이름이 기준이다(`이 조건으로 동네 찾기`, `지도 확대`, `메모 남기기`). 좌표와 탭 순서는 쓰지 않는다.
 
-기존 Playwright 스모크(`qa/tests/finder-map-smoke.spec.ts`는 `refactor/remove-ai-slop-finder-map` 브랜치에 있다)는 같은 경로를 Pixel 7 모바일로 돌린다. `qa/`의 Playwright는 `QA_BASE_URL=http://localhost:3217`로 로컬에 붙일 수 있다(운영 도메인은 설정이 막는다). 회원 픽스처 없이 `page.goto('/explore')`로 시작한다.
+Playwright 스모크 `qa/tests/finder-map-smoke.spec.ts`는 같은 경로를 Pixel 7 모바일(Chromium)로 돌린다. `qa/`의 Playwright는 `QA_BASE_URL=http://localhost:3217`로 로컬에 붙일 수 있다(운영 도메인은 설정이 막는다). 회원 픽스처 없이 `page.goto('/explore')`로 시작하고, 미리보기 매물을 보려고 목에 새 회원 쿠키(`jachwi-mock-new-member=true`)를 준다. 목은 회원별로 데이터를 나누지 않아 쿠키가 없으면 늘 매물 2개가 있는 회원이고 미리보기 매물이 보이지 않는다.
+
+## iPhone(WebKit) 경로 검증
+
+사용자 접속 대부분이 휴대폰이라, 휴대폰 사용자 경로를 WebKit 엔진과 iPhone 기기 설정으로 돈다. LLM과 에이전트는 쓰지 않는다.
+
+```sh
+cd qa && npm ci && npx playwright install webkit    # 처음 한 번(리눅스에서 시스템 라이브러리가 없으면 --with-deps)
+npm run test:iphone                                 # 운영 빌드 한 번, serve.mjs --api mock --delay 300, 경로 전부
+npm run test:iphone -- --dist <dist> --port <빌드 때 포트>   # 이미 만든 운영 빌드(build-variant.sh)를 쓴다
+npm run test:iphone -- checklist                    # 경로 하나만(파일 이름 일부)
+```
+
+- 실행 코드는 `qa/scripts/iphone.mjs`, 경로는 `qa/tests/iphone/*.spec.ts`, 공용 픽스처는 `qa/src/iphone.ts`다. Playwright 프로젝트 `iphone`(WebKit, `devices['iPhone 15']`)이다.
+- 지도 키(`NAVER_MAP_CLIENT_ID`, 환경 변수나 `frontend/.env.local`)가 있으면 실제 SDK, 없으면 `map-sdk-stub.mjs`로 돌리고 지도 위 요소를 보는 경로(홈 지도, 동네 찾기)는 이유를 남기고 건너뛴다. `--map real|stub`으로 정할 수 있다.
+- 경로마다 끝 상태를 사용자 눈으로(ARIA 이름, 보이는 글자) 확인하고 스크린샷을 남긴다. 끝나면 우리 출처의 콘솔 오류와 실패한 요청이 0인지 본다. 네이버 지도 SDK와 타일 같은 바깥 출처 오류는 판정에 넣지 않고 `problems.json` 첨부와 `바깥 출처 오류` 주석으로 남긴다.
+- 결과: `qa/runs/iphone/summary.md`(경로별 결과, 걸린 시간), `shots/`, `html/`(Playwright 리포트), `timing.json`.
+- 경로가 실패하면 경로를 약하게 고치지 않는다. 앱 버그일 수 있으니 실패와 원인을 적는다.
+- `.github/workflows/qa-iphone.yml`이 주 1회와 수동 실행(workflow_dispatch)으로 develop을 돈다. PR마다 돌지 않는다. 결과는 아티팩트 `qa-iphone`과 실행 요약이다.
+- 이 노트북에서 WebKit이 `libavif.so.16`을 못 찾으면(sudo 없음) `apt-get download libavif16 libgav1-1 libyuv0`로 받은 `.so`를 `~/.cache/ms-playwright/webkit-*/minibrowser-wpe/sys/lib/`에 풀어 둔다. CI는 `--with-deps`로 깐다.
+- 실제 iOS Safari와 다른 점은 각 기능 파일의 Gotchas에 있다. 요점: WebKit 엔진이지만 iOS 실기기가 아니고(주소창, 안전 영역, 키보드 높이 없음), 끌기는 마우스 포인터로 흉내 내며 핀치와 지도 끌기는 하지 않는다.
 
 ## Evidence
 

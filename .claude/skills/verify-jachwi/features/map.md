@@ -1,6 +1,6 @@
 # 지도
 
-홈(`/`)은 본 방 기록 지도다. 왼쪽에 기록 리스트, 오른쪽에 지도가 있다. 지도에는 기록한 매물 마커, 주소 검색, 동네별 필터, 거리 메모 마커가 있다. 상태: 검증됨(2026-11-22, 데스크탑 1440x900, 실제 네이버 지도).
+홈(`/`)은 본 방 기록 지도다. 왼쪽에 기록 리스트, 오른쪽에 지도가 있다. 지도에는 기록한 매물 마커, 주소 검색, 동네별 필터, 거리 메모 마커가 있다. 상태: 검증됨(2026-11-22, 데스크탑 1440x900, 실제 네이버 지도). iPhone(WebKit) 검증됨(2026-11-25, 실제 네이버 지도).
 
 ## Sub-features
 
@@ -43,11 +43,25 @@ Preconditions: doctor 통과, `frontend/.env.local`에 네이버 키가 있다(�
 
 - **증명.** 스크린샷, 스냅샷 파일, 위 네트워크 호출, 마커 클릭 뒤 주소 변화.
 
+## iPhone(WebKit) 경로
+
+- 실행(`qa`): `npm run test:iphone`이 운영 빌드를 한 번 하고 `serve.mjs --api mock --delay 300`으로 띄워 iPhone 경로 전부를 돈다. 이 기능만은 `npm run test:iphone -- home-map`. 지도 키(`frontend/.env.local`의 `NAVER_MAP_CLIENT_ID`)가 있으면 실제 SDK, 없으면 `map-sdk-stub.mjs`다. 코드는 `qa/tests/iphone/home-map.spec.ts`.
+- 경로:
+  1. `/`를 연다(목의 기존 회원, 매물 2개). 첫 안내가 있으면 `확인`을 누른다.
+  2. `본 방 기록 지도`의 `망원동 투룸` 마커를 누른다. 아래 시트 `선택한 매물`에 카드(`보증금 3,000만원 / 월세 75만원`)가 보이고 `data-mode=default`다.
+  3. 휴대폰 전용: 손잡이 `상세 패널 높이 조절`을 위로 350px 끌면 `expanded`, 아래로 500px 끌면 제목만 남는 `peek`이 된다.
+  4. 휴대폰 전용: `하단 탭`의 `내 기록, 리스트로 보기`를 누르면 `모든 기록`에 두 매물이 보인다. `동네 찾기`를 누르면 `/neighborhoods`, `마이`를 누르면 `/me`로 간다.
+- 경로 끝마다 우리 출처(`QA_BASE_URL`)의 콘솔 오류와 실패한 요청(4xx, 5xx, 끊김)이 0인지 본다. 스크린샷은 `qa/runs/iphone/shots/`의 `home-map-sheet-expanded.png`, `home-list.png`, `home-tab-my.png`, 결과 요약은 `qa/runs/iphone/summary.md`다.
+
 ## Gotchas
 
 - 시설 카테고리는 홈 첫 화면에 없다. 매물 상세를 열어야 나온다(초안의 "홈에서 편의점 표시하기"는 틀렸다).
 - 샘플 매물 `(미리보기) 코엑스 근처`는 회원이 방을 하나라도 등록하면 사라진다. 실제 기록 저장은 [매물 상세](./property-detail.md)를 따른다.
 - 주소 검색 제안 버튼은 같은 주소가 세 번 나오기도 한다. 첫 버튼을 쓴다.
 - 지도를 옮길 때마다 `street-memos`가 그 범위로 다시 불린다. 요청이 많은 것은 정상이다.
-- 휴대폰은 `RecordsMobilePage`라 리스트와 지도가 `리스트`, `지도` 토글로 나뉜다. 이 문서는 데스크탑만 돌렸다.
+- 휴대폰은 `RecordsMobilePage`라 리스트와 지도가 `리스트`, `지도` 토글로 나뉜다. 위 Chrome DevTools 레시피는 데스크탑만 돌렸고, 휴대폰은 "iPhone(WebKit) 경로"를 본다.
 - 증거 위치: `qa/runs/verify-jachwi/map-20261122/`.
+- iPhone 경로는 Playwright의 WebKit 엔진(리눅스 WPE 빌드)에 iPhone 15 기기 설정(화면 393x659, 터치, 모바일 UA, 배율 3)을 준 것이다. iOS 실기기의 Safari가 아니다. 주소창과 홈 표시줄이 줄이는 높이, 안전 영역(`safe-area-inset`), 키보드가 올라올 때의 화면 높이 변화, 관성 스크롤은 재현하지 않는다.
+- 손가락 제스처는 흉내다. 탭은 터치 탭이지만 끌기(시트 손잡이)는 마우스 포인터 끌기로 낸다(`qa/src/iphone.ts`의 `dragBy`). 앱이 Pointer Events로 받아 같은 코드를 지나지만 실제 터치 이벤트 순서와 다를 수 있다. 핀치 확대와 지도 끌기는 하지 않는다(마우스 끌기로는 지도가 움직이지 않았다).
+- WebKit에서 네이버 지도 타일(`http://nrbe.map.naver.net/...`) 요청이 가끔 CORS 400으로 실패해 콘솔에 남는다. 같은 화면을 Chromium으로 열었을 때는 보지 못했고, 잠시 뒤 타일은 다시 그려졌다. 바깥 출처라 iPhone 경로의 판정(우리 출처 오류 0)에 넣지 않고 `problems.json` 첨부와 `바깥 출처 오류` 주석으로 남긴다.
+- 새 회원(미리보기 매물)을 보려면 목에 쿠키 `jachwi-mock-new-member=true`를 준다(`qa/tests/finder-map-smoke.spec.ts`가 쓴다). 목은 회원별로 데이터를 나누지 않아 쿠키가 없으면 늘 매물 2개가 있는 회원이다.
