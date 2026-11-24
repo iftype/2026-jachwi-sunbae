@@ -30,7 +30,14 @@ export default defineConfig({
   projects: [
     {
       name: 'mobile',
+      testIgnore: 'iphone/**',
       use: { ...devices['Pixel 7'] }, // Playwright가 제공하는 기기별 브라우저 설정 모음.
+    },
+    {
+      // 휴대폰 사용자 경로를 WebKit 엔진과 iPhone 기기 설정으로 돈다. 로컬 운영 빌드와 목 API에만 붙는다(scripts/iphone.mjs).
+      name: 'iphone',
+      testDir: './tests/iphone',
+      use: { ...devices['iPhone 15'] },
     },
   ],
 });

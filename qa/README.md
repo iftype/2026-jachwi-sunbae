@@ -157,7 +157,7 @@ QA 사이클은 사람이 직접 하던 실행과 기록을 코드와 AI에 맡�
 ### 7.1. 준비
 
 - Node 22.23.x (`.nvmrc`)
-- Playwright, 모바일 화면(Pixel 7, Chromium)
+- Playwright, 모바일 화면(Pixel 7, Chromium). 휴대폰 경로 검증은 iPhone 15 설정과 WebKit(`npm run test:iphone`, 설명은 `.claude/skills/verify-jachwi/SKILL.md`의 "iPhone(WebKit) 경로 검증")
 - AI 분석: 로그인된 Claude Code CLI(`claude -p`)
 
 ```bash
@@ -172,6 +172,8 @@ npx playwright install chromium
 npm run test:smoke                 # 실행 환경 점검
 npm test                           # 전체 테스트. Scenario가 여러 개면 일괄 실행 요약도 만듦
 npx playwright test F02-S03        # Scenario 하나만 실행(파일 이름 일부로 고름)
+npm run test:finder-map            # 동네 찾기와 지도 스모크(정리 전후 화면 비교용)
+npm run test:iphone                # 휴대폰 경로를 WebKit과 iPhone 15 설정으로(운영 빌드와 로컬 목, LLM 없음)
 npm run report                     # 마지막 실행의 Playwright HTML 리포트 열기
 npm run typecheck                  # 타입 검사
 npm run analyze -- runs/<Run ID>   # 저장된 Run을 다시 AI 분석하고 Run Report를 다시 만듦
@@ -187,6 +189,7 @@ npm run render -- runs/<Run ID>    # AI 분석 없이 Run Report만 다시 만�
 | `QA_AI_MODEL`      | `claude-sonnet-5-5`            | 분석에 쓸 모델 ID. 기본값은 고정이며 모델 비교 실험에만 바꾼다([DL-002](docs/decision-log/DL-002-analysis-model.md)). 예: `claude-opus-5-5` |
 | `QA_AI_TIMEOUT_MS` | `300000`                       | AI 분석 제한 시간                                                                                                                           |
 | `QA_FAULT`         | 없음                           | 의도적으로 주입할 결함 이름. 예: `detail-rent`, `geocode-down`                                                                              |
+| `QA_SMOKE_STAGE`   | `adhoc`                        | 동네 찾기와 지도 스모크의 스크린샷 폴더 이름. 정리 전후를 `before`, `after`로 나눠 `runs/finder-map-smoke/`에 남긴다                        |
 
 `.env.example`을 `.env`로 복사해 설정하거나 셸 환경변수로 넘긴다. 둘 다 있으면 셸 환경변수가 우선한다. `.env`는 커밋하지 않는다.
 
