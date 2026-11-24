@@ -54,7 +54,12 @@ const sourceOf = (problem: Problem, problems: Problem[]) => {
 };
 
 export const test = base.extend<IphoneFixtures>({
-  context: async ({ context }, use) => {
+  context: async ({ context, baseURL }, use) => {
+    if (new URL(baseURL ?? 'http://invalid').hostname !== 'localhost') {
+      throw new Error(
+        `iPhone 경로는 목 데이터를 전제로 로컬 목 서버에만 붙는다: ${baseURL}. npm run test:iphone 으로 돈다.`,
+      );
+    }
     await context.route(ANALYTICS_URL, (route) => route.abort());
     if (MAP_SDK_MODE === 'stub') {
       await context.route(MAP_SDK_URL, async (route) => {

@@ -130,6 +130,7 @@ const exitCode = await run(
     cwd: qaDir,
     env: {
       ...process.env,
+      QA_IPHONE: '1',
       QA_BASE_URL: baseUrl,
       QA_MAP_SDK: mapMode,
       QA_AI_ANALYSIS: 'off',

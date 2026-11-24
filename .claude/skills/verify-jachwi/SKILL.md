@@ -171,7 +171,7 @@ npm run test:iphone -- --dist <dist> --port <빌드 때 포트>   # 이미 만�
 npm run test:iphone -- checklist                    # 경로 하나만(파일 이름 일부)
 ```
 
-- 실행 코드는 `qa/scripts/iphone.mjs`, 경로는 `qa/tests/iphone/*.spec.ts`, 공용 픽스처는 `qa/src/iphone.ts`다. Playwright 프로젝트 `iphone`(WebKit, `devices['iPhone 15']`)이다.
+- 실행 코드는 `qa/scripts/iphone.mjs`, 경로는 `qa/tests/iphone/*.spec.ts`, 공용 픽스처는 `qa/src/iphone.ts`다. Playwright 프로젝트 `iphone`(WebKit, `devices['iPhone 15']`)이다. 이 프로젝트는 `QA_IPHONE=1`일 때만 생겨 그냥 `npm test`는 dev에 이 경로를 돌리지 않고, 픽스처는 `localhost`가 아닌 주소를 거절한다.
 - 지도 키(`NAVER_MAP_CLIENT_ID`, 환경 변수나 `frontend/.env.local`)가 있으면 실제 SDK, 없으면 `map-sdk-stub.mjs`로 돌리고 지도 위 요소를 보는 경로(홈 지도, 동네 찾기)는 이유를 남기고 건너뛴다. `--map real|stub`으로 정할 수 있다.
 - 경로마다 끝 상태를 사용자 눈으로(ARIA 이름, 보이는 글자) 확인하고 스크린샷을 남긴다. 끝나면 우리 출처의 콘솔 오류와 실패한 요청이 0인지 본다. 네이버 지도 SDK와 타일 같은 바깥 출처 오류는 판정에 넣지 않고 `problems.json` 첨부와 `바깥 출처 오류` 주석으로 남긴다.
 - 결과: `qa/runs/iphone/summary.md`(경로별 결과, 걸린 시간), `shots/`, `html/`(Playwright 리포트), `timing.json`.
