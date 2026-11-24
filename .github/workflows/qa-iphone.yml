@@ -1,0 +1,73 @@
+name: QA iPhone
+
+# 휴대폰 사용자 경로를 WebKit 엔진과 iPhone 기기 설정으로 돈다(qa/scripts/iphone.mjs). LLM은 쓰지 않는다.
+# - 주 1회: develop을 운영 빌드해 MSW 목(serve.mjs --api mock)으로 띄우고 돈다.
+# - 수동: workflow_dispatch(기본 브랜치에 이 파일이 있어야 보인다). 같은 develop 실행이다.
+# PR 이벤트로는 돌지 않는다(라벨 없음).
+# 지도 키는 레포 시크릿 NAVER_MAP_CLIENT_ID가 있으면 실제 SDK로 돌고(키 허용 도메인에 http://localhost:4320 이 있어야 한다),
+# 없으면 지도 SDK 목으로 돌아 지도 위 요소를 보는 경로(홈 지도, 동네 찾기)는 이유를 남기고 건너뛴다.
+on:
+  workflow_dispatch:
+  schedule:
+    # 매주 월요일 10:30 KST. schedule은 기본 브랜치(main)의 이 파일로 실행되므로 develop을 직접 체크아웃한다.
+    - cron: '30 1 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qa-iphone
+  cancel-in-progress: true
+
+jobs:
+  iphone:
+    name: iPhone WebKit paths
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: develop
+
+      - name: Set up frontend
+        uses: ./.github/actions/setup-frontend
+
+      - name: Restore QA dependencies
+        id: qa-modules
+        uses: actions/cache@v5
+        with:
+          path: qa/node_modules
+          key: qa-node-modules-${{ runner.os }}-${{ hashFiles('qa/package-lock.json') }}
+
+      - name: Install QA dependencies and WebKit
+        run: |
+          if [[ "${{ steps.qa-modules.outputs.cache-hit }}" != 'true' ]]; then
+            (cd qa && npm ci --no-audit --no-fund --loglevel=error)
+          fi
+          (cd qa && npx playwright install --with-deps webkit)
+          # 러너에 한글 글꼴이 없어 스크린샷 글자가 네모로 나온다. 사람이 보는 증거라 글꼴을 넣는다.
+          sudo apt-get install -y -qq --no-install-recommends fonts-nanum > /dev/null 2>&1 \
+            || (sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends fonts-nanum > /dev/null)
+
+      - name: Run iPhone paths
+        working-directory: qa
+        env:
+          NAVER_MAP_CLIENT_ID: ${{ secrets.NAVER_MAP_CLIENT_ID }}
+        run: npm run test:iphone
+
+      - name: Summarize
+        if: always()
+        run: cat qa/runs/iphone/summary.md >> "${GITHUB_STEP_SUMMARY}" 2>/dev/null || true
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: qa-iphone
+          path: |
+            qa/runs/iphone
+            qa/test-results
+          retention-days: 14
+          if-no-files-found: ignore
