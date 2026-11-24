@@ -1,8 +1,10 @@
 // @vitest-environment node
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { handlers } from '@/app/mocks/handlers';
-import { resetMockStore } from '@/app/mocks/mockStore';
+import { MOCK_NEW_MEMBER_COOKIE, resetMockStore } from '@/app/mocks/mockStore';
 
 import { server } from '../../server';
 
@@ -52,6 +54,22 @@ describe('최종 API 명세 MSW handlers', () => {
     expect(body).toMatchObject({
       data: { roadAddress: '서울 관악구 신림로 12길 3', latitude: 37.4841234, longitude: 126.9291234 },
     });
+  });
+
+  it('새 회원 쿠키가 있으면 매물 목록을 비워 미리보기 매물이 보이는 새 익명 회원처럼 답한다', async () => {
+    const fresh = await readJson(
+      await fetch(apiUrl('/api/properties'), { headers: { cookie: `${MOCK_NEW_MEMBER_COOKIE}=true` } }),
+    );
+    expect(fresh).toMatchObject({ data: { totalCount: 0, items: [] } });
+
+    const existing = await readJson(await fetch(apiUrl('/api/properties')));
+    expect(existing).toMatchObject({ data: { totalCount: 2 } });
+  });
+
+  it('qa의 동네 찾기와 지도 스모크는 목과 같은 새 회원 쿠키 이름을 쓴다', () => {
+    expect(readFileSync(resolve(process.cwd(), '../qa/tests/finder-map-smoke.spec.ts'), 'utf-8')).toContain(
+      `MOCK_NEW_MEMBER_COOKIE = "${MOCK_NEW_MEMBER_COOKIE}"`,
+    );
   });
 
   it('매물 목록은 dev 계약의 items·좌표·대표 사진 필드를 제공한다', async () => {

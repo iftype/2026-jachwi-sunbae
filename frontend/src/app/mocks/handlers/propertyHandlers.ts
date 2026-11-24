@@ -10,6 +10,7 @@ import {
   getMockPhotosByProperty,
   getMockProperties,
   getProperty,
+  MOCK_NEW_MEMBER_COOKIE,
   notImplemented,
   obsoleteEndpoint,
   propertyDetailResponse,
@@ -151,12 +152,14 @@ export const propertyHandlers = [
       ],
     });
   }),
-  http.get('*/api/properties', () =>
-    success({
-      totalCount: getMockProperties().length,
-      items: [...getMockProperties()].sort((a, b) => b.id - a.id).map(propertyListItemResponse),
-    }),
-  ),
+  // 새 회원 쿠키가 있으면 기록이 없는 막 가입한 익명 회원처럼 빈 목록을 준다. 앱은 이때 미리보기 매물을 보인다.
+  http.get('*/api/properties', ({ cookies }) => {
+    const properties = cookies[MOCK_NEW_MEMBER_COOKIE] === 'true' ? [] : getMockProperties();
+    return success({
+      totalCount: properties.length,
+      items: [...properties].sort((a, b) => b.id - a.id).map(propertyListItemResponse),
+    });
+  }),
   // 서버는 UTF-8 BOM 을 붙인 text/csv 를 내려준다. BOM 이 없으면 엑셀에서 한글이 깨진다.
   http.get('*/api/properties/export.csv', () => {
     const rows = [...getMockProperties()]
