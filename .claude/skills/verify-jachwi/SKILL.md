@@ -1,6 +1,6 @@
 ---
 name: verify-jachwi
-description: 자취선배 웹 프론트를 로컬에서 띄워 사용자처럼 구동하고 증거를 남기며, 실행되는 프론트 코드가 바뀐 PR(리팩터링 포함)의 화면 전후 판정을 한다. 갈 수 있는 화면인지 먼저 확인하고, MSW 목과 고정 응답 시간으로 기준 스크린샷과 사용자 기준 순간을 전후로 재서 verdict.md를 남긴다. 동네 찾기, 지도, 매물 상세, 체크리스트, 거리 메모 동작 증명, 화면 변경, 로딩 성능, 리팩터링 PR의 증거가 필요할 때 쓴다.
+description: 자취선배 웹 프론트를 로컬에서 띄워 사용자처럼 구동하고 증거를 남기며, 실행되는 프론트 코드가 바뀐 PR(리팩터링 포함)의 화면 전후 판정을 한다. 갈 수 있는 화면인지 먼저 확인하고, MSW 목과 고정 응답 시간으로 기준 스크린샷과 사용자 기준 순간을 전후로 재서 verdict.md를 남긴다. 동네 찾기, 지도, 매물 상세와 사진, 체크리스트, 거리 메모, 방 비교, 저렴한 한 끼, 마이와 날씨, 주소 검색, 위치 선택, 인증 동작 증명(데스크탑과 iPhone), 화면 변경, 로딩 성능, 리팩터링 PR의 증거가 필요할 때 쓴다.
 ---
 
 # verify-jachwi
@@ -69,7 +69,7 @@ node $S/compare.mjs qa/runs/verify-jachwi/<이름>/baseline-before qa/runs/verif
 - 운영 빌드는 늘 실제 네이버 지도라 `frontend/.env.local`에 지도 키가 있어야 한다. `build-variant.sh`가 이 파일을 복사한다(커밋하지 않는다).
 - 화면 목록은 `screens.mjs`의 `SCREENS`다(CI 판정과 같이 쓴다). 찍기 전에 `reachable-routes`로 확인해 갈 수 없는 화면은 빼고 `screens.md`에 그렇게 적는다. 판정 범위를 좁힐 때는 `--only`에 `npm run verify:pr`이 낸 라우트를 쉼표로 준다.
 - 비교: `compare.mjs`가 화면마다 다른 픽셀 비율(채널 차이 24 초과)과 전, 후, 다른 픽셀을 나란히 붙인 `<화면>.side.png`를 만든다. 같은 빌드를 두 번 찍어도 지도 타일과 랜딩 영상 때문에 몇 % 다를 수 있다. 비율이 0이 아닌 화면은 `side.png`를 직접 열어 무엇이 다른지 적는다.
-- 목에 핸들러가 없는 요청(예: 저렴한 한 끼의 `/api/maps/good-price-stores` 501)은 `screens.md`에 오류로 남는다. 전과 후가 같으면 판정에 쓰지 않는다.
+- 목에 핸들러가 없는 요청(예: 관리자 `/api/admin/...` 501)은 `screens.md`에 오류로 남는다. 전과 후가 같으면 판정에 쓰지 않는다.
 
 ## 전후 판정(로컬)
 
@@ -160,21 +160,29 @@ node $S/compare.mjs qa/runs/verify-jachwi/<이름>/baseline-before qa/runs/verif
 
 Playwright 스모크 `qa/tests/finder-map-smoke.spec.ts`는 같은 경로를 Pixel 7 모바일(Chromium)로 돌린다. `qa/`의 Playwright는 `QA_BASE_URL=http://localhost:3217`로 로컬에 붙일 수 있다(운영 도메인은 설정이 막는다). 회원 픽스처 없이 `page.goto('/explore')`로 시작하고, 미리보기 매물을 보려고 목에 새 회원 쿠키(`jachwi-mock-new-member=true`)를 준다. 목은 회원별로 데이터를 나누지 않아 쿠키가 없으면 늘 매물 2개가 있는 회원이고 미리보기 매물이 보이지 않는다.
 
-## iPhone(WebKit) 경로 검증
+## iPhone(WebKit)과 데스크탑 경로 검증
 
-사용자 접속 대부분이 휴대폰이라, 휴대폰 사용자 경로를 WebKit 엔진과 iPhone 기기 설정으로 돈다. LLM과 에이전트는 쓰지 않는다.
+사용자 접속 대부분이 휴대폰이라, 휴대폰 사용자 경로를 WebKit 엔진과 iPhone 기기 설정으로 돈다. 같은 실행기로 데스크탑 경로(Chromium 1440x900)도 돈다. LLM과 에이전트는 쓰지 않는다.
 
 ```sh
-cd qa && npm ci && npx playwright install webkit    # 처음 한 번(리눅스에서 시스템 라이브러리가 없으면 --with-deps)
-npm run test:iphone                                 # 운영 빌드 한 번, serve.mjs --api mock --delay 300, 경로 전부
+cd qa && npm ci && npx playwright install webkit chromium   # 처음 한 번(리눅스에서 시스템 라이브러리가 없으면 --with-deps)
+npm run test:iphone                                 # 운영 빌드 한 번, serve.mjs --api mock --delay 300, iPhone 경로 전부
+npm run test:desktop                                # 같은 조건으로 데스크탑 경로 전부(qa/tests/desktop)
+npm run test:iphone -- --device all                 # 둘 다. 목 서버는 기기마다 새로 띄운다
 npm run test:iphone -- --dist <dist> --port <빌드 때 포트>   # 이미 만든 운영 빌드(build-variant.sh)를 쓴다
+npm run test:iphone -- --skip-build                 # frontend/dist 를 다시 쓴다(빌드 때 포트가 4320이어야 한다)
 npm run test:iphone -- checklist                    # 경로 하나만(파일 이름 일부)
 ```
+
+- 데스크탑과 휴대폰은 다른 컴포넌트라 경로 파일을 `qa/tests/desktop`, `qa/tests/iphone`에 따로 둔다. 데스크탑이 휴대폰과 다른 길로 가는 화면(주소 검색, 위치 선택, 사진 관리)은 데스크탑 경로가 그 길을 따른다.
+- 경로가 일부러 일으키는 문제(토큰 갱신을 보려고 낸 401, 앱이 일부러 취소하는 앞 요청)는 그 경로의 `test.use({ expectedProblems: /.../ })`로만 판정에서 뺀다. 식 하나이고 `<종류> <내용> <주소>` 줄에 맞춘다. 뺀 것도 `problems.json`의 `intended`에 남는다.
+- Chromium은 본문을 읽지 않은 204 응답을 받은 뒤에도 `net::ERR_ABORTED`로 한 번 더 알린다(fetch 하나로 재현된다). 픽스처는 204를 받은 요청의 이 경우만 세지 않는다.
+- 이 노트북은 여유 메모리가 1.4GB쯤이라 운영 빌드가 커널에 죽을 수 있다(webpack 1.4GB). 그때는 `frontend`에서 `npx webpack --config webpack/webpack.config.cjs --mode production --no-devtool --no-optimization-minimize --no-performance-hints`(`API_BASE_URL=http://localhost:4320`)로 빌드하고 `--skip-build`로 돈다. 동작 검증에는 같고, 크기나 속도 숫자에는 쓰지 않는다.
 
 - 실행 코드는 `qa/scripts/iphone.mjs`, 경로는 `qa/tests/iphone/*.spec.ts`, 공용 픽스처는 `qa/src/iphone.ts`다. Playwright 프로젝트 `iphone`(WebKit, `devices['iPhone 15']`)이다. 이 프로젝트는 `QA_IPHONE=1`일 때만 생겨 그냥 `npm test`는 dev에 이 경로를 돌리지 않고, 픽스처는 `localhost`가 아닌 주소를 거절한다.
 - 지도 키(`NAVER_MAP_CLIENT_ID`, 환경 변수나 `frontend/.env.local`)가 있으면 실제 SDK, 없으면 `map-sdk-stub.mjs`로 돌리고 지도 위 요소를 보는 경로(홈 지도, 동네 찾기)는 이유를 남기고 건너뛴다. `--map real|stub`으로 정할 수 있다.
 - 경로마다 끝 상태를 사용자 눈으로(ARIA 이름, 보이는 글자) 확인하고 스크린샷을 남긴다. 끝나면 우리 출처의 콘솔 오류와 실패한 요청이 0인지 본다. 네이버 지도 SDK와 타일 같은 바깥 출처 오류는 판정에 넣지 않고 `problems.json` 첨부와 `바깥 출처 오류` 주석으로 남긴다.
-- 결과: `qa/runs/iphone/summary.md`(경로별 결과, 걸린 시간), `shots/`, `html/`(Playwright 리포트), `timing.json`.
+- 결과: `qa/runs/<iphone|desktop>/summary.md`(경로별 결과, 걸린 시간), `shots/`, `html/`(Playwright 리포트), `timing.json`.
 - 경로가 실패하면 경로를 약하게 고치지 않는다. 앱 버그일 수 있으니 실패와 원인을 적는다.
 - `.github/workflows/qa-iphone.yml`이 주 1회와 수동 실행(workflow_dispatch)으로 develop을 돈다. PR마다 돌지 않는다. 결과는 아티팩트 `qa-iphone`과 실행 요약이다.
 - 이 노트북에서 WebKit이 `libavif.so.16`을 못 찾으면(sudo 없음) `apt-get download libavif16 libgav1-1 libyuv0`로 받은 `.so`를 `~/.cache/ms-playwright/webkit-*/minibrowser-wpe/sys/lib/`에 풀어 둔다. CI는 `--with-deps`로 깐다.

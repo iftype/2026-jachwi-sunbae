@@ -157,7 +157,7 @@ QA 사이클은 사람이 직접 하던 실행과 기록을 코드와 AI에 맡�
 ### 7.1. 준비
 
 - Node 22.23.x (`.nvmrc`)
-- Playwright, 모바일 화면(Pixel 7, Chromium). 휴대폰 경로 검증은 iPhone 15 설정과 WebKit(`npm run test:iphone`, 설명은 `.claude/skills/verify-jachwi/SKILL.md`의 "iPhone(WebKit) 경로 검증")
+- Playwright, 모바일 화면(Pixel 7, Chromium). 휴대폰 경로 검증은 iPhone 15 설정과 WebKit(`npm run test:iphone`, 설명은 `.claude/skills/verify-jachwi/SKILL.md`의 "iPhone(WebKit)과 데스크탑 경로 검증"). 데스크탑 경로는 Chromium 1440x900(`npm run test:desktop`)
 - AI 분석: 로그인된 Claude Code CLI(`claude -p`)
 
 ```bash
@@ -174,6 +174,7 @@ npm test                           # 전체 테스트. Scenario가 여러 개면
 npx playwright test F02-S03        # Scenario 하나만 실행(파일 이름 일부로 고름)
 npm run test:finder-map            # 동네 찾기와 지도 스모크(정리 전후 화면 비교용)
 npm run test:iphone                # 휴대폰 경로를 WebKit과 iPhone 15 설정으로(운영 빌드와 로컬 목, LLM 없음)
+npm run test:desktop               # 같은 조건으로 데스크탑 경로를 Chromium 1440x900으로(--device all 은 둘 다)
 npm run report                     # 마지막 실행의 Playwright HTML 리포트 열기
 npm run typecheck                  # 타입 검사
 npm run analyze -- runs/<Run ID>   # 저장된 Run을 다시 AI 분석하고 Run Report를 다시 만듦
