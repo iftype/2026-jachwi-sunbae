@@ -1,8 +1,8 @@
 import { get } from 'node:https';
 
-import { type ConsoleMessage, type Locator, type Page, test as base, type TestInfo } from '@playwright/test';
+import { type ConsoleMessage, type Locator, type Page, type Request, test as base, type TestInfo } from '@playwright/test';
 
-// iPhone(WebKit) 경로 검증이 함께 쓰는 픽스처와 조작이다. 실행은 scripts/iphone.mjs 가 맡는다.
+// iPhone(WebKit)과 데스크탑(Chromium) 경로 검증이 함께 쓰는 픽스처와 조작이다. 실행은 scripts/iphone.mjs 가 맡는다.
 // - 모든 경로 끝에 콘솔 오류와 실패한 요청을 센다. 우리 출처(QA_BASE_URL)에서 난 것은 0이어야 통과한다.
 //   네이버 지도 SDK와 타일처럼 우리가 고칠 수 없는 바깥 출처의 오류는 따로 세어 첨부와 주석으로 남긴다(판정에 쓰지 않는다).
 // - QA_MAP_SDK=stub 이면 지도 SDK 주소를 map-sdk-stub.mjs(https://localhost:4443)로 돌린다. 지도는 뜨지 않으니
@@ -17,9 +17,14 @@ export const MAP_SKIP_REASON = '지도 SDK 목(stub)으로 돌아 지도가 뜨�
 type Problem = { kind: 'console' | 'requestfailed' | 'http'; url: string; text: string };
 
 type IphoneFixtures = {
+  /**
+   * 경로가 일부러 일으키는 문제(예: 토큰 갱신을 보려고 낸 401). `<종류> <내용> <주소>` 줄이 이 식에 맞는 것만 판정에서 뺀다.
+   * 뺀 것도 problems.json 의 intended 에 남는다. 배열은 test.use 가 [값, 옵션]으로 읽으므로 식 하나로 준다.
+   */
+  expectedProblems: RegExp | undefined;
   /** 이 경로에서 생긴 콘솔 오류와 실패한 요청. 모든 경로에 자동으로 붙고, 경로가 끝나면 검사한다. */
   problems: Problem[];
-  /** 경로 끝 화면을 runs/iphone/shots/<이름>.png 로 남기고 리포트에 붙인다. */
+  /** 경로 끝 화면을 runs/<프로젝트>/shots/<이름>.png 로 남기고 리포트에 붙인다(iphone, desktop). */
   shot: (name: string) => Promise<void>;
 };
 
@@ -69,42 +74,59 @@ export const test = base.extend<IphoneFixtures>({
     }
     await use(context);
   },
+  expectedProblems: [undefined, { option: true }],
   problems: [
-    async ({ page, baseURL }, use, testInfo) => {
+    async ({ page, baseURL, expectedProblems }, use, testInfo) => {
       const origin = new URL(baseURL ?? 'http://localhost').origin;
       const problems: Problem[] = [];
+      // Chromium은 본문을 읽지 않은 204 응답을 응답을 받은 뒤에도 net::ERR_ABORTED 실패로 한 번 더 알린다
+      // (fetch 하나로 재현된다. 서버는 요청을 받았고 사용자에게 보이는 실패가 아니다). 그 경우만 문제로 세지 않는다.
+      const noContent = new Set<Request>();
       page.on('console', (message: ConsoleMessage) => {
         if (message.type() === 'error')
           problems.push({ kind: 'console', url: message.location().url, text: message.text() });
       });
       page.on('requestfailed', (request) => {
-        problems.push({ kind: 'requestfailed', url: request.url(), text: request.failure()?.errorText ?? '' });
+        const text = request.failure()?.errorText ?? '';
+        if (text === 'net::ERR_ABORTED' && noContent.has(request)) return;
+        problems.push({ kind: 'requestfailed', url: request.url(), text });
       });
       page.on('response', (response) => {
+        if (response.status() === 204) noContent.add(response.request());
         if (response.status() >= 400)
           problems.push({ kind: 'http', url: response.url(), text: String(response.status()) });
       });
       await use(problems);
-      await reportProblems(problems, origin, testInfo);
+      await reportProblems(problems, origin, expectedProblems, testInfo);
     },
     { auto: true },
   ],
   shot: async ({ page }, use, testInfo) => {
     await use(async (name: string) => {
-      const path = `runs/iphone/shots/${name}.png`;
+      const path = `runs/${testInfo.project.name}/shots/${name}.png`;
       await page.screenshot({ path });
       await testInfo.attach(name, { path, contentType: 'image/png' });
     });
   },
 });
 
-const reportProblems = async (problems: Problem[], origin: string, testInfo: TestInfo) => {
+const reportProblems = async (
+  problems: Problem[],
+  origin: string,
+  expected: RegExp | undefined,
+  testInfo: TestInfo,
+) => {
   const located = problems.map((problem) => ({ ...problem, url: sourceOf(problem, problems) }));
+  const line = (problem: Problem) => `${problem.kind} ${problem.text} ${problem.url}`;
+  const isExpected = (problem: Problem) => expected?.test(line(problem)) ?? false;
   // 주소를 끝내 모르는 오류는 우리 것으로 본다(놓치지 않는 쪽).
-  const ours = located.filter((problem) => problem.url === '' || problem.url.startsWith(origin));
-  const external = located.filter((problem) => !ours.includes(problem));
+  const ours = located.filter(
+    (problem) => (problem.url === '' || problem.url.startsWith(origin)) && !isExpected(problem),
+  );
+  const intended = located.filter((problem) => isExpected(problem));
+  const external = located.filter((problem) => !ours.includes(problem) && !intended.includes(problem));
   await testInfo.attach('problems.json', {
-    body: JSON.stringify({ ours, external }, null, 2),
+    body: JSON.stringify({ ours, external, intended }, null, 2),
     contentType: 'application/json',
   });
   if (external.length > 0) {
@@ -115,7 +137,7 @@ const reportProblems = async (problems: Problem[], origin: string, testInfo: Tes
   if (testInfo.status !== testInfo.expectedStatus) return;
   base
     .expect(
-      ours.map((problem) => `${problem.kind} ${problem.text} ${problem.url}`),
+      ours.map(line),
       '우리 출처의 콘솔 오류와 실패한 요청은 0이어야 한다',
     )
     .toEqual([]);

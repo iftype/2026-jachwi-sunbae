@@ -13,7 +13,8 @@
     "analyze": "tsx src/analyze-cli.ts",
     "render": "tsx src/analyze-cli.ts --no-ai",
     "test:finder-map": "playwright test tests/finder-map-smoke.spec.ts",
-    "test:iphone": "node scripts/iphone.mjs"
+    "test:iphone": "node scripts/iphone.mjs",
+    "test:desktop": "node scripts/iphone.mjs --device desktop"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",
