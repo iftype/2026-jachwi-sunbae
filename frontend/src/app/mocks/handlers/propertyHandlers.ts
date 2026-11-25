@@ -222,8 +222,8 @@ export const propertyHandlers = [
   http.get('*/api/properties/:propertyId/memo', ({ params }) => {
     const property = getProperty(params.propertyId);
     if (property === undefined) return failure('PROPERTY_NOT_FOUND', 404);
-    const memo = getMockMemosByProperty().get(property.id);
-    return memo === undefined ? failure('MEMO_NOT_FOUND', 404) : success(memo);
+    // 서버는 매물을 만들 때 빈 메모("")를 함께 두므로, 메모를 쓴 적 없는 매물도 404가 아니라 빈 메모로 답한다.
+    return success(getMockMemosByProperty().get(property.id) ?? { propertyId: property.id, freeMemo: '' });
   }),
   http.put('*/api/properties/:propertyId/memo', async ({ params, request }) => {
     const property = getProperty(params.propertyId);

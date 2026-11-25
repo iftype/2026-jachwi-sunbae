@@ -5,6 +5,9 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { handlers } from '@/app/mocks/handlers';
 import { MOCK_NEW_MEMBER_COOKIE, resetMockStore } from '@/app/mocks/mockStore';
+import { parseGoodPriceResult } from '@/features/good-price/api/goodPriceApi';
+import { parseDeliveryOffers, parsePromotionResult } from '@/features/meal-deals/api/mealDealsApi';
+import { parsePropertyMemoDocument } from '@/features/property/api/propertyParsers';
 
 import { server } from '../../server';
 
@@ -226,5 +229,30 @@ describe('최종 API 명세 MSW handlers', () => {
     const reused = await send({ idToken: 'local-id-token', nonce });
     expect(reused.status).toBe(400);
     expect(await readJson(reused)).toMatchObject({ code: 'OAUTH_ID_TOKEN_INVALID' });
+  });
+  it('저렴한 한 끼 세 탭의 목 응답은 앱의 응답 해석을 통과한다', async () => {
+    const stores = await readJson(
+      await fetch(apiUrl('/api/maps/good-price-stores?latitude=37.55&longitude=126.91&radius=2000')),
+    );
+    expect(parseGoodPriceResult(stores.data)).toMatchObject({
+      center: { latitude: 37.55, longitude: 126.91 },
+      count: 2,
+    });
+
+    for (const brand of ['EMART24', 'SEVEN_ELEVEN']) {
+      const promotions = await readJson(await fetch(apiUrl(`/api/promotions?brand=${brand}`)));
+      expect(parsePromotionResult(promotions.data).brand).toBe(brand);
+    }
+    const offers = await readJson(await fetch(apiUrl('/api/delivery-discount-offers')));
+    expect(parseDeliveryOffers(offers.data)).toHaveLength(2);
+
+    const badRadius = await fetch(apiUrl('/api/maps/good-price-stores?latitude=37.55&longitude=126.91&radius=300'));
+    expect(badRadius.status).toBe(400);
+  });
+
+  it('메모를 쓴 적 없는 매물도 서버처럼 빈 메모로 답한다', async () => {
+    const response = await fetch(apiUrl('/api/properties/11/memo'));
+    expect(response.status).toBe(200);
+    expect(parsePropertyMemoDocument((await readJson(response)).data)).toEqual({ propertyId: 11, freeMemo: '' });
   });
 });
